@@ -1,5 +1,6 @@
 import React, {useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
 
 export default function ExpressionCatalog({query,choose}) {
@@ -10,19 +11,21 @@ export default function ExpressionCatalog({query,choose}) {
   const listRef=useRef(null),focusPage=useRef(false);
   useEffect(()=>{if(page && focusPage.current){focusPage.current=false;listRef.current?.focus({preventScroll:true});listRef.current?.scrollIntoView({block:"start",inline:"nearest"});}},[page]);
   useEffect(()=>{
-    let active=true;
+    let active=true,deadline,timedOut=false;
+    const controller=new AbortController();
     setLoading(true);
     setError("");
     const timer=setTimeout(async ()=>{
+      deadline=setTimeout(()=>{timedOut=true;controller.abort();},30000);
       try {
-        const result=await managementCommand("hermes-agent","hermes-expression-catalog",{query,limit:20,...cursor});
+        const result=await untilAborted(managementCommand("hermes-agent","hermes-expression-catalog",{query,limit:20,...cursor},{signal:controller.signal}),controller.signal);
         if(!result || !Array.isArray(result.records) || !Number.isInteger(result.total) || result.records.some(row=>!row || typeof row.id!=="string" || typeof row.label!=="string"))throw new Error("표정 목록을 확인할 수 없습니다.");
         if(active){setPage(result);setReceivedAt(new Date());}
       } catch(problem) {
-        if(active){focusPage.current=false;setError(problem instanceof TypeError?"표정 목록에 연결하지 못했습니다.":problem.message);}
-      } finally {if(active)setLoading(false);}
+        if(active){focusPage.current=false;setError(timedOut ? "표정 목록 조회 시간이 초과됐습니다." : requestErrorMessage(problem));}
+      } finally {clearTimeout(deadline);if(active)setLoading(false);}
     },200);
-    return ()=>{active=false;clearTimeout(timer);};
+    return ()=>{active=false;clearTimeout(timer);clearTimeout(deadline);controller.abort();};
   },[query,cursor]);
   return <section aria-label="표정 프리셋 검색">
     {error && <p role="alert">{error}{page && " 이전 조회 결과를 유지합니다."} <button type="button" onClick={()=>setCursor({})}>처음부터 다시 조회</button></p>}

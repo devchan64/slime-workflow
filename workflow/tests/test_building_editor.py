@@ -6,6 +6,28 @@ from workflow.common.management_gateway import resolve_management_command
 
 
 class BuildingEditorTest(unittest.TestCase):
+    def test_catalog_ui_rejects_invalid_preview_data(self):
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'building.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingEditor.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const assert=require('node:assert/strict'),{validBuildingCatalog:valid,validBuildingChange:change}=require(process.argv[1]);
+              const row={texture:'house',width:100,height:200,properties:{anchorX:.5,anchorY:1},maps:[{map:'town',name:'집',facing:'front',width:1,height:2,contentWidth:1}]};
+              assert.equal(valid({generation:1,assets:[row]}),true);
+              assert.equal(valid({generation:1,assets:[]}),true);
+              assert.equal(valid({generation:1,assets:[row,row]}),false);
+              const saved={saved:true,asset:'house',generation:2,properties:{anchorX:.5,anchorY:1}};
+              assert.equal(change(saved,'house',1,null,{anchorX:.5,anchorY:1}),true);
+              for(const result of [null,{...saved,asset:'other'},{...saved,generation:1},{...saved,properties:{anchorX:2}}])assert.equal(change(result,'house',1,null,{anchorX:.5}),false);
+              assert.equal(change({...saved,action:'register'},'house',1,'register'),true);
+              assert.equal(change({...saved,action:'retire'},'house',1,'register'),false);
+              assert.equal(valid({generation:1,assets:[{...row,maps:[{...row.maps[0],contentWidth:0}]}]}),false);
+              assert.equal(valid({generation:1,assets:[{...row,properties:{...row.properties,shadowScaleX:'bad'}}]}),false);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True)
+
     @unittest.skip('폐기된 Gradio UI 전용 검사')
     def test_building_editor_is_separate_map_review_page(self):
         from workflow.common.management_catalog import DEFAULT_PAGE_RECORDS, NATIVE_MANAGEMENT_APPLICATIONS, resolve_management_page_path

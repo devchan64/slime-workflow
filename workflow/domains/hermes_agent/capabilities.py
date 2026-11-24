@@ -284,6 +284,10 @@ HERMES_FIELD_SCHEMAS = {
     'request': {'type':'object', 'validation':'generators.kimodo.contracts.validate_kimodo_request'},
 }
 
+# FLUX 출처 필드는 기존 작업·GPU 양도 접수 식별자와 같은 형식을 사용한다.
+HERMES_FIELD_SCHEMAS['proposal_job_id'] = dict(HERMES_FIELD_SCHEMAS['job_id'])
+HERMES_FIELD_SCHEMAS['handoff_id'] = dict(HERMES_FIELD_SCHEMAS['request_id'])
+
 
 HERMES_MCP_ONLY_TOOLS = (
     {'name':'read_hermes_gateway_features','required':[],'optional':[],'label':'게이트웨이 기능 확인','effect':'read','gpu':'none','retry':'safe','note':'MCP 전용 도구다. 건강 상태의 자체 보고만 읽으며 GPU와 대기열을 조회하지 않는다. 현재 Codex 연결에는 갱신이 필요할 수 있다.'},

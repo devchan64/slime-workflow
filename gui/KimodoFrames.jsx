@@ -9,10 +9,14 @@ import KimodoMedia from "./KimodoMedia.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import KimodoKeyframeSave from "./KimodoKeyframeSave.jsx";
 import React,{useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 
 export default function KimodoFrames({id,choose,onDeleted,selectionControls=false}) {
+  return <KimodoFramesForJob key={id} id={id} choose={choose} onDeleted={onDeleted} selectionControls={selectionControls}/>;
+}
+
+function KimodoFramesForJob({id,choose,onDeleted,selectionControls=false}) {
   const [source,setSource]=useState(null);
   const [revision,refresh]=useState(0);
   const [frame,setFrame]=useState("1");
@@ -31,7 +35,7 @@ export default function KimodoFrames({id,choose,onDeleted,selectionControls=fals
     setStatusLoading(true);
     const controller=new AbortController();
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-    managementCommand("kimodo","status",{id},{signal:controller.signal}).then(job=>{
+    untilAborted(managementCommand("kimodo","status",{id},{signal:controller.signal}),controller.signal).then(job=>{
       if(!job.status || (job.status==="completed" && (job.image!=="/kimodo/jobs/"+id+"/attempts/"+job.attempt+"/output-000.png" || !job.attempt || !Number.isInteger(job.source_frame_count) || job.source_frame_count<1)))
         throw new Error("완료된 모션의 원본 프레임을 확인할 수 없습니다.");
       if(active){
@@ -46,7 +50,7 @@ export default function KimodoFrames({id,choose,onDeleted,selectionControls=fals
     event.preventDefault();const restoreFocus=event.currentTarget.contains(document.activeElement),requestId=++frameRequest.current,controller=new AbortController();frameController.current=controller;let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);setBusy(true);setError("");setPreview(null);
     try{
       const request={job_id:id,attempt_id:source.attempt,frame:Number(frame)};
-      const result=await managementCommand("hermes-agent","hermes-kimodo-source-frame",request,{signal:controller.signal});
+      const result=await untilAborted(managementCommand("hermes-agent","hermes-kimodo-source-frame",request,{signal:controller.signal}),controller.signal);
       const path="/kimodo/jobs/"+id+"/attempts/"+source.attempt+"/output-"+String(request.frame-1).padStart(3,"0")+".png";
       if(result.image!==path || result.frame!==request.frame || result.attempt_id!==source.attempt || result.job_id!==id)
         throw new Error("선택한 원본 프레임과 조회 결과가 일치하지 않습니다.");
@@ -64,8 +68,9 @@ export default function KimodoFrames({id,choose,onDeleted,selectionControls=fals
       {source.status==="missing" && <p role="status">현재 작업 데이터를 찾을 수 없습니다. 이력 색인에는 과거 상태가 남아 있을 수 있으므로 결과와 실제 작업 상태를 확인할 수 없습니다.</p>}
       <GenerationProgress job={{...source,estimate:validGenerationEstimate(source.estimate) ? source.estimate : null}} live={live} supportsProgress={false}/>
       <div className="kimodo-result-actions"><button ref={refreshRef} type="button" onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
-      <GeneratorJobControls showActions={!selectionControls} service="kimodo" id={id} state={source.status} refresh={()=>refresh(value=>value+1)}/></div></>}
-    {onDeleted && !selectionControls && <HistoryCleanup key={id+"/"+(source?.status || "")} service="kimodo" job={id} state={source?.status} onDeleted={onDeleted}/>}
+      {statusError && <p role="status">작업 상태를 다시 조회할 때까지 이 작업의 제어와 삭제를 사용할 수 없습니다.</p>}
+      <GeneratorJobControls showActions={!selectionControls} service="kimodo" id={id} state={source.status} disabled={Boolean(statusError)} refresh={()=>refresh(value=>value+1)}/></div></>}
+    {onDeleted && !selectionControls && <HistoryCleanup key={id+"/"+(source?.status || "")} service="kimodo" job={id} state={statusError ? null : source?.status} onDeleted={onDeleted}/>}
     {source?.status==="completed" && <KimodoMedia key={source.attempt} id={id} job={source}/>}
     {source?.status==="completed" && <form onSubmit={inspect}><fieldset disabled={busy}><legend>원본 SOMA 관절 · {source.source_frame_count}프레임</legend>
       <label>원본 프레임 번호 <input type="number" min="1" max={source.source_frame_count} required value={frame}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {installSourceSizePreview} from '../ui/map/source-size-preview.js';
+import {installSourceSizePreview} from '../../gui/ui/map/source-size-preview.js';
 
 test('연속 저장은 성공한 공통 속성을 기대값으로 사용한다',()=>{
  globalThis.window={};
@@ -39,7 +39,7 @@ test('야외 미리보기는 표시 높이만 절반으로 그리고 저장 속�
 });
 
 test('공용 점유 미리보기는 짝수 접지 셀과 앵커 끝값에서도 이미지를 잘라내지 않는다',async()=>{
- const {drawAssetGroundPreview}=await import('../ui/map/source-size-preview.js');
+ const {drawAssetGroundPreview}=await import('../../gui/ui/map/source-size-preview.js');
  globalThis.Path2D=class {moveTo(){}lineTo(){}closePath(){}};
  const currentDrawCalls=[];
  const currentTranslationCalls=[];
@@ -61,7 +61,7 @@ test('공용 점유 미리보기는 짝수 접지 셀과 앵커 끝값에서도 
 
 
 test('확대는 캔버스 폭과 저장 속성을 유지하고 높이를 맞춘다',async()=>{
- const {drawAssetGroundPreview}=await import('../ui/map/source-size-preview.js');
+ const {drawAssetGroundPreview}=await import('../../gui/ui/map/source-size-preview.js');
  const currentScaleCalls=[];
  const currentPreviewContext={save(){},restore(){},setLineDash(){},translate(){},scale(...currentScaleValues){currentScaleCalls.push(currentScaleValues);},clearRect(){},fill(){},stroke(){},strokeRect(){},beginPath(){},arc(){},drawImage(){}};
  const currentPreviewCanvas={getContext:()=>currentPreviewContext};

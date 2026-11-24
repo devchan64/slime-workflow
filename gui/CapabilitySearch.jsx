@@ -1,6 +1,10 @@
 import React, {useEffect, useRef, useState} from "react";
 import {untilAborted} from "./managementCommand.js";
 
+export function validCapabilityCatalog(record){
+  return Boolean(record && typeof record.summary==="string" && Array.isArray(record.rows) && record.rows.every(row=>Array.isArray(row) && row.length===8 && row.every(value=>typeof value==="string") && row[0].trim() && row[1].trim()) && new Set(record.rows.map(row=>row[1])).size===record.rows.length);
+}
+
 export default function CapabilitySearch({search, choose}) {
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState("");
@@ -21,7 +25,7 @@ export default function CapabilitySearch({search, choose}) {
           if (!response.ok) throw new Error("관리 기능을 조회할 수 없습니다.");
           return response.json();
         })(),controller.signal);
-        if (!record || typeof record.summary!=="string" || !Array.isArray(record.rows) || record.rows.some(row=>!Array.isArray(row) || row.length<8 || row.some(value=>typeof value!=="string"))) throw new Error("관리 기능 목록 형식을 확인할 수 없습니다.");
+        if (!validCapabilityCatalog(record)) throw new Error("관리 기능 목록 형식을 확인할 수 없습니다.");
         if (!controller.signal.aborted) {setCatalog(record);setReceivedAt(new Date());}
       } catch (problem) {
         if (active && (timedOut || !controller.signal.aborted)) setError(timedOut ? "관리 기능 조회 시간이 초과됐습니다. 다시 시도하세요." : problem instanceof TypeError ? "관리 기능에 연결하지 못했습니다. 다시 시도하세요." : problem.message);
@@ -47,7 +51,7 @@ export default function CapabilitySearch({search, choose}) {
       <p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p>
       <h3 ref={headingRef} tabIndex={-1}>관리 기능</h3><p>{rows.length}개 검색됨 · {catalog.summary}</p>
       {rows.length>0 && <p>{safePage+1} / {pageCount} 페이지 · {visibleRows.length}개 표시</p>}
-      {rows.length===0 && <p role="status">검색 조건에 맞는 관리 기능이 없습니다. 검색어를 바꾸거나 지워 주세요.</p>}
+      {rows.length===0 && <p role="status">{catalog.rows.length===0 ? "등록된 관리 기능이 없습니다." : "검색 조건에 맞는 관리 기능이 없습니다. 검색어를 바꾸거나 지워 주세요."}</p>}
       <ul className="service-registry-list">{visibleRows.map(([label,command,...fields]) => <li key={command}>
         <button type="button" onClick={() => choose(label,command)}>{label}</button>
         <details><summary>{command}</summary><dl>

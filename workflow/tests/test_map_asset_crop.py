@@ -10,6 +10,20 @@ from workflow.domains.map_assets import crop, editor
 
 
 class MapAssetCropTests(unittest.TestCase):
+    def test_ui_validates_preview_against_crop_contract(self):
+        import json
+        import subprocess
+        result=crop.preview_billboard_crop(self.current_request_payload)
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'crop.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BillboardCrop.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const assert=require('node:assert/strict'),{validCropPreview:valid}=require(process.argv[1]);
+              let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{const result=JSON.parse(data);
+              assert.equal(valid(result,'sample'),true);assert.equal(valid({...result,bounds:[0,0,1000,1]},'sample'),false);
+              assert.equal(valid({...result,after:[1,1]},'sample'),false);assert.equal(valid(result,'other'),false);});"""
+            subprocess.run(['node','-e',script,str(bundle)],input=json.dumps(result),cwd=gui,check=True,capture_output=True,text=True)
+
     def setUp(self):
         current_temp_directory = tempfile.TemporaryDirectory()
         self.addCleanup(current_temp_directory.cleanup)

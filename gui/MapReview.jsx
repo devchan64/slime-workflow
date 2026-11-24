@@ -1,20 +1,34 @@
-import React,{useEffect,useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
+import ActionButton from "./ActionButton.jsx";
+import {validMapDraftPreview,mapDraftSaveReason,isMapCellDirty,readMapCell} from "./mapDraftPreview.mjs";
 
 export default function MapReview(){
   const field=location.pathname.replace(/\/$/,"").endsWith("/field-map");
   const title=field?"야외필드":"도시맵";
   const [cell,setCell]=useState(null),[reading,setReading]=useState(false);
+  const [cellOriginal,setCellOriginal]=useState(null);
   const [source,setSource]=useState(null),[draft,setDraft]=useState(null),[preview,setPreview]=useState(null);
   const [past,setPast]=useState([]),[future,setFuture]=useState([]);
   const [texture,setTexture]=useState(""),[objectId,setObjectId]=useState("");
+  const [cellColumn,setCellColumn]=useState("0"),[cellRow,setCellRow]=useState("0");
   const [editing,setEditing]=useState(false);
   const [wall,setWall]=useState("");
   const [floor,setFloor]=useState("");
   const [brush,setBrush]=useState("pan"),[strokeCount,setStrokeCount]=useState(0);
   const [storageNotice,setStorageNotice]=useState("");
   const [recovery,setRecovery]=useState(null);
+  const readRequest=useRef(null),cellFormRef=useRef(null);
+  useEffect(()=>()=>readRequest.current?.abort(),[]);
+  async function readMap(command,payload){
+    const controller=new AbortController();readRequest.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    try{return await untilAborted(managementCommand("map-assets",command,payload,{signal:controller.signal}),controller.signal);}
+    catch(problem){if(timedOut)throw new Error("지도 조회 또는 초안 검증 시간이 초과됐습니다. 다시 시도하세요.");throw problem;}
+    finally{clearTimeout(timeout);if(readRequest.current===controller)readRequest.current=null;}
+  }
   function downloadDraft(map,text){
     const url=URL.createObjectURL(new Blob([text],{type:"application/json"}));
     const link=document.createElement("a");link.href=url;link.download=map+"-draft.json";
@@ -35,7 +49,7 @@ export default function MapReview(){
     if(!window.confirm("현재 지도의 미저장 초안과 편집 이력을 버릴까요?"))return;
     setReading(true);
     try{
-      const fresh=await managementCommand("map-assets","map-edit-load",{map:draft.map});
+      const fresh=await readMap("map-edit-load",{map:draft.map});
       await window.mapReviewApplyDraft(fresh.render);
       sessionStorage.removeItem(storageKey(draft.map));
       setCell(null);setSource(null);setDraft(null);setPreview(null);
@@ -62,6 +76,7 @@ export default function MapReview(){
     }catch(error){setStorageNotice("탭 임시저장 실패 · "+error.message);}
   },[draft,past,future,source]);
   const placed=draft?.objects || [];
+  const cellDirty=isMapCellDirty(cell,cellOriginal);
   const atCell=item=>cell && item.position.column===cell.column && item.position.row===cell.row;
   const selectedObject=placed.find(item=>item.id===objectId);
   function makeBillboard(objects,column,row,textureKey){
@@ -86,20 +101,23 @@ export default function MapReview(){
     const {column,row,tile,height,blocked}=cell;
     const cells=draft.cells.filter(item=>item.column!==column || item.row!==row);
     const next={...draft,cells:[...cells,{column,row,tile,height:Number(height),blocked,...(cell.wall?{wall:cell.wall}:{})}]};
-    await applyDraft(next,"edit");
+    await applyDraft(next,"cell");
   }
   async function applyDraft(next,action){
+    if(cellDirty && action!=="cell"){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}
     setReading(true);setPreview(null);
     try{
-      const result=await managementCommand("map-assets","map-edit-preview",next);
+      const result=await readMap("map-edit-preview",next);
+      if(!validMapDraftPreview(result))throw new Error("초안 검증 결과 형식을 확인할 수 없습니다.");
       await window.mapReviewApplyDraft(result.render);
       if(action==="undo"){
-        setPast(past.slice(0,-1));setFuture([...future,draft]);setCell(null);
+        setPast(past.slice(0,-1));setFuture([...future,draft]);setCell(null);setCellOriginal(null);
       }else if(action==="redo"){
-        setFuture(future.slice(0,-1));setPast([...past,draft]);setCell(null);
+        setFuture(future.slice(0,-1));setPast([...past,draft]);setCell(null);setCellOriginal(null);
       }else{
         setPast([...past,draft]);setFuture([]);
-        if(action==="import")setCell(null);
+        if(action==="import"){setCell(null);setCellOriginal(null);}
+        else if(cell){const updated=next.cells.find(item=>item.column===cell.column && item.row===cell.row);if(updated){setCell(updated);setCellOriginal(updated);}}
       }
       setDraft(next);setPreview(result);
       setFeedback("검증 완료 · 변경 셀 "+result.cells+"개 · 도달 가능 "+result.reachable+"칸");
@@ -107,7 +125,7 @@ export default function MapReview(){
     finally{setReading(false);}
   }
   async function save(){
-    if(!preview?.changed || !preview.save_available || !preview.token)return;
+    if(mapDraftSaveReason(preview))return;
     setReading(true);setPreview(null);
     try{
       const result=await managementCommand("map-assets","map-edit-save",{...draft,token:preview.token});
@@ -118,14 +136,17 @@ export default function MapReview(){
     }catch(error){setFeedback(error.message+" · 저장 상태를 확인하세요.");}
     finally{setReading(false);}
   }
-  async function inspectCell(){
-    const selected=window.mapReviewSelectedCell;
+  async function inspectCell(override=null){
+    if(cellDirty){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}
+    const selected=override || window.mapReviewSelectedCell;
     if(!selected){setFeedback("지도에서 셀을 선택하세요.");return;}
-    setReading(true);setCell(null);
+    const focusAtStart=document.activeElement;
+    setReading(true);
     try{
       const map=window.mapReviewControlOptions().selected;
-      const snapshot=source || await managementCommand("map-assets","map-edit-load",{map});
-      setSource(snapshot);
+      const snapshot=source?.map===map ? source : await readMap("map-edit-load",{map});
+      const originalCell=readMapCell(snapshot,map,selected);
+      setSource(snapshot);window.mapReviewSelectedCell=selected;
       let current=draft;
       if(!current){
         let raw;
@@ -138,7 +159,8 @@ export default function MapReview(){
           if(saved.version!==1 || !Array.isArray(state?.history) || !Array.isArray(state.future) ||
             ![state.draft,...state.history,...state.future].every(item=>item?.map===map && item.revision===snapshot.revision &&
               Array.isArray(item.cells) && Array.isArray(item.objects)))throw new Error("원본 리비전 또는 임시본 형식이 달라 복원할 수 없습니다.");
-          const checked=await managementCommand("map-assets","map-edit-preview",state.draft);
+          const checked=await readMap("map-edit-preview",state.draft);
+          if(!validMapDraftPreview(checked))throw new Error("복원 초안 검증 결과 형식을 확인할 수 없습니다.");
           await window.mapReviewApplyDraft(checked.render);
           setRecovery(null);current=state.draft;setPast(state.history);setFuture(state.future);setPreview(checked);
         }else current={map,revision:snapshot.revision,cells:[],
@@ -147,25 +169,29 @@ export default function MapReview(){
         setDraft(current);
       }
       const {column,row}=selected;
-      const tile=snapshot.tiles.rows[row][column];
-      setCell({column,row,tile,height:snapshot.terrain.elevations[row][column],
-        blocked:snapshot.terrain.blocked.some(([x,y])=>x===column && y===row),
-        ...current.cells.find(item=>item.column===column && item.row===row)});
+      const nextCell={...originalCell,
+        ...current.cells.find(item=>item.column===column && item.row===row)};
+      setCell(nextCell);setCellOriginal(nextCell);
       setFeedback("");
+      requestAnimationFrame(()=>{if(document.activeElement===focusAtStart || document.activeElement===document.body)cellFormRef.current?.focus({preventScroll:true});});
     }catch(error){setFeedback(error.message);}
     finally{setReading(false);}
   }
   const [ready,setReady]=useState(false),[feedback,setFeedback]=useState("");
+  const [loadError,setLoadError]=useState(""),[loadRevision,retryLoad]=useState(0);
   useEffect(()=>{
-    let active=true;
+    let active=true,timedOut=false;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setLoadError("");setReady(false);
     const url=new URL(location.href);
     url.searchParams.set("mapKind",field?"field":"town");
     history.replaceState(null,"",url);
-    import(new URL("/isloon-map-review/block-map-review.js",location.origin).href).then(()=>{
+    untilAborted(import(new URL("/isloon-map-review/block-map-review.js",location.origin).href),controller.signal).then(()=>{
       if(active)setReady(true);
-    }).catch(error=>{if(active)setFeedback(error.message);});
-    return ()=>{active=false;};
-  },[]);
+    }).catch(error=>{if(active)setLoadError(timedOut ? "지도 검수 화면을 불러오는 시간이 초과됐습니다." : requestErrorMessage(error));}).finally(()=>clearTimeout(timeout));
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
+  },[loadRevision]);
   useEffect(()=>{
     if(!field || !ready)return;
     const receive=()=>setStrokeCount(value=>value+1);
@@ -174,9 +200,9 @@ export default function MapReview(){
   },[field,ready]);
   useEffect(()=>{
     if(!field || !ready)return;
-    window.mapReviewBrushTool=draft?brush:"pan";
+    window.mapReviewBrushTool=draft && !cellDirty ? brush : "pan";
     window.mapReviewBrushTexture=texture;window.mapReviewBrushTile=floor;window.mapReviewBrushWall=wall;
-  },[field,ready,brush,draft,floor,wall,texture]);
+  },[field,ready,brush,draft,floor,wall,texture,cellDirty]);
   useEffect(()=>{
     const queue=window.mapReviewBrushQueue;
     if(reading || !draft || !queue?.length)return;
@@ -234,7 +260,8 @@ export default function MapReview(){
   return <article><nav><a href={destination(field?"town":"field")}>{field?"도시맵":"야외필드"} 검수</a> · <a href={destination("battle")}>전투필드 검수</a></nav>
     <h1 id="map-title">{title} 검수</h1>
     <fieldset disabled={!ready}><legend>지도와 시점</legend>
-      <label>맵 선택<select id="map-select"/></label><button id="load-map">맵 불러오기</button>
+      <label>맵 선택<select id="map-select" disabled={Boolean(draft) || reading} aria-describedby={draft ? "map-change-reason" : undefined}/></label><button id="load-map" disabled={Boolean(draft) || reading} aria-describedby={draft ? "map-change-reason" : undefined}>맵 불러오기</button>
+      {draft && <p id="map-change-reason">현재 지도 초안이 열려 있습니다. 지도를 바꾸려면 초안을 저장하거나 초안 보관 및 복원에서 원본으로 되돌리세요.</p>}
       <section hidden={field}><label>건물 선택<select id="building"><option value="">건물 선택</option></select></label></section>
       {[["zoom-out","축소"],["zoom-in","확대"],["actual-size","사람 중심 · 100%"],["fit","전체 보기"]].map(([id,label])=><button key={id} id={id}>{label}</button>)}
       <output id="zoom-level" aria-live="polite"/>
@@ -242,31 +269,42 @@ export default function MapReview(){
         <label key={id}><input type="checkbox" id={id} defaultChecked={checked} onChange={()=>window.mapReviewDisplayOptions(...["show-character","show-safe-boundary","edges"].map(key=>document.getElementById(key).checked),"contrast",document.getElementById("tile-edges").checked,document.getElementById("blocked-areas").checked)}/>{label}</label>)}
       <button onClick={exportImage}>전체 맵 PNG 내보내기</button><a id="map-export-download" hidden>PNG 다운로드</a>
     </fieldset>
-    <p role="status" id="status">지도를 불러오는 중입니다.</p>{feedback && <p role="status">{feedback}</p>}
+    <p role="status" id="status">{loadError ? "지도 검수 화면을 불러오지 못했습니다." : "지도를 불러오는 중입니다."}</p>
+    {loadError && <div role="alert"><p>{loadError} 재시도가 계속 실패하면 페이지를 다시 열어 주세요.</p><button type="button" onClick={()=>retryLoad(value=>value+1)}>지도 검수 다시 불러오기</button></div>}
+    {feedback && <p role="status">{feedback}</p>}
+    {field && reading && <p role="status">지도 조회 또는 초안 처리를 진행하고 있습니다.</p>}
     {field && <fieldset disabled={!ready || reading}><legend>셀 검수</legend>
-      <label><input type="checkbox" onChange={event=>{window.mapReviewEditingEnabled=event.target.checked;setEditing(event.target.checked);setBrush("pan");window.mapReviewSelectedCell=null;setCell(null);}}/>캐릭터 이동 대신 셀 선택</label>
-      <button onClick={inspectCell}>선택 셀 속성 조회</button>
-      {cell && <form onSubmit={previewCell}><p>열 {cell.column} · 행 {cell.row} · {cell.tile} · 높이 {cell.height} · {cell.blocked?"이동 금지":"이동 가능"} · 배치물 {placed.filter(atCell).map(item=>item.id).join(", ") || "없음"}</p>
+      <label><input type="checkbox" checked={editing} onChange={event=>{if(cellDirty){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}window.mapReviewEditingEnabled=event.target.checked;setEditing(event.target.checked);setBrush("pan");window.mapReviewSelectedCell=null;setCell(null);setCellOriginal(null);}}/>캐릭터 이동 대신 셀 선택</label>
+      <button onClick={()=>inspectCell()}>선택 셀 속성 조회</button>
+      <form onSubmit={event=>{event.preventDefault();inspectCell({column:Number(cellColumn),row:Number(cellRow)});}}>
+        <label>셀 열 (0부터 시작)<input type="number" required min="0" step="1" value={cellColumn} onChange={event=>setCellColumn(event.target.value)}/></label>
+        <label>셀 행 (0부터 시작)<input type="number" required min="0" step="1" value={cellRow} onChange={event=>setCellRow(event.target.value)}/></label>
+        <button type="submit">입력한 셀 속성 조회</button>
+      </form>
+      {cell && <form ref={cellFormRef} tabIndex={-1} aria-label="선택 셀 편집" onSubmit={previewCell}><p>열 {cell.column} · 행 {cell.row} · {cell.tile} · 높이 {cell.height} · {cell.blocked?"이동 금지":"이동 가능"} · 배치물 {placed.filter(atCell).map(item=>item.id).join(", ") || "없음"}</p>
         <label>지형<select value={cell.tile} onChange={e=>editCell("tile",e.target.value)}>
           {Object.entries(source.codes).map(([code,name])=><option key={code} value={code}>{name} · {code}</option>)}</select></label>
         <label>높이<input type="number" required min="0" max="20" step="1" value={cell.height} onChange={e=>editCell("height",e.target.value)}/></label>
         <label><input type="checkbox" checked={cell.blocked} onChange={e=>editCell("blocked",e.target.checked)}/>이동 금지</label>
-        <button>초안 검증 및 미리보기</button></form>}
+        {cellDirty && <p role="status">이 셀 입력은 검증 전이라 초안 자동 보관과 JSON 다운로드에 포함되지 않습니다.</p>}
+        <button>초안 검증 및 미리보기</button>{cellDirty && <button type="button" onClick={()=>{setCell(cellOriginal);setFeedback("셀 입력을 이전 값으로 되돌렸습니다.");}}>셀 입력 취소</button>}</form>}
       {recovery && <section aria-label="임시본 복구"><p>복원하지 못한 임시본을 파일로 보관하거나 삭제할 수 있습니다.</p>
         <button onClick={()=>downloadDraft(recovery.map,recovery.raw)}>임시본 JSON 다운로드</button>
         <button onClick={()=>{if(window.confirm("이 탭에 보관한 "+recovery.map+" 임시본을 삭제할까요?"))discardRecovery();}}>임시본 삭제</button>
       </section>}
       {draft && <details><summary>초안 보관 및 복원</summary>
         <button onClick={()=>downloadDraft(draft.map,JSON.stringify(draft,null,2))}>초안 JSON 다운로드</button>
-        <label>초안 JSON 불러오기<input type="file" accept=".json,application/json" onChange={event=>{
+        <label>초안 JSON 불러오기<input type="file" accept=".json,application/json" disabled={cellDirty} aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined} onChange={event=>{
           const file=event.target.files[0];event.target.value="";importDraft(file);
         }}/></label>
         <button onClick={discardDraft}>초안 버리고 원본 다시 읽기</button>
       </details>}
       {storageNotice && <p role="status">{storageNotice}</p>}
-      {draft && <label>지도 드래그 도구<select value={brush} disabled={!editing} onChange={e=>setBrush(e.target.value)}>
+      {cellDirty && <p id="map-cell-pending-reason">다른 초안 조작을 하려면 셀 입력을 먼저 검증하거나 취소하세요.</p>}
+      {draft && <label>지도 드래그 도구<select value={brush} disabled={!editing || cellDirty} aria-describedby={cellDirty ? "map-cell-pending-reason" : !editing ? "map-brush-reason" : undefined} onChange={e=>setBrush(e.target.value)}>
         <option value="pan">이동·셀 선택</option><option value="floor" disabled={!source?.blocked_tile_codes}>바닥 칠하기</option><option value="wall" disabled={!source?.wall_tiles?.length}>벽면 칠하기</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option><option value="place">빌보드 배치</option><option value="delete">빌보드 삭제</option>
       </select></label>}
+      {draft && !editing && <p id="map-brush-reason">드래그 도구를 사용하려면 셀 선택을 켜세요.</p>}
       {draft && brush==="wall" && <label>브러시 벽면 타일<select value={wall} onChange={e=>setWall(e.target.value)}>
         <option value="">타일 선택</option>{source.wall_tiles.map(key=><option key={key}>{key}</option>)}
       </select></label>}
@@ -276,19 +314,19 @@ export default function MapReview(){
       {draft && <fieldset><legend>빌보드 배치</legend>
         <label>추가할 에셋<select value={texture} onChange={e=>setTexture(e.target.value)}>
           <option value="">에셋 선택</option>{(source.textures || []).map(key=><option key={key}>{key}</option>)}</select></label>
-        <button disabled={!cell || !source.textures?.includes(texture)} onClick={addObject}>선택 셀에 추가</button>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!cell && "지도에서 셀을 선택하고 속성을 조회하세요.",!source.textures?.includes(texture) && "추가할 에셋을 선택하세요."]} onClick={addObject}>선택 셀에 추가</ActionButton>
         <label>배치 ID<select value={selectedObject?.id || ""} onChange={e=>setObjectId(e.target.value)}>
           <option value="">배치 선택</option>{placed.map(item=><option key={item.id}>{item.id}</option>)}</select></label>
-        <button disabled={!selectedObject || !cell || atCell(selectedObject)} onClick={moveObject}>선택 셀로 이동</button>
-        <button disabled={!selectedObject} onClick={()=>applyDraft({...draft,objects:placed.filter(item=>item.id!==objectId)},"edit")}>선택 배치 삭제</button>
-        <button disabled={!placed.some(atCell)} onClick={()=>applyDraft({...draft,objects:placed.filter(item=>!atCell(item))},"edit")}>선택 셀의 빌보드 모두 삭제</button>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!selectedObject && "이동할 배치를 선택하세요.",!cell && "이동할 셀을 선택하고 속성을 조회하세요.",selectedObject && cell && atCell(selectedObject) && "이미 선택한 셀에 있습니다."]} onClick={moveObject}>선택 셀로 이동</ActionButton>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!selectedObject && "삭제할 배치를 선택하세요."]} onClick={()=>applyDraft({...draft,objects:placed.filter(item=>item.id!==objectId)},"edit")}>선택 배치 삭제</ActionButton>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!cell ? "셀을 선택하고 속성을 조회하세요." : !placed.some(atCell) && "선택한 셀에 빌보드가 없습니다."]} onClick={()=>applyDraft({...draft,objects:placed.filter(item=>!atCell(item))},"edit")}>선택 셀의 빌보드 모두 삭제</ActionButton>
       </fieldset>}
       {draft && <div>
-        <button disabled={!past.length} onClick={()=>applyDraft(past[past.length-1],"undo")}>한 단계 되돌리기</button>
-        <button disabled={!future.length} onClick={()=>applyDraft(future[future.length-1],"redo")}>한 단계 다시 실행</button>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!past.length && "되돌릴 편집이 없습니다."]} onClick={()=>applyDraft(past[past.length-1],"undo")}>한 단계 되돌리기</ActionButton>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!future.length && "다시 실행할 편집이 없습니다."]} onClick={()=>applyDraft(future[future.length-1],"redo")}>한 단계 다시 실행</ActionButton>
         <span>편집 이력 {past.length} / {past.length+future.length}단계</span>
       </div>}
-      {preview && <button disabled={!preview.changed || !preview.save_available || !preview.token} onClick={save}>검증된 초안 저장</button>}
+      {preview && <ActionButton reasons={[mapDraftSaveReason(preview)]} onClick={save}>검증된 초안 저장</ActionButton>}
     </fieldset>}
     <canvas id="map" width="768" height="576" tabIndex="0" aria-label={title+" · 방향키로 이동"} style={{width:"100%",aspectRatio:"4/3",touchAction:"none"}}/>
     {[["tile","지형 타일"],["building","건물 스프라이트"],["billboard","빌보드"],["structure","결계·경비 구조물"]].map(([id,label])=>

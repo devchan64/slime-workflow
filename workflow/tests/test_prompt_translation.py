@@ -219,6 +219,35 @@ if __name__ == '__main__':
     unittest.main()
 
 class TranslationModelManagementTests(unittest.TestCase):
+    def test_translation_check_table_validates_rows_and_unknown_states(self):
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'result.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'TranslationResult.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const assert=require('node:assert/strict'),{translationCheckTable:table}=require(process.argv[1]);
+              assert.match(table({}).summary,/미검사/);
+              const item={source:'원문',target:'번역',status:'toString'};
+              assert.equal(table({term_checks:[item],quality_checks:[]}).rows[0][2],'확인 필요');
+              assert.equal(table({term_checks:[{...item,status:'mismatch'}]}).rows[0][2],'불일치 · 확인 필요');
+              for(const value of [{term_checks:{}},{quality_checks:[{...item,source:{}}]}])assert.throws(()=>table(value),/형식/);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True)
+
+    def test_evidence_empty_state_and_response_validation(self):
+        import os,subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'evidence.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'TranslationEvidence.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const assert=require('node:assert/strict'),React=require('react'),server=require('react-dom/server');
+              const {default:Evidence,validTranslationEvidence:valid}=require(process.argv[1]);
+              assert.equal(valid({note:'근거',candidates:[]}),true);
+              assert.equal(valid({note:'근거',candidates:[{heading:'제목',path:'a',text:'내용',matched_terms:['나무']}]}),true);
+              for(const value of [null,{note:'근거',candidates:{}},{note:'근거',candidates:[{matched_terms:'나무'}]}])assert.equal(valid(value),false);
+              const html=server.renderToStaticMarkup(React.createElement(Evidence,{source:'',call:()=>{throw Error('unexpected request')}}));
+              assert.match(html,/검색할 한국어 원문을 입력하세요/);assert.match(html,/disabled=/);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_fixed_revision_preparation_and_model_management_registration(self):
         from generators.prompt_translation.prepare import TRANSLATION_MODEL_REVISION
         from workflow.common.model_prepare_worker import MODEL_PREPARATION_PROFILES
@@ -240,7 +269,9 @@ class TranslationModelManagementTests(unittest.TestCase):
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'TranslationPage.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""global.location={search:'',pathname:'/management/frame/prompt-translation/'};
               const React=require('react'),server=require('react-dom/server');const Page=require(process.argv[1]).default;
-              process.stdout.write(server.renderToStaticMarkup(React.createElement(Page)));"""
-            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
-        self.assertIn('/management/frame/model-management/?model=prompt-translation',markup)
-        self.assertIn('이력',markup)
+              process.stdout.write(JSON.stringify({standalone:server.renderToStaticMarkup(React.createElement(Page)),embedded:server.renderToStaticMarkup(React.createElement(Page,{embedded:true}))}));"""
+            markup=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')}))
+        self.assertIn('/management/frame/model-management/?model=prompt-translation',markup['standalone'])
+        self.assertIn('이력',markup['standalone'])
+        self.assertIn('generator-section-card',markup['embedded'])
+        self.assertIn('번역 입력과 이력',markup['embedded'])

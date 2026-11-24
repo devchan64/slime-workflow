@@ -30,12 +30,14 @@ export function KimodoAcceptedResult({id,choose}){
   return <KimodoFrames key={id} id={id} choose={choose} selectionControls/>;
 }
 
-export default function KimodoGeneration({session,restoreJob,restoreRevision=0,initialInputs=null,receiptScope="",proposalScope,choose,onInputChange}){
+export default function KimodoGeneration({session,restoreJob,restoreRevision=0,initialInputs=null,receiptScope="",proposalScope,choose,onInputChange,onImageCheckingChange}){
   const [directions,setDirections]=useState({});
   const [jointEdits,setJointEdits]=useState([]);
   const [referenceExamples,setReferenceExamples]=useState(null);
   const [attachmentRevision,setAttachmentRevision]=useState(0);
   const [references,setReferences]=useState([]);
+  const checkingSlots=useRef(new Set());
+  const [imagesChecking,setImagesChecking]=useState(false);
   const [bundle,setBundle]=useState(null),[calibration,setCalibration]=useState(null),[hip,setHip]=useState(false);
   const [angles,setAngles]=useState("");
   const [placing,setPlacing]=useState(false),[search,setSearch]=useState("");
@@ -103,6 +105,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setTemplateError("");setLoadingTemplate(true);
     if(restoreJob){reviewEpoch.current++;inputEpoch.current++;setReview(null);setHandoffReview(null);}
+    const loadEpoch=inputEpoch.current;
     fetch(restoreJob?"/management/assistant/kimodo-input/"+encodeURIComponent(restoreJob):"/management/assistant/kimodo-generation-template",{signal:controller.signal}).then(async response=>{
       if(!response.ok)throw new Error(restoreJob?"이전 작업의 입력을 불러올 수 없습니다.":"생성 기본값을 조회할 수 없습니다.");
       const defaults=await response.json();
@@ -128,6 +131,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
             throw new Error("저장된 키프레임과 현재 원본이 다릅니다.");
         }
         if(controller.signal.aborted)return;
+        if(loadEpoch!==inputEpoch.current || checkingSlots.current.size)throw new Error("조회 중 참조 이미지 선택이 변경되어 입력을 적용하지 않았습니다. 다시 시도하세요.");
         setPlacement(restoredPlacement);setPlacing(false);setReferences(files);setSegments(defaults.segments.join(" "));setGenerationMode(defaults.segments.length ? "sequence" : "single");setAngles(defaults.angles.join(" "));
         setBundle(restoredBundle);setCalibration(restoredCalibration);setAttachmentRevision(value=>value+1);
         setHip(defaults.hip);setJointEdits(restoredJointEdits);
@@ -152,6 +156,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
     setAttachmentRevision(value=>value+1);
   }
   async function loadReferences(identifier){
+    if(identifier && checkingSlots.current.size)throw new Error("이미지 확인이 끝난 뒤 참조 예시를 적용하세요.");
     const epoch=inputEpoch.current;
     setLoadingReferences(true);
     try{
@@ -160,12 +165,13 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
       catch{throw new Error("신체 비율 예시를 불러올 수 없습니다. 연결 상태를 확인하고 다시 시도하세요.");}
       if(!response.ok)throw new Error("신체 비율 예시를 불러올 수 없습니다.");
       const data=await response.json();
-      if(epoch!==inputEpoch.current)return;
+      if(epoch!==inputEpoch.current || (identifier && checkingSlots.current.size))throw new Error("조회 중 참조 이미지 선택이 변경되어 예시를 적용하지 않았습니다. 다시 시도하세요.");
       if(identifier)replaceReferences(decodeReferences(data));
       else setReferenceExamples(data);
-    }catch(error){if(epoch===inputEpoch.current)throw error;}finally{setLoadingReferences(false);}
+    }catch(error){throw error;}finally{setLoadingReferences(false);}
   }
   async function applyExample(identifier,signal){
+    if(checkingSlots.current.size)throw new Error("이미지 확인이 끝난 뒤 예시를 적용하세요.");
     const epoch=inputEpoch.current;
     try{
     const response=await fetch("/management/assistant/kimodo-prompt-examples/"+encodeURIComponent(identifier),{signal});
@@ -175,14 +181,16 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
     const positions=keyframes?.length?await managementCommand("hermes-agent","hermes-kimodo-keyframe-validate",
       {frames:example.frames,keyframes},{signal}):null;
     const files=decodeReferences(example.references);
-    if(signal?.aborted || epoch!==inputEpoch.current)return;
+    if(signal?.aborted)return;
+    if(epoch!==inputEpoch.current || checkingSlots.current.size)throw new Error("조회 중 참조 이미지 선택이 변경되어 예시를 적용하지 않았습니다. 다시 시도하세요.");
     setSourceJob("");
     setInputs(previous=>({...previous,...settings,prompt:example.prompt,frames:example.frames,camera_elevation_degrees}));
     setPlacement(positions);setPlacing(false);replaceReferences(files);setSegments((segment_frames || []).join(" "));setGenerationMode(segment_frames?.length ? "sequence" : "single");
     setNotice(example.label+" 설정을 적용했습니다.");
-    }catch(error){if(epoch===inputEpoch.current)throw error;}
+    }catch(error){throw error;}
   }
   async function inspect(){
+    if(checkingSlots.current.size)throw new Error("이미지 확인이 끝난 뒤 생성 요청을 검토하세요.");
     const epoch=reviewEpoch.current;
     setReview(null);setHandoffReview(null);
     if(proposalScope)await verifyKimodoProposal(managementCommand,proposalScope,proposalScope.proposal);
@@ -318,9 +326,9 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
       <section aria-label="신체 비율 참조 이미지"><p>신체 비율 참조 PNG · 최대 8장</p>
         <p>참조를 변경하면 참조 관절 수정과 다중 시점 설정이 초기화됩니다.</p>
         <div className="reference-image-slots">{Array.from({length:Math.min(8,references.length+1)},(_,index)=><ReferenceImageInput
-          key={index} label={"신체 비율 참조 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || loadingTemplate} onSelectionStart={onInputChange}
-          onChange={file=>{onInputChange?.();const next=[...references];if(file)next[index]=file;else next.splice(index,1);replaceReferences(next);}}/>)}</div>
-        {references.length>0 && <button type="button" onClick={()=>replaceReferences([])}>참조 전체 해제</button>}
+          key={index} label={"신체 비율 참조 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || loadingTemplate || (imagesChecking && !checkingSlots.current.has(index))} onSelectionStart={()=>{inputEpoch.current++;onInputChange?.();}} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);const checking=checkingSlots.current.size>0;setImagesChecking(checking);onImageCheckingChange?.(checking);}}
+          onChange={file=>{onInputChange?.();setReferences(current=>{const next=[...current];if(file)next[index]=file;else next.splice(index,1);return next;});setJointEdits([]);setAngles("");setBundle(null);setCalibration(null);setHip(false);setReview(null);setAttachmentRevision(value=>value+1);}}/>)}</div>
+        {references.length>0 && <button type="button" disabled={imagesChecking} onClick={()=>replaceReferences([])}>참조 전체 해제</button>}
       </section>
       {jointEdits.length>0 && <ResultTable table={{
         title:"참조 관절 수정",columns:["참조 이미지","인물","관절","원본 좌표","수정 X","수정 Y","작업"],
@@ -367,7 +375,8 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
           <label key={field}><input type="checkbox" disabled={Boolean(placement) && ["post_processing","remove_horizontal_motion"].includes(field)} checked={inputs[field]} onChange={e=>edit(field,e.target.checked)}/>{label}</label>)}
         {placement && <p>키프레임 좌표를 유지하기 위해 공식 후처리를 켜고 수평 이동 제거를 끕니다.</p>}
       </details>
-      <button ref={reviewButtonRef} disabled={busy}>{reviewing ? "생성 요청 확인 중…" : "생성 요청 검토"}</button>
+      {imagesChecking && <p role="status">선택한 이미지 확인이 끝날 때까지 기다리세요.</p>}
+      <button ref={reviewButtonRef} disabled={busy || imagesChecking}>{reviewing ? "생성 요청 확인 중…" : "생성 요청 검토"}</button>
       {reviewing && <p role="status">생성 요청과 모델 상태를 확인하고 있습니다.</p>}
     </fieldset></form>}
     {reviewed && <section ref={reviewSectionRef} tabIndex={-1} className="kimodo-request-review" aria-label="생성 요청 확인">

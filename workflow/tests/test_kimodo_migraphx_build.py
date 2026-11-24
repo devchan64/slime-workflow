@@ -1,6 +1,7 @@
 """MIGraphX 빌드의 격리·무결성·대기열 접수 계약."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -115,14 +116,24 @@ class KimodoMigraphxBuildTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             bundle = Path(directory) / 'model-page.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'ModelPage.jsx', '--bundle', '--platform=node',
-                            '--format=cjs', '--outfile='+str(bundle)], cwd=gui, check=True, capture_output=True)
-            script = """const React=require('react'), server=require('react-dom/server');
+                            '--format=cjs', '--external:react', '--outfile='+str(bundle)], cwd=gui, check=True, capture_output=True)
+            script = r"""const React=require('react'), server=require('react-dom/server');
               const {KimodoBuildButton}=require(process.argv[1]);
               for(const [status,pending,disabled] of [['ready',false,true],['checking',false,true],['unavailable',false,true],['running',false,true],['queued',false,true],['completed',false,true],['rebuild_required',false,false],['rebuild_required',true,true]]) {
                 const html=server.renderToStaticMarkup(React.createElement(KimodoBuildButton,{record:{status},pending}));
                 if(html.includes('disabled=')!==disabled) throw Error(status+' pending='+pending+': '+html);
-              }"""
-            subprocess.run(['node','-e',script,str(bundle)], cwd=gui, check=True, capture_output=True, text=True)
+                if(disabled && !/aria-describedby="([^"]+)"[^>]*>.*<p id="\1">/.test(html)) throw Error('missing reason: '+html);
+              }
+              const stale=server.renderToStaticMarkup(React.createElement(KimodoBuildButton,{record:{status:'rebuild_required'},pollError:'조회 실패'}));
+              if(!stale.includes('disabled=') || !stale.includes('빌드 상태를 다시 확인한 후')) throw Error('stale status: '+stale);
+              const checking=server.renderToStaticMarkup(React.createElement(KimodoBuildButton,{record:{status:'rebuild_required'},checking:true}));
+              if(!checking.includes('disabled=') || !checking.includes('GPU 환경 확인이 끝날 때까지')) throw Error('checking status: '+checking);
+              const initial=server.renderToStaticMarkup(React.createElement(KimodoBuildButton,{}));
+              if(!initial.includes('disabled=') || !initial.includes('빌드 상태를 확인하고 있습니다.')) throw Error('initial status: '+initial);
+              const idle=server.renderToStaticMarkup(React.createElement(KimodoBuildButton,{record:{status:'idle'}}));
+              if(!idle.includes('GPU 환경 확인을 눌러')) throw Error('missing next step: '+idle);"""
+            subprocess.run(['node','-e',script,str(bundle)], cwd=gui, check=True, capture_output=True, text=True,
+                           env={**os.environ, 'NODE_PATH':str(gui/'node_modules')})
 
     def test_cache_check_uses_exclusive_queue_and_checks_result(self):
         from unittest.mock import Mock

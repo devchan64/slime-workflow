@@ -31,6 +31,7 @@ article {position:relative;}
 .hermes-chat .conversation-queue {background:var(--surface);border:1px solid var(--line);border-radius:.8rem;white-space:normal;min-width:0}
 .hermes-chat .conversation-queue .panel {max-height:none;overflow:visible;border:0;padding:.2rem 0}
 .queue-table-scroll {max-width:100%;overflow-x:auto}
+.result-table {min-width:0}.result-table-scroll {max-width:100%;min-width:0;overflow-x:auto}.result-table-scroll:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}
 .hermes-chat .conversation-queue .session-queue table {min-width:58rem}
 .hermes-chat .conversation-queue .session-queue :is(th,td) {white-space:nowrap;overflow-wrap:normal}
 .hermes-chat .viewport .conversation-queue h2 {font-size:1rem;text-align:start;margin:.4rem 0}
@@ -151,6 +152,9 @@ article {position:relative;}
 .translation-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}
 .translation-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.translation-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.translation-request-review p {margin:.4rem 0}.translation-request-review ul {padding-left:1.3rem}.translation-review-text {white-space:pre-wrap}
 .fun-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}.fun-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.fun-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.fun-request-review p {margin:.4rem 0;line-height:1.5}.fun-review-prompt {white-space:pre-wrap}
+.generation-review-text {max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
+pre.generation-review-text {max-height:20rem;overflow:auto}
+pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}
 .hermes-chat .message.user > b,.hermes-chat .message small {color:var(--muted)}
 .hermes-chat a {color:#c2bdff;text-underline-offset:.16em}
 .hermes-chat .conversation-empty-title {letter-spacing:-.045em;font-size:clamp(1.6rem,3vw,2.5rem);font-weight:650}
@@ -179,6 +183,8 @@ article {position:relative;}
 .hermes-chat article > form > button[type=submit]:hover:not(:disabled) {background:#d8d2ff}
 .hermes-chat article > form > .composer-context {position:static;margin:0;font-size:.8rem;color:var(--muted)}
 .gpu-handoff-history {overflow-wrap:anywhere}
+.gpu-handoff-history-items {min-width:0;margin:0;padding:0;border:0}
+.gpu-handoff-history > button[aria-disabled="true"] {opacity:.65;cursor:wait}
 .composer-context > summary {cursor:pointer;padding:.5rem .65rem;border:1px solid var(--line);border-radius:.5rem;list-style:none}
 .composer-context > summary::-webkit-details-marker {display:none}
 .composer-context-panel {position:absolute;z-index:5;left:0;bottom:calc(100% + .5rem);box-sizing:border-box;width:min(27rem,100%);max-height:min(50dvh,28rem);overflow:auto;padding:.8rem;border:1px solid var(--line);border-radius:.7rem;background:var(--surface);box-shadow:0 .5rem 1.5rem #0008;color:var(--ink)}
@@ -194,6 +200,7 @@ article {position:relative;}
 .gpu-handoff-history .kimodo-submission-status h3 {font-size:.9rem;margin:0 0 .4rem}
 .gpu-handoff-history .kimodo-submission-status p {margin:.35rem 0}
 .gpu-handoff-history .kimodo-submission-status button {margin:.25rem .3rem .1rem 0}
+.kimodo-submission-status button[aria-disabled="true"] {opacity:.65;cursor:wait}
 .hermes-chat .floating-panel,.hermes-chat .tool-panel-heading,.hermes-chat .chat-actions > div {background:var(--surface);border-color:var(--line)}
 .hermes-chat .floating-panel {bottom:8.5rem;border-radius:.9rem}
 @media(max-width:700px){
@@ -335,6 +342,7 @@ article {position:relative;}
 
 /* 공용 빠른 선택 버튼은 줄이 바뀌어도 간격을 유지한다. */
 .choice-buttons {display:flex;flex-wrap:wrap;gap:.5rem}
+.generation-review-actions button[aria-disabled="true"] {opacity:.65;cursor:not-allowed}
 
 .seed-input {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem;min-width:0;margin:.5rem 0}.seed-input label {display:grid;gap:.3rem;min-width:0;flex:1 1 10rem}.seed-input input {min-width:0;max-width:100%}
 .seed-input-error {flex-basis:100%}
@@ -386,6 +394,9 @@ article {position:relative;}
 .billboard-search :is(input,select) {width:100%;min-width:0;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
 .sprite-editor-page {width:min(100% - 2rem,90rem);margin:1.5rem auto;gap:.8rem}
 .sprite-editor-page > h1 {flex:none;font-size:1.5rem}
+.sprite-frame-table {max-width:100%;overflow-x:auto}
+.sprite-frame-table input {min-width:5rem;width:6rem}
+.world-map-connections {max-width:100%;overflow-x:auto}
 .sprite-editor-page > .sprite-search {width:100%;max-width:none;margin:0;padding:0;display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
 .sprite-search label {display:grid;gap:.35rem;min-width:0;flex:1 1 12rem}
 .sprite-search :is(input,select) {width:100%;min-width:0;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
@@ -447,6 +458,8 @@ article {position:relative;}
 .writer-page-shell {display:block;height:auto;min-height:100dvh;padding:1.5rem 1rem}
 .single-generator-shell {display:block;height:auto;min-height:100dvh;padding:1.5rem 1rem}
 .single-generator-page {width:min(100%,56rem);margin:0 auto;gap:.8rem}
+.qwen-archive-result {min-width:0}
+.qwen-archive-result pre {max-width:100%;max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .single-generator-page > h1 {flex:none;font-size:1.5rem}
 .kimodo-standalone-form form {display:block;width:100%;max-width:none;margin:0;padding:0}
 .kimodo-standalone-form fieldset {min-width:0;margin:.65rem 0;padding:.8rem;border:1px solid var(--line);border-radius:.6rem}
@@ -510,6 +523,9 @@ article {position:relative;}
 .model-management-page > section {padding:1rem;border:1px solid var(--line,#484d50);border-radius:.75rem;background:var(--surface,#202326);overflow-wrap:anywhere}
 .model-management-page > section h2 {font-size:1.05rem;margin-bottom:.6rem}
 .model-management-page > section button {margin:.5rem .4rem 0 0}
+.model-management-page button[aria-disabled="true"] {opacity:.65;cursor:not-allowed}
+.unified-queue-overview button[aria-disabled="true"] {opacity:.65;cursor:wait}
+.unified-queue-overview li {min-width:0;overflow-wrap:anywhere}
 .model-management-page > section ul {margin:.5rem 0 0;padding-left:1.3rem}
 .generator-page-header h1 {font-size:clamp(1.35rem,2vw,1.75rem);line-height:1.25}
 .generator-page-header h1 + p {margin-top:.35rem;color:#afbabd}
@@ -716,6 +732,13 @@ article {position:relative;}
   min-width: 0; gap: var(--generator-section-gap); font-family: inherit; font-size: 1rem; line-height: 1.5;
 }
 .vace-standalone.generator-page-common {width:min(100% - 2rem,var(--generator-page-width))}
+.animate-page.generator-page-common {--generator-section-gap:1.25rem;display:grid;align-content:start;max-width:var(--generator-page-width);margin-inline:auto}
+.animate-standalone.generator-page-common {width:min(100% - 2rem,var(--generator-page-width))}
+.animate-page.generator-page-common > fieldset {border:0;padding:0;margin:0;min-width:0}
+.animate-page.generator-page-common form > fieldset {padding:var(--generator-fieldset-padding)}
+.animate-page.generator-page-common form > fieldset.animate-inputs {flex:1;width:100%;box-sizing:border-box;padding:0;margin:0;border:0;min-width:0}
+.animate-page.generator-page-common form label:not(.reference-image-file) {display:grid;gap:var(--generator-field-gap);margin:var(--generator-field-margin) 0;color:var(--muted);font-size:.9rem}
+.animate-page.generator-page-common :is(input,select,textarea,video,img) {max-width:100%;min-width:0}
 .single-generator-page.generator-page-common {width:min(100%,var(--generator-page-width))}
 .generator-page-common .generator-page-identity h1 {font-size:1.5rem;line-height:1.25}
 .generator-page-common :is(.kimodo-standalone-form, form) form > fieldset,
@@ -755,11 +778,20 @@ article {position:relative;}
 .operations-gpu-table table {min-width:40rem}
 
 /* VACE는 입력 자료 → 장면 지시 → 생성 설정으로 나누어 읽는다. */
-.vace-input-group {min-width:0; padding:.9rem 0; border-bottom:1px solid var(--line,#484d50)}
-.vace-input-group:first-of-type {padding-top:.35rem}
-.vace-input-group h2 {font-size:1rem; line-height:1.35; margin:0 0 .2rem}
-.vace-input-group .vace-group-help {font-size:.85rem; color:var(--muted,#afbabd); margin:0 0 .55rem; line-height:1.45}
-.vace-settings-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:0 .8rem}
+:is(.vace-input-group,.generator-input-group) {min-width:0;padding:.9rem 0;border-bottom:1px solid var(--line,#484d50)}
+:is(.vace-input-group,.generator-input-group):first-of-type {padding-top:.35rem}
+:is(.vace-input-group,.generator-input-group) h2 {font-size:1rem;line-height:1.35;margin:0 0 .5rem}
+:is(.vace-group-help,.generator-group-help) {font-size:.85rem;color:var(--muted,#afbabd);margin:0 0 .55rem;line-height:1.5}
+:is(.vace-settings-grid,.generator-settings-grid) {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr));gap:0 .8rem}
+.generator-settings-grid {align-items:start}
+.generator-settings-grid select {width:100%;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.generator-attachments {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:.75rem;align-items:start;min-width:0}
+.generator-video-input {min-width:0;border:1px dashed var(--line,#484d50);border-radius:.6rem;padding:.65rem;display:grid;gap:.5rem;align-content:start;overflow-wrap:anywhere}
+.generator-video-input small {color:var(--muted,#afbabd)}
+.generator-video-input .reference-image-file {justify-self:start}
+.generator-video-input video {display:block;width:100%;max-height:18rem;object-fit:contain;background:#10121a;border-radius:.4rem}
+.generator-video-input video[hidden] {display:none}
+.generator-source-job {margin-bottom:.65rem;overflow-wrap:anywhere}
 .vace-page :is(.vace-settings-grid,.seed-input) [aria-invalid="true"] {border-color:#f6aa95}
 .vace-page :is(.vace-field-error,.seed-input-error) {color:#ffc69e}
 .vace-standalone.generator-page-common form .seed-input label:not(.reference-image-file),.fun-drawer .vace-page .seed-input label {margin-block:0}
@@ -784,7 +816,7 @@ article {position:relative;}
 .generation-progress progress {display:block;margin:.6rem 0}
 
 /* VACE 섹션 계층·행간: UI 가이드의 목표 계약을 적용한다. */
-.vace-page.generator-page-common {--generator-section-gap:1.25rem;line-height:1.5}
+.vace-page.generator-page-common {--generator-section-gap:1.25rem;display:grid;align-content:start;line-height:1.5}
 .vace-page .vace-major-section {min-width:0;padding:.8rem;border:1px solid var(--line,#484d50);border-radius:.6rem;background:var(--surface,#202326);overflow-wrap:anywhere}
 .vace-page .vace-major-section > h2,.vace-page .active-generator-progress-heading h2,.vace-page [aria-label="선택한 VACE 작업 결과"] > h2 {font-size:1.125rem;line-height:1.3;margin:0 0 .5rem}
 .vace-page .active-generator-progress-heading h2 {margin:0}
@@ -801,7 +833,10 @@ article {position:relative;}
 
 /* 공용 변경 기록은 클릭 대상과 본문을 기본 글자 크기로 읽을 수 있게 한다. */
 .generator-changelog {font-size:1rem;line-height:1.5}
-.generator-changelog pre {font-size:.9rem;line-height:1.5;overflow-wrap:anywhere}
+.generator-changelog pre {font-size:.9rem;line-height:1.5;max-width:100%;max-height:24rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.model-inventory-table {max-width:100%;min-width:0;overflow-x:auto}
+.model-inventory-table td {overflow-wrap:anywhere}
+.model-inventory-table:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}
 
 /* 생성기 접기·펼치기: 라벨, 조작 경계, 기본 삼각형 및 키보드 초점을 공통으로 노출한다. */
 :root {
@@ -868,6 +903,7 @@ article {position:relative;}
 .anchor-history-pagination span {font-size:.875rem}
 .gpu-queue-summary { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .gpu-queue-summary p { margin: 0; }
+.gpu-queue-summary button[aria-disabled="true"] {opacity:.65;cursor:wait}
 /* Hermes conversation composer: shared sizing and responsive action layout. */
 .hermes-chat > article > form {
   gap:.5rem; padding:.75rem; border-color:#575b72;

@@ -16,6 +16,7 @@ import {managementCommand,untilAborted} from "./managementCommand.js";
 import {fluxProposalRequestId,classifyFluxProposalReceipt,verifyFluxProposal} from "./fluxProposalReceipt.mjs";
 import {fluxModelReady} from "./fluxModelReady.mjs";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
+import {prepareFluxPreview} from "./fluxPreview.mjs";
 import {filterFluxGuides,addFluxRolePrompt} from "./fluxGuides.mjs";
 
 import readReference from "./readReference.js";
@@ -34,15 +35,25 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   const seamless=service==="flux-seamless";
   const query=new URLSearchParams(location.search);
   const session=receiptScope?.session || embeddedSession || query.get("session") || "";
+  const previewScope=JSON.stringify([service,session,receiptScope?.job || "",receiptScope?.snapshot || "",receiptScope?.offset ?? null]);
+  const currentPreviewScope=useRef(previewScope);currentPreviewScope.current=previewScope;
   const [form,setForm]=useState({prompt:"",translation_source_ko:"",width:768,height:768,steps:16,seed:10107,tag:""});
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
   const inputRef=useRef({form,files});inputRef.current={form,files};
-  const imageSelectionRevision=useRef(0);
+  const imageSelectionRevision=useRef(0),checkingSlots=useRef(new Set());
+  const [imagesChecking,setImagesChecking]=useState(false);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null);
   const reviewEpoch=useRef(0),interactionRef=useRef({busy,review});interactionRef.current={busy,review};
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [guideQuery,setGuideQuery]=useState(""),[guidePage,setGuidePage]=useState(0),[pageSize,setPageSize]=useState(8);
-  const guideSearchRef=useRef(null),inputFormRef=useRef(null);
+  const guideSearchRef=useRef(null),inputFormRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null);
+  const previewRequest=useRef(null),previewCancelled=useRef(false);
+  const [previewing,setPreviewing]=useState(false);
+  useEffect(()=>{
+    if(previewCancelled.current){previewCancelled.current=false;setBusy(false);setPreviewing(false);}
+    return ()=>{const current=previewRequest.current;if(current){previewRequest.current=null;previewCancelled.current=true;current.abort();}};
+  },[previewScope]);
+  useEffect(()=>{if(!review)return;const origin=reviewOrigin.current;requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===origin) && reviewRef.current?.isConnected)reviewRef.current.focus();});},[review]);
   useEffect(()=>{
     if(!profileRetryFocus.current || (!profile && !profileError))return;
     profileRetryFocus.current=false;
@@ -57,6 +68,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   const receiptKey=receiptScope ? `flux-proposal-receipt:${receiptScope.session}:${receiptScope.job}:${service}` : "";
   const handoffKey=session ? `flux-gpu-handoff:${session}:${receiptScope?.job || "direct"}:${service}` : "";
   const [handoffReview,setHandoffReview]=useState(null),[handoffId,setHandoffId]=useState(()=>handoffKey ? sessionStorage.getItem(handoffKey) || "" : ""),[handoffStatus,setHandoffStatus]=useState(null);
+  useEffect(()=>{setReview(null);setHandoffReview(null);},[previewScope]);
   const [receipt,setReceipt]=useState("");
   const [receiptJob,setReceiptJob]=useState("");
   const [receiptNotice,setReceiptNotice]=useState("");
@@ -116,7 +128,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     load();return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[service,attempt]);
   async function readJob(id){
-    const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current,reviewAtStart=reviewEpoch.current;
+    const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current,checkingAtStart=checkingSlots.current.size>0,reviewAtStart=reviewEpoch.current;
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
@@ -124,13 +136,13 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     const record=await response.json();
     if(!response.ok)throw new Error(record.detail || "저장된 입력을 확인할 수 없습니다.");
     const files=record.images.map((encoded,index)=>pngFile(encoded,"reference-"+(index+1)+".png"));
-    return {id:record.id,request:record.request,files,inputAtStart,imageAtStart,reviewAtStart};
+    return {id:record.id,request:record.request,files,inputAtStart,imageAtStart,checkingAtStart,reviewAtStart};
     }catch(error){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
     finally{clearTimeout(timeout);}
   }
   function restore(input,record){
     if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.review)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
-    if(record.inputAtStart.form!==inputRef.current.form || record.inputAtStart.files!==inputRef.current.files || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 작성 내용이나 참조 이미지가 변경되어 적용하지 않았습니다.");
+    if(record.checkingAtStart || checkingSlots.current.size || record.inputAtStart.form!==inputRef.current.form || record.inputAtStart.files!==inputRef.current.files || record.imageAtStart!==imageSelectionRevision.current)throw new Error("이미지 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");
     setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);
     setNotice(seamless?"프롬프트와 시드를 복원했습니다. 새 타일은 512×512 무참조로 생성합니다.":"선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
     requestAnimationFrame(()=>inputFormRef.current?.focus());
@@ -139,6 +151,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
   const guides=filterFluxGuides(profile?.guides || [],guideQuery);
   function guideUrl(id){return "/management/assistant/"+service+"-guide/"+encodeURIComponent(id);}
   async function applyReferenceGuide(){
+    if(checkingSlots.current.size){setGuideNotice("이미지 확인이 끝난 뒤 가이드를 적용하세요.");return;}
     imageSelectionRevision.current++;
     setBusy(true);setNotice("");setGuideNotice("");
     try{
@@ -152,6 +165,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     finally{setBusy(false);}
   }
   async function defaultFace(){
+    if(checkingSlots.current.size){setNotice("이미지 확인이 끝난 뒤 기본 얼굴을 적용하세요.");return;}
     imageSelectionRevision.current++;
     setBusy(true);setNotice("");
     try{
@@ -162,6 +176,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     finally{setBusy(false);}
   }
   async function applyStage(){
+    if(checkingSlots.current.size){setNotice("이미지 확인이 끝난 뒤 제작 단계를 적용하세요.");return;}
     imageSelectionRevision.current++;
     setBusy(true);setNotice("");
     try{
@@ -174,6 +189,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     finally{setBusy(false);}
   }
   async function applyGuide(){
+    if(checkingSlots.current.size){setNotice("이미지 확인이 끝난 뒤 가이드를 적용하세요.");return;}
     imageSelectionRevision.current++;
     setBusy(true);setNotice("");
     try{
@@ -186,35 +202,25 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     finally{setBusy(false);}
   }
   async function preview(event){
+    event.preventDefault();
+    if(previewRequest.current || busy || review)return;
+    if(checkingSlots.current.size){event.preventDefault();setNotice("이미지 확인이 끝난 뒤 생성 요청을 검토하세요.");return;}
+    const controller=new AbortController();previewRequest.current=controller;let timedOut=false;
+    const requestScope=previewScope;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    reviewOrigin.current=document.activeElement;
     reviewEpoch.current++;
-    event.preventDefault();setNotice("");setBusy(true);
+    setNotice("");setBusy(true);setPreviewing(true);setHandoffReview(null);
     try{
-      if(receiptScope)await verifyFluxProposal(managementCommand,receiptScope,receiptScope.proposal);
-      if(files.length>2)throw new Error("참조 이미지는 두 장까지 선택하세요.");
-      const {translation_source_ko,...input}=form;
-      const payload={...input,width:Number(input.width),height:Number(input.height),seed:Number(input.seed),steps:Number(form.steps),
-        images:await Promise.all(files.map(readReference)),action:"generate"};
-      if(translation_source_ko.trim())payload.translation_source_ko=translation_source_ko.trim();
-      const response=await fetch("/management/assistant/flux-image-preview?service="+service,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-      const result=await response.json();
-      if(!response.ok)throw new Error(result.detail || "입력을 확인하세요.");
-      setHandoffReview(null);
-      if(session){
-        const owner=await managementCommand("hermes-agent","hermes-resident-status",{session_id:session});
-        if(owner.session_id!==session || !owner.resident)throw new Error("대화 모델 상태를 확인할 수 없습니다.");
-        if(owner.resident_id){
-          if(owner.resident.state!=="ready")throw new Error("Qwen 3.8 상주 모델 상태를 확인한 뒤 다시 검토하세요.");
-          const handoff=await managementCommand("hermes-agent","hermes-gpu-handoff-preview",{session_id:session,resident_id:owner.resident_id,service,request:payload});
-          if(handoff.session_id!==session || handoff.resident_id!==owner.resident_id || handoff.service!==service || !/^[a-f0-9]{64}$/.test(handoff.review_hash || ""))throw new Error("GPU 양도 검토 결과가 일치하지 않습니다.");
-          setHandoffReview(handoff);
-        }else if(owner.resident.state!=="not_found")throw new Error("대화 모델 상태를 확인할 수 없습니다.");
-      }
-      setReview({payload,result});
-    }catch(problem){setNotice(problem.message);}
-    finally{setBusy(false);}
+      const outcome=await untilAborted(prepareFluxPreview({service,session,receiptScope,form,files,signal:controller.signal,
+        verifyProposal:verifyFluxProposal,readReference,command:managementCommand,
+        fetchPreview:(name,payload,signal)=>fetch("/management/assistant/flux-image-preview?service="+encodeURIComponent(name),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),signal})}),controller.signal);
+      if(previewRequest.current===controller && currentPreviewScope.current===requestScope){setHandoffReview(outcome.handoff);setReview({payload:outcome.payload,result:outcome.result,scope:requestScope});}
+    }catch(problem){if(previewRequest.current===controller && currentPreviewScope.current===requestScope)setNotice(timedOut ? "입력 검토 시간이 초과됐습니다. 입력을 확인한 뒤 다시 시도하세요." : problem.message || "입력을 확인할 수 없습니다.");}
+    finally{clearTimeout(timeout);if(previewRequest.current===controller){previewRequest.current=null;setPreviewing(false);setBusy(false);}}
   }
   async function submit(){
-    if(!review || sending.current || !fluxModelReady(model))return;
+    if(!review || review.scope!==currentPreviewScope.current || sending.current || !fluxModelReady(model))return;
     sending.current=true;setBusy(true);
     let dispatched=false;
     try{
@@ -290,7 +296,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
       {profile?.rolePrompt && form.prompt.trim()===profile.rolePrompt.trim() && !form.translation_source_ko.trim() && <p role="status">현재 입력에는 신체 비율 참조 안내만 있습니다. 원하는 캐릭터 외형이나 자세를 추가할 수 있습니다.</p>}
       {!seamless && <section aria-label="참조 이미지"><p>{profile?.expressions?"얼굴 참조 PNG (1장)":"참조 PNG (최대 2장)"}</p><div className="reference-image-slots">
         {Array.from({length:profile?.expressions?1:2},(_,index)=><ReferenceImageInput key={index} label={profile?.expressions?"얼굴 참조 이미지":"참조 이미지 "+(index+1)}
-          accept="image/png" maxBytes={3000000} source={files[index]} disabled={!profile || busy || Boolean(review) || (index>0 && !files[0])} describedBy={index===1 && !files[0] ? referenceOrderHelpId : undefined} onSelectionStart={()=>{imageSelectionRevision.current++;}}
+          accept="image/png" maxBytes={3000000} source={files[index]} disabled={!profile || busy || Boolean(review) || (index>0 && !files[0])} describedBy={index===1 && !files[0] ? referenceOrderHelpId : undefined} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);setImagesChecking(checkingSlots.current.size>0);}}
           onChange={file=>{setGuideNotice("");setFiles(current=>{const next=[...current];if(file)next[index]=file;else next.splice(index,1);return next;});}}/>)}
       </div>{!profile?.expressions && !files[0] && <p id={referenceOrderHelpId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>}
       {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
@@ -301,13 +307,15 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
       <label>이력 태그 <input value={form.tag} onChange={e=>edit("tag",e.target.value)}/></label>
       <ActionButton type="submit" reasons={[
         !profile && "생성기 설정을 확인 중입니다. 잠시 기다리거나 다시 불러오세요.",
+        imagesChecking && "선택한 이미지 확인이 끝날 때까지 기다리세요.",
         profile && files.length < profile.minimum && "필수 참조 이미지를 선택하세요.",
         !form.prompt.trim() && !form.translation_source_ko.trim() && "프롬프트 또는 번역할 설명을 입력하세요."
       ]}>생성 요청 검토</ActionButton>
     </fieldset></form>
-    {review && <section><h2>{profile?.expressions?"표정 프롬프트":"공용 화풍 적용 프롬프트"}</h2><pre>{review.result.prompt}</pre><p><PromptWordCount text={review.result.prompt} label={review.result.translation ? "번역 전 프롬프트" : "최종 프롬프트"}/>{review.result.translation && " · 번역 후 최종 단어 수는 생성 시 확정됩니다."}</p>
-      {review.result.translation && <p>생성 시 번역할 내용 · {review.result.translation}</p>}
-      <GpuQueueSummary/>{handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {profile?.label || "FLUX"} 생성을 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{setReview(null);setHandoffReview(null);}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"} disabledReason={!fluxModelReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""}/></section>}
+    {review && review.scope===previewScope && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>{profile?.expressions?"표정 프롬프트":"공용 화풍 적용 프롬프트"}</h2><pre className="generation-review-text" tabIndex={0} aria-label="검토할 프롬프트">{review.result.prompt}</pre><p><PromptWordCount text={review.result.prompt} label={review.result.translation ? "번역 전 프롬프트" : "최종 프롬프트"}/>{review.result.translation && " · 번역 후 최종 단어 수는 생성 시 확정됩니다."}</p>
+      {review.result.translation && <p className="generation-review-text">생성 시 번역할 내용 · {review.result.translation}</p>}
+      <GpuQueueSummary/>{handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {profile?.label || "FLUX"} 생성을 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{const focused=document.activeElement;setReview(null);setHandoffReview(null);requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===focused)inputFormRef.current?.focus();});}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"} disabledReason={!fluxModelReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""}/></section>}
+    {previewing && <p role="status">입력과 GPU 양도 여부를 확인하고 있습니다.</p>}
     {notice && <p role="status">{notice}</p>}
     {profile && <fieldset className="flux-history-controls" disabled={busy || Boolean(review)}><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJob={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={(id,close)=><section aria-label="선택한 FLUX 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} kind="flux" service={service} readJob={readJob} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/></section>}/></fieldset>}
     <GeneratorJobResult selectionControls job="" kind="flux" service={service} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>

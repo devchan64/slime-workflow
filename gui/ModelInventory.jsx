@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
+import {validModelInventory} from "./modelInventoryValidation.mjs";
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes < 0) return "확인 불가";
@@ -12,7 +13,8 @@ function formatBytes(bytes) {
 }
 
 export function InventoryContents({inventory}) {
-  return <><ResultTable table={{
+  return <>{inventory.count===0 && <p>{inventory.incomplete ? "확인된 파일이 없습니다. 일부 저장 위치를 확인하지 못했습니다." : "저장된 모델 파일이 없습니다."}</p>}
+  <div className="model-inventory-table" role="region" aria-label="저장된 모델 파일 표" tabIndex={0}><ResultTable table={{
     title: "저장된 모델 파일",
     summary: [
       "파일 " + inventory.count.toLocaleString() + "개",
@@ -22,7 +24,7 @@ export function InventoryContents({inventory}) {
     ].filter(Boolean).join(" · "),
     columns: ["파일 경로", "크기"],
     rows: inventory.files.map(file => [file.path, formatBytes(file.bytes)]),
-  }}/><p>파일 목록은 해시 검증 결과가 아닙니다.</p></>;
+  }}/></div><p>파일 목록은 해시 검증 결과가 아닙니다.</p></>;
 }
 
 function InventoryFiles({service}) {
@@ -39,9 +41,9 @@ function InventoryFiles({service}) {
       let timedOut = false;
       const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 30000);
       try {
-        const response = await managementCommand("model-downloads", "download-inventory", {}, {signal: controller.signal});
+        const response = await untilAborted(managementCommand("model-downloads", "download-inventory", {}, {signal: controller.signal}),controller.signal);
         const model = response?.models?.[service];
-        if (!model || !Array.isArray(model.files) || !Number.isInteger(model.count) || model.count < model.files.length || model.files.some(file => !file || typeof file.path !== "string")) {
+        if (!validModelInventory(model)) {
           throw new Error("이 모델의 파일 목록을 확인할 수 없습니다.");
         }
         if (active) {
@@ -50,7 +52,7 @@ function InventoryFiles({service}) {
           setError("");
         }
       } catch (problem) {
-        if (active) setError(timedOut ? "파일 목록 조회 시간이 초과됐습니다. 다시 확인하세요." : problem.message);
+        if (active) setError(timedOut ? "파일 목록 조회 시간이 초과됐습니다. 다시 확인하세요." : problem?.message || "파일 목록을 조회할 수 없습니다.");
       } finally {
         clearTimeout(timeout);
         if (active) {setLoading(false);timer = setTimeout(read, 30000);}
@@ -60,8 +62,9 @@ function InventoryFiles({service}) {
     return () => { active = false; clearTimeout(timer); controller?.abort(); };
   }, [service, revision]);
   return <>
-    <button type="button" disabled={loading} onClick={() => refresh(value => value + 1)}>{loading ? "조회 중…" : "파일 목록 새로고침"}</button>
+    <button type="button" aria-disabled={loading} onClick={() => {if(!loading)refresh(value => value + 1);}}>{loading ? "조회 중…" : "파일 목록 새로고침"}</button>
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
+    {loading && inventory && <p role="status">파일 목록을 다시 조회하고 있습니다. 아래는 마지막으로 확인한 목록입니다.</p>}
     {error && <p role="alert">{error}{inventory && " · 아래 목록은 마지막으로 확인한 정보입니다."}</p>}
     {inventory ? <InventoryContents inventory={inventory}/> : !error && <p role="status">파일 목록 확인 중…</p>}
   </>;

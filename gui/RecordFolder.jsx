@@ -4,12 +4,16 @@ import {untilAborted} from "./managementCommand.js";
 import {writeClipboardText} from "./clipboardWrite.mjs";
 
 export default function RecordFolder({service,id,direct=false}) {
+  return <RecordFolderForJob key={JSON.stringify([service,id,direct])} service={service} id={id} direct={direct}/>;
+}
+
+function RecordFolderForJob({service,id,direct=false}) {
   const [path,setPath]=useState("");
   const [notice,setNotice]=useState("");
   const [busy,setBusy]=useState(false);
   const [stale,setStale]=useState(false);
   const pathInput=useRef(null),copyButton=useRef(null),copySequence=useRef(0),pending=useRef(null);
-  useEffect(()=>()=>pending.current?.abort(),[]);
+  useEffect(()=>()=>{copySequence.current++;pending.current?.abort();},[]);
   async function request(action) {
     if(pending.current)return;
     const controller=new AbortController();pending.current=controller;let timedOut=false;
@@ -21,7 +25,7 @@ export default function RecordFolder({service,id,direct=false}) {
       const result=await untilAborted((async()=>{const response=await fetch("/management/record-folder/"+action,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service,id}),signal:controller.signal});const data=await response.json();if(!response.ok || typeof data?.path!=="string" || !data.path || (data.message!=null && typeof data.message!=="string"))throw new Error(typeof data?.error==="string" ? data.error : "기록 폴더를 확인할 수 없습니다.");return data;})(),controller.signal);
       if(controller.signal.aborted)return;
       setPath(result.path);setStale(false);setNotice(result.message || "");
-    } catch(problem) {if(!controller.signal.aborted || timedOut){if(action==="inspect" && path)setStale(true);setNotice(action==="open" ? "폴더 열기 결과를 확인하지 못했습니다. 이미 열렸는지 확인하세요."+(timedOut ? "" : " "+requestErrorMessage(problem)) : timedOut ? "폴더 경로 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem));}}
+    } catch(problem) {if(!controller.signal.aborted || timedOut){if(path)setStale(true);setNotice(action==="open" ? "폴더 열기 결과를 확인하지 못했습니다. 이미 열렸는지 확인하세요."+(timedOut ? "" : " "+requestErrorMessage(problem)) : timedOut ? "폴더 경로 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem));}}
     finally {clearTimeout(timeout);if(pending.current===controller)pending.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);if(focused)requestAnimationFrame(()=>{if(focused.isConnected && !focused.disabled && document.activeElement===document.body)focused.focus();});}}
   }
   async function copy() {

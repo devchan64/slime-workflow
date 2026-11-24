@@ -10,7 +10,7 @@ from workflow.common.record_folders import resolve_record_folder
 from workflow.common.management_transport import send_management_json_response
 
 
-def read_history_summary(directory):
+def read_history_summary(directory, service=''):
     descriptor=os.open(directory/'request.json', os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
     with os.fdopen(descriptor,'rb') as handle:
         if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
@@ -33,6 +33,17 @@ def read_history_summary(directory):
         value=request.get(key)
         if type(value) is bool:
             summary[key]=value
+    if service in ('wan21-i2v','wan21-t2v'):
+        enabled=request.get('action_lora')
+        variant=request.get('action_variant','fight')
+        variants=('fight','attack_high','attack_low') if service=='wan21-i2v' else ('fight',)
+        if type(enabled) is bool and (not enabled or variant in variants):
+            summary['action_lora']=enabled
+            if enabled:
+                summary['action_variant']=variant
+                strength=request.get('action_strength')
+                if type(strength) in (int,float) and math.isfinite(strength) and 0 < strength <= 2:
+                    summary['action_strength']=strength
     duration=request.get('duration_seconds')
     if type(duration) in (int,float) and math.isfinite(duration) and 0<duration<=3600:
         summary['duration_seconds']=duration
@@ -104,7 +115,7 @@ def handle_history_summaries_request(handler, routes):
         for id in ids:
             try:
                 directory=resolve_record_folder(routes,route,id)
-                summaries[id]=read_history_summary(directory)
+                summaries[id]=read_history_summary(directory,payload['service'])
                 if payload['service'] in {'flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless','flux-expression'}:
                     image=directory/'result.png'
                     summaries[id]['image_available']=not image.is_symlink() and image.is_file()

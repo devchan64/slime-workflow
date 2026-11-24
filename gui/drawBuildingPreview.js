@@ -1,19 +1,23 @@
-export function drawBuildingPreview(canvas,preview,placement,values){
+export function drawBuildingPreview(canvas,preview,placement,values,onStatus=()=>{}){
   const {anchorX,anchorY,displayWidthAdjustment:widthAdjustment,displayHeightAdjustment:heightAdjustment,
     shadowShape:currentShadowShape,shadowOffsetColumn:currentShadowColumnOffset,shadowOffsetRow:currentShadowRowOffset,
     shadowScaleX:currentShadowColumnScale,shadowScaleY:currentShadowRowScale}=values;
  const ctx=canvas.getContext('2d');const img=new Image();
  const ticket=(canvas.__buildingPreviewTicket||0)+1;canvas.__buildingPreviewTicket=ticket;
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+ onStatus("loading");
+ img.onerror=()=>{if(canvas.__buildingPreviewTicket===ticket)onStatus("image-error");};
  img.onload=()=>{
   if(canvas.__buildingPreviewTicket!==ticket)return;
+  if(!img.width || !img.height){onStatus("image-error");return;}
   ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#e9eef2';ctx.fillRect(0,0,canvas.width,canvas.height);
-  if(!placement){const scale=Math.min(440/img.width,320/img.height);ctx.drawImage(img,(canvas.width-img.width*scale)/2,(canvas.height-img.height*scale)/2,img.width*scale,img.height*scale);return;}
+  if(!placement){const scale=Math.min(440/img.width,320/img.height);ctx.drawImage(img,(canvas.width-img.width*scale)/2,(canvas.height-img.height*scale)/2,img.width*scale,img.height*scale);onStatus("ready");return;}
   const TILE_WIDTH=80,TILE_HEIGHT=40,FOOTPRINT_MARGIN=1.04,PADDING=18;
   const cols=placement.width,rows=placement.height,contentWidth=placement.contentWidth;
-  if(!Number.isInteger(cols)||!Number.isInteger(rows)||cols<1||rows<1||!Number.isFinite(contentWidth)||contentWidth<=0)return;
+  if(!Number.isInteger(cols)||!Number.isInteger(rows)||cols<1||rows<1||!Number.isFinite(contentWidth)||contentWidth<=0){onStatus("invalid");return;}
   const project=(c,r)=>({x:(c-r)*TILE_WIDTH/2,y:(c+r)*TILE_HEIGHT/2});
   const front=placement?.tower?project(cols/2,rows/2):project(cols,rows),baseWidth=placement?.tower?img.width*112/207:(cols+rows)*TILE_WIDTH/2*FOOTPRINT_MARGIN/contentWidth,baseHeight=baseWidth*img.height/img.width;
-  const imageWidth=baseWidth+Number(widthAdjustment||0),imageHeight=baseHeight+Number(heightAdjustment||0);if(imageWidth<=0||imageHeight<=0)return;
+  const imageWidth=baseWidth+Number(widthAdjustment||0),imageHeight=baseHeight+Number(heightAdjustment||0);if(imageWidth<=0||imageHeight<=0){onStatus("invalid");return;}
   const imageLeft=front.x-Number(anchorX)*imageWidth,imageTop=front.y-Number(anchorY)*imageHeight;
   const currentShadowCenter=project(cols/2+Number(currentShadowColumnOffset),rows/2+Number(currentShadowRowOffset));
   const buildShadowOutline=(currentLayerScale)=>{const currentHalfColumn=cols*Number(currentShadowColumnScale)*currentLayerScale/2,currentHalfRow=rows*Number(currentShadowRowScale)*currentLayerScale/2;return (currentShadowShape==='circle'?Array.from({length:48},(_,index)=>({column:Math.cos(index*Math.PI/24)*currentHalfColumn,row:Math.sin(index*Math.PI/24)*currentHalfRow})):[{column:-currentHalfColumn,row:-currentHalfRow},{column:currentHalfColumn,row:-currentHalfRow},{column:currentHalfColumn,row:currentHalfRow},{column:-currentHalfColumn,row:currentHalfRow}]).map(point=>{const offset=project(point.column,point.row);return {x:currentShadowCenter.x+offset.x,y:currentShadowCenter.y+offset.y};});};
@@ -27,7 +31,8 @@ export function drawBuildingPreview(canvas,preview,placement,values){
   ctx.drawImage(img,imageLeft,imageTop,imageWidth,imageHeight);
   for(let r=-1;r<=rows;r++)for(let c=-1;c<=cols;c++){const occupied=c>=0&&c<cols&&r>=0&&r<rows;outline(c,r);ctx.strokeStyle=occupied?'#f1b900':'#737d82';ctx.lineWidth=(occupied?1.5:1)/scale;ctx.setLineDash(occupied?[]:[4/scale,4/scale]);ctx.stroke();}
   ctx.setLineDash([]);ctx.strokeStyle='#ef3340';ctx.lineWidth=2/scale;ctx.beginPath();ctx.moveTo(front.x-8/scale,front.y);ctx.lineTo(front.x+8/scale,front.y);ctx.moveTo(front.x,front.y-8/scale);ctx.lineTo(front.x,front.y+8/scale);ctx.stroke();ctx.restore();
+  onStatus("ready");
  };
  img.src=preview;
- return ()=>{img.onload=null;};
+ return ()=>{img.onload=null;img.onerror=null;};
 }

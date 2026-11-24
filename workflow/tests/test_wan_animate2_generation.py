@@ -118,6 +118,9 @@ class AnimateTwoContractTests(unittest.TestCase):
                 current_video_writer.write(np.full((64,64,3),current_frame_number,dtype=np.uint8))
             current_video_writer.release()
             current_request_record=dict(action='generate',images=[base64.b64encode(current_image_buffer.getvalue()).decode()],driving_video=base64.b64encode(current_video_path.read_bytes()).decode(),prompt='A male character.',frames=13,steps=40,seed=42,width=832,height=480)
+            from generators.wan_animate2.contracts import inspect_animate_video
+            info=inspect_animate_video(current_video_path)
+            self.assertEqual((info['width'],info['height'],info['maximum_frames']),(64,64,13))
             self.assertEqual(validate_animate_request(current_request_record)['frames'],13)
             self.assertEqual(validate_animate_request(dict(current_request_record,lora_mode='lightx2v'))['lora_mode'],'lightx2v')
             with self.assertRaisesRegex(ValueError,'LoRA'):

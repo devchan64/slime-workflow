@@ -74,7 +74,14 @@ def monitor_animate_host_memory(current_worker_process, current_stop_event, curr
                         return
                     current_worker_rss_kib = read_worker_group_rss_kib(current_worker_process.pid)
             else:
-                current_worker_rss_kib = read_memory_field_kib(f'/proc/{current_worker_process.pid}/status', 'VmRSS')
+                try:
+                    current_worker_rss_kib = read_memory_field_kib(f'/proc/{current_worker_process.pid}/status', 'VmRSS')
+                except (FileNotFoundError, ValueError):
+                    if any(line.split()[:2] == ['State:', 'Z'] for line in Path(f'/proc/{current_worker_process.pid}/status').read_text().splitlines()):
+                        return
+                    if current_stop_event.wait(0.1) or current_worker_process.poll() is not None:
+                        return
+                    current_worker_rss_kib = read_memory_field_kib(f'/proc/{current_worker_process.pid}/status', 'VmRSS')
         except (OSError, ValueError) as current_read_error:
             if current_worker_process.poll() is not None:
                 return

@@ -35,7 +35,12 @@ class GenerationStatusLookupTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             bundle=Path(directory)/'media.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MediaJobResult.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
-            script="""const React=require('react'),server=require('react-dom/server');const {MediaResultError}=require(process.argv[1]);
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');const {MediaResultError,default:MediaJobResult}=require(process.argv[1]);
+              const key=props=>MediaJobResult(props).key;
+              assert.equal(key({service:'one',id:'job'}),key({service:'one',id:'job',kind:'video'}));
+              assert.notEqual(key({service:'one',id:'job'}),key({service:'one',id:'other'}));
+              assert.notEqual(key({service:'one',id:'job'}),key({service:'two',id:'job'}));
+              assert.notEqual(key({service:'one',id:'job'}),key({service:'one',id:'job',kind:'audio'}));
               const render=(error,stale)=>server.renderToStaticMarkup(React.createElement(MediaResultError,{error,stale}));
               process.stdout.write(JSON.stringify([render('영상 원본 작업 경로 오류',true),render('접속 오류',true),render('접속 오류',false)]));"""
             missing,stale,empty=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True))
@@ -47,6 +52,35 @@ class GenerationStatusLookupTests(unittest.TestCase):
         from workflow.common.management_catalog import REACT_REVIEW_PATHS
         self.assertIn('flux-seamless',FLUX_IMAGE_PROFILE_RECORDS)
         self.assertEqual(len({REACT_REVIEW_PATHS[service+'-generator'] for service in FLUX_IMAGE_PROFILE_RECORDS}),len(FLUX_IMAGE_PROFILE_RECORDS))
+
+    def test_cleanup_and_controls_explain_unavailable_state(self):
+        import os, subprocess, tempfile
+        from pathlib import Path
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            for name in ('HistoryCleanup','GeneratorJobControls','KimodoFrames','SelectedHistoryDeletion','RecordFolder','JobIdentifier'):
+                subprocess.run([str(gui/'node_modules/.bin/esbuild'),name+'.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(Path(directory)/(name+'.cjs'))],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict'),path=require('node:path');
+              const component=name=>require(path.join(process.argv[1],name+'.cjs')).default;
+              const cleanup=component('HistoryCleanup'),controls=component('GeneratorJobControls'),kimodo=component('KimodoFrames'),selected=component('SelectedHistoryDeletion'),folder=component('RecordFolder'),identifier=component('JobIdentifier');
+              const render=value=>server.renderToStaticMarkup(value);
+              const html=render(React.createElement(React.Fragment,null,...[1,2].map(i=>React.createElement(cleanup,{key:i,job:'j',service:'kimodo',state:null}))));
+              assert.match(html,/삭제하려면 작업 상태를 다시 확인하세요/);
+              const ids=[...html.matchAll(/aria-describedby="([^"]+)"/g)].map(match=>match[1]);
+              assert.equal(ids.length,2);assert.notEqual(ids[0],ids[1]);
+              const action=render(React.createElement(controls,{service:'kimodo',id:'j',state:'running',disabled:true,refresh:()=>{}}));
+              assert.match(action,/<button[^>]*disabled[^>]*>작업 중지 검토<\\/button>/);
+              assert.notEqual(kimodo({id:'one'}).key,kimodo({id:'two'}).key);
+              assert.notEqual(selected({service:'kimodo',id:'one'}).key,selected({service:'kimodo',id:'two'}).key);
+              assert.notEqual(folder({service:'kimodo',id:'one'}).key,folder({service:'kimodo',id:'two'}).key);
+              assert.notEqual(folder({service:'kimodo',id:'one'}).key,folder({service:'kimodo',id:'one',direct:true}).key);
+              assert.notEqual(identifier({id:'one'}).key,identifier({id:'two'}).key);
+              assert.notEqual(identifier({id:'one'}).key,identifier({id:'one',label:'실행 ID'}).key);
+              const list=render(React.createElement(React.Fragment,null,...['one','two'].map(id=>React.createElement(selected,{key:id,id,service:'kimodo',allowPriority:true}))));
+              const allIds=[...list.matchAll(/ id="([^"]+)"/g)].map(match=>match[1]);
+              assert.equal(new Set(allIds).size,allIds.length);
+              for(const [,id] of list.matchAll(/aria-describedby="([^"]+)"/g))assert.ok(allIds.includes(id));"""
+            subprocess.run(['node','-e',script,directory],cwd=gui,check=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
 
     def test_direct_gui_entrypoint_initializes_repository_imports(self):
         import os

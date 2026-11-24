@@ -12,11 +12,11 @@ import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import MusicExamples from "./MusicExamples.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {readGenerationProposal,audioProposalInputs} from "./generationProposal.mjs";
 
@@ -44,6 +44,8 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   const submitting=useRef(false),confirmation=useRef(null);
   if(!confirmation.current)confirmation.current=createConfirmationGate();
   const reviewRef=useRef(null),promptRef=useRef(null),prepareRef=useRef(null);
+  const prepareReasonId=useId();
+  const prepareReason=busy ? "다른 요청을 처리하고 있습니다. 완료될 때까지 기다리세요." : review ? "현재 요청의 확인을 마치거나 취소하세요." : handoff.id ? "진행 중인 GPU 양도 요청을 확인하세요." : "";
   useEffect(()=>{if(review)reviewRef.current?.focus();},[review]);
   useEffect(()=>{
     if(!inputRetryFocus.current || (!form && !inputError))return;
@@ -57,18 +59,21 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     requestAnimationFrame(()=> (preparing?prepareRef:promptRef).current?.focus());
   }
   async function readJob(id){
-    const formAtStart=formRef.current,reviewAtStart=reviewEpoch.current;
+    const formAtStart=formRef.current,reviewAtStart=reviewEpoch.current,focusAtStart=document.activeElement;
     const controller=new AbortController();let timedOut=false;
     const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
+      const result=await untilAborted((async()=>{
       const response=await fetch(formPath+"/"+encodeURIComponent(id),{cache:"no-store",signal:controller.signal});
       let result;
       try{result=await response.json();}catch{throw new Error(response.ok ? "저장된 오디오 입력 형식을 확인할 수 없습니다." : "저장된 입력을 확인할 수 없습니다.");}
       if(!response.ok)throw new Error(typeof result?.detail==="string" ? result.detail : "저장된 입력을 확인할 수 없습니다.");
+      return result;
+      })(),controller.signal);
       const input=result?.request;
       if(result?.id!==id || !input || typeof input.prompt!=="string" || !Number.isInteger(input.seed) || typeof input.loop_request!=="boolean" || typeof input.tag!=="string" ||
         (music && (typeof input.lyrics!=="string" || !Number.isFinite(input.duration_seconds))))throw new Error("저장된 오디오 입력 형식을 확인할 수 없습니다.");
-      return {...result,formAtStart,reviewAtStart};
+      return {...result,formAtStart,reviewAtStart,focusAtStart};
     }catch(problem){if(timedOut)throw new Error("저장된 입력 조회 시간이 초과됐습니다.");throw problem;}
     finally{clearTimeout(timer);}
   }
@@ -89,10 +94,10 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     let active=true,timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setInputError("");
-    fetch(formPath,{signal:controller.signal}).then(response=>{
+    untilAborted(fetch(formPath,{signal:controller.signal}).then(response=>{
       if(!response.ok)throw new Error("기본 입력을 불러올 수 없습니다.");
       return response.json();
-    }).then(async defaults=>{
+    }),controller.signal).then(async defaults=>{
       if(!defaults || typeof defaults.prompt!=="string" || !Number.isInteger(defaults.seed) || typeof defaults.loop_request!=="boolean" || typeof defaults.tag!=="string" ||
         (music && (typeof defaults.lyrics!=="string" || !Number.isFinite(defaults.duration_seconds))))throw new Error("기본 입력 형식을 확인할 수 없습니다.");
       clearTimeout(timeout);
@@ -151,17 +156,19 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     }catch(error){setNotice(error.message+" · 생성 이력에서 접수 여부를 확인하세요.");}
     finally{handoff.clearReview();submitting.current=false;setBusy(false);setReview(null);}
   }
-  return <article className={"audio-generator-page"+(embedded ? "" : " audio-standalone")}><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a>
+  return <article className={"audio-generator-page"+(embedded ? "" : " audio-standalone")}>{!embedded && <nav aria-label="워크플로우 탐색"><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a></nav>}
     <h1 className={embedded ? "embedded-page-title" : undefined}>{music?"HeartMuLa 음악 생성":"Dasheng 효과음 생성"}</h1>
     {music ? <p>태그는 쉼표로 구분합니다. 원곡을 생성한 뒤 Demucs가 MR과 보컬을 분리합니다.</p> : <p>16kHz WAV · 길이 자동 예측 · <a href="https://huggingface.co/mispeech/Dasheng-AudioGen">Dasheng-AudioGen 모델과 Apache-2.0 라이선스</a></p>}
     <details><summary>모델 다운로드·준비</summary>
       <DownloadProgress service={service}/>
-      <button ref={prepareRef} disabled={busy || Boolean(review) || Boolean(handoff.id)} onClick={reviewPreparation}>모델 준비 요청 검토</button>
+      <button ref={prepareRef} disabled={Boolean(prepareReason)} aria-describedby={prepareReason ? prepareReasonId : undefined} onClick={reviewPreparation}>모델 준비 요청 검토</button>
+      {prepareReason && <p id={prepareReasonId}>{prepareReason}</p>}
     </details><ModelReadiness service={service} onStatus={setModel}/><GeneratorChangelog generator={service}/>
     {!form && (inputError ? <div role="alert">{inputError} <button ref={inputRetryRef} type="button" onClick={()=>{inputRetryFocus.current=true;retryInput(value=>value+1);}}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
-    {music && <fieldset disabled={busy || Boolean(review) || !form}><MusicExamples apply={request=>setForm(current=>({...current,...request}))}/></fieldset>}
+    {music && <fieldset disabled={busy || Boolean(review) || Boolean(handoff.id) || !form}><legend className="generator-visually-hidden">음악 예제</legend><MusicExamples apply={request=>setForm(current=>({...current,...request}))}/></fieldset>}
     {form && <form onSubmit={preview}><fieldset disabled={busy || Boolean(review) || Boolean(handoff.id)}>
+      <legend className="generator-visually-hidden">{music?"음악 생성 입력":"효과음 생성 입력"}</legend>
       <label>{music?"음악 태그":"효과음 설명"} <textarea ref={promptRef} required maxLength={4000} value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/>{music ? <small>태그 {tagCount}개</small> : <PromptWordCount text={form.prompt}/>}</label>
       <SeedInput value={form.seed} max={4294967295} onChange={value=>edit("seed",value)}/>
       {music ? <>
@@ -181,10 +188,11 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {music?"음악":"효과음"}을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={closeReview} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={review.payload.action==="generate" && !generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
     <fieldset className="audio-history-controls" disabled={busy || Boolean(review) || !form}>
+      <legend className="generator-visually-hidden">생성 이력</legend>
       <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={(input,record)=>{
         if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.review)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
         if(record.formAtStart!==formRef.current)throw new Error("입력 조회 중 작성 내용이 변경되어 적용하지 않았습니다.");
-        setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");requestAnimationFrame(()=>promptRef.current?.focus());
+        setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");requestAnimationFrame(()=>{if(document.activeElement===record.focusAtStart || document.activeElement===document.body)promptRef.current?.focus();});
       }} renderResult={(id,close)=><section aria-label="선택한 오디오 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service={service} kind="audio" readJob={readJob} onDeleted={cleaned}/></section>}/>
     </fieldset>
     {notice && <p role="status">{notice}</p>}

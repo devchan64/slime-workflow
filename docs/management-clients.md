@@ -891,7 +891,7 @@ Fun Control·VACE·키모도가 공유하는 UMT5·Wan2.1 VAE·전처리 모델�
 
 ### Wan2.2 Fun Control BF16 실험 생성기
 
-모델 관리의 **Wan 2.2 I2V · 본체 및 Lightning·KungFu LoRA 파일**은 I2V A14B FP16 고·저노이즈 모델과 I2V Lightning·KungFu 고·저노이즈 LoRA를 고정 리비전과 SHA-256으로 준비한다. 파일 준비와 GPU 실행·품질 검증은 별개다. VACE용 T2V Lightning은 이 파일과 별개다.
+모델 관리의 **Wan 2.2 I2V · 본체 및 Lightning LoRA 파일**은 I2V A14B FP16 고·저노이즈 모델과 I2V Lightning 고·저노이즈 LoRA를 고정 리비전과 SHA-256으로 준비한다. 파일 준비와 GPU 실행·품질 검증은 별개다. VACE용 T2V Lightning은 이 파일과 별개다.
 
 I2V 실험의 공용 게이트웨이 서비스는 `wan22-i2v`다. 도구 탐색의 Wan 2.2 I2V 화면과 CLI `python3 tools/manager.py command wan22-i2v generate --payload-file <요청.json> --detach`가 같은 대기열과 이력을 사용한다. 보수적으로 80GiB 이상을 예약하고 다른 공용 GPU 작업과 겹치지 않는다. 해당 값은 실측 피크가 아니다. 모델 준비 상태와 실제 결과의 수치·화질 검증은 별개다. 재개 기능은 제공하지 않는다.
 

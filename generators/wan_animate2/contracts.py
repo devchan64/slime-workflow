@@ -19,6 +19,26 @@ ANIMATE_OUTPUT_FRAME_RATE = 16
 ANIMATE_MAXIMUM_SEED_VALUE = 2147483647
 
 
+def inspect_animate_video(path):
+    """MP4의 영상 정보와 16fps 샘플링 시 사용 가능한 최대 프레임을 확인한다."""
+    import cv2
+    capture = cv2.VideoCapture(str(path))
+    try:
+        rate = capture.get(cv2.CAP_PROP_FPS)
+        count = capture.get(cv2.CAP_PROP_FRAME_COUNT)
+        width = capture.get(cv2.CAP_PROP_FRAME_WIDTH)
+        height = capture.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        if not capture.isOpened() or not 1 <= rate <= 120 or count < 1 or width < 1 or height < 1:
+            raise ValueError('영상 디코딩 실패 · 읽을 수 있는 MP4를 선택하세요.')
+        frames = min(81, int(count / rate * ANIMATE_OUTPUT_FRAME_RATE))
+        maximum = 1 + 4 * ((frames - 1) // 4)
+        if maximum < 5:
+            raise ValueError('16fps 기준 5프레임 이상의 영상이 필요합니다.')
+        return {'width':int(width),'height':int(height),'fps':rate,'frame_count':int(count),'maximum_frames':maximum}
+    finally:
+        capture.release()
+
+
 def inspect_animate_assets():
     current_missing_files = []
     for current_relative_path in ('modular_model_index.json', 'transformer/config.json', 'vae/config.json', 'ready.sha256'):
@@ -83,16 +103,9 @@ def validate_animate_request(current_request_record):
     current_video_bytes=base64.b64decode(current_video_value,validate=True)
     if current_video_bytes[4:8]!=b'ftyp':
         raise ValueError('MP4 컨테이너가 필요합니다.')
-    import cv2
     with tempfile.NamedTemporaryFile(suffix='.mp4') as current_video_file:
         current_video_file.write(current_video_bytes)
         current_video_file.flush()
-        current_video_capture=cv2.VideoCapture(current_video_file.name)
-        try:
-            current_video_rate=current_video_capture.get(cv2.CAP_PROP_FPS)
-            current_video_count=current_video_capture.get(cv2.CAP_PROP_FRAME_COUNT)
-            if not current_video_capture.isOpened() or not 1<=current_video_rate<=120 or int(current_video_count/current_video_rate*ANIMATE_OUTPUT_FRAME_RATE)<current_request_record['frames']:
-                raise ValueError('영상 디코딩 실패 또는 16fps 기준 입력 길이 부족')
-        finally:
-            current_video_capture.release()
+        if inspect_animate_video(current_video_file.name)['maximum_frames'] < current_request_record['frames']:
+            raise ValueError('16fps 기준 입력 길이 부족')
     return dict(current_request_record)

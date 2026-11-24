@@ -196,6 +196,12 @@ class WorldMapAssetContractTests(unittest.TestCase):
     def test_world_catalog_and_thumbnail_http_use_registered_originals(self):
         current_response_bytes,current_content_type = read_map_asset_response('/management/map-assets/world')
         current_world_catalog = json.loads(current_response_bytes)
+        import subprocess
+        current_script = """import {validWorldMap} from './gui/worldMapValidation.mjs';
+          let data='';for await(const chunk of process.stdin)data+=chunk;
+          if(!validWorldMap(JSON.parse(data)))throw Error('월드맵 UI 응답 검증 실패');"""
+        subprocess.run(['node','--input-type=module','-e',current_script],input=current_response_bytes,
+                       cwd=WORKFLOW_REPOSITORY_ROOT,check=True,capture_output=True)
         self.assertIn('application/json',current_content_type)
         self.assertEqual(current_world_catalog['version'],3)
         current_world_nodes = {current_world_node['id']:current_world_node for current_world_node in current_world_catalog['maps']}

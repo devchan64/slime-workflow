@@ -20,7 +20,7 @@ class I2VContractsTest(unittest.TestCase):
         self.request = dict(action='generate', prompt='one sword slash', negative_prompt='',
                             images=[base64.b64encode(image.getvalue()).decode()], width=832, height=480,
                             frames=21, steps=4, seed=45, flow_shift=5, guidance_scale=1,
-                            lora_mode='lightning_kungfu', kungfu_strength=1)
+                            lora_mode='lightning', kungfu_strength=1)
 
     def test_input_and_lightning_constraints(self):
         self.assertEqual(validate_request(self.request)['tag'], 'wan22-i2v')
@@ -28,6 +28,11 @@ class I2VContractsTest(unittest.TestCase):
                              ('kungfu_strength', math.nan), ('images', [])]:
             with self.subTest(field=field), self.assertRaises(ValueError):
                 validate_request({**self.request, field: value})
+
+    def test_retired_kungfu_modes_rejected(self):
+        for mode in ('kungfu', 'lightning_kungfu'):
+            with self.subTest(mode=mode), self.assertRaises(ValueError):
+                validate_request({**self.request, 'lora_mode': mode})
 
     def test_adapter_counts_overlapping_patches_and_rejects_unmatched(self):
         class Model:

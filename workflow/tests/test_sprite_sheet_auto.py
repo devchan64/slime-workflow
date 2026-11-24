@@ -54,7 +54,10 @@ class AutomaticSpriteCropTests(unittest.TestCase):
           const reviewed=cropCandidate(image,50,result);assert.deepEqual(confirmCropCandidate(reviewed,image,50),result);
           assert.throws(()=>confirmCropCandidate(reviewed,image,40),/변경/);
           assert.throws(()=>confirmCropCandidate(reviewed,image+'A',50),/변경/);
-          assert.throws(()=>cropCandidate(image,50,{frames:[],sourceFrames:[]}),/확인/);"""
+          assert.throws(()=>cropCandidate(image,50,{frames:[],sourceFrames:[]}),/확인/);
+          assert.throws(()=>cropCandidate(image,50,{...result,frames:[{...result.frames[0],width:0}]}),/확인/);
+          assert.throws(()=>cropCandidate(image,50,result,{width:1,height:1}),/확인/);
+          assert.throws(()=>cropCandidate(image,50,{...result,columns:0}),/확인/);"""
         root=Path(__file__).resolve().parents[2]
         process=subprocess.run(['node','--input-type=module','-e',script,json.dumps({'image':image,'result':result})],cwd=root,capture_output=True,text=True)
         self.assertEqual(process.returncode,0,process.stderr)

@@ -1,3 +1,9 @@
+export function validCleanupResult(result,selected=false) {
+  return Boolean(result && result.status==="cleared" && Number.isSafeInteger(result.deleted_jobs) && result.deleted_jobs>=0 &&
+    (!selected || result.deleted_jobs===1) && Number.isSafeInteger(result.deleted_bytes) && result.deleted_bytes>=0 &&
+    (result.skipped_jobs===undefined || Array.isArray(result.skipped_jobs)));
+}
+
 export function formatCleanupResult(result) {
   if (!Number.isFinite(result.deleted_bytes)) {
     return "삭제 명령을 처리했습니다. 삭제 용량은 서비스에서 제공하지 않았습니다.";

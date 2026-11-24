@@ -14,6 +14,30 @@ from workflow.domains.hermes_agent.unified_queue import observe_unified_queue
 
 
 class UnifiedQueueTests(unittest.TestCase):
+    def test_capability_ui_accepts_server_rows_and_rejects_duplicate_commands(self):
+        import subprocess
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from workflow.common.hermes_capability_table import format_capability_table
+        from workflow.domains.hermes_agent.capabilities import list_hermes_capability_catalog
+        rows,summary=format_capability_table(list_hermes_capability_catalog())
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with TemporaryDirectory() as directory:
+            bundle=Path(directory)/'capabilities.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'CapabilitySearch.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const assert=require('node:assert/strict'),{validCapabilityCatalog:valid}=require(process.argv[1]);
+              let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{const catalog=JSON.parse(data);
+              assert.equal(valid(catalog),true);assert.equal(valid({...catalog,rows:[catalog.rows[0],catalog.rows[0]]}),false);
+              assert.equal(valid({...catalog,rows:[]}),true);assert.equal(valid({...catalog,rows:[['이름','']]}),false);});"""
+            subprocess.run(['node','-e',script,str(bundle)],input=json.dumps({'rows':rows,'summary':summary}),cwd=gui,check=True,capture_output=True,text=True)
+
+    def test_capability_catalog_includes_flux_origin_schemas(self):
+        from workflow.domains.hermes_agent.capabilities import list_hermes_capability_catalog, HERMES_FIELD_SCHEMAS
+        records=list_hermes_capability_catalog()['records']
+        record=next(row for row in records if row['command']=='hermes-delegate-flux-profile')
+        properties=record['payload_schema']['properties']
+        self.assertEqual(properties['proposal_job_id'],HERMES_FIELD_SCHEMAS['job_id'])
+        self.assertEqual(properties['handoff_id'],HERMES_FIELD_SCHEMAS['request_id'])
     def test_existing_chat_gpu_tickets_are_classified_and_deduplicated(self):
         from workflow.domains.hermes_agent.chat_queue_store import transition
         with TemporaryDirectory() as temporary_directory_name:

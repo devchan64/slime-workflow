@@ -479,9 +479,11 @@ class ModelManagementTest(unittest.TestCase):
             script = """const React=require('react'), server=require('react-dom/server');
               const {InventoryContents}=require(process.argv[1]);
               const inventory={files:[{path:'sample/a.json',bytes:2},{path:'sample/z.safetensors',bytes:5}],count:2,total_bytes:7,incomplete:true};
-              process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory})));"""
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory})));
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory:{files:[],count:0,total_bytes:0,incomplete:true}})));
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory:{files:[],count:0,total_bytes:0,incomplete:false}})));"""
             rendered = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True)
-        for expected in ('파일 2개', '7바이트', '일부 저장 위치 확인 실패', 'sample/z.safetensors', '해시 검증 결과가 아닙니다'):
+        for expected in ('파일 2개', '7바이트', '일부 저장 위치 확인 실패', 'sample/z.safetensors', '해시 검증 결과가 아닙니다', '확인된 파일이 없습니다. 일부 저장 위치를 확인하지 못했습니다.', '저장된 모델 파일이 없습니다.', '저장된 모델 파일 표'):
             self.assertIn(expected, rendered)
 
     def test_retired_qwen_2512_is_not_in_model_management(self):

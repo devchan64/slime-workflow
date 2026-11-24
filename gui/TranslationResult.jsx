@@ -4,6 +4,14 @@ import {writeClipboardText} from "./clipboardWrite.mjs";
 import ResultTable from "./ResultTable.jsx";
 import {requestErrorMessage} from "./requestError.mjs";
 
+export function translationCheckTable(result) {
+  const validItems=items=>Array.isArray(items) && items.every(item=>item && typeof item.source==="string" && typeof item.target==="string" && typeof item.status==="string" && (item.source_ref==null || typeof item.source_ref==="string"));
+  if(!result || typeof result!=="object" || (result.term_checks!=null && !validItems(result.term_checks)) || (result.quality_checks!=null && !validItems(result.quality_checks)))throw new Error("번역 점검 응답 형식을 확인할 수 없습니다.");
+  const rows=(result.term_checks || []).map(item=>[item.source,item.target,item.status==="matched" ? "일치" : item.status==="mismatch" ? "불일치 · 확인 필요" : "확인 필요",item.source_ref || ""]);
+  for(const item of result.quality_checks || [])rows.push([item.source,item.target,item.status==="matched" ? "표현 발견 · 문맥 확인" : item.status==="reversed" ? "행·열 역전" : "확인 필요",item.source_ref || ""]);
+  return {title:"용어·배치·조건 점검",summary:result.quality_checks ? "원본 번역 결과 기준" : "이전 작업 · 배치·조건 미검사",columns:["원문","번역어","결과","근거"],rows};
+}
+
 export default function TranslationResult({job, text}) {
   const [draft,setDraft] = useState(text);
   const [checks,setChecks] = useState(null);
@@ -23,13 +31,7 @@ export default function TranslationResult({job, text}) {
     try {
       const record = await untilAborted(managementCommand("prompt-translation","translation-status",{id:job},{signal:controller.signal}),controller.signal);
       if (record.id!==job || !record.result) throw new Error("해당 작업의 번역 결과를 확인할 수 없습니다.");
-      const {term_checks=[],quality_checks} = record.result;
-      const rows = term_checks.map(item=>[item.source,item.target,item.status==="matched"?"일치":"불일치 · 확인 필요",item.source_ref || ""]);
-      for (const item of quality_checks || []) {
-        rows.push([item.source,item.target,({matched:"표현 발견 · 문맥 확인",reversed:"행·열 역전"})[item.status] || "확인 필요",item.source_ref || ""]);
-      }
-      setChecks({title:"용어·배치·조건 점검", summary:quality_checks ? "원본 번역 결과 기준" : "이전 작업 · 배치·조건 미검사",
-        columns:["원문","번역어","결과","근거"],rows});
+      setChecks(translationCheckTable(record.result));
       setStale(false);
     } catch(problem) {if(!controller.signal.aborted || timedOut){setStale(Boolean(checks));setNotice("번역 점검을 조회하지 못했습니다 · "+(timedOut ? "조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem)));}}
     finally {clearTimeout(timeout);if(inspectRequest.current===controller)inspectRequest.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body && inspectRef.current?.isConnected)inspectRef.current.focus();});}}

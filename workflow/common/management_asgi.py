@@ -680,6 +680,24 @@ def build_management_application(current_handler_class, current_root_path, curre
     register_audio_input_routes('/management/assistant/sfx-input', 'sfx-dasheng-audiogen')
     register_audio_input_routes('/management/assistant/heartmula-input', 'music-heartmula')
 
+    @current_root_application.post('/management/assistant/animate-video-info')
+    async def animate_video_info(request: Request):
+        import tempfile
+        from generators.wan_animate2.contracts import ANIMATE_MAXIMUM_BYTES, inspect_animate_video
+        with tempfile.NamedTemporaryFile(suffix='.mp4') as video:
+            async for chunk in request.stream():
+                if video.tell() + len(chunk) > ANIMATE_MAXIMUM_BYTES:
+                    return JSONResponse({'error':'MP4는 32MiB 이하여야 합니다.'},status_code=413)
+                video.write(chunk)
+            video.flush()
+            video.seek(0)
+            if video.read(8)[4:8] != b'ftyp':
+                return JSONResponse({'error':'MP4 영상을 선택하세요.'},status_code=422)
+            try:
+                return await asyncio.to_thread(inspect_animate_video,video.name)
+            except (ValueError,OSError) as problem:
+                return JSONResponse({'error':str(problem)},status_code=422)
+
     @current_root_application.get('/management/assistant/animate-input/{job}/{part}')
     def animate_input(job: str, part: Literal["request", "reference", "motion"]):
         from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE
@@ -863,6 +881,15 @@ def build_management_application(current_handler_class, current_root_path, curre
         if root.is_symlink() or directory.is_symlink() or path.is_symlink() or not path.is_file():
             return Response(status_code=404)
         return FileResponse(path, media_type='video/mp4', headers={'Cache-Control':'no-store'})
+
+    @current_root_application.get('/management/assistant/wan22-i2v-input/{job}')
+    def wan22_i2v_input(job: str):
+        from generators.wan_i2v.contracts import JOB_STORAGE
+        from workflow.domains.wan_i2v.input_restore import load_saved_input
+        try:
+            return JSONResponse(load_saved_input(JOB_STORAGE, job), headers={'Cache-Control':'no-store'})
+        except (ValueError, OSError, KeyError, TypeError):
+            return JSONResponse({'detail':'저장된 입력 또는 참조 이미지를 확인할 수 없습니다. 이력을 확인한 뒤 다시 시도하세요.'}, status_code=422)
 
     @current_root_application.get('/management/assistant/wan21-i2v-input/{job}')
     def wan21_i2v_input(job: str):

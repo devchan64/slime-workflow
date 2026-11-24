@@ -4,6 +4,28 @@ from unittest.mock import patch
 from workflow.domains.map_assets.effect_editor import execute_effect_editor_command
 
 class EffectEditorTests(unittest.TestCase):
+    def test_effect_load_response_is_accepted_by_ui(self):
+        import json
+        import subprocess
+        from pathlib import Path
+        from unittest.mock import Mock
+        rectangle={'x':0,'y':0,'width':32,'height':32}
+        frame={'rect':rectangle,'anchor':{'x':16,'y':31}}
+        records=[
+            {'id':'waypoint-v1','name':'길 안내','renderer':'waypoint-animation','image':'waypoint.png','animation':'waypoint.json','frames':2},
+            {'id':'swarm-v1','name':'나방','renderer':'swarm','image':'swarm.png','frames':8,'alignment':{'texture':'moths','alpha':.5,'target':[0,0,1,1],'frames':[[0,0,1,1]]*8}},
+        ]
+        image=Mock();image.read_bytes.return_value=b'png'
+        metadata=Mock();metadata.read_text.return_value=json.dumps({'frames':[frame,frame]})
+        with patch('workflow.domains.map_assets.effect_editor.execute_content_api_request',return_value={'effects':records}), patch('workflow.domains.map_assets.effect_editor.load_registered_tiles',return_value=(None,{})), patch('workflow.domains.map_assets.effect_editor.resolve_registered_asset',side_effect=[(image,{}),(metadata,{}),(image,{})]):
+            details=[execute_effect_editor_command('effect-load',{'id':record['id']}) for record in records]
+        root=Path(__file__).resolve().parents[2]
+        script="""import assert from 'node:assert/strict';import {validEffectDetail,validWaypointFrames} from './gui/effectDetailValidation.mjs';
+          let data='';for await(const part of process.stdin)data+=part;const [waypoint,swarm]=JSON.parse(data);
+          assert.equal(validEffectDetail(waypoint,'waypoint-v1'),true);assert.equal(validWaypointFrames(waypoint.animationMetadata.frames,waypoint.document.frames),true);
+          assert.equal(validEffectDetail(swarm,'swarm-v1'),true);"""
+        subprocess.run(['node','--input-type=module','-e',script],input=json.dumps(details),cwd=root,check=True,capture_output=True,text=True)
+
     @patch('workflow.domains.map_assets.effect_editor.execute_content_api_request')
     def test_list_filters_non_alignment_effects(self,current_api_mock):
         current_api_mock.return_value={'effects':[{'id':'a','name':'A'},{'id':'b','name':'B','alignment':{}}]}

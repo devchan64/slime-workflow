@@ -8,6 +8,7 @@ import {writerProposalId,readGenerationProposal} from "./generationProposal.mjs"
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
 import {requestErrorMessage} from "./requestError.mjs";
 import JobIdentifier from "./JobIdentifier.jsx";
+import ActionButton from "./ActionButton.jsx";
 
 export function WriterUncertainReceipt({onClear}){
   return <section role="status"><p>이전 작가 작업의 접수 여부가 확인되지 않았습니다. 아래 실행 이력에서 해당 작업을 먼저 확인하세요.</p>
@@ -26,6 +27,8 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
   const uncertaintyKey="writer-submit-uncertain:"+(session || "standalone");
   const [uncertain,setUncertain]=useState(()=>sessionStorage.getItem(uncertaintyKey)==="1");
   const sending=useRef(false);
+  const reviewRef=useRef(null),reviewTrigger=useRef(null);
+  useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus();},[review]);
   const confirmation=useRef(null);
   if(!confirmation.current)confirmation.current=createConfirmationGate();
   const handoff=useGpuHandoff(session,"writer-agent",onAccepted,setError);
@@ -65,6 +68,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
   async function submit(mode) {
     if(sending.current || uncertain || (proposalScope && (proposalReceipt!=='editing' || mode!==proposedMode)))return;
     sending.current=true;
+    reviewTrigger.current=document.activeElement;
     setBusy(true);setError("");
     try {
       if(proposalScope){const latest=await readGenerationProposal(managementCommand,proposalScope);if(JSON.stringify(latest)!==JSON.stringify(proposalScope.proposal))throw new Error('대화 제안이 변경되었습니다. 다시 조회하세요.');}
@@ -106,6 +110,9 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
   const prepare=Boolean(!stateError && workspace?.configured && !workspace.active_job);
   const learn=prepare && workspace.ready;
   const trained=learn && workspace.trained;
+  const readinessReason=stateError ? "작업 준비 상태를 다시 확인하세요." : !workspace ? "작업 준비 상태를 확인하고 있습니다." : !workspace.configured ? "문서 폴더 설정과 접근 권한을 확인하세요." : workspace.active_job ? "진행 중인 작업이 끝날 때까지 기다리세요." : "";
+  const learnReason=readinessReason || (!workspace?.ready ? "먼저 실행 환경을 준비하세요." : "");
+  const trainedReason=learnReason || (!workspace?.trained ? "먼저 문서를 학습해 검색 색인을 만드세요." : "");
   return <>{handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service="writer-agent" status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
   {uncertain && <WriterUncertainReceipt onClear={()=>{sessionStorage.removeItem(uncertaintyKey);setUncertain(false);}}/>}
   {proposalScope && proposalReceipt!=='editing' && <section role="status"><p>제안 접수 상태: {proposalReceipt==='checking'?'확인 중':proposalReceipt==='accepted'?'접수 확인됨':'확인 필요'}. 같은 제안은 다시 접수하지 않습니다.</p><button type="button" disabled={!proposalId || busy} onClick={()=>checkProposalReceipt(proposalId).catch(problem=>{setProposalReceipt('unknown');setError(requestErrorMessage(problem));})}>접수 상태 다시 확인</button></section>}
@@ -117,19 +124,19 @@ export default function WriterActions({session="",onAccepted,onWorkspace,initial
     {workspace?.configured && <details><summary>문서·색인·기록 경로</summary><pre>{[workspace.document_root,workspace.index_path,workspace.state_root].join("\n")}</pre></details>}
     {workspace && (workspace.active_job ? <div role="status"><p>진행 중인 작업</p><JobIdentifier id={workspace.active_job} compact/></div> : <p role="status">{!workspace.configured?"먼저 문서 폴더를 연결하세요.":!workspace.ready?"실행 환경을 준비하세요.":
       !workspace.trained?"문서를 학습해 검색 색인을 만드세요.":"작성과 중복 검토를 요청할 수 있습니다."}</p>)}
-    <div className="writer-action-row"><button disabled={!prepare || Boolean(proposalScope)} onClick={()=>submit("prepare")}>환경 준비</button>
-    <button disabled={!learn || Boolean(proposalScope && proposedMode!=='learn')} onClick={()=>submit("learn")}>학습 · 색인 갱신</button></div>
+    <div className="writer-action-row"><ActionButton reasons={[!prepare && readinessReason,proposalScope && "대화 제안에서는 환경 준비를 요청할 수 없습니다."]} onClick={()=>submit("prepare")}>환경 준비</ActionButton>
+    <ActionButton reasons={[!learn && learnReason,proposalScope && proposedMode!=='learn' && "대화에서 제안한 작업을 선택하세요."]} onClick={()=>submit("learn")}>학습 · 색인 갱신</ActionButton></div>
     <label>작성 지시 또는 중복 검토 범위<textarea maxLength={6000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
     {proposedMode && <p>대화에서 제안한 작업: {({write:"작성 제안",deduplicate:"중복 검토",learn:"학습 · 색인 갱신",prepare:"환경 준비"})[proposedMode] || proposedMode}. 내용을 확인하고 해당 버튼을 선택하세요.</p>}
-    <div className="writer-action-row"><button disabled={!trained || !prompt.trim() || Boolean(proposalScope && proposedMode!=='write')} onClick={()=>submit("write")}>작성 제안 요청</button>
-    <button disabled={!trained || Boolean(proposalScope && proposedMode!=='deduplicate')} onClick={()=>submit("deduplicate")}>중복 검토 요청</button></div>
+    <div className="writer-action-row"><ActionButton reasons={[!trained && trainedReason,!prompt.trim() && "작성 지시를 입력하세요.",proposalScope && proposedMode!=='write' && "대화에서 제안한 작업을 선택하세요."]} onClick={()=>submit("write")}>작성 제안 요청</ActionButton>
+    <ActionButton reasons={[!trained && trainedReason,proposalScope && proposedMode!=='deduplicate' && "대화에서 제안한 작업을 선택하세요."]} onClick={()=>submit("deduplicate")}>중복 검토 요청</ActionButton></div>
     <p>중복 검토 범위를 비우면 전체 색인을 검사합니다.</p>
     {error && <p role="alert">{error}</p>}
   </fieldset>
-  {review && <section aria-label="작가 작업 확인"><h2>{review.handoff?"작가 작업과 GPU 양도 확인":"작가 작업 확인"}</h2>
+  {review && <section ref={reviewRef} tabIndex={-1} aria-label="작가 작업 확인"><h2>{review.handoff?"작가 작업과 GPU 양도 확인":"작가 작업 확인"}</h2>
     <p>문서 작업공간 · {review.documentRoot || "확인 불가"}</p><p>색인·작업 기록 · {review.stateRoot || "확인 불가"}</p><p>작업 · {({prepare:"환경 준비",learn:"문서 색인 갱신",write:"작성 제안",deduplicate:"중복 검토"})[review.bound.request.mode]}</p>
     {review.bound.request.prompt && <><h3>요청 내용</h3><p>{review.bound.request.prompt}</p></>}
     <p>{review.handoff && "동의하면 현재 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 위 작업을 실행합니다. 작업 종료 후 Qwen 3.8을 다시 적재합니다. "}작성 제안은 문서에 자동 적용하지 않습니다.</p>
-    <GenerationReviewActions busy={busy} onCancel={()=>{confirmation.current.cancel();setReview(null);handoff.clearReview();}} onConfirm={confirmHandoff} confirmLabel={review.handoff?"해제·작업·재적재에 동의":"확인 후 작업 요청"}/>
+    <GenerationReviewActions busy={busy} onCancel={()=>{const focused=document.activeElement;confirmation.current.cancel();setReview(null);handoff.clearReview();requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}} onConfirm={confirmHandoff} confirmLabel={review.handoff?"해제·작업·재적재에 동의":"확인 후 작업 요청"}/>
   </section>}</>;
 }

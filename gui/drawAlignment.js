@@ -2,6 +2,7 @@ export async function drawAlignment(currentCanvasElement,currentDetailRecord,ali
  currentCanvasElement.effectPreviewRevision=(currentCanvasElement.effectPreviewRevision||0)+1;
  const currentPreviewRevision=currentCanvasElement.effectPreviewRevision;
  const currentCanvasContext=currentCanvasElement.getContext('2d');
+ currentCanvasContext.clearRect(0,0,640,640);
  const rejectCurrentPreviewInput=currentErrorMessage=>{
   currentCanvasContext.globalAlpha=1;currentCanvasContext.globalCompositeOperation='source-over';
   currentCanvasContext.clearRect(0,0,640,640);
@@ -46,6 +47,7 @@ export async function drawAlignment(currentCanvasElement,currentDetailRecord,ali
   const currentMothMotion=currentPlayEnabled&&currentMothPreviewEnabled?sampleMothAnimationFrame(Math.max(0,currentElapsedTime-currentStartTime)):null;
   const currentFogMotion=currentPlayEnabled&&currentDetailRecord.document.renderer==='fog'?sampleFogAnimationFrame(Math.max(0,currentElapsedTime-currentStartTime)):null;
   const currentActiveFrame=currentPlayEnabled?(currentFogMotion?.frame??currentMothMotion?.frame??sampleEffectAnimationFrame(Math.max(0,currentElapsedTime-currentStartTime))):currentFrameIndex;
+  currentCanvasElement.effectDisplayedFrame=currentActiveFrame;
   const currentFlightOffsetX=(currentMothMotion?.offsetX??0)*currentHostWidth;
   const currentFlightOffsetY=(currentMothMotion?.offsetY??0)*currentHostHeight;
   currentCanvasContext.globalAlpha=1;currentCanvasContext.globalCompositeOperation='source-over';currentCanvasContext.fillStyle='#182329';currentCanvasContext.fillRect(0,0,640,640);

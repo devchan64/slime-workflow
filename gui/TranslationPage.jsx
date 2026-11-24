@@ -16,13 +16,14 @@ import GeneratorHistory from "./GeneratorHistory.jsx";
 import TranslationEvidence from "./TranslationEvidence.jsx";
 import TranslationResult from "./TranslationResult.jsx";
 import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
-import {managementCommand} from "./managementCommand.js";
+import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {parseTranslationGlossary} from "./translationGlossary.mjs";
 import {generationReady} from "./generationReady.mjs";
 
 const service="prompt-translation";
-const callHermes=(command,payload)=>managementCommand("hermes-agent","hermes-"+command,payload);
+const callHermes=(command,payload,options)=>managementCommand("hermes-agent","hermes-"+command,payload,options);
 
 export default function TranslationPage({embedded=false}={}) {
   const query=new URLSearchParams(location.search);
@@ -54,7 +55,7 @@ export default function TranslationPage({embedded=false}={}) {
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     async function read(){
       try{
-        const next=await managementCommand(service,"translation-status",{id:job},{signal:controller.signal});
+        const next=await untilAborted(managementCommand(service,"translation-status",{id:job},{signal:controller.signal}),controller.signal);
         if(!active)return;
         if(next?.id!==job)throw new Error("작업 ID가 일치하지 않습니다.");
         if(!next.status || typeof next.status!=="object" || typeof next.status.status!=="string")throw new Error("작업 상태 응답을 확인할 수 없습니다.");
@@ -83,16 +84,16 @@ export default function TranslationPage({embedded=false}={}) {
     finally{setPending(null);sending.current=false;setBusy(false);}
   }
   async function readJob(id){
-    const inputAtStart=inputRef.current,reviewAtStart=reviewEpoch.current;
+    const inputAtStart=inputRef.current,reviewAtStart=reviewEpoch.current,focusAtStart=document.activeElement;
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
-      const record=await managementCommand(service,"translation-status",{id},{signal:controller.signal});
+      const record=await untilAborted(managementCommand(service,"translation-status",{id},{signal:controller.signal}),controller.signal);
       const input=record?.request;
       if(record?.id!==id || !input || typeof input.text!=="string" || !["en","zh-CN"].includes(input.target_language) ||
         (input.glossary!=null && (!Array.isArray(input.glossary) || input.glossary.some(term=>!term || typeof term.source!=="string" || typeof term.target!=="string"))))
         throw new Error("저장된 번역 입력 형식을 확인할 수 없습니다.");
-      return {...record,inputAtStart,reviewAtStart};
+      return {...record,inputAtStart,reviewAtStart,focusAtStart};
     }catch(error){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
     finally{clearTimeout(timeout);}
   }
@@ -103,21 +104,21 @@ export default function TranslationPage({embedded=false}={}) {
     setText(input.text);setLanguage(input.target_language);
     setTerms((input.glossary||[]).map(term=>term.source+" => "+term.target).join("\n"));setTermsError("");
     setNotice("이력의 번역 입력을 불러왔습니다. 내용을 확인하거나 수정하세요.");
-    requestAnimationFrame(()=>textRef.current?.focus());
+    requestAnimationFrame(()=>{if(document.activeElement===record.focusAtStart || document.activeElement===document.body)textRef.current?.focus();});
   }
   return <section className={embedded ? "translation-page" : "translation-page translation-standalone"} style={embedded ? {minWidth:0} : undefined}>
     {!embedded && <a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>}
     <h1 className={embedded ? "embedded-page-title" : undefined}>프롬프트 번역</h1>
     <p>TranslateGemma 4B · ROCm BF16 · <a href="https://ai.google.dev/gemma/terms">Gemma 이용약관</a></p>
-    {embedded ? <details><summary>모델 준비 상태 · {modelError ? "조회 실패" : !model ? "확인 중" : generationReady(model) ? "준비됨" : "준비 필요"}</summary><ModelReadiness service={service} onStatus={setModel} onError={setModelError}/></details> : <ModelReadiness service={service} onStatus={setModel}/>}
+    {embedded ? <GeneratorSectionCard title="모델 준비 상태" summary={modelError ? "조회 실패" : !model ? "확인 중" : generationReady(model) ? "준비됨" : "준비 필요"}><ModelReadiness service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard> : <ModelReadiness service={service} onStatus={setModel}/>}
     <GeneratorChangelog generator={service}/>
-    <fieldset disabled={Boolean(pending)}><label>한국어 원문 <textarea ref={textRef} value={text} onChange={e=>setText(e.target.value)}/></label>
+    <fieldset disabled={Boolean(pending)}><legend className="generator-visually-hidden">번역 입력과 이력</legend><label>한국어 원문 <textarea ref={textRef} value={text} onChange={e=>setText(e.target.value)}/></label>
       <label>목표 언어 <select value={language} onChange={e=>setLanguage(e.target.value)}><option value="en">영어</option><option value="zh-CN">중국어 간체</option></select></label>
       <label>확인할 용어 <textarea ref={termsRef} placeholder="원문 => 번역어" aria-describedby={termsError?`${termsHelp} ${termsErrorId}`:termsHelp} aria-invalid={Boolean(termsError)} value={terms} onChange={e=>{setTerms(e.target.value);setTermsError("");}}/></label>
       <small id={termsHelp}>선택 사항 · 한 줄에 하나씩 입력하세요. 예: 로봇 =&gt; robot</small>
       {termsError && <p id={termsErrorId} role="alert">{termsError}</p>}
       <p><PromptWordCount text={text} final/></p>
-      <TranslationEvidence key={text} source={text} call={callHermes}/>
+      <TranslationEvidence source={text} call={callHermes}/>
       <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id){setJob("");setRecord(null);}setNotice(message);setHistoryRevision(v=>v+1);}} key={historyRevision} service={service} statusCommand="translation-status" readJob={readJob} resultId={job} openResult={id=>{focusResult.current=true;setRecord(null);setJob(id);}} onCloseResult={()=>{setJob("");setRecord(null);}} restore={restore} renderResult={(id,close)=><div ref={resultRef} tabIndex={-1} aria-label="선택한 번역 작업"><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} statusCommand="translation-status"/><section ref={!record ? live.ref : undefined}><h2>번역 작업</h2><JobIdentifier id={id}/><RecordFolder key={id} service={service} id={id}/><button onClick={()=>setRevision(v=>v+1)}>상태 갱신</button>
         {statusCheckedAt && <p>마지막 조회 성공 · <time dateTime={statusCheckedAt.toISOString()}>{statusCheckedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
         {statusError && <p role="alert">번역 작업 상태를 불러오지 못했습니다. {statusError}{record?.id===id && " 아래 내용은 마지막으로 조회한 결과입니다."}{statusFailedAt && <> 조회 실패 시각 · <time dateTime={statusFailedAt.toISOString()}>{statusFailedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></>}</p>}

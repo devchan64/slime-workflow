@@ -6,6 +6,7 @@ import WriterResult from "./WriterResult.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
+import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import ResultTable from "./ResultTable.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {writerModeLabel,writerStageLabel} from "./writerLabels.mjs";
@@ -23,6 +24,7 @@ export default function WriterPage({embedded=false,session:embeddedSession=""}={
   const [searchedQuery,setSearchedQuery]=useState("");
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
+  const [model,setModel]=useState(null),[modelError,setModelError]=useState("");
   const [proposalError,setProposalError]=useState("");
   const [proposal,setProposal]=useState(null),[proposalScope,setProposalScope]=useState(null),[proposalLoading,setProposalLoading]=useState(!embedded && params.has('proposal_job'));
   useEffect(()=>{
@@ -58,9 +60,9 @@ export default function WriterPage({embedded=false,session:embeddedSession=""}={
     finally{clearTimeout(timeout);if(searchRequest.current===controller)searchRequest.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
   }
   const jobs=matches ?? recent ?? [];
-  return <main className="writer-page-shell"><article className="writer-page"><a href={"/management/frame/hermes-agent/"+(params.has("session")?"?"+new URLSearchParams({session:params.get("session")}):"")}>헤르메스 대화로 돌아가기</a>
+  return <main className="writer-page-shell"><article className="writer-page">{!embedded && <nav aria-label="워크플로우 탐색"><a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a></nav>}
     <h1 className={embedded ? "embedded-page-title" : undefined}>작가 AI 에이전트</h1><GeneratorChangelog generator="writer-agent"/>
-    {embedded ? <details><summary>모델 준비 및 다운로드</summary><ModelReadiness service="writer-agent"/><DownloadProgress service="writer-agent"/></details> : <><ModelReadiness service="writer-agent"/><DownloadProgress service="writer-agent"/></>}
+    {embedded ? <GeneratorSectionCard title="모델 준비 및 다운로드" summary={modelError ? "조회 실패" : !model ? "확인 중" : model.ready ? "준비됨" : "준비 필요"}><ModelReadiness service="writer-agent" onStatus={setModel} onError={setModelError}/><DownloadProgress service="writer-agent"/></GeneratorSectionCard> : <><ModelReadiness service="writer-agent"/><DownloadProgress service="writer-agent"/></>}
     {proposalError && <p role="alert">{proposalError} · 기본 입력으로 계속할 수 있습니다.</p>}
     {proposalLoading ? <p role="status">대화 제안 확인 중…</p> : <WriterActions session={session} proposalScope={proposalScope} initialPrompt={proposal?.prompt || ""} proposedMode={proposal?.mode || ""} onWorkspace={setRecent} onAccepted={id=>{resultTrigger.current=null;select(id);setMatches(null);setNotice(id+" 작업을 접수했습니다.");}}/>}
     <form onSubmit={event=>{event.preventDefault();search();}}><label>이력 검색<input ref={searchInput} maxLength={200} value={query} disabled={busy} onChange={event=>setQuery(event.target.value)}/></label>

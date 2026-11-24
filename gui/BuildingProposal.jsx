@@ -1,5 +1,5 @@
-import React,{useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import React,{useEffect,useRef,useState} from "react";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 import {prepareBuildingProposal,verifyBuildingProposalBeforeSave} from "./buildingProposalProtocol.mjs";
 
@@ -15,15 +15,25 @@ export function BuildingProposalReview({preview,busy,onSave,onCancel}){
 }
 
 export default function BuildingProposal({session,job,snapshot,offset}){
+  return <BuildingProposalForSelection key={JSON.stringify([session,job,snapshot,offset])} session={session} job={job} snapshot={snapshot} offset={offset}/>;
+}
+
+function BuildingProposalForSelection({session,job,snapshot,offset}){
   const [review,setReview]=useState(null),[receipt,setReceipt]=useState(null),[busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const sending=useRef(false);
+  const inspection=useRef(null);
+  useEffect(()=>()=>inspection.current?.abort(),[]);
   async function inspect(){
+    if(inspection.current)return;
+    const controller=new AbortController();inspection.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setNotice("");setReview(null);
     try{
-      const result=await prepareBuildingProposal(managementCommand,session,job,snapshot,offset);
+      const command=(service,name,payload)=>{if(controller.signal.aborted)return Promise.reject(new DOMException("조회가 중단됐습니다.","AbortError"));return untilAborted(managementCommand(service,name,payload,{signal:controller.signal}),controller.signal);};
+      const result=await untilAborted(prepareBuildingProposal(command,session,job,snapshot,offset),controller.signal);
       setReceipt(result.receipt || null);setReview(result.review || null);
-    }catch(error){setNotice(error.message);}
-    finally{setBusy(false);}
+    }catch(error){if(!controller.signal.aborted || timedOut)setNotice(timedOut ? "건물 제안 조회 시간이 초과됐습니다. 다시 확인하세요." : error.message);}
+    finally{clearTimeout(timeout);if(inspection.current===controller)inspection.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
   }
   async function save(){
     if(!review || sending.current)return;
@@ -38,6 +48,7 @@ export default function BuildingProposal({session,job,snapshot,offset}){
   }
   return <section aria-label="건물 앵커 변경 제안">
     <button type="button" disabled={busy} onClick={inspect}>{receipt ? "접수 상태 다시 확인" : "건물 변경 제안 검토"}</button>
+    {busy && <p role="status">건물 제안을 처리하고 있습니다.</p>}
     {receipt && <BuildingProposalReceipt receipt={receipt}/>}
     {notice && <p role="alert">{notice}</p>}
     {review && <BuildingProposalReview preview={review.preview} busy={busy} onSave={save} onCancel={()=>setReview(null)}/>}

@@ -2,6 +2,10 @@ import React,{useEffect,useRef,useState} from "react";
 import {writeClipboardText} from "./clipboardWrite.mjs";
 
 export default function JobIdentifier({id,compact=false,label="작업 ID"}){
+  return <JobIdentifierForValue key={JSON.stringify([id,compact,label])} id={id} compact={compact} label={label}/>;
+}
+
+function JobIdentifierForValue({id,compact=false,label="작업 ID"}){
   const [notice,setNotice]=useState("");
   const valueRef=useRef(null),buttonRef=useRef(null);
   const request=useRef(0),timer=useRef(null);
@@ -17,7 +21,7 @@ export default function JobIdentifier({id,compact=false,label="작업 ID"}){
       const value=valueRef.current;
       if(document.activeElement===document.body || document.activeElement===buttonRef.current){
         value?.focus();
-        if(compact && value){const range=document.createRange();range.selectNodeContents(value);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);}
+        if(compact && value){const selection=window.getSelection?.();if(selection){const range=document.createRange();range.selectNodeContents(value);selection.removeAllRanges();selection.addRange(range);}}
         else value?.select();
       }
       setNotice("ID를 선택해 복사 단축키를 사용하세요.");

@@ -17,12 +17,36 @@ class KimodoReadinessTests(unittest.TestCase):
             script="""global.location={search:'?session=abc'};
               global.fetch=()=>{throw Error('render must not dispatch');};
               const assert=require('node:assert/strict'),React=require('react'),server=require('react-dom/server');
-              const {default:Page,ModelReadinessMessage,modelReadinessPollDelay,modelPrepareReason}=require(process.argv[1]);
+              const {default:Page,ModelReadinessMessage,modelReadinessPollDelay,modelPrepareReason,validModelReadiness}=require(process.argv[1]);
               const render=value=>server.renderToStaticMarkup(value);
               """+checks
             result=subprocess.run(['node','-e',script,str(bundle)],cwd=gui,capture_output=True,text=True,
                                   env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         self.assertEqual(result.returncode,0,result.stderr)
+    def test_invalid_readiness_does_not_reach_status_rendering(self):
+        self.run_readiness_javascript("""assert.equal(validModelReadiness({ready:false,message:'준비 필요',missing:['모델']}),true);
+          assert.equal(validModelReadiness({ready:false,message:'준비',can_prepare:true,prepare_request:{service:'kimodo',command:'prepare',payload:{action:'prepare'}}}),true);
+          for(const value of [null,{}, {ready:true,message:'준비',generation_ready:'yes'}, {ready:false,message:'준비',missing:'모델'}, {ready:false,message:'준비',missing:[{}]}, {ready:false,message:'준비',can_prepare:'yes'}, {ready:false,message:'준비',prepare_request:{}}, {ready:false,message:'준비',prepare_request:{service:'kimodo',command:'generate',payload:{}}}])
+            assert.equal(validModelReadiness(value),false);""")
+    def test_management_readiness_responses_match_ui_validation(self):
+        import json
+        from http.server import SimpleHTTPRequestHandler
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        statuses = {'ready': False, 'message': '격리된 상태', 'can_prepare': True}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            app = build_management_application(SimpleHTTPRequestHandler, root, root/'source.json', 8770, [])
+            with patch('workflow.common.model_preparation_controls.execute_model_preparation_command', return_value=statuses), \
+                 patch('workflow.common.model_preparation_controls.execute_wan13_model_command', return_value=statuses), \
+                 TestClient(app) as client:
+                services = ('kimodo', 'music-heartmula', 'sfx-dasheng-audiogen', 'wan22-vace', 'wan21-fun-1.3b')
+                responses = []
+                for service in services:
+                    response = client.get('/management/assistant/model-readiness/'+service)
+                    self.assertEqual(response.status_code, 200, service)
+                    responses.append(response.json())
+        self.run_readiness_javascript('for(const item of '+json.dumps(responses, ensure_ascii=False)+') assert.equal(validModelReadiness(item),true);')
     def test_current_readiness_message_distinguishes_assets_and_generation(self):
         import subprocess
         gui=Path(__file__).resolve().parents[2]/'gui'

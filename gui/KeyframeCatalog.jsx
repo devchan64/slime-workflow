@@ -1,17 +1,19 @@
 import React,{useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
 
 function Preview({id}){
   const [result,setResult]=useState(null),[error,setError]=useState(""),[attempt,setAttempt]=useState(0);
   useEffect(()=>{
-    let active=true;
+    let active=true,timedOut=false;
+    const controller=new AbortController(),timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setError("");setResult(null);
-    managementCommand("hermes-agent","hermes-kimodo-keyframe-preview",{keyframe_id:id}).then(value=>{
-      if(value.id!==id || !value.image_base64)throw new Error("선택한 키프레임을 확인할 수 없습니다.");
+    untilAborted(managementCommand("hermes-agent","hermes-kimodo-keyframe-preview",{keyframe_id:id},{signal:controller.signal}),controller.signal).then(value=>{
+      if(value?.id!==id || typeof value.image_base64!=="string" || !value.image_base64 || typeof value.sha256!=="string")throw new Error("선택한 키프레임을 확인할 수 없습니다.");
       if(active)setResult(value);
-    }).catch(problem=>{if(active)setError(problem instanceof TypeError?"원본에 연결하지 못했습니다. 다시 시도하세요.":problem.message);});
-    return ()=>{active=false;};
+    }).catch(problem=>{if(active)setError(timedOut ? "원본 조회 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[id,attempt]);
   if(error)return <div role="alert"><p>{error}</p><button type="button" onClick={()=>setAttempt(value=>value+1)}>원본 다시 불러오기</button></div>;
   if(!result)return <p role="status">원본 확인 중…</p>;
@@ -27,17 +29,19 @@ function SearchResults({query,choose,add,disabled}){
   useEffect(()=>{if(selected && triggerRef.current){previewRef.current?.focus({preventScroll:true});previewRef.current?.scrollIntoView({block:"start",inline:"nearest"});}},[selected]);
   function closePreview(){select("");requestAnimationFrame(()=>{if(triggerRef.current?.isConnected)triggerRef.current.focus();});}
   useEffect(()=>{
-    let active=true;
+    let active=true,deadline,timedOut=false;
+    const controller=new AbortController();
     setLoading(true);setError("");
     const timer=setTimeout(()=>{
-      managementCommand("hermes-agent","hermes-kimodo-keyframes",{query,limit:20,...cursor})
+      deadline=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+      untilAborted(managementCommand("hermes-agent","hermes-kimodo-keyframes",{query,limit:20,...cursor},{signal:controller.signal}),controller.signal)
         .then(result=>{
-          if(!result || !Array.isArray(result.items) || !Number.isInteger(result.total))throw new Error("키프레임 목록을 확인할 수 없습니다.");
+          if(!result || !Array.isArray(result.items) || !Number.isInteger(result.total) || result.items.some(item=>!item || typeof item.id!=="string" || !item.id || (item.tag!=null && typeof item.tag!=="string")))throw new Error("키프레임 목록을 확인할 수 없습니다.");
           if(active){setPage(result);setReceivedAt(new Date());select("");setLoading(false);}
         })
-        .catch(problem=>{if(active){setError(problem instanceof TypeError?"키프레임 목록에 연결하지 못했습니다.":problem.message);setLoading(false);}});
+        .catch(problem=>{if(active){setError(timedOut ? "키프레임 목록 조회 시간이 초과됐습니다." : requestErrorMessage(problem));setLoading(false);}}).finally(()=>clearTimeout(deadline));
     },200);
-    return ()=>{active=false;clearTimeout(timer);};
+    return ()=>{active=false;clearTimeout(timer);clearTimeout(deadline);controller.abort();};
   },[query,cursor]);
   return <section aria-label="Kimodo 키프레임 검색">
     {error && <p role="alert">{error}{page && " 이전 조회 결과를 유지합니다."} <button type="button" onClick={()=>setCursor({})}>처음부터 다시 조회</button></p>}
@@ -61,23 +65,28 @@ function SearchResults({query,choose,add,disabled}){
 export default function KeyframeCatalog({query,choose,apply,initialFrames="",initialRows=[]}){
   const [rows,setRows]=useState(initialRows),[frames,setFrames]=useState(initialFrames);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[review,setReview]=useState(null);
-  const placementRef=useRef(null),focusPlacement=useRef(false);
+  const placementRef=useRef(null),focusPlacement=useRef(false),validationRequest=useRef(null);
+  useEffect(()=>()=>validationRequest.current?.abort(),[]);
   useEffect(()=>{if(rows.length && focusPlacement.current){focusPlacement.current=false;placementRef.current?.focus({preventScroll:true});placementRef.current?.scrollIntoView({block:"start",inline:"nearest"});}},[rows]);
   function edit(next){
     setRows(next);setReview(null);setError("");
   }
   async function validate(event){
-    event.preventDefault();setBusy(true);setError("");setReview(null);
+    event.preventDefault();if(validationRequest.current)return;
+    const controller=new AbortController();validationRequest.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    const expected=rows.map(row=>({id:row.id,frame:Number(row.frame)})).sort((a,b)=>a.frame-b.frame);
+    setBusy(true);setError("");setReview(null);
     try{
-      const result=await managementCommand("hermes-agent","hermes-kimodo-keyframe-validate",{
+      const result=await untilAborted(managementCommand("hermes-agent","hermes-kimodo-keyframe-validate",{
         frames:Number(frames),keyframes:rows.map(row=>({id:row.id,frame:Number(row.frame)}))
-      });
-      if(!Array.isArray(result.placements) || result.placements.length!==rows.length || !result.skeleton_signature_sha256){
+      },{signal:controller.signal}),controller.signal);
+      if(!Array.isArray(result?.placements) || result.placements.length!==expected.length || result.placements.some((row,index)=>!row || row.id!==expected[index].id || row.frame!==expected[index].frame) || !/^[a-f0-9]{64}$/.test(result.skeleton_signature_sha256 || "")){
         throw new Error("배치 검증 결과를 확인할 수 없습니다.");
       }
-      setReview(result);
-    }catch(problem){setError(problem.message);}
-    finally{setBusy(false);}
+      if(!controller.signal.aborted)setReview(result);
+    }catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? "배치 검증 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}
+    finally{clearTimeout(timeout);if(validationRequest.current===controller)validationRequest.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
   }
   return <>
     <SearchResults key={query} query={query} choose={choose} disabled={busy || rows.length>=20}

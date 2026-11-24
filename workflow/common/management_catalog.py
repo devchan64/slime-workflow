@@ -32,7 +32,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id': 'music-heartmula', 'label': 'HeartMuLa 3B 음악 생성기', 'path': REACT_REVIEW_PATHS['music-heartmula'], 'category': 'sound-management', 'uiMode': 'react', 'description': 'tags·lyrics 입력 · 무보컬 보장 없음'},
     {'id':'kimodo-generator','label':'Kimodo 모션 생성기','path':'/management/frame/kimodo-generator/','category':'animation-tool','uiMode':'react','description':'ROCm · SOMA v1.2 · 텍스트→3D 모션 · 비양자화 BF16 인코더'},
     {'id':'wan22-vace-generator','label':'Wan2.2 VACE-Fun 영상 생성기','path':'/management/frame/wan22-vace-generator/','category':'animation-tool','uiMode':'react','description':'A14B BF16 · 텍스트·외형 참조·첫 프레임'},
-    {'id':'wan22-i2v-generator','label':'Wan2.2 I2V 영상 생성기','path':'/management/frame/wan22-i2v-generator/','category':'animation-tool','uiMode':'react','description':'첫 이미지 + 프롬프트 · Lightning·KungFu'},
+    {'id':'wan22-i2v-generator','label':'Wan2.2 I2V 영상 생성기','path':'/management/frame/wan22-i2v-generator/','category':'animation-tool','uiMode':'react','description':'첫 이미지 + 프롬프트 · Lightning'},
     {'id':'wan21-t2v-generator','label':'Wan 2.1 T2V 영상 생성기','path':REACT_REVIEW_PATHS['wan21-t2v-generator'],'category':'animation-tool','uiMode':'react','description':'1.3B · 텍스트 · 가속 및 KXSR LoRA 실험'},
     {'id':'wan21-i2v-generator','label':'Wan 2.1 I2V 영상 생성기','path':REACT_REVIEW_PATHS['wan21-i2v-generator'],'category':'animation-tool','uiMode':'react','description':'14B 480p · 첫 이미지 · 가속 및 격투 LoRA 실험'},
     {'id':'wan22-animate2-generator','label':'Wan Animate-2 캐릭터 동작 전사','path':'/management/frame/wan22-animate2-generator/','category':'animation-tool','uiMode':'react','description':'RGB 동작 영상 + 캐릭터 참조 · 일관성 실험'},

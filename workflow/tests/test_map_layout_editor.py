@@ -10,6 +10,23 @@ from workflow.domains.map_assets import map_editor
 from workflow.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, MANAGEMENT_COMMAND_ROUTES
 
 class MapLayoutEditorTests(unittest.TestCase):
+    def test_loaded_map_and_preview_match_ui_contract(self):
+        import json
+        import os
+        import subprocess
+        with patch.object(map_editor,'read_map_editor_billboard_identifiers',return_value=set()), patch.object(map_editor,'map_wall_tile_records',return_value={}), patch.dict(os.environ,{'SLIME_CONTENT_STORAGE':'file'}):
+            source=map_editor.load_map_editor_document({'map':'sample'})
+            preview=map_editor.preview_map_editor_changes(self.current_input_payload)
+        root=Path(__file__).resolve().parents[2]
+        script="""import assert from 'node:assert/strict';
+          import {readMapCell,validMapDraftPreview} from './gui/mapDraftPreview.mjs';
+          let input='';for await(const part of process.stdin)input+=part;
+          const {source,preview}=JSON.parse(input);
+          assert.deepEqual(readMapCell(source,'sample',{column:2,row:2}),{column:2,row:2,tile:'K',height:0,blocked:false});
+          assert.throws(()=>readMapCell(source,'sample',{column:3,row:2}),/범위/);
+          assert.equal(validMapDraftPreview(preview),true);"""
+        subprocess.run(['node','--input-type=module','-e',script],input=json.dumps({'source':source,'preview':preview}),cwd=root,check=True,capture_output=True,text=True)
+
     def setUp(self):
         self.current_temp_root=tempfile.TemporaryDirectory();self.addCleanup(self.current_temp_root.cleanup)
         self.current_asset_root=Path(self.current_temp_root.name)/'slime-assets'

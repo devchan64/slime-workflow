@@ -1114,8 +1114,12 @@ class GpuJobQueueTests(unittest.TestCase):
     def test_new_and_reloaded_tickets_keep_executor_start_identity(self):
         import os
         current_expected_start=Path(f'/proc/{os.getpid()}/stat').read_text().rpartition(') ')[2].split()[19]
-        (self.current_job_path/'cancel.request').touch()
-        with patch.object(queue_module,'write_record_atomically',wraps=queue_module.write_record_atomically) as current_write_mock:
+        current_original_write=queue_module.write_record_atomically
+        def cancel_after_ticket(current_path,current_record):
+            current_original_write(current_path,current_record)
+            if isinstance(current_record,dict) and 'pid' in current_record and 'path' in current_record:
+                (self.current_job_path/'cancel.request').touch()
+        with patch.object(queue_module,'write_record_atomically',side_effect=cancel_after_ticket) as current_write_mock:
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
         current_ticket_records=[current_call.args[1] for current_call in current_write_mock.call_args_list if isinstance(current_call.args[1],dict) and 'pid' in current_call.args[1] and 'path' in current_call.args[1]]
         self.assertEqual(len(current_ticket_records),1)

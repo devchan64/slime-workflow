@@ -1,7 +1,9 @@
 import SpriteAnchorRestore from "./SpriteAnchorRestore.jsx";
 import React,{useEffect,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
+import ActionButton from "./ActionButton.jsx";
 
 import editSpriteFrames from "./editSpriteFrames.mjs";
 import applySpriteCanvas from "./applySpriteCanvas.mjs";
@@ -107,7 +109,8 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const [result,setResult]=useState(null),[error,setError]=useState("");
   const [first,setFirst]=useState(1),[last,setLast]=useState(rows.length),[fps,setFps]=useState(6);
   const [review,setReview]=useState(null),[restoredFeet,setRestoredFeet]=useState({});
-  const canvas=useRef(null);
+  const canvas=useRef(null),reviewRef=useRef(null),reviewTrigger=useRef(null),saving=useRef(false);
+  useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus({preventScroll:true});},[review]);
   function readBodyReference(){
     if(original?.source!=="assets")return null;
     const reference=canvas.current?.spriteEditorState?.bodyReference;
@@ -133,6 +136,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
         sourceFrames:bounds?bounds.slice(start,end):frames.slice(start,end).map(({rect})=>[rect.x,rect.y,rect.width,rect.height])
       };
       if(event.nativeEvent.submitter?.value==="review"){
+        reviewTrigger.current=document.activeElement;
         const registered=original.animation?.frames;
         const count=registered?.length || original.layout?.frame_count || original.layout?.columns*original.layout?.rows;
         if(count!==payload.frames.length)throw new Error("원본 갱신은 기존 프레임 수를 유지해야 합니다.");
@@ -150,6 +154,9 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     finally{setBusy(false);}
   }
   async function save(){
+    if(saving.current || !review)return;
+    saving.current=true;
+    let requested=false;
     setBusy(true);setError("");
     try{
       const request={path:original.path,metadataSha256:original.metadataSha256,payload:review.payload,confirm:true};
@@ -158,16 +165,16 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
       }
       if(review.bodyReference)request.bodyReference=review.bodyReference;
       if(original.source==="baseline")request.source="baseline";
-      const record=await managementCommand("character-animation","sheet-update",request);
+      requested=true;const record=await managementCommand("character-animation","sheet-update",request);
       if(!record.id || record.path!==original.path)throw new Error("원본 갱신 결과를 확인할 수 없습니다.");
       onSaved(record);
-    }catch(problem){setError(problem.message);}
-    finally{setBusy(false);setReview(null);}
+    }catch(problem){setError((requested ? "원본 갱신 결과를 확인하지 못했습니다. 다시 요청하기 전에 원본과 갱신 기록을 확인하세요. · " : "")+requestErrorMessage(problem));}
+    finally{saving.current=false;setBusy(false);setReview(null);}
   }
   return <form onSubmit={exportSheet}><fieldset disabled={busy}><legend>크롭과 앵커 편집</legend>
-    <ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
+    <div className="sprite-frame-table" role="region" aria-label="프레임 좌표 표" tabIndex={0}><ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
-        required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/>
+        required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/></div>
     <BulkEdit rows={rows} onEdit={editRows}/>
     {original?.animation?.animationId && original.animation.version && <SpriteAnchorRestore original={original} rows={rows}
       onRestore={snapshot=>{editRows(snapshot.rows);setRestoredFeet(snapshot.feet);}}/>}
@@ -176,11 +183,11 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
       onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/></label>
     <button>시트와 좌표맵 내보내기</button>
     {original?.metadataSha256 && <button value="review">원본 갱신 검토</button>}
-    {review && <section><h3>{original.path}</h3><p>좌표 변경 {review.changed} / {rows.length}프레임 · 출력 {columns}열</p>
+    {review && <section ref={reviewRef} tabIndex={-1} aria-label="원본 갱신 검토"><h3>{original.path}</h3><p>좌표 변경 {review.changed} / {rows.length}프레임 · 출력 {columns}열</p>
       {review.bodyReference && <p>머리 기준 · {review.bodyReference.frame}번 프레임 · Y {review.bodyReference.headY}px</p>}
       <p>{original.source==="baseline"?"베이스라인 이미지·좌표맵·YAML":"등록 이미지·좌표맵·등록부와 잠금 해시"}를 갱신합니다.</p>
       <button type="button" onClick={save}>확인 후 원본 갱신</button>
-      <button type="button" onClick={()=>setReview(null)}>취소</button></section>}
+      <button type="button" onClick={()=>{const focused=document.activeElement;setReview(null);requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}}>취소</button></section>}
     <fieldset onChange={()=>{setResult(null);setError("");}}><legend>GIF 내보내기</legend>
       <label>시작 프레임<input type="number" value={first} onChange={e=>setFirst(e.target.value)}/></label>
       <label>끝 프레임<input type="number" value={last} onChange={e=>setLast(e.target.value)}/></label>
@@ -205,14 +212,25 @@ export function gridEdges(size,count){
   });
 }
 
-export function GridReplaceConfirmation({dimensions,onConfirm,onCancel}){
-  return <section aria-label="프레임 재분할 확인"><p>{dimensions}로 다시 나누면 현재 프레임 편집 내용이 사라집니다.</p>
-    <button type="button" onClick={onConfirm}>다시 나누기 확인</button><button type="button" onClick={onCancel}>취소</button></section>;
+function SpriteChangeConfirmation({label,children,busy=false,onConfirm,onCancel,confirmLabel,cancelLabel,returnFocus}){
+  const container=useRef(null),trigger=useRef(null);
+  useEffect(()=>{trigger.current=returnFocus || document.activeElement;container.current?.focus({preventScroll:true});},[]);
+  function cancel(){
+    const focused=document.activeElement;onCancel();
+    requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && trigger.current?.isConnected)trigger.current.focus();});
+  }
+  return <section ref={container} tabIndex={-1} aria-label={label}><p>{children}</p>
+    <button type="button" disabled={busy} onClick={onConfirm}>{confirmLabel}</button><button type="button" disabled={busy} onClick={cancel}>{cancelLabel}</button></section>;
+}
+
+export function GridReplaceConfirmation({dimensions,onConfirm,onCancel,returnFocus}){
+  return <SpriteChangeConfirmation label="프레임 재분할 확인" onConfirm={onConfirm} onCancel={onCancel} returnFocus={returnFocus} confirmLabel="다시 나누기 확인" cancelLabel="취소">{dimensions}로 다시 나누면 현재 프레임 편집 내용이 사라집니다.</SpriteChangeConfirmation>;
 }
 
 function GridEditor({detail,size,onSaved}){
   const [columns,setColumns]=useState(detail.layout?.columns ?? 4),[rows,setRows]=useState(detail.layout?.rows ?? 2);
   const [grid,setGrid]=useState(null),[pending,setPending]=useState(null),[error,setError]=useState("");
+  const changeTrigger=useRef(null);
   function split(event){
     event.preventDefault();
     const cols=Number(columns),lines=Number(rows);
@@ -228,7 +246,7 @@ function GridEditor({detail,size,onSaved}){
       }
     }
     const next={key:cols+"x"+lines,frames,revision:(grid?.revision ?? -1)+1};
-    if(grid)setPending(next);else setGrid(next);
+    if(grid){changeTrigger.current=document.activeElement;setPending(next);}else setGrid(next);
     setError("");
   }
   return <><form onSubmit={split}><fieldset disabled={!!pending}><legend>원본 시트 분할</legend>
@@ -236,23 +254,27 @@ function GridEditor({detail,size,onSaved}){
     <label>원본 행<input type="number" min="1" max="128" required value={rows} onChange={e=>setRows(e.target.value)}/></label>
     <button disabled={!size}>프레임 나누기</button>
     {error && <p role="alert">{error}</p>}</fieldset></form>
-    {pending && <GridReplaceConfirmation dimensions={pending.key} onConfirm={()=>{setGrid(pending);setPending(null);}} onCancel={()=>setPending(null)}/>}
+    {pending && <GridReplaceConfirmation dimensions={pending.key} returnFocus={changeTrigger.current} onConfirm={()=>{setGrid(pending);setPending(null);}} onCancel={()=>setPending(null)}/>}
     {grid && <FrameEditor key={grid.key+"/"+grid.revision} frames={grid.frames} image={detail.image} original={detail} onSaved={onSaved}/>}</>;
 }
 
 function Sheet({path,source}){
   const [saved,setSaved]=useState(null);
   const [detail,setDetail]=useState(null),[error,setError]=useState("");
+  const [revision,retry]=useState(0);
   useEffect(()=>{
-    let active=true;
-    managementCommand("character-animation","sheet-image",{path,source}).then(record=>{
-      if(record.path!==path || !record.image)throw new Error("선택한 시트 원본을 확인할 수 없습니다.");
+    let active=true,timedOut=false;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setError("");
+    untilAborted(managementCommand("character-animation","sheet-image",{path,source},{signal:controller.signal}),controller.signal).then(record=>{
+      if(record?.path!==path || typeof record.image!=="string" || !record.image)throw new Error("선택한 시트 원본을 확인할 수 없습니다.");
       if(active)setDetail({...record,source});
-    }).catch(problem=>{if(active)setError(problem.message);});
-    return ()=>{active=false;};
-  },[path,source,saved]);
+    }).catch(problem=>{if(active)setError(timedOut ? "시트 조회 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
+  },[path,source,saved,revision]);
   return <>{saved && <p role="status">원본 갱신 완료 · {saved.path} · 기록 {saved.id}</p>}
-    {error?<p role="alert">{error}</p>:detail?<SheetView path={path} detail={detail} onSaved={record=>{
+    {error?<div role="alert"><p>{error}</p><button type="button" onClick={()=>retry(value=>value+1)}>원본 시트 다시 불러오기</button></div>:detail?<SheetView path={path} detail={detail} onSaved={record=>{
       setDetail(null);setSaved(record);
     }}/>:<p role="status">원본 시트를 불러오는 중…</p>}</>;
 }
@@ -260,18 +282,24 @@ function Sheet({path,source}){
 function AutoCrop({image,size,onApply}){
   const [padding,setPadding]=useState(30),[busy,setBusy]=useState(false);
   const [candidate,setCandidate]=useState(null),[error,setError]=useState("");
+  const request=useRef(null);
+  useEffect(()=>()=>request.current?.abort(),[]);
   async function detect(event){
-    event.preventDefault();setBusy(true);setCandidate(null);setError("");
+    event.preventDefault();if(request.current || !size)return;
+    const controller=new AbortController();request.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setBusy(true);setCandidate(null);setError("");
     try{
-      const result=await managementCommand("character-animation","sheet-auto",{image,padding:Number(padding)});
-      setCandidate(cropCandidate(image,Number(padding),result));
-    }catch(problem){setError(problem.message);}
-    finally{setBusy(false);}
+      const result=await untilAborted(managementCommand("character-animation","sheet-auto",{image,padding:Number(padding)},{signal:controller.signal}),controller.signal);
+      if(!controller.signal.aborted)setCandidate(cropCandidate(image,Number(padding),result,size));
+    }catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? "크롭 후보 검출 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}
+    finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
   }
   return <details><summary>자동 크롭</summary><form onSubmit={detect}><fieldset disabled={busy}>
     <label>상하좌우 최소 여백 (px)<input type="number" min="0" max="500" required value={padding}
       onChange={e=>{setPadding(e.target.value);setCandidate(null);setError("");}}/></label>
-    <button disabled={!size}>크롭 후보 검출</button></fieldset></form>
+    <ActionButton type="submit" reasons={[!size && "원본 이미지가 열리면 크롭 후보를 검출할 수 있습니다."]}>크롭 후보 검출</ActionButton></fieldset></form>
+    {busy && <p role="status">크롭 후보를 검출하고 있습니다.</p>}
     {error && <p role="alert">{error}</p>}
     {candidate && <><svg viewBox={`0 0 ${size.width} ${size.height}`} style={{width:"100%",maxWidth:size.width}} aria-label="크롭 후보 영역">
       <image href={"data:image/png;base64,"+image} width={size.width} height={size.height}/>
@@ -284,14 +312,15 @@ function AutoCrop({image,size,onApply}){
 }
 
 function SheetView({path,detail,onSaved}){
-  const [size,setSize]=useState(null);
+  const [size,setSize]=useState(null),[imageError,setImageError]=useState(false);
   const [detected,setDetected]=useState(null),[revision,setRevision]=useState(0);
   const frames=detected?.frames || detail.animation?.frames;
   function apply(result){
     const next=result.frames.map(({x,y,width,height,anchorX,anchorY})=>({rect:{x,y,width,height},anchor:{x:anchorX,y:anchorY}}));
     setDetected({frames:next,columns:result.columns,bounds:result.sourceFrames});setRevision(n=>n+1);
   }
-  return <section><h2>{path}</h2><img src={"data:image/png;base64,"+detail.image} onLoad={e=>setSize({width:e.target.naturalWidth,height:e.target.naturalHeight})} alt="원본 스프라이트 시트" style={{maxWidth:"100%"}}/>
+  return <section><h2>{path}</h2><img src={"data:image/png;base64,"+detail.image} onLoad={e=>{setImageError(false);setSize({width:e.target.naturalWidth,height:e.target.naturalHeight});}} onError={()=>{setSize(null);setImageError(true);}} alt="원본 스프라이트 시트" style={{maxWidth:"100%"}}/>
+    {imageError && <p role="alert">원본 이미지를 표시할 수 없습니다. 파일을 확인하거나 다른 시트를 선택하세요.</p>}
     {detail.layout && <p>{detail.layout.columns}열 × {detail.layout.rows}행</p>}
     <AutoCrop image={detail.image} size={size} onApply={apply}/>
     {frames?.length>0?<FrameEditor key={revision} frames={frames} image={detail.image} initialColumns={detected?.columns} bounds={detected?.bounds} original={detail} onSaved={onSaved}/>:<GridEditor detail={detail} size={size} onSaved={onSaved}/>}
@@ -316,14 +345,15 @@ async function readLocalSheet(file){
   });
 }
 
-export function LocalSheetReplaceConfirmation({name,busy,onConfirm,onCancel}){
-  return <section aria-label="로컬 시트 교체 확인"><p>{name} 파일로 교체하면 현재 프레임 편집 내용이 사라집니다.</p><button type="button" disabled={busy} onClick={onConfirm}>교체 확인</button><button type="button" disabled={busy} onClick={onCancel}>교체 취소</button></section>;
+export function LocalSheetReplaceConfirmation({name,busy,onConfirm,onCancel,returnFocus}){
+  return <SpriteChangeConfirmation label="로컬 시트 교체 확인" busy={busy} onConfirm={onConfirm} onCancel={onCancel} returnFocus={returnFocus} confirmLabel="교체 확인" cancelLabel="교체 취소">{name} 파일로 교체하면 현재 프레임 편집 내용이 사라집니다.</SpriteChangeConfirmation>;
 }
 
 function LocalSheet(){
   const [file,setFile]=useState(null),[detail,setDetail]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[revision,setRevision]=useState(0);
   const [pending,setPending]=useState(null);
+  const changeTrigger=useRef(null);
   async function load(target=file){
     setBusy(true);setError("");
     try{
@@ -336,17 +366,16 @@ function LocalSheet(){
     <fieldset disabled={busy || !!pending}><label>시트 PNG<input type="file" accept="image/png" onChange={e=>{
       setFile(e.target.files[0] || null);setError("");
     }}/></label>
-    <button disabled={!file} onClick={()=>detail?setPending(file):load(file)}>{busy ? "시트 확인 중…" : detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</button></fieldset>
-    {pending && <LocalSheetReplaceConfirmation name={pending.name} busy={busy} onConfirm={()=>load(pending)} onCancel={()=>setPending(null)}/>}
+    <button disabled={!file} onClick={()=>{if(detail){changeTrigger.current=document.activeElement;setPending(file);}else load(file);}}>{busy ? "시트 확인 중…" : detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</button></fieldset>
+    {pending && <LocalSheetReplaceConfirmation name={pending.name} busy={busy} returnFocus={changeTrigger.current} onConfirm={()=>load(pending)} onCancel={()=>setPending(null)}/>}
     {error && <p role="alert">{error}{detail && " 기존 편집 내용은 유지됩니다."}</p>}
     {detail && <SheetView key={revision} path={detail.path} detail={detail}/>}
   </details>;
 }
 
-export function SheetSourceChangeConfirmation({change,onConfirm,onCancel}){
+export function SheetSourceChangeConfirmation({change,onConfirm,onCancel,returnFocus}){
   const label=change.kind==="select" ? change.path : (change.source==="baseline" ? "베이스라인" : "에셋")+" 검색 · "+(change.query || "전체");
-  return <section aria-label="편집 원본 변경 확인"><p>{label}으로 변경하면 현재 프레임 편집 내용이 사라집니다.</p>
-    <button type="button" onClick={onConfirm}>변경 확인</button><button type="button" onClick={onCancel}>변경 취소</button></section>;
+  return <SpriteChangeConfirmation label="편집 원본 변경 확인" onConfirm={onConfirm} onCancel={onCancel} returnFocus={returnFocus} confirmLabel="변경 확인" cancelLabel="변경 취소">{label}으로 변경하면 현재 프레임 편집 내용이 사라집니다.</SpriteChangeConfirmation>;
 }
 
 export default function SpriteSheetEditor(){
@@ -356,27 +385,30 @@ export default function SpriteSheetEditor(){
   const [items,setItems]=useState(null),[selected,select]=useState(link.path || "");
   const [error,setError]=useState(link.error || "");
   const [pendingChange,setPendingChange]=useState(null);
+  const changeTrigger=useRef(null);
   useEffect(()=>{
     if(!request)return;
-    let active=true;
-    managementCommand("character-animation","sheet-search",{source:request.source,query:request.query}).then(result=>{
+    let active=true,timedOut=false;
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    untilAborted(managementCommand("character-animation","sheet-search",{source:request.source,query:request.query},{signal:controller.signal}),controller.signal).then(result=>{
       if(!active)return;
-      if(!Array.isArray(result.items))throw new Error("스프라이트 검색 결과 형식을 확인할 수 없습니다.");
+      if(!Array.isArray(result?.items) || result.items.some(item=>!item || typeof item.path!=="string" || !item.path || typeof item.label!=="string"))throw new Error("스프라이트 검색 결과 형식을 확인할 수 없습니다.");
       setItems(result.items);
       if(request.linked){
         const match=findLinkedSprite(result.items,request.query);
         if(match)select(match);
         else setError("동작 ID에 연결된 시트가 없거나 여러 개입니다. 검색 결과에서 원본을 선택하세요.");
       }
-    }).catch(problem=>{if(active)setError(problem.message);});
-    return ()=>{active=false;};
+    }).catch(problem=>{if(active)setError(timedOut ? "스프라이트 검색 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
+    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[request]);
   function applyChange(change){
     if(change.kind==="select"){select(change.path);return;}
     setSource(change.source);setItems(null);setError("");select("");setRequest({source:change.source,query:change.query});
   }
   function requestChange(change){
-    if(selected && (change.kind!=="select" || change.path!==selected))setPendingChange(change);
+    if(selected && (change.kind!=="select" || change.path!==selected)){changeTrigger.current=document.activeElement;setPendingChange(change);}
     else applyChange(change);
   }
   function search(nextSource){
@@ -390,11 +422,11 @@ export default function SpriteSheetEditor(){
       <button>원본 검색</button>
     </form>
     {request && query!==request.query && <p role="status">검색어가 변경되었습니다. 아래 결과는 이전 검색 조건입니다. 원본 검색을 눌러 적용하세요.</p>}
-    {error && <p role="alert">{error}</p>}
+    {error && <div role="alert"><p>{error}</p>{request && !items && <button type="button" onClick={()=>{setError("");setRequest({...request});}}>이전 조건으로 다시 검색</button>}</div>}
     {request && !items && !error && <p role="status">스프라이트 검색 중…</p>}
     {items && <ResultTable table={{title:"검색 결과",summary:items.length+"개 시트",columns:["스프라이트","원본 경로"],
       rows:items.map(item=>[<button onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}</button>,item.path])}}/>}
-    {pendingChange && <SheetSourceChangeConfirmation change={pendingChange} onConfirm={()=>{const change=pendingChange;setPendingChange(null);applyChange(change);}} onCancel={()=>setPendingChange(null)}/>}
+    {pendingChange && <SheetSourceChangeConfirmation change={pendingChange} returnFocus={changeTrigger.current} onConfirm={()=>{const change=pendingChange;setPendingChange(null);applyChange(change);}} onCancel={()=>setPendingChange(null)}/>}
     {selected && <Sheet key={source+":"+selected} path={selected} source={source}/>}
   </article>;
 }

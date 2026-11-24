@@ -132,7 +132,7 @@ def execute_i2v(job, attempt, request, metrics):
             raise ValueError('샘플러 출력에 비유한 값이 있습니다.')
         comfy.model_management.unload_all_models(); del model; gc.collect(); comfy.model_management.soft_empty_cache()
     write_record_atomically(attempt / 'lora-application.json', counts)
-    write_record_atomically(attempt / 'model-assets.json', {'files': [{'path': relative, 'repository': repo, 'revision': revision, 'source': remote, 'size': size, 'sha256': digest} for relative, repo, revision, remote, size, digest in FILES if relative.startswith('base/') or (relative.startswith('lightning/') and 'lightning' in request['lora_mode']) or (relative.startswith('kungfu/') and 'kungfu' in request['lora_mode'])], 'sampler': 'euler', 'scheduler': 'simple', 'switch_step': split, 'lora_patch_counts': counts})
+    write_record_atomically(attempt / 'model-assets.json', {'files': [{'path': relative, 'repository': repo, 'revision': revision, 'source': remote, 'size': size, 'sha256': digest} for relative, repo, revision, remote, size, digest in FILES if relative.startswith('base/') or (relative.startswith('lightning/') and 'lightning' in request['lora_mode'])], 'sampler': 'euler', 'scheduler': 'simple', 'switch_step': split, 'lora_patch_counts': counts})
     from safetensors.torch import save_file
     save_file({'samples': sample.detach().cpu().contiguous()}, str(attempt / 'denoised-latents.safetensors'))
     metrics.update_generation_stage('decoding')
@@ -148,11 +148,13 @@ def execute_i2v(job, attempt, request, metrics):
     return {'attempt': attempt.name, 'frames': len(arrays), 'fps': 16, 'output_sha256': hashes, 'model_id': 'Comfy-Org/Wan-2.2 I2V A14B', 'prompt_sha256': hashlib.sha256(request['prompt'].encode()).hexdigest(), 'prompt_words': len(request['prompt'].split()), 'quality_status': '사용자 검수 대기'}
 
 
-def validate_assets():
+def validate_assets(request):
+    if request.get('lora_mode') not in ('none', 'lightning'):
+        raise ValueError('폐기된 LoRA 설정은 실행할 수 없습니다.')
     status = inspect_runtime(verify_hash=True)
     if not status['ready']:
         raise ValueError(status['message'])
 
 
 if __name__ == '__main__':
-    run_reference_video_worker(JOB_STORAGE, Path(__file__), validate_assets, execute_i2v)
+    run_reference_video_worker(JOB_STORAGE, Path(__file__), validate_assets, execute_i2v, assets_validator_takes_request=True)

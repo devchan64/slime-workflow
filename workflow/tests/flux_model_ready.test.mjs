@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fluxModelReady} from '../../gui/fluxModelReady.mjs';
-import {generationReady} from '../../gui/generationReady.mjs';
+import {generationReady,modelFilesReady} from '../../gui/generationReady.mjs';
 
 test('generation readiness takes precedence and missing status is unavailable', () => {
   assert.equal(fluxModelReady(null), false);
@@ -9,6 +9,12 @@ test('generation readiness takes precedence and missing status is unavailable', 
   assert.equal(fluxModelReady({ready:true}), true);
   assert.equal(fluxModelReady({ready:false,generation_ready:true}), true);
   assert.equal(fluxModelReady({ready:true,generation_ready:false}), false);
+});
+
+test('separate model assets use file readiness rather than generation readiness',()=>{
+  assert.equal(modelFilesReady({ready:true,generation_ready:false}),true);
+  assert.equal(modelFilesReady({ready:false,generation_ready:true}),false);
+  assert.equal(modelFilesReady(null),false);
 });
 
  test('translation also requires its runtime when reported',()=>{

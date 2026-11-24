@@ -63,12 +63,10 @@ def validate_request(request):
         value = request[name]
         if type(value) not in (int, float) or not math.isfinite(value) or not minimum <= value <= maximum:
             raise ValueError(f'{name} 범위가 올바르지 않습니다.')
-    if request['lora_mode'] not in ('none', 'lightning', 'kungfu', 'lightning_kungfu'):
+    if request['lora_mode'] not in ('none', 'lightning'):
         raise ValueError('지원하지 않는 LoRA 조합입니다.')
     if 'lightning' in request['lora_mode'] and (request['steps'] != 4 or request['guidance_scale'] != 1):
         raise ValueError('Lightning 실험은 4스텝과 CFG 1을 사용합니다.')
-    if 'kungfu' in request['lora_mode'] and request['kungfu_strength'] <= 0:
-        raise ValueError('KungFu 강도는 0보다 커야 합니다.')
     if not isinstance(request['images'], list) or len(request['images']) != 1:
         raise ValueError('첫 프레임 이미지 한 장이 필요합니다.')
     with Image.open(io.BytesIO(decode_reference_image(request['images'][0]))) as image:

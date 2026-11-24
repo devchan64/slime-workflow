@@ -1,4 +1,5 @@
 import React,{useCallback,useEffect,useRef,useState} from "react";
+import {observeLiveVisibility} from "./observeLiveVisibility.mjs";
 
 export const LIVE_REFRESH_MS=30000;
 
@@ -10,12 +11,7 @@ export function useLiveRefresh(refresh,active=true){
   useEffect(()=>{
     setVisible(false);
     if(!element)return;
-    let intersecting=false,active=true;
-    const update=()=>{if(active)setVisible(intersecting && document.visibilityState==="visible");};
-    const observer=new IntersectionObserver(entries=>{intersecting=entries[0]?.isIntersecting || false;update();});
-    observer.observe(element);
-    document.addEventListener("visibilitychange",update);
-    return ()=>{active=false;observer.disconnect();document.removeEventListener("visibilitychange",update);};
+    return observeLiveVisibility(element,setVisible,{document,window,Observer:globalThis.IntersectionObserver});
   },[element]);
   useEffect(()=>{
     if(!enabled || !visible || !active)return;

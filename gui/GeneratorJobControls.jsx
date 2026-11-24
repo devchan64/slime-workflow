@@ -1,5 +1,5 @@
 import React, {useEffect,useId,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {generationResumeCommand} from "./generationResumeCommand.mjs";
 import {validateGenerationControlResponse} from "./generationControlResponse.mjs";
 
@@ -19,6 +19,7 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
   const reasonId=useId();
   const canResume=resumeEnabled && Boolean(resumeCommand) && ["failed","cancelled","paused"].includes(state);
   const canStop=["queued","running","paused"].includes(state);
+  const reviewOutdated=Boolean(review && review.state!==state);
   const resumeReason=!state ? "현재 작업 상태를 확인하세요." : !resumeEnabled ? "이 생성기의 재개는 보류 중입니다." : !resumeCommand ? "이 생성기는 검토 기반 재개를 제공하지 않습니다." : "실패·중단된 작업만 재개할 수 있습니다.";
   const stopReason=!state ? "현재 작업 상태를 확인하세요." : "대기·실행·검수 대기 중인 작업만 중지할 수 있습니다.";
   async function perform(action) {
@@ -43,7 +44,7 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
       if(checked.resume_availability!=="available")throw new Error("재개 가능 상태를 확인할 수 없습니다.");
       payload.keyframe_fingerprint=checked.keyframe_fingerprint;
     }
-    setReview({command:"resume",payload});
+    setReview({command:"resume",payload,state});
   }
   async function confirm() {
     const {command,payload}=review;
@@ -64,7 +65,7 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
       const controller=new AbortController();logRequest.current=controller;let timedOut=false;
       const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
       try{
-        const result=await managementCommand(service,"logs",{id},{signal:controller.signal});
+        const result=await untilAborted(managementCommand(service,"logs",{id},{signal:controller.signal}),controller.signal);
         if(!result || typeof result!=="object" || (result.log!=null && typeof result.log!=="string"))throw new Error("작업 로그 응답 형식을 확인할 수 없습니다.");
         setLog(result.log || "기록된 로그가 없습니다.");
       }catch(error){if(timedOut)throw new Error("작업 로그 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
@@ -75,12 +76,13 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
       <button className={showUnavailable ? "history-action-resume" : undefined} type="button" disabled={disabled || busy || Boolean(review) || !canResume} aria-describedby={!canResume ? reasonId : undefined} onClick={()=>perform(prepareResume)}>생성 재개 검토</button>}
     {showActions && renderPriority?.(disabled || busy || Boolean(review))}
     {showActions && (!review || showUnavailable) && (showUnavailable || ["queued","running","paused"].includes(state)) &&
-      <button className={showUnavailable ? "history-action-stop" : undefined} type="button" disabled={disabled || busy || Boolean(review) || !canStop} aria-describedby={!canStop ? reasonId : undefined} onClick={()=>setReview({command:"cancel",payload:{id}})}>작업 중지 검토</button>}
+      <button className={showUnavailable ? "history-action-stop" : undefined} type="button" disabled={disabled || busy || Boolean(review) || !canStop} aria-describedby={!canStop ? reasonId : undefined} onClick={()=>setReview({command:"cancel",payload:{id},state})}>작업 중지 검토</button>}
     {showActions && !review && ((!canResume && showUnavailable) || (!canStop && showUnavailable) || (!resumeCommand && ["failed","cancelled","paused"].includes(state))) &&
       <p className={showUnavailable ? "history-action-detail" : undefined} id={reasonId}>{[!canResume && resumeReason,!canStop && stopReason].filter(Boolean).filter((value,index,array)=>array.indexOf(value)===index).join(" ")}</p>}
     {showActions && review && <section className={showUnavailable ? "history-action-detail" : undefined}><p>{id} · {review.command==="resume"?"저장된 입력으로 GPU 대기열에 다시 등록합니다.":"선택한 작업에 중지를 요청합니다."}</p>
-      <button type="button" disabled={disabled || busy} onClick={()=>setReview(null)}>취소</button>
-      <button type="button" disabled={disabled || busy} onClick={()=>perform(confirm)}>{review.command==="resume"?"확인 후 재개":"확인 후 중지"}</button>
+      {reviewOutdated && <p role="status">검토한 뒤 작업 상태가 변경됐습니다. 취소하고 현재 상태에서 다시 검토하세요.</p>}
+      <button type="button" disabled={busy} onClick={()=>setReview(null)}>취소</button>
+      <button type="button" disabled={disabled || busy || reviewOutdated} onClick={()=>perform(confirm)}>{review.command==="resume"?"확인 후 재개":"확인 후 중지"}</button>
     </section>}
     <p className={showUnavailable ? "history-action-detail" : undefined} role="status">{notice}</p>
   </section>;

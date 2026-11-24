@@ -1,12 +1,20 @@
-import React from "react";
+import React, {useEffect,useRef,useState} from "react";
+import {observeTableOverflow} from "./observeTableOverflow.mjs";
 
 export default function ResultTable({table}) {
-  return <section><strong>{table.title}</strong>{table.summary!=null && table.summary!=="" && <p>{table.summary}</p>}
-    <table aria-label={table.title}><thead><tr>
+  const scrollRef=useRef(null),tableRef=useRef(null),[overflow,setOverflow]=useState(false);
+  useEffect(()=>{
+    const node=scrollRef.current;
+    if(!node)return;
+    return observeTableOverflow(node,tableRef.current,setOverflow,{window,Observer:globalThis.ResizeObserver});
+  },[table]);
+  return <section className="result-table"><strong>{table.title}</strong>{table.summary!=null && table.summary!=="" && <p>{table.summary}</p>}
+    <div ref={scrollRef} className="result-table-scroll" role={overflow ? "region" : undefined} aria-label={overflow ? table.title+" 표 가로 스크롤" : undefined} tabIndex={overflow ? 0 : undefined}>
+    <table ref={tableRef} aria-label={table.title}><thead><tr>
       {table.columns.map(column=><th key={column} scope="col">{column}</th>)}
     </tr></thead><tbody>
       {table.rows.map((row,index)=><tr key={table.rowKeys?.[index] ?? index}>{row.map((value,i)=><td key={i}>{value}</td>)}</tr>)}
       {table.rows.length===0 && <tr><td colSpan={table.columns.length}>조회된 항목이 없습니다.</td></tr>}
-    </tbody></table>
+    </tbody></table></div>
   </section>;
 }

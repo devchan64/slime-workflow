@@ -37,8 +37,9 @@ class HermesBillboardOperationTests(unittest.TestCase):
             bundle=Path(directory)/'billboard.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BillboardProperties.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');
-              const {BillboardReviewSummary}=require(process.argv[1]);
-              const result={changes:[{texture:'tree-v1',before:{displayHeight:520},after:{displayHeight:500}}],maps:['meadow'],map_warnings:[{map:'meadow',message:'접지 확인'}],note:'맵 재확인'};
+              const {BillboardReviewSummary,validBillboardReview}=require(process.argv[1]);
+              const result={token:'t',review_sha256:'a'.repeat(64),changes:[{texture:'tree-v1',before:{displayHeight:520},after:{displayHeight:500}}],maps:['meadow'],map_warnings:[{map:'meadow',message:'접지 확인'}],note:'맵 재확인'};
+              if(!validBillboardReview(result,'tree-v1') || validBillboardReview({...result,map_warnings:[null]},'tree-v1') || validBillboardReview(result,'other'))throw Error('review validation');
               process.stdout.write(server.renderToStaticMarkup(React.createElement(BillboardReviewSummary,{result})));"""
             html=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
         for value in ('tree-v1','표시 높이','520','500','meadow','접지 확인','맵 재확인'):

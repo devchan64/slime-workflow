@@ -112,7 +112,11 @@ function AudioTrack({track}) {
   </section>;
 }
 
-export default function MediaJobResult({service,id,kind="video",children,folderLink=false,onReuse,hideProgress=false,onStatusChange,inGenerator=false}) {
+export default function MediaJobResult(props) {
+  return <MediaJobResultForSelection key={JSON.stringify([props.service,props.id,props.kind || "video"])} {...props}/>;
+}
+
+function MediaJobResultForSelection({service,id,kind="video",children,folderLink=false,onReuse,hideProgress=false,onStatusChange,inGenerator=false}) {
   const [job,setJob]=useState(null);
   const [error,setError]=useState("");
   const [checkedAt,setCheckedAt]=useState(null);
@@ -129,7 +133,6 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
   const refreshRef=useRef(null),restoreRefreshFocus=useRef(false);
   useEffect(()=>{if(!loading && restoreRefreshFocus.current){restoreRefreshFocus.current=false;if(document.activeElement===document.body)refreshRef.current?.focus();}},[loading]);
   const live=useLiveRefresh(()=>refresh(value=>value+1),liveJobStatus(job) || (kind==="flux" && job?.status==="completed" && ["waiting","queued","writing","delivering"].includes(job.report_state)));
-  useEffect(()=>{setJob(null);setCheckedAt(null);setAttemptedAt(null);setError("");},[service,id,kind]);
   useEffect(()=>{
     let active=true,deadline;const controller=new AbortController();
     if(document.activeElement===refreshRef.current)restoreRefreshFocus.current=true;
@@ -206,7 +209,7 @@ export default function MediaJobResult({service,id,kind="video",children,folderL
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
       {job.result_status==="partial" && job.file_observation!=="unavailable" && <p role="status">완료 기록의 결과 파일 일부만 확인되었습니다. 기록 폴더에서 결과를 확인하세요.</p>}
     </> : !error && <p>결과 조회 중…</p>}
-    {children?.(job,()=>refresh(value=>value+1))}
+    {children?.(job,()=>refresh(value=>value+1),{stale:Boolean(error)})}
     <div className="media-result-actions">{onReuse && job && <button type="button" onClick={onReuse}>입력 다시 사용</button>}<button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreRefreshFocus.current=true;refresh(value=>value+1);}}>{loading?"조회 중…":"결과 새로고침"}</button></div>
   </section>;
 }

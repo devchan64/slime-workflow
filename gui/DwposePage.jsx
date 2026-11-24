@@ -32,7 +32,8 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   const session=embeddedSession || query.get("session") || "";
   const [file,setFile]=useState(null),[hands,setHands]=useState(false),[face,setFace]=useState(false);
   const inputRef=useRef({file,hands,face});inputRef.current={file,hands,face};
-  const imageSelectionRevision=useRef(0);
+  const imageSelectionRevision=useRef(0),imageChecking=useRef(false);
+  const [imageCheckPending,setImageCheckPending]=useState(false);
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[model,setModel]=useState(null);
   const reviewEpoch=useRef(0),interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
   const [job,setJob]=useState(embedded ? "" : query.get("job") || ""),[notice,setNotice]=useState("");
@@ -50,7 +51,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   }
   const sending=useRef(false);
   async function readJob(id){
-    const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current,reviewAtStart=reviewEpoch.current;
+    const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current,checkingAtStart=imageChecking.current,reviewAtStart=reviewEpoch.current;
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
@@ -58,7 +59,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     if(!response.ok)throw new Error("저장된 DWPose 입력을 불러올 수 없습니다.");
     const blob=await response.blob();
     const savedFile=new File([blob],id+"-reference.png",{type:"image/png"});
-    return {id,file:savedFile,inputAtStart,imageAtStart,reviewAtStart,request:{
+    return {id,file:savedFile,inputAtStart,imageAtStart,checkingAtStart,reviewAtStart,request:{
       pose_include_hands:response.headers.get("X-Pose-Hands")==="true",
       pose_include_face:response.headers.get("X-Pose-Face")==="true",
     }};
@@ -68,12 +69,13 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   function restore(request,record){
     if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.pending)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
     const current=inputRef.current,previous=record.inputAtStart;
-    if(previous.file!==current.file || previous.hands!==current.hands || previous.face!==current.face || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 이미지나 옵션이 변경되어 적용하지 않았습니다.");
+    if(record.checkingAtStart || imageChecking.current || previous.file!==current.file || previous.hands!==current.hands || previous.face!==current.face || record.imageAtStart!==imageSelectionRevision.current)throw new Error("이미지 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");
     setFile(record.file);setHands(request.pose_include_hands);setFace(request.pose_include_face);
     setNotice("저장된 PNG와 포즈 옵션을 불러왔습니다.");
     requestAnimationFrame(()=>handsRef.current?.focus());
   }
   async function review(){
+    if(imageChecking.current)return;
     reviewEpoch.current++;
     setBusy(true);setNotice("");
     try {
@@ -98,10 +100,10 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     <ModelReadiness service="dwpose" onStatus={setModel}/>
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service="dwpose" status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
     <fieldset disabled={busy || Boolean(pending) || Boolean(handoff.id)}>
-      <ReferenceImageInput label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending)} onSelectionStart={()=>{imageSelectionRevision.current++;}} onChange={setFile}/>
+      <ReferenceImageInput label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending)} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={setFile}/>
       <div className="dwpose-options"><label><input ref={handsRef} type="checkbox" checked={hands} onChange={event=>setHands(event.target.checked)}/>손 상세 표시</label>
       <label><input type="checkbox" checked={face} onChange={event=>setFace(event.target.checked)}/>얼굴 상세 표시</label></div>
-      <ActionButton reasons={[!file && "입력 PNG를 선택하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요."]} onClick={review}>생성 요청 검토</ActionButton>
+      <ActionButton reasons={[imageCheckPending && "선택한 이미지 확인이 끝날 때까지 기다리세요.",!file && "입력 PNG를 선택하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요."]} onClick={review}>생성 요청 검토</ActionButton>
       <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJob={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={(id,close)=><section aria-label="선택한 DWPose 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service="dwpose" readJob={readJob} controls={false} onDeleted={cleaned}/></section>}/>
     </fieldset>
     {pending && <section ref={reviewRef} tabIndex={-1} aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><p>입력 PNG · {file.name}</p><p>손 상세 {pending.pose_include_hands?"포함":"제외"} · 얼굴 상세 {pending.pose_include_face?"포함":"제외"}</p><GpuQueueSummary/>

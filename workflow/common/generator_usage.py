@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 GENERATOR_USAGE_PATHS = {
+    'wan22-animate2': ROOT / 'generators/wan_animate2/README.md',
     'wan22-vace': ROOT / 'generators/wan_vace/README.md',
     'wan22-i2v': ROOT / 'generators/wan_i2v/README.md',
     'wan21-t2v': ROOT / 'generators/wan21_t2v/README.md',

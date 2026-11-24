@@ -1,4 +1,6 @@
 import React,{useEffect,useRef,useState} from "react";
+import {untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 
 const groundModule="/isloon-map-review/source-size-preview.js";
 const rendererModule="/management/assistant/field-renderer.mjs";
@@ -14,25 +16,35 @@ export default function BillboardGroundPreview({source,edits}){
   const canvas=useRef(null),[assets,setAssets]=useState(null),[error,setError]=useState(""),[warning,setWarning]=useState(""),[retry,setRetry]=useState(0);
   const [zoom,setZoom]=useState(2),[blocking,setBlocking]=useState(true),[guides,setGuides]=useState(true);
   const [character,setCharacter]=useState(true),[summary,setSummary]=useState("");
+  const [characterLoading,setCharacterLoading]=useState(false);
   useEffect(()=>{
     let active=true;
+    const controller=new AbortController(),characterController=new AbortController();
+    let timedOut=false,characterTimedOut=false,characterDeadline;
+    const deadline=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     async function load(){
-      setAssets(null);setError("");setWarning("");
-      const [ground,renderer,image]=await Promise.all([import(groundModule),import(rendererModule),
-        loadImage("/management/map-assets/billboards/"+encodeURIComponent(source.texture)+".png")]);
-      let person=null;
+      setAssets(null);setError("");setWarning("");setCharacterLoading(false);
+      const [ground,renderer,image]=await untilAborted(Promise.all([import(groundModule),import(rendererModule),
+        loadImage("/management/map-assets/billboards/"+encodeURIComponent(source.texture)+".png")]),controller.signal);
+      clearTimeout(deadline);
+      if(active)setAssets({ground,renderer,image,person:null});
       if(character){
+        if(active)setCharacterLoading(true);
         try{
-          const response=await fetch("/isloon-map-review/review-character.json");
+          characterDeadline=setTimeout(()=>{characterTimedOut=true;characterController.abort();},15000);
+          const person=await untilAborted((async()=>{
+          const response=await fetch("/isloon-map-review/review-character.json",{signal:characterController.signal});
           if(!response.ok)throw new Error("캐릭터 기준 이미지를 불러올 수 없습니다.");
           const record=await response.json();
-          person={record,image:await loadImage(new URL(record.image,response.url))};
-        }catch(problem){if(active)setWarning("캐릭터를 불러오지 못해 빌보드만 표시합니다.");}
+          return {record,image:await loadImage(new URL(record.image,response.url))};
+          })(),characterController.signal);
+          if(active)setAssets({ground,renderer,image,person});
+        }catch(problem){if(active)setWarning((characterTimedOut ? "캐릭터 조회 시간이 초과돼" : "캐릭터를 불러오지 못해")+" 빌보드만 표시합니다.");}
+        finally{clearTimeout(characterDeadline);if(active)setCharacterLoading(false);}
       }
-      if(active)setAssets({ground,renderer,image,person});
     }
-    load().catch(problem=>{if(active)setError(problem.message);});
-    return ()=>{active=false;};
+    load().catch(problem=>{if(active)setError(timedOut ? "미리보기 조회 시간이 초과됐습니다. 다시 불러오세요." : requestErrorMessage(problem));}).finally(()=>clearTimeout(deadline));
+    return ()=>{active=false;clearTimeout(deadline);clearTimeout(characterDeadline);controller.abort();characterController.abort();};
   },[source,character,retry]);
   useEffect(()=>{
     if(!assets)return;
@@ -63,6 +75,7 @@ export default function BillboardGroundPreview({source,edits}){
     </div>
     <canvas ref={canvas} hidden={!assets} aria-label="빌보드 점유와 그림자" style={{maxWidth:"100%"}}/>
     <p role="status">{error || (assets?summary:"원본과 렌더러를 불러오는 중…")}</p>
+    {characterLoading && <p role="status">캐릭터 기준 이미지를 불러오는 중입니다.</p>}
     {warning && <p role="status">{warning}</p>}
     {(error || warning) && <button type="button" onClick={()=>setRetry(n=>n+1)}>미리보기 다시 불러오기</button>}
   </fieldset>;

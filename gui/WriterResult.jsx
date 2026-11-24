@@ -4,6 +4,7 @@ import {managementCommand,untilAborted} from "./managementCommand.js";
 import {writerStageLabel} from "./writerLabels.mjs";
 import {requestErrorMessage} from "./requestError.mjs";
 import {LiveRefreshControl,useLiveRefresh} from "./LiveRefresh.jsx";
+import ActionButton from "./ActionButton.jsx";
 
 const activeStages=new Set(["queued","preparing","indexing","searching","reasoning"]);
 const finishedStages=new Set(["review","completed","applied","failed","interrupted"]);
@@ -28,7 +29,7 @@ export default function WriterResult({id,onDeleted}) {
     let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     async function read() {
-      setChecking(true);
+      setChecking(true);setConfirmed(false);setDeleteConfirmed(false);
       try {
         const record=await untilAborted(managementCommand("writer-agent","writer-detail",{id},{signal:controller.signal}),controller.signal);
         if(!active)return;
@@ -96,12 +97,12 @@ export default function WriterResult({id,onDeleted}) {
       {proposal?.changes?.map(change=><details key={change.path}><summary>{change.path}</summary><pre tabIndex={0} aria-label={change.path+" 변경 내용"}>{change.diff}</pre></details>)}
       {canApply && <fieldset disabled={busy}><legend>원본 문서 적용</legend>
         <label><input type="checkbox" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/>표시된 변경을 검토했고 원본 적용에 동의합니다.</label>
-        <button disabled={!confirmed} onClick={apply}>확인한 변경을 원본에 적용</button>
+        <ActionButton reasons={[!confirmed && "변경 내용을 검토하고 원본 적용 동의란을 선택하세요."]} onClick={apply}>확인한 변경을 원본에 적용</ActionButton>
       </fieldset>}
       {canDelete && <fieldset disabled={busy}><legend>실행 기록 정리</legend>
         <label><input type="checkbox" checked={deleteConfirmed} onChange={event=>setDeleteConfirmed(event.target.checked)}/>
           {id}의 입력·제안·로그를 휴지통으로 옮기는 데 동의합니다.</label>
-        <button disabled={!deleteConfirmed} onClick={trash}>실행 기록 휴지통으로 이동</button>
+        <ActionButton reasons={[!deleteConfirmed && "휴지통으로 옮길 기록을 확인하고 동의란을 선택하세요."]} onClick={trash}>실행 기록 휴지통으로 이동</ActionButton>
       </fieldset>}
       {Object.entries({"실행 입력":detail.request,"검토 범위":proposal?.coverage,"탐색 근거":proposal?.evidence,
         "경고":proposal?.warnings,"보존 판단":proposal?.retained,"적용 결과":detail.application,"검색 결과":detail.search,"실행 로그":detail.log})

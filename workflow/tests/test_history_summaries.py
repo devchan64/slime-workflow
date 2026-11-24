@@ -10,6 +10,39 @@ from workflow.common.history_summaries import handle_history_summaries_request, 
 
 
 class HistorySummariesTests(unittest.TestCase):
+    def test_wan21_summary_endpoint_feeds_display_without_prompt(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); identifier='2026-11-17_08-17-15-14925ca2'; job=root/identifier; job.mkdir()
+            (job/'request.json').write_text(json.dumps({'action_lora':True,'action_variant':'attack_high','action_strength':0.45,'prompt':'private'}))
+            (job/'status.json').write_text('{"status":"completed"}')
+            payload=json.dumps({'service':'wan21-i2v','ids':[identifier]}).encode(); statuses=[]
+            handler=SimpleNamespace(path='/management/history-summaries',server=SimpleNamespace(server_port=8770),headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(payload))},rfile=io.BytesIO(payload),wfile=io.BytesIO(),send_response=statuses.append,send_header=lambda *args:None,end_headers=lambda:None)
+            self.assertTrue(handle_history_summaries_request(handler,{'/wan21-i2v':(root,lambda value:root/value)}))
+            self.assertEqual(statuses,[200])
+            summary=json.loads(handler.wfile.getvalue())['summaries'][identifier]
+            self.assertEqual(summary,{'action_lora':True,'action_variant':'attack_high','action_strength':0.45,'image_attempt':None})
+            script="""import {historyInputSummary} from './gui/historyInputSummary.mjs';
+              const values=historyInputSummary(JSON.parse(process.argv[1]),'wan21-i2v');
+              if(!values.includes('동작 LoRA Attack Sprite high · 강도 0.45'))throw Error(JSON.stringify(values));"""
+            result=subprocess.run(['node','--input-type=module','-e',script,json.dumps(summary)],cwd=Path(__file__).resolve().parents[2],capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_wan21_lora_summary_is_bounded_and_service_specific(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            request={'action_lora':True,'action_variant':'attack_high','action_strength':0.45,'prompt':'private'}
+            (root/'request.json').write_text(json.dumps(request))
+            self.assertEqual(read_history_summary(root,'wan21-i2v'),{'action_lora':True,'action_variant':'attack_high','action_strength':0.45})
+            self.assertEqual(read_history_summary(root,'wan21-t2v'),{})
+            self.assertEqual(read_history_summary(root,'other'),{})
+            request['action_strength']=float('nan')
+            (root/'request.json').write_text(json.dumps(request))
+            self.assertEqual(read_history_summary(root,'wan21-i2v'),{'action_lora':True,'action_variant':'attack_high'})
+            request.update(action_lora=False,action_variant='unknown')
+            (root/'request.json').write_text(json.dumps(request))
+            self.assertEqual(read_history_summary(root,'wan21-i2v'),{'action_lora':False})
+
     def test_pose_summary_preserves_only_explicit_boolean_options(self):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory)

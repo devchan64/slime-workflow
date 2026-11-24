@@ -66,7 +66,8 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const templateRetryRef=useRef(null),templateRetryFocus=useRef(false);
   const [files,setFiles]=useState({}),[model,setModel]=useState(null),[fileErrors,setFileErrors]=useState({});
   const inputRef=useRef({values,files});inputRef.current={values,files};
-  const imageSelectionRevision=useRef(0);
+  const imageSelectionRevision=useRef(0),imageChecking=useRef(false);
+  const [imageCheckPending,setImageCheckPending]=useState(false);
   const [videoInfo,setVideoInfo]=useState({}),[checking,setChecking]=useState({});
   const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null),sending=useRef(false),focusResult=useRef(false),nonLoraSettings=useRef(null);
   const videoControllers=useRef({});
@@ -116,7 +117,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const [notice,setNotice]=useState("");
   const handoff=useGpuHandoff(session,service,setJob,setError);
   async function readJob(id){
-    const inputAtStart=inputRef.current,selectionAtStart=JSON.stringify(videoSequences.current),imageAtStart=imageSelectionRevision.current,reviewAtStart=reviewEpoch.current;
+    const inputAtStart=inputRef.current,selectionAtStart=JSON.stringify(videoSequences.current),imageAtStart=imageSelectionRevision.current,checkingAtStart=imageChecking.current || Object.keys(videoControllers.current).length>0,reviewAtStart=reviewEpoch.current;
     const prefix="/management/assistant/vace-input/"+encodeURIComponent(id)+"/";
     const controller=new AbortController();let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
@@ -138,13 +139,13 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       restored[key]=new File([blob],key+(key==="reference"?".png":".mp4"),{type:blob.type});
     }
     const entries=await Promise.all(Object.entries(restored).filter(([key])=>key!=="reference").map(async ([key,file])=>[key,await inspectVideo(file,controller.signal)]));
-    return {...record,files:restored,videoInfo:Object.fromEntries(entries),inputAtStart,selectionAtStart,imageAtStart,reviewAtStart};
+    return {...record,files:restored,videoInfo:Object.fromEntries(entries),inputAtStart,selectionAtStart,imageAtStart,checkingAtStart,reviewAtStart};
     }catch(problem){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 확인하세요.");throw problem;}
     finally{clearTimeout(timeout);controller.abort();}
   }
   function restore(request,record){
     if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.pending)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
-    if(record.inputAtStart.values!==inputRef.current.values || record.inputAtStart.files!==inputRef.current.files || record.selectionAtStart!==JSON.stringify(videoSequences.current) || record.imageAtStart!==imageSelectionRevision.current)throw new Error("입력 조회 중 작성 내용이나 첨부가 변경되어 적용하지 않았습니다.");
+    if(record.checkingAtStart || imageChecking.current || Object.keys(videoControllers.current).length || record.inputAtStart.values!==inputRef.current.values || record.inputAtStart.files!==inputRef.current.files || record.selectionAtStart!==JSON.stringify(videoSequences.current) || record.imageAtStart!==imageSelectionRevision.current)throw new Error("첨부 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");
     for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;
     Object.values(videoControllers.current).forEach(controller=>controller.abort());videoControllers.current={};
     nonLoraSettings.current=null;
@@ -190,6 +191,8 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     return [key,value==="" || value==null || !Number.isFinite(number) || number<min || number>max || (step===1 && !Number.isInteger(number))];
   }));
   async function review(event){
+    if(values.mode!=="text" && imageChecking.current){event.preventDefault();setError("이미지 확인이 끝난 뒤 생성 요청을 검토하세요.");return;}
+    if(attachments.some(key=>videoControllers.current[key])){event.preventDefault();setError("영상 정보 확인이 끝난 뒤 생성 요청을 검토하세요.");return;}
     reviewEpoch.current++;
     event.preventDefault();setBusy(true);setError("");
     try{
@@ -233,7 +236,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       {embedded ? <details><summary>선택한 생성 모드 안내</summary><p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p></details> : <p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p>}
       {Object.entries({reference:values.mode==="first_frame"?"첫 프레임 이미지":"참조 이미지",...labels}).map(([key,label])=>{
         const visible=key==="reference"?values.mode!=="text":attachments.includes(key);
-        return <div key={key} hidden={!visible}>{key==="reference" ? <ReferenceImageInput disabled={busy || !!pending || !visible} label={label} source={files[key]} onSelectionStart={()=>{imageSelectionRevision.current++;}} onChange={file=>setFiles({...files,[key]:file})}/> : <div><label>{label}<input key={historyRevision} type="file" accept="video/mp4" required={visible && !files[key]} disabled={!visible}
+        return <div key={key} hidden={!visible}>{key==="reference" ? <ReferenceImageInput disabled={busy || !!pending || !visible} label={label} source={files[key]} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={file=>setFiles(current=>({...current,[key]:file}))}/> : <div><label>{label}<input key={historyRevision} type="file" accept="video/mp4" required={visible && !files[key]} disabled={!visible}
           onChange={e=>{selectVideo(key,e.target.files[0]);e.target.value="";}}/></label><p>MP4 · 파일당 최대 32MiB{files[key] && " · 선택: "+files[key].name}</p>
           {checking[key] && <p role="status">영상 정보 확인 중…</p>}
           {videoInfo[key] && <p>{videoInfo[key].summary}</p>}
@@ -264,6 +267,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
         invalidSeed && "시드의 입력 범위를 확인하세요.",
         ["lightning","fighting_lightning"].includes(values.lora_mode) && (values.steps!==4 || values.flow_shift!==5) && "Lightning에는 4스텝·shift 5가 필요합니다.",
         !values.prompt.trim() && "프롬프트를 입력하세요.",
+        values.mode!=="text" && imageCheckPending && "선택한 이미지 확인이 끝날 때까지 기다리세요.",
         values.mode!=="text" && !files.reference && (values.mode==="first_frame" ? "첫 프레임 이미지를 선택하세요." : "참조 이미지를 선택하세요."),
         attachments.some(key=>!files[key]) && "필수 영상을 선택하세요.",
         checkingVideo && "영상 정보를 확인하고 있습니다.",

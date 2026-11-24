@@ -120,18 +120,18 @@ class HermesBuildingOperationsTests(unittest.TestCase):
         current_test_case.assertIn('건물 대상 미확인',current_message)
 
     def test_current_building_review_shows_values_and_explicit_actions(self):
-        import subprocess
+        import os, subprocess
         gui=Path(__file__).resolve().parents[2]/'gui'
         with TemporaryDirectory() as directory:
             bundle=Path(directory)/'building.cjs'
-            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingProposal.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');
               const {BuildingProposalReview}=require(process.argv[1]);
               const preview={texture:'town-test-v1',generation:3,before:{anchorX:0.5,anchorY:1},after:{anchorX:0.6,anchorY:1},maps:['test-city']};
               const render=busy=>server.renderToStaticMarkup(React.createElement(BuildingProposalReview,{preview,busy}));
               process.stdout.write(JSON.stringify([render(false),render(true)]));"""
             import json
-            html,busy_html=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True))
+            html,busy_html=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')}))
         for text in ('town-test-v1','앵커 X','0.5','0.6','test-city','확인 후 저장','취소','GPU 생성 작업은 실행하지 않습니다'):
             self.assertIn(text,html)
         self.assertEqual(html.count('disabled='),0)
