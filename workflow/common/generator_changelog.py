@@ -22,6 +22,7 @@ GENERATOR_CHANGELOG_PATHS = {
     'dwpose-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/dwpose/CHANGELOG.md',
     'wan22-animate2-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan_animate2/CHANGELOG.md',
     'wan22-vace-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan_vace/CHANGELOG.md',
+    'minimax-h3-i2v-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/minimax_h3/CHANGELOG.md',
     'wan22-i2v-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan_i2v/CHANGELOG.md',
     'wan21-t2v-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan21_t2v/CHANGELOG.md',
     'wan21-i2v-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan21_i2v/CHANGELOG.md',

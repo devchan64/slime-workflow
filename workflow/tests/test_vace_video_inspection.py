@@ -1,6 +1,8 @@
 """VACE UI의 공용 영상 검사와 실제 입력 길이 계약을 비교한다."""
 import tempfile
 import unittest
+import json
+import subprocess
 from pathlib import Path
 
 import cv2
@@ -25,6 +27,12 @@ class VaceVideoInspectionTests(unittest.TestCase):
             maximum, summary = inspect_fun_pose_video(path)
             self.assertEqual(maximum, 21)
             self.assertIn('23프레임', summary)
+            script="""import fs from 'node:fs';import vm from 'node:vm';import {untilAborted} from './gui/managementCommand.js';
+              let input='';for await(const part of process.stdin)input+=part;const payload=JSON.parse(input);
+              const source=fs.readFileSync('./gui/VacePage.jsx','utf8');const code=source.slice(source.indexOf('  async function inspectVideo('),source.indexOf('  async function selectVideo('));
+              const context=vm.createContext({untilAborted,fetch:async()=>({ok:true,json:async()=>payload})});vm.runInContext(code,context);
+              const result=await context.inspectVideo({},new AbortController().signal);if(result.maximum_frames!==21)process.exit(1);"""
+            subprocess.run(['node','--input-type=module','-e',script],cwd=Path(__file__).resolve().parents[2],input=json.dumps({'maximum_frames':maximum,'summary':summary}),text=True,check=True)
             self.assertEqual(len(decode_edit_video(path, maximum)), maximum)
             with self.assertRaisesRegex(ValueError, '프레임이 부족'):
                 decode_edit_video(path, 25)

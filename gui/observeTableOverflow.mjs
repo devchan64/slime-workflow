@@ -11,7 +11,7 @@ export function observeTableOverflow(container,table,onChange,{window,Observer})
 
 export function scrollTableOnArrow(event) {
   const node=event.currentTarget;
-  if(event.target!==node || node.scrollWidth<=node.clientWidth+1 || !["ArrowLeft","ArrowRight"].includes(event.key))return;
+  if(event.target!==node || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || node.scrollWidth<=node.clientWidth+1 || !["ArrowLeft","ArrowRight"].includes(event.key))return;
   event.preventDefault();
   node.scrollLeft+=event.key==="ArrowRight" ? 80 : -80;
 }

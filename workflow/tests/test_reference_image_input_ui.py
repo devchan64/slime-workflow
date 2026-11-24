@@ -18,5 +18,7 @@ class ReferenceImageInputUiTests(unittest.TestCase):
               const id=html.match(/<small id="([^"]+)">PNG/)[1];
               assert.ok(html.includes('aria-describedby="'+id+'"'));assert.match(html,/aria-invalid="false"/);
               const general=server.renderToStaticMarkup(React.createElement(Input,{label:'참조',accept:'image/*',maxBytes:3000000,onChange:()=>{}}));
-              assert.doesNotMatch(general,/>PNG · 파일당/);"""
+              assert.doesNotMatch(general,/>PNG · 파일당/);
+              const slots=server.renderToStaticMarkup(React.createElement(React.Fragment,null,...['참조 1','참조 2'].map(label=>React.createElement(Input,{key:label,label,onChange:()=>{}}))));
+              assert.match(slots,/role="group" aria-label="참조 1"/);assert.match(slots,/role="group" aria-label="참조 2"/);"""
             subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,text=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})

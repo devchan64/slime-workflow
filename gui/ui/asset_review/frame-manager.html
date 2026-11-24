@@ -2,7 +2,10 @@
 const managerPageRecords=[...__MANAGER_PAGES__];
 try{
  const currentSourceLocation=new URL(location.href);
- if(!['http:','https:'].includes(currentSourceLocation.protocol))throw Error('이 검수 폴더를 workflow/serve.py --root로 실행한 뒤 서버 주소로 접속하세요.');
+ if(!['http:','https:'].includes(currentSourceLocation.protocol)){
+  document.querySelector('#managementLink').hidden=true;
+  throw Error('이 검수 폴더를 workflow/serve.py --root로 실행한 뒤 서버 주소로 접속하세요.');
+ }
  const currentLegacyIdentifier=decodeURIComponent(currentSourceLocation.hash.slice(1));
  const currentRequestedIdentifier=currentSourceLocation.searchParams.get('tool')||currentLegacyIdentifier;
  const currentSelectedIdentifier=currentRequestedIdentifier==='map-reviewdetails'?'map-review':currentRequestedIdentifier;

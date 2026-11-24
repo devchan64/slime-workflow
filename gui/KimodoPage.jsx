@@ -47,8 +47,8 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
     sessionStorage.setItem(key,[sessionStorage.getItem(key),label+" "+value].filter(Boolean).join("\n"));
     location.assign(conversation);
   }
-  return <main className={"single-generator-shell"+(embedded ? "" : " generator-page-standalone-shell")}><article className="single-generator-page generator-page-common"><GeneratorPageIdentity service="kimodo" embedded={embedded} session={session}/><GeneratorSectionNavigation inputRef={generationRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(selectedJob)}/>
-    {embedded ? <details><summary>모델 준비 및 다운로드</summary><ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/></details> : <><ModelReadiness service="kimodo" manage/><DownloadProgress service="kimodo"/></>}
+  return <main className={"single-generator-shell"+(embedded ? "" : " generator-page-standalone-shell")}><article className="single-generator-page generator-page-common"><GeneratorPageIdentity service="kimodo" embedded={embedded} session={session}/><GeneratorSectionNavigation inputRef={generationRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(selectedJob)} openOnNavigate/>
+    {embedded ? <details><summary>모델 준비 및 다운로드</summary><ModelReadiness session={session} service="kimodo" manage/><DownloadProgress service="kimodo"/></details> : <><ModelReadiness session={session} service="kimodo" manage/><DownloadProgress service="kimodo"/></>}
     <section className={embedded ? undefined : "kimodo-standalone-form"} ref={generationRef} tabIndex={-1} aria-label="Kimodo 생성 입력" onChangeCapture={()=>{inputRevision.current++;}} onClickCapture={trackInputAction}><KimodoGeneration session={session} restoreJob={restoreJob} restoreRevision={restoreRevision} initialInputs={restoreJob ? null : initialInputs} choose={choose} onInputChange={()=>{inputRevision.current++;}} onImageCheckingChange={value=>{imageChecking.current=value;}}/></section>
     <KimodoMultiviewReport/>
     <div ref={historyRef}><GeneratorHistory key={historyRevision} service="kimodo" allowPriority readJob={readJob} resultId={selectedJob}

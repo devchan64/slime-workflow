@@ -8,6 +8,7 @@ import {LiveRefreshControl,useLiveRefresh} from "./LiveRefresh.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import RecordFolder from "./RecordFolder.jsx";
 import {liveJobStatus} from "./liveJobStatus.mjs";
+import {imageRetryUrl} from "./imageRetryUrl.mjs";
 
 const statusCommands={
   audio:"hermes-audio-source-status",
@@ -21,7 +22,7 @@ function ComparisonFigure({item}){
   const [failed,setFailed]=useState(false),[revision,retry]=useState(0);
   const imageRef=useRef(null),buttonRef=useRef(null),restoreFocus=useRef(false);
   useEffect(()=>{if(restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body)(failed ? buttonRef : imageRef).current?.focus();}},[failed,revision]);
-  return <figure><figcaption>{item.label}</figcaption>{failed ? <div role="alert"><p>비교 이미지를 불러오지 못했습니다.</p><button ref={buttonRef} type="button" aria-label={item.label+" 다시 불러오기"} onClick={()=>{restoreFocus.current=document.activeElement===buttonRef.current;setFailed(false);retry(value=>value+1);}}>이미지 다시 불러오기</button></div> : <img ref={imageRef} tabIndex={-1} key={revision} loading="lazy" src={item.url} alt={item.label} style={{maxWidth:"100%"}} onError={()=>{restoreFocus.current=document.activeElement===imageRef.current;setFailed(true);}}/>}</figure>;
+  return <figure><figcaption>{item.label}</figcaption>{failed ? <div><p role="alert">{item.label} 이미지를 불러오지 못했습니다.</p><button ref={buttonRef} type="button" aria-label={item.label+" 다시 불러오기"} onClick={()=>{restoreFocus.current=document.activeElement===buttonRef.current;setFailed(false);retry(value=>value+1);}}>이미지 다시 불러오기</button></div> : <img className="recoverable-image" ref={imageRef} tabIndex={-1} key={revision} loading="lazy" src={imageRetryUrl(item.url,revision)} alt={item.label} style={{maxWidth:"100%"}} onError={event=>{if(event.currentTarget!==imageRef.current)return;restoreFocus.current=document.activeElement===imageRef.current;setFailed(true);}}/>}</figure>;
 }
 
 function SeamlessComparison({id}){
@@ -36,16 +37,16 @@ function SeamlessComparison({id}){
       try{
         const value=await untilAborted((async()=>{const response=await fetch("/management/assistant/flux-seamless-comparison/"+encodeURIComponent(id),{signal:controller.signal});if(!response.ok)throw new Error("타일 비교 결과를 불러올 수 없습니다.");return response.json();})(),controller.signal);
         const prefix="/flux-seamless-generator/jobs/"+id+"/";
-        if(!value || typeof value.method!=="string" || !Array.isArray(value.images) || value.images.some(item=>!item || typeof item.label!=="string" || !["tiled-preview.png","raw-result.png","blend-preview.png"].some(name=>item.url===prefix+name)))throw new Error("타일 비교 결과 형식을 확인할 수 없습니다.");
+        if(!value || typeof value.method!=="string" || !Array.isArray(value.images) || value.images.some(item=>!item || typeof item.label!=="string" || !["tiled-preview.png","raw-result.png","blend-preview.png"].some(name=>item.url===prefix+name)) || new Set(value.images.map(item=>item.url)).size!==value.images.length)throw new Error("타일 비교 결과 형식을 확인할 수 없습니다.");
         if(active && !controller.signal.aborted)setResult(value);
       }catch(problem){if(active)setError(timedOut?"타일 비교 조회 시간이 초과됐습니다.":problem.message || "타일 비교 결과를 불러올 수 없습니다.");}
       finally{clearTimeout(timer);if(active)setLoading(false);}
     }
     load();return ()=>{active=false;clearTimeout(timer);controller.abort();};
   },[id,revision]);
-  if(error)return <div role="alert"><p>{error}</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;retry(value=>value+1);}}>타일 비교 다시 조회</button></div>;
+  if(error)return <div><p role="alert">{error}</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;retry(value=>value+1);}}>타일 비교 다시 조회</button></div>;
   if(loading)return <p role="status">타일 비교 결과 조회 중…</p>;
-  return result && <section ref={resultRef} tabIndex={-1} aria-label="타일 비교 결과"><p>타일 생성 방식 · {result.method}</p>
+  return result && <section ref={resultRef} tabIndex={-1} className="media-comparison-result" aria-label="타일 비교 결과"><p>타일 생성 방식 · {result.method}</p>
     {result.images.map(item=><ComparisonFigure key={item.url} item={item}/>)}
     {!result.images.length && <p>저장된 비교 이미지가 없습니다.</p>}
   </section>;
@@ -66,15 +67,15 @@ function CircularComparison({id}){
       try{
         const data=await untilAborted((async()=>{const response=await fetch("/management/assistant/qwen-circular-comparison/"+encodeURIComponent(id),{signal:controller.signal});if(!response.ok)throw new Error("저장된 비교 결과를 불러올 수 없습니다.");return response.json();})(),controller.signal);
         const prefix="/image-generation-21-circular/jobs/"+id+"/";
-        if(!Array.isArray(data?.images) || data.images.some(item=>!item || typeof item.label!=="string" || !["result.png","tiled-preview.png","baseline.png","baseline-preview.png"].some(name=>item.url===prefix+name)))throw new Error("비교 결과 경로를 확인할 수 없습니다.");
+        if(!Array.isArray(data?.images) || data.images.some(item=>!item || typeof item.label!=="string" || !["result.png","tiled-preview.png","baseline.png","baseline-preview.png"].some(name=>item.url===prefix+name)) || new Set(data.images.map(item=>item.url)).size!==data.images.length)throw new Error("비교 결과 경로를 확인할 수 없습니다.");
         if(active && !controller.signal.aborted)setImages(data.images);
       }catch(problem){if(active)setError(timedOut?"순환 VAE 비교 조회 시간이 초과됐습니다.":problem.message || "저장된 비교 결과를 불러올 수 없습니다.");}
       finally{clearTimeout(timer);if(active)setLoading(false);}
     }
     load();return()=>{active=false;clearTimeout(timer);controller.abort();};
   },[id,revision]);
-  if(error)return <div role="alert"><p>{error}</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;retry(value=>value+1);}}>순환 VAE 비교 다시 조회</button></div>;
-  return loading ? <p role="status">순환 VAE 비교 결과 조회 중…</p> : images && <div ref={resultRef} tabIndex={-1} aria-label="순환 VAE 비교 결과"><CircularComparisonImages images={images}/></div>;
+  if(error)return <div><p role="alert">{error}</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;retry(value=>value+1);}}>순환 VAE 비교 다시 조회</button></div>;
+  return loading ? <p role="status">순환 VAE 비교 결과 조회 중…</p> : images && <div ref={resultRef} tabIndex={-1} className="media-comparison-result" aria-label="순환 VAE 비교 결과"><CircularComparisonImages images={images}/></div>;
 }
 
 function SavedPoseVideo({id,resultVideo,resultPoster}) {
@@ -88,10 +89,10 @@ function SavedPoseVideo({id,resultVideo,resultPoster}) {
   return <details onToggle={event=>{setOpen(event.currentTarget.open);setFailed(false);setOutputFailed(false);}}>
     <summary>입력 포즈 영상과 비교</summary>
     {open && <><p>각 영상을 개별 재생해 움직임을 비교할 수 있습니다.</p><div className="media-pose-comparison">
-      <figure><figcaption>입력 포즈</figcaption>{failed ? <div role="alert"><p>이 작업의 포즈 MP4를 재생할 수 없습니다.</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;setFailed(false);retry(value=>value+1);}}>입력 포즈 다시 불러오기</button></div> :
+      <figure><figcaption>입력 포즈</figcaption>{failed ? <div><p role="alert">이 작업의 포즈 MP4를 재생할 수 없습니다.</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;setFailed(false);retry(value=>value+1);}}>입력 포즈 다시 불러오기</button></div> :
         <video ref={videoRef} key={revision} aria-label="입력 포즈 영상" controls loop playsInline preload="metadata"
-          src={"/management/assistant/fun-pose/"+encodeURIComponent(id)} onError={()=>{restoreFocus.current=document.activeElement===videoRef.current;setFailed(true);}}/>}</figure>
-      <figure><figcaption>생성 결과</figcaption>{outputFailed ? <div role="alert"><p>생성 결과 영상을 불러오지 못했습니다.</p><button ref={outputRetryRef} type="button" onClick={()=>{restoreOutputFocus.current=document.activeElement===outputRetryRef.current;setOutputFailed(false);retryOutput(value=>value+1);}}>비교 영상 다시 불러오기</button></div> : <video ref={outputRef} key={outputRevision} aria-label="비교용 생성 결과 영상" controls loop playsInline preload="metadata" src={resultVideo} poster={resultPoster} onError={()=>{restoreOutputFocus.current=document.activeElement===outputRef.current;setOutputFailed(true);}}/>}</figure>
+          src={imageRetryUrl("/management/assistant/fun-pose/"+encodeURIComponent(id),revision)} onError={event=>{if(event.currentTarget!==videoRef.current)return;restoreFocus.current=document.activeElement===videoRef.current;setFailed(true);}}/>}</figure>
+      <figure><figcaption>생성 결과</figcaption>{outputFailed ? <div><p role="alert">생성 결과 영상을 불러오지 못했습니다.</p><button ref={outputRetryRef} type="button" onClick={()=>{restoreOutputFocus.current=document.activeElement===outputRetryRef.current;setOutputFailed(false);retryOutput(value=>value+1);}}>비교 영상 다시 불러오기</button></div> : <video ref={outputRef} key={outputRevision} aria-label="비교용 생성 결과 영상" controls loop playsInline preload="metadata" src={imageRetryUrl(resultVideo,outputRevision)} poster={resultPoster} onError={event=>{if(event.currentTarget!==outputRef.current)return;restoreOutputFocus.current=document.activeElement===outputRef.current;setOutputFailed(true);}}/>}</figure>
     </div></>}
   </details>;
 }
@@ -107,7 +108,7 @@ function AudioTrack({track}) {
   const audioRef=useRef(null),retryRef=useRef(null),restoreFocus=useRef(false);
   useEffect(()=>{if(restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body)(failed ? retryRef : audioRef).current?.focus();}},[failed,revision]);
   return <section className="media-audio-track"><strong>{track.label}</strong>
-    {failed ? <div role="alert"><p>오디오를 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={retryRef} type="button" aria-label={track.label+" 다시 불러오기"} onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;setFailed(false);retry(value=>value+1);}}>오디오 다시 불러오기</button></div> : <audio ref={audioRef} key={revision} controls preload="metadata" src={track.wav} aria-label={track.label} onError={()=>{restoreFocus.current=document.activeElement===audioRef.current;setFailed(true);}}/>}
+    {failed ? <div><p role="alert">{track.label} 오디오를 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={retryRef} type="button" aria-label={track.label+" 다시 불러오기"} onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;setFailed(false);retry(value=>value+1);}}>오디오 다시 불러오기</button></div> : <audio ref={audioRef} key={revision} controls preload="metadata" src={imageRetryUrl(track.wav,revision)} aria-label={track.label} onError={event=>{if(event.currentTarget!==audioRef.current)return;restoreFocus.current=document.activeElement===audioRef.current;setFailed(true);}}/>}
     <div className="media-audio-downloads"><a href={track.wav} download>{track.label} WAV 다운로드</a>{track.mp3 && <a href={track.mp3} download>{track.label} MP3 다운로드</a>}</div>
   </section>;
 }
@@ -171,7 +172,7 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
   },[service,id,kind,revision]);
   const directFolder=kind==="video" && service==="wan22-fun-control" && job?.result_status==="available";
   function renderResultImage(alt,className){
-    return imageError ? <div role="alert"><p>결과 이미지를 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={imageRetryRef} type="button" onClick={()=>{restoreImageFocus.current=document.activeElement===imageRetryRef.current;setImageError(false);retryMedia(value=>value+1);}}>이미지 다시 불러오기</button></div> : <img ref={imageRef} tabIndex={-1} className={className} key={mediaRevision} src={job.image} alt={alt} onError={()=>{restoreImageFocus.current=document.activeElement===imageRef.current;setImageError(true);}}/>;
+    return imageError ? <div><p role="alert">결과 이미지를 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={imageRetryRef} type="button" onClick={()=>{restoreImageFocus.current=document.activeElement===imageRetryRef.current;setImageError(false);retryMedia(value=>value+1);}}>이미지 다시 불러오기</button></div> : <img ref={imageRef} tabIndex={-1} className={`${className} recoverable-image`} key={mediaRevision} src={imageRetryUrl(job.image,mediaRevision)} alt={alt} onError={event=>{if(event.currentTarget!==imageRef.current)return;restoreImageFocus.current=document.activeElement===imageRef.current;setImageError(true);}}/>;
   }
   return <section ref={!job || hideProgress ? live.ref : undefined} className="media-result-card" aria-label="작업 결과"><div className="media-result-heading"><div><strong>작업 결과</strong></div>{job && <JobStatus state={job.status}/>}</div>
     {(!job || hideProgress) && <LiveRefreshControl live={live} label="결과 자동 갱신" inactiveReason="작업 종료로 중지"/>}
@@ -198,8 +199,8 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
       {kind==="video" && job.result_status==="available" && <>
         {service==="dwpose" ? renderResultImage("DWPose 추출 결과","media-result-image") :
           <>
-            <video ref={videoRef} key={mediaRevision} aria-label="생성 결과 영상" controls loop playsInline preload="metadata" src={job.video} poster={job.image} style={{maxWidth:"100%"}} onError={()=>setVideoError(true)}/>
-            {videoError && <div role="alert"><p>결과 영상을 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={videoRetryRef} type="button" onClick={()=>{const focused=document.activeElement===videoRetryRef.current;setVideoError(false);retryMedia(value=>value+1);if(focused)requestAnimationFrame(()=>{if(document.activeElement===document.body)videoRef.current?.focus();});}}>영상 다시 불러오기</button></div>}
+            <video ref={videoRef} key={mediaRevision} aria-label="생성 결과 영상" controls loop playsInline preload="metadata" src={imageRetryUrl(job.video,mediaRevision)} poster={job.image} style={{maxWidth:"100%"}} onError={event=>{if(event.currentTarget===videoRef.current)setVideoError(true);}}/>
+            {videoError && <div><p role="alert">결과 영상을 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={videoRetryRef} type="button" onClick={()=>{const focused=document.activeElement===videoRetryRef.current;setVideoError(false);retryMedia(value=>value+1);if(focused)requestAnimationFrame(()=>{if(document.activeElement===document.body)videoRef.current?.focus();});}}>영상 다시 불러오기</button></div>}
             <a className="media-result-link" href={job.video} target="_blank" rel="noopener noreferrer">MP4 열기</a>
             {directFolder && <RecordFolder key={service+"/"+id} service={service} id={id} direct/>}
           </>}

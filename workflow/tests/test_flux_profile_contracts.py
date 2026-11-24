@@ -31,6 +31,7 @@ class FluxProfileContracts(unittest.TestCase):
                                            env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         self.assertIn('/management/assistant/?session=new',markup)
         self.assertNotIn('/management/assistant/?session=old',markup)
+        self.assertIn('/management/frame/model-management/?model=flux-image&amp;session=new',markup)
 
     def test_each_profile_has_a_distinct_react_menu_and_route(self):
         from http.server import SimpleHTTPRequestHandler

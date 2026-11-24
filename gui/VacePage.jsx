@@ -10,7 +10,7 @@ import PromptWordCount from "./PromptWordCount.jsx";
 import SeedInput from "./SeedInput.jsx";
 import {referencePng,videoData} from "./videoInputs.js";
 import React,{useEffect,useId,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorJobControls from "./GeneratorJobControls.jsx";
@@ -157,9 +157,9 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   function openResult(id){focusResult.current=true;if(id===job){const card=historyRef.current?.querySelector('details.generator-history');if(card)card.open=true;resultRef.current?.focus();focusResult.current=false;}else setJob(id);}
   function field(key,value){setValues(old=>({...old,[key]:value}));}
   async function inspectVideo(file,signal){
-    const response=await fetch("/management/assistant/fun-video-info",{method:"POST",body:file,signal});
-    const info=await response.json();
-    if(!response.ok || !Number.isInteger(info.maximum_frames))throw new Error(info.summary || "영상을 확인할 수 없습니다.");
+    const response=await untilAborted(fetch("/management/assistant/fun-video-info",{method:"POST",body:file,signal}),signal);
+    const info=await untilAborted(response.json(),signal);
+    if(!response.ok || !info || !Number.isInteger(info.maximum_frames) || info.maximum_frames<5 || typeof info.summary!=="string")throw new Error(typeof info?.summary==="string" && info.summary ? info.summary : "영상을 확인할 수 없습니다.");
     return info;
   }
   async function selectVideo(key,file){
@@ -220,7 +220,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}><GeneratorPageIdentity service={service} embedded={embedded} session={session} showReturn changelogCard/>
     <GeneratorUsage generator="wan22-vace"/><GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "모델 상태 조회 실패" : !model ? "상태 확인 필요" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"}>
-      <ModelReadiness service={modelService} onStatus={setModel} onError={setModelError}/>
+      <ModelReadiness session={session} service={modelService} onStatus={setModel} onError={setModelError}/>
       {embedded && (model?.generation_ready ?? model?.ready) && !["queued","running","failed","cancelled","unknown"].includes(model?.preparation_status) ? <details><summary>모델 다운로드 이력</summary><DownloadProgress service={modelService}/></details> : <DownloadProgress service={modelService}/>}
     </GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={openResult}/>

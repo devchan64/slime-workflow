@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
@@ -12,6 +12,7 @@ import {qwenArchiveUrl} from "./qwenArchiveUrl.mjs";
 
 function ArchiveDetail({service,id}){
   const [log,setLog]=useState(null),[error,setError]=useState(""),[loading,setLoading]=useState(false);
+  const statusId=useId(),errorId=useId();
   const request=useRef(null);
   useEffect(()=>()=>{const active=request.current;request.current=null;active?.abort();},[]);
   async function readLog(){
@@ -32,10 +33,10 @@ function ArchiveDetail({service,id}){
     }
   }
   return <><MediaJobResult service={service} kind="image" id={id}/>
-    <button type="button" aria-disabled={loading} onClick={readLog}>{loading ? "로그 조회 중" : "실행 로그 조회"}</button>
-    {loading && <p role="status">실행 로그를 불러오고 있습니다.</p>}
+    <button type="button" aria-disabled={loading} aria-describedby={loading ? statusId : error ? errorId : undefined} onClick={readLog}>{loading ? "로그 조회 중" : "실행 로그 조회"}</button>
+    {loading && <p id={statusId} role="status">실행 로그를 불러오고 있습니다.</p>}
     {log!==null && (loading || error) && <p>아래는 마지막으로 조회한 로그입니다.</p>}
-    {log!==null && <pre className="generator-job-log" tabIndex={0} role="region" aria-label="보관된 작업 실행 로그">{log}</pre>}{error && <p role="alert">{error}</p>}</>;
+    {log!==null && <pre className="generator-job-log" tabIndex={0} role="region" aria-label="보관된 작업 실행 로그">{log}</pre>}{error && <p id={errorId} role="alert">{error}</p>}</>;
 }
 
 export default function QwenArchive(){

@@ -95,7 +95,7 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
     <GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
     <GeneratorUsage generator={service}/>
     <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
-    <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패 · 다시 확인하세요" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness service={service} modelManagementService="wan22-i2v-assets" onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
+    <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패 · 다시 확인하세요" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service={service} modelManagementService="wan22-i2v-assets" onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={setJob}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     <GeneratorSectionCard title="생성 입력" summary="첫 이미지와 동작 지시" defaultOpen cardRef={inputCardRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending}><legend className="generator-visually-hidden">생성 입력</legend>

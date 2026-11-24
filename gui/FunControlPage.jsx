@@ -12,7 +12,7 @@ import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
 
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import {FunControlFields,FunControlResult} from "./FunControlSchema.jsx";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
@@ -78,8 +78,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   }
   function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
   const sending=useRef(false),formRef=useRef(null),reviewRef=useRef(null);
-  const poseInspection=useRef(null),inputLoading=useRef(null);
-  useEffect(()=>()=>{poseInspection.current?.abort();inputLoading.current?.abort();},[]);
+  const poseInspection=useRef(null),inputLoading=useRef(null),attachmentEpoch=useRef(0);
+  useEffect(()=>()=>{attachmentEpoch.current++;poseInspection.current?.abort();inputLoading.current?.abort();},[]);
   useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
   useEffect(()=>{
     if(!templateRetryFocus.current || (!template && !templateError))return;
@@ -176,6 +176,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   },[embedded,seedProposal,template]);
   async function attach(file,field){
     if(!file)return false;
+    const epoch=attachmentEpoch.current;
     attachmentProcessing.current=true;
     attachmentRevision.current++;
     setBusy(true);setError("");
@@ -183,19 +184,20 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     let timeout,controller,timedOut=false;
     try{
       const value=field==="images"?[await referencePng(file)]:await videoData(file);
+      if(epoch!==attachmentEpoch.current)return false;
       if(field==="pose_video"){
         controller=new AbortController();poseInspection.current=controller;
         timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-        const response=await fetch("/management/assistant/fun-video-info",{method:"POST",body:file,signal:controller.signal});
-        const info=await response.json();
+        const response=await untilAborted(fetch("/management/assistant/fun-video-info",{method:"POST",body:file,signal:controller.signal}),controller.signal);
+        const info=await untilAborted(response.json(),controller.signal);
         if(!response.ok)throw new Error(info.summary || "포즈 영상을 확인할 수 없습니다.");
         if(!Number.isInteger(info.maximum_frames) || info.maximum_frames<1 || typeof info.summary!=="string")throw new Error("포즈 영상 정보를 확인할 수 없습니다. 다시 선택하세요.");
         setVideoInfo(info);
       }
       setRequest(current=>({...current,[field]:value}));
       return true;
-    }catch(problem){const message=timedOut ? "포즈 영상 정보 조회 시간이 초과됐습니다. 다시 선택하세요." : requestErrorMessage(problem);setError(message);if(field==="pose_video")setPoseError(message);return false;}
-    finally{clearTimeout(timeout);if(poseInspection.current===controller)poseInspection.current=null;attachmentProcessing.current=false;setBusy(false);}
+    }catch(problem){if(epoch===attachmentEpoch.current){const message=timedOut ? "포즈 영상 정보 조회 시간이 초과됐습니다. 다시 선택하세요." : requestErrorMessage(problem);setError(message);if(field==="pose_video")setPoseError(message);}return false;}
+    finally{clearTimeout(timeout);if(poseInspection.current===controller)poseInspection.current=null;if(epoch===attachmentEpoch.current){attachmentProcessing.current=false;setBusy(false);}}
   }
   async function load(restore=false){
     if(imageChecking.current || attachmentProcessing.current){setError("첨부 확인이 끝난 뒤 입력을 교체하세요.");return;}
@@ -251,7 +253,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     </FunControlResult></>;
   }
   return <article className={"fun-control-page"+(embedded?" fun-embedded":"")}>
-    <GeneratorPageHeader title="Wan Fun Control 영상 생성"
+    <GeneratorPageHeader session={embedded ? session : undefined} title="Wan Fun Control 영상 생성"
       description="참조 이미지의 외형과 포즈 영상의 움직임으로 영상을 만듭니다."
       generator="wan22-fun-control-generator" service={service} model={model} onStatus={setModel} embedded={embedded}/>
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}

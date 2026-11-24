@@ -10,7 +10,7 @@ function evaluateManagerRedirect(currentSourceHref,currentHistoryState=null){
  let currentRedirectTarget=null;
  const currentExecutionContext=vm.createContext({URL,decodeURIComponent,location:{href:currentSourceHref,replace:currentTargetHref=>{currentRedirectTarget=currentTargetHref;}},history:{state:currentHistoryState},document:{querySelector:currentSelectorText=>currentElementRecords[currentSelectorText]}});
  vm.runInContext(currentTemplateSource.split('<script>')[1].split('</script>')[0].replace('__MANAGER_PAGES__',JSON.stringify(currentPageRecords)),currentExecutionContext);
- return {target:currentRedirectTarget,message:currentElementRecords['#navigationStatus'].textContent,link:currentElementRecords['#managementLink'].href};
+ return {target:currentRedirectTarget,message:currentElementRecords['#navigationStatus'].textContent,link:currentElementRecords['#managementLink'].href,linkHidden:currentElementRecords['#managementLink'].hidden};
 }
 test('이전 해시 주소와 저장 검색·분류를 같은 서버의 공용 메뉴로 연결한다',()=>{
  const currentResult=evaluateManagerRedirect('http://localhost:8770/preview.html#walk-anchors',{pageIdentifier:'walk-anchors',searchQueryText:'걷기 앵커',selectedCategoryName:'animation'});
@@ -29,6 +29,8 @@ test('미등록 대상·깨진 해시·파일 직접 실행은 자동 이동하�
   const currentResult=evaluateManagerRedirect(currentSourceHref);assert.equal(currentResult.target,null);assert.ok(currentResult.message);
  }
  assert.equal(evaluateManagerRedirect('http://localhost/preview.html').target,'http://localhost/management/');
+ assert.equal(evaluateManagerRedirect('file:///tmp/preview.html').linkHidden,true);
+ assert.notEqual(evaluateManagerRedirect('http://localhost/preview.html#missing').linkHidden,true);
 });
 test('호환 문서는 자식 문서를 만들거나 실행 코드를 재구성하지 않는다',()=>{
  assert.doesNotMatch(currentTemplateSource,/<iframe|createElement\(['"]iframe|contentDocument|contentWindow|srcdoc/);

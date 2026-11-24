@@ -551,7 +551,7 @@ class ModelManagementTest(unittest.TestCase):
                                            env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         self.assertIn('모델 상태와 파일',markup)
         self.assertIn('헤르메스 대화로 이동',markup)
-        self.assertIn('session=abc',markup)
+        self.assertIn('href="/management/frame/hermes-agent/?session=abc"',markup)
 
 class SharedModelDownloadTest(unittest.TestCase):
     def test_shared_record_reports_progress_and_failure(self):

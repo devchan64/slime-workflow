@@ -66,7 +66,7 @@ export default function WorldMap() {
   }
   function select(next) {
     setId(next);
-    const url=new URL(location.href);url.searchParams.set("map",next);history.replaceState(null,"",url);
+    const url=new URL(location.href);url.searchParams.set("map",next);history.replaceState(history.state,"",url);
   }
   return <section className="world-map-review">
     <a href={conversation}>헤르메스 대화</a><h1>월드맵 검수</h1>
@@ -79,10 +79,10 @@ export default function WorldMap() {
         {maps.map(node=><option key={node.id} value={node.id}>{node.name}</option>)}</select></label>
       {!selected && <p id={selectionHelpId} role="status">선택한 맵을 현재 목록에서 찾지 못했습니다. 목록에서 다른 맵을 선택하세요.</p>}
       <div className="ui-action-row" role="group" aria-label="월드맵 화면 조정">
-        <button type="button" onClick={()=>setZoom(v=>Math.max(.1,v*.8))}>축소</button>
-        <button type="button" onClick={()=>setZoom(v=>Math.min(2,v*1.25))}>확대</button>
+        <button type="button" aria-disabled={zoom<=.1} title={zoom<=.1 ? "최소 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.max(.1,v*.8))}>축소</button>
+        <button type="button" aria-disabled={zoom>=2} title={zoom>=2 ? "최대 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.min(2,v*1.25))}>확대</button>
         <button type="button" onClick={()=>setZoom(Math.max(.1,Math.min(1,viewport.current.clientWidth/width,innerHeight*.65/height)))}>전체 보기</button>
-        <output aria-live="polite">확대 {Math.round(zoom*100)}%</output>
+        <output aria-live="polite">확대 {Math.round(zoom*100)}%{zoom<=.1 ? " · 최소 배율" : zoom>=2 ? " · 최대 배율" : ""}</output>
       </div>
       <p id={viewportHelpId}>지도 영역에 초점을 두고 방향키로 스크롤할 수 있습니다. 맵은 목록이나 지도에서 선택하세요.</p>
       <div ref={viewport} className="world-map-viewport" role="region" tabIndex={0} aria-label="월드맵 스크롤" aria-describedby={viewportHelpId}>

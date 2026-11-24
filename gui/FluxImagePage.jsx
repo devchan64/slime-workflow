@@ -251,7 +251,7 @@ export default function FluxImagePage({serviceOverride,embedded=false,initialInp
     finally{sending.current=false;setBusy(false);setReview(null);setHandoffReview(null);}
   }
   return <article className={"flux-page"+(embedded ? "" : " flux-standalone")}><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a>
-    <h1 className={embedded ? "embedded-page-title" : undefined}>FLUX 이미지 생성 · {profile?.label}</h1><GeneratorChangelog generator={service+"-generator"}/>{embedded ? <details><summary>모델 상태 · {model ? (fluxModelReady(model) ? "준비 완료" : "준비 필요") : "확인 필요"}</summary><ModelReadiness service={service} onStatus={setModel}/></details> : <ModelReadiness service={service} onStatus={setModel}/>}
+    <h1 className={embedded ? "embedded-page-title" : undefined}>FLUX 이미지 생성 · {profile?.label}</h1><GeneratorChangelog generator={service+"-generator"}/>{embedded ? <details><summary>모델 상태 · {model ? (fluxModelReady(model) ? "준비 완료" : "준비 필요") : "확인 필요"}</summary><ModelReadiness service={service} session={session} onStatus={setModel}/></details> : <ModelReadiness service={service} session={session} onStatus={setModel}/>}
     {profile && <p>{profile.description}</p>}
     {!profile && (profileError ? <div role="alert">{profileError} <button ref={profileRetryRef} type="button" onClick={()=>{profileRetryFocus.current=true;setAttempt(current=>current+1);}}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}

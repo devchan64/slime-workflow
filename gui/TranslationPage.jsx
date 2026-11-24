@@ -25,7 +25,7 @@ import {generationReady} from "./generationReady.mjs";
 const service="prompt-translation";
 const callHermes=(command,payload,options)=>managementCommand("hermes-agent","hermes-"+command,payload,options);
 
-export default function TranslationPage({embedded=false}={}) {
+export default function TranslationPage({embedded=false,session:embeddedSession=""}={}) {
   const query=new URLSearchParams(location.search);
   const [text,setText]=useState(""),[language,setLanguage]=useState("en"),[terms,setTerms]=useState("");
   const inputRef=useRef({text,language,terms});
@@ -110,7 +110,7 @@ export default function TranslationPage({embedded=false}={}) {
     {!embedded && <a href={"/management/assistant/"+(query.has("session")?"?"+new URLSearchParams({session:query.get("session")}):"")}>헤르메스 대화</a>}
     <h1 className={embedded ? "embedded-page-title" : undefined}>프롬프트 번역</h1>
     <p>TranslateGemma 4B · ROCm BF16 · <a href="https://ai.google.dev/gemma/terms">Gemma 이용약관</a></p>
-    {embedded ? <GeneratorSectionCard title="모델 준비 상태" summary={modelError ? "조회 실패" : !model ? "확인 중" : generationReady(model) ? "준비됨" : "준비 필요"}><ModelReadiness service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard> : <ModelReadiness service={service} onStatus={setModel}/>}
+    {embedded ? <GeneratorSectionCard title="모델 준비 상태" summary={modelError ? "조회 실패" : !model ? "확인 중" : generationReady(model) ? "준비됨" : "준비 필요"}><ModelReadiness session={embeddedSession || query.get("session") || ""} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard> : <ModelReadiness session={embeddedSession || query.get("session") || ""} service={service} onStatus={setModel}/>}
     <GeneratorChangelog generator={service}/>
     <fieldset disabled={Boolean(pending)}><legend className="generator-visually-hidden">번역 입력과 이력</legend><label>한국어 원문 <textarea ref={textRef} value={text} onChange={e=>setText(e.target.value)}/></label>
       <label>목표 언어 <select value={language} onChange={e=>setLanguage(e.target.value)}><option value="en">영어</option><option value="zh-CN">중국어 간체</option></select></label>

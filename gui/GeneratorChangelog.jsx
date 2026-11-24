@@ -12,7 +12,7 @@ export default function GeneratorChangelog({generator,card=false}) {
   const [page,setPage]=useState(null);
   const [error,setError]=useState(null);
   const [loading,setLoading]=useState(false);
-  const refreshRef=useRef(null),focusRequest=useRef(null);
+  const refreshRef=useRef(null),focusRequest=useRef(null),requestBusy=useRef(false);
   useEffect(()=>{setPosition({generator,index:0});focusRequest.current=null;},[generator]);
   useEffect(()=>{if(!open)focusRequest.current=null;},[open]);
   useEffect(()=>{
@@ -25,7 +25,7 @@ export default function GeneratorChangelog({generator,card=false}) {
     const controller=new AbortController();
     let active=true,timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-    setError(null);setLoading(true);
+    requestBusy.current=true;setError(null);setLoading(true);
     async function load() {
       try {
         const result=await untilAborted((async()=>{
@@ -39,15 +39,16 @@ export default function GeneratorChangelog({generator,card=false}) {
       } catch(problem) {
         if (active) setError({generator,message:timedOut ? "변경 기록 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem)});
       } finally {
-        clearTimeout(timeout);if(active)setLoading(false);
+        clearTimeout(timeout);if(active){requestBusy.current=false;setLoading(false);}
       }
     }
     load();
-    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
+    return ()=>{active=false;requestBusy.current=false;clearTimeout(timeout);controller.abort();};
   },[open,generator,index,revision]);
   const visiblePage=page?.generator===generator ? page : null;
   const visibleError=error?.generator===generator ? error.message : "";
-  function navigate(target,event){focusRequest.current=event.currentTarget;setLoading(true);if(target===index)setRevision(value=>value+1);else setPosition({generator,index:target});}
+  function navigate(target,event){if(requestBusy.current)return;requestBusy.current=true;focusRequest.current=event.currentTarget;setLoading(true);if(target===index)setRevision(value=>value+1);else setPosition({generator,index:target});}
+  function refresh(){if(requestBusy.current)return;requestBusy.current=true;setLoading(true);setRevision(value=>value+1);}
   const content=<>
       {loading && <p role="status">변경 기록을 불러오는 중…</p>}
       {visibleError && <p role="alert">{visibleError}</p>}
@@ -55,7 +56,7 @@ export default function GeneratorChangelog({generator,card=false}) {
       <div className="choice-buttons">
         <button type="button" disabled={loading || !visiblePage || visiblePage.index===0} onClick={event=>navigate(visiblePage.index-1,event)}>이전 페이지</button>
         <button type="button" disabled={loading || !visiblePage || visiblePage.index+1>=visiblePage.count} onClick={event=>navigate(visiblePage.index+1,event)}>다음 페이지</button>
-        <button ref={refreshRef} type="button" onClick={()=>setRevision(value=>value+1)}>새로고침</button>
+        <button ref={refreshRef} type="button" aria-disabled={loading} onClick={refresh}>{loading ? "조회 중…" : "새로고침"}</button>
       </div>
       {visiblePage && <><p>{visiblePage.date || "날짜 없음"} · {visiblePage.index+1} / {visiblePage.count}</p><pre tabIndex={0} aria-label="변경 기록 내용">{visiblePage.content}</pre></>}
     </>;

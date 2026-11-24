@@ -163,7 +163,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       <DownloadProgress service={service}/>
       <button ref={prepareRef} disabled={Boolean(prepareReason)} aria-describedby={prepareReason ? prepareReasonId : undefined} onClick={reviewPreparation}>모델 준비 요청 검토</button>
       {prepareReason && <p id={prepareReasonId}>{prepareReason}</p>}
-    </details><ModelReadiness service={service} onStatus={setModel}/><GeneratorChangelog generator={service}/>
+    </details><ModelReadiness session={session} service={service} onStatus={setModel}/><GeneratorChangelog generator={service}/>
     {!form && (inputError ? <div role="alert">{inputError} <button ref={inputRetryRef} type="button" onClick={()=>{inputRetryFocus.current=true;retryInput(value=>value+1);}}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
     {music && <fieldset disabled={busy || Boolean(review) || Boolean(handoff.id) || !form}><legend className="generator-visually-hidden">음악 예제</legend><MusicExamples apply={request=>setForm(current=>({...current,...request}))}/></fieldset>}

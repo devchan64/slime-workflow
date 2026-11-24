@@ -97,7 +97,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   }
   return <article className={embedded ? "dwpose-page generator-page-common" : "dwpose-page dwpose-standalone generator-page-common"}>
     <GeneratorPageIdentity service="dwpose" embedded={embedded} showReturn returnHref={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")} returnLabel="헤르메스 대화"/>
-    <ModelReadiness service="dwpose" onStatus={setModel}/>
+    <ModelReadiness session={session} service="dwpose" onStatus={setModel}/>
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service="dwpose" status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
     <fieldset disabled={busy || Boolean(pending) || Boolean(handoff.id)}>
       <ReferenceImageInput label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending)} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={setFile}/>

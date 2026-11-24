@@ -1,4 +1,5 @@
 """순환 생성기의 게이트웨이·설정 분리 검증."""
+import os
 import unittest
 from workflow.domains.image.qwen_circular_generation import QwenCircularGenerationManager
 from workflow.domains.image.qwen_21_generation import validate_qwen_plain_request
@@ -73,6 +74,9 @@ class CircularGenerationTests(unittest.TestCase):
             for name in ('result.png','tiled-preview.png','baseline.png','baseline-preview.png'):(job/name).write_bytes(b'fixture')
             app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
             with patch('workflow.domains.image.qwen_circular_generation.QwenCircularGenerationManager',return_value=SimpleNamespace(job_storage_root=root)),TestClient(app) as client:
+                served=root/'image-generation-21-circular'/'jobs'/identifier/'baseline.png'
+                served.parent.mkdir(parents=True);served.write_bytes(b'fixture')
+                self.assertEqual(client.get(f'/image-generation-21-circular/jobs/{identifier}/baseline.png?retry=1').content,b'fixture')
                 response=client.get('/management/assistant/qwen-circular-comparison/'+identifier)
                 self.assertEqual(response.status_code,200);images=response.json()['images'];self.assertEqual(len(images),4)
                 for name in ('result.png','tiled-preview.png','baseline-preview.png'):(job/name).unlink()
@@ -82,11 +86,11 @@ class CircularGenerationTests(unittest.TestCase):
                 self.assertEqual(client.get('/management/assistant/qwen-circular-comparison/'+identifier).json()['images'],[])
                 self.assertEqual(client.get('/management/assistant/qwen-circular-comparison/invalid').status_code,404)
             gui=Path(__file__).resolve().parents[2]/'gui';bundle=root/'media.cjs'
-            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MediaJobResult.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MediaJobResult.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');const {CircularComparisonImages}=require(process.argv[1]);
               const images=JSON.parse(require('fs').readFileSync(0,'utf8'));process.stdout.write(server.renderToStaticMarkup(React.createElement(CircularComparisonImages,{images})));"""
-            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(partial),text=True)
-            self.assertIn('일반 VAE 기준',markup);self.assertIn('baseline.png',markup);self.assertNotIn('tiled-preview.png',markup)
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(partial),text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+            self.assertIn('일반 VAE 기준',markup);self.assertIn('baseline.png?retry=0',markup);self.assertNotIn('tiled-preview.png',markup)
 
     def test_boundary_strip_coordinates(self):
         from generators.image.qwen_21_toroidal import build_toroidal_boundary

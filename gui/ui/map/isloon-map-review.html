@@ -1,10 +1,24 @@
 <!doctype html>
+<html lang="ko">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>이슬온 타일 맵 검수</title>
-<style>body{margin:0;background:#15202b;color:#eef;font:14px sans-serif}main{max-width:1000px;margin:auto;padding:20px}canvas{image-rendering:pixelated;border:1px solid #789;background:#263747;width:min(90vw,768px);height:auto}.legend{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.swatch{display:inline-block;width:14px;height:14px;margin-right:4px;vertical-align:-2px}</style>
-<main><h1>이슬온 타일 맵 검수</h1><input id="map-file" type="file" accept=".json,.yaml,.yml"><div id="summary">조립 결과 JSON을 선택하세요.</div><canvas id="map" width="768" height="576"></canvas><div class="legend"><span><i class="swatch" style="background:#83a85d"></i>지면</span><span><i class="swatch" style="background:#b97958"></i>도로</span><span><i class="swatch" style="background:#4c86a8"></i>물</span><span><i class="swatch" style="background:#6c7480"></i>구조물</span><span><i class="swatch" style="background:#b84f4f"></i>지붕</span></div></main>
+<style>*{box-sizing:border-box}body{margin:0;background:#15202b;color:#eef;font:14px sans-serif}main{max-width:1000px;margin:auto;padding:20px}input{max-width:100%;font:inherit}#summary,#map-error{overflow-wrap:anywhere}canvas{image-rendering:pixelated;border:1px solid #789;background:#263747;width:768px;max-width:100%;height:auto}.legend{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.swatch{display:inline-block;width:14px;height:14px;margin-right:4px;vertical-align:-2px}</style>
+<main><h1>이슬온 타일 맵 검수</h1><label for="map-file">조립 결과 JSON 파일</label> <input id="map-file" type="file" accept=".json,application/json" aria-describedby="summary map-error"><div id="summary" role="status">조립 결과 JSON을 선택하세요.</div><p id="map-error" role="alert"></p><canvas id="map" width="768" height="576" role="img" aria-label="선택한 맵 미리보기" aria-describedby="summary"></canvas><div class="legend" aria-label="미리보기 범례"><span><i class="swatch" style="background:#83a85d"></i>지면</span><span><i class="swatch" style="background:#b97958"></i>도로</span><span><i class="swatch" style="background:#4c86a8"></i>물</span><span><i class="swatch" style="background:#6c7480"></i>구조물</span><span><i class="swatch" style="background:#d5b16c"></i>문</span><span><i class="swatch" style="background:#b84f4f"></i>지붕</span><span><i class="swatch" style="background:#fff"></i>알 수 없는 타일 · 흰색 칸</span><span>시작 위치 · 칸 가운데 흰색 표시</span></div></main>
 <script type="module">
 const canvas=document.querySelector('#map');const context=canvas.getContext('2d');const colors={grass:'#83a85d',road_horizontal:'#b97958',water:'#4c86a8',wall_stone:'#6c7480',door_wood:'#d5b16c',roof_red:'#b84f4f'};
 function drawIsloonMap(map){const cellSize=Math.min(canvas.width/map.grid.columns,canvas.height/map.grid.rows);context.clearRect(0,0,canvas.width,canvas.height);for(const layerName of ['ground','object','roof'])for(const cell of map.layers[layerName]??[]){context.fillStyle=colors[cell.tile]??'#fff';context.fillRect(cell.column*cellSize,cell.row*cellSize,cellSize,cellSize);}context.strokeStyle='#24313d';context.globalAlpha=.22;for(let x=0;x<=map.grid.columns;x++){context.beginPath();context.moveTo(x*cellSize,0);context.lineTo(x*cellSize,map.grid.rows*cellSize);context.stroke()}for(let y=0;y<=map.grid.rows;y++){context.beginPath();context.moveTo(0,y*cellSize);context.lineTo(map.grid.columns*cellSize,y*cellSize);context.stroke()}context.globalAlpha=1;context.fillStyle='#fff';context.fillRect(map.spawn.column*cellSize+cellSize*.25,map.spawn.row*cellSize+cellSize*.25,cellSize*.5,cellSize*.5);document.querySelector('#summary').textContent=`${map.map_id} · ${map.grid.columns}×${map.grid.rows} · 연결 ${map.connections?.length??0}개 · 충돌 ${map.collision?.length??0}칸`}
-document.querySelector('#map-file').onchange=async event=>{const file=event.target.files[0];if(!file)return;drawIsloonMap(JSON.parse(await file.text()))};
+let selection=0;
+document.querySelector('#map-file').onchange=async event=>{
+ const current=++selection,file=event.target.files[0],error=document.querySelector('#map-error');
+ event.target.value='';
+ error.textContent='';if(!file)return;
+ try{
+  const map=JSON.parse(await file.text());if(current!==selection)return;
+  if(!map||typeof map!=='object'||!Number.isInteger(map.grid?.columns)||!Number.isInteger(map.grid?.rows)||map.grid.columns<1||map.grid.rows<1||map.grid.columns>4096||map.grid.rows>4096||!map.layers||typeof map.layers!=='object'||!map.spawn||!Number.isInteger(map.spawn.column)||!Number.isInteger(map.spawn.row)||map.spawn.column<0||map.spawn.row<0||map.spawn.column>=map.grid.columns||map.spawn.row>=map.grid.rows||['ground','object','roof'].some(name=>map.layers[name]!=null&&(!Array.isArray(map.layers[name])||map.layers[name].some(cell=>!cell||!Number.isInteger(cell.column)||!Number.isInteger(cell.row)||cell.column<0||cell.row<0||cell.column>=map.grid.columns||cell.row>=map.grid.rows))))throw Error('맵의 격자, 시작 위치 또는 타일 정보가 올바르지 않습니다.');
+  drawIsloonMap(map);
+  document.querySelector('#summary').textContent+=` · 시작 위치 ${map.spawn.column}, ${map.spawn.row} · 파일 ${file.name}`;
+ }catch(problem){if(current===selection)error.textContent=`파일을 열 수 없습니다. JSON 파일을 확인하고 다시 선택하세요. ${problem instanceof SyntaxError?'JSON 형식이 올바르지 않습니다.':problem.message||''}`;}
+};
 </script>
+</html>

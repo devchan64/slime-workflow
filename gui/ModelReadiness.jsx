@@ -49,8 +49,8 @@ export default function ModelReadiness(props) {
   return <ModelReadinessForService key={props.service} {...props}/>;
 }
 
-function ModelReadinessForService({service, modelManagementService=service, manage=false, hasStatusSummary=false, onStatus, onError}) {
-  const session=new URLSearchParams(location.search).get("session");
+function ModelReadinessForService({service, modelManagementService=service, manage=false, hasStatusSummary=false, onStatus, onError, session:sessionOverride}) {
+  const session=sessionOverride ?? new URLSearchParams(location.search).get("session");
   const modelQuery=new URLSearchParams({model:modelManagementService,...(session?{session}:{})});
   const [revision,setRevision]=useState(0);
   const [status,setStatus]=useState(null);

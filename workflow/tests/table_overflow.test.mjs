@@ -19,5 +19,9 @@ test("넘치는 표에서만 방향키로 스크롤하고 내부 입력의 키�
   const event={target:node,currentTarget:node,key:"ArrowRight",preventDefault(){prevented=true;}};
   scrollTableOnArrow(event);assert.equal(node.scrollLeft,80);assert.equal(prevented,true);
   prevented=false;event.target={};scrollTableOnArrow(event);assert.equal(node.scrollLeft,80);assert.equal(prevented,false);
+  event.target=node;
+  for(const modifier of ['altKey','ctrlKey','metaKey','shiftKey']){
+    event[modifier]=true;scrollTableOnArrow(event);assert.equal(node.scrollLeft,80);assert.equal(prevented,false);event[modifier]=false;
+  }
   event.target=node;node.scrollWidth=360;scrollTableOnArrow(event);assert.equal(node.scrollLeft,80);assert.equal(prevented,false);
 });

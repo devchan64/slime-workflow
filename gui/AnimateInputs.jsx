@@ -60,13 +60,13 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
     (async()=>{try{
       let file=source;
       if(typeof source==='string'){
-        const response=await fetch(source,{cache:'no-store',signal:controller.signal});
+        const response=await untilAborted(fetch(source,{cache:'no-store',signal:controller.signal}),controller.signal);
         if(!response.ok)throw new Error('저장된 동작 영상을 읽을 수 없습니다.');
-        file=await response.blob();
+        file=await untilAborted(response.blob(),controller.signal);
       }
       if(file.size>32*1024*1024)throw new Error('MP4는 32MiB 이하여야 합니다.');
-      const response=await fetch('/management/assistant/animate-video-info',{method:'POST',body:file,signal:controller.signal});
-      const info=await response.json();
+      const response=await untilAborted(fetch('/management/assistant/animate-video-info',{method:'POST',body:file,signal:controller.signal}),controller.signal);
+      const info=await untilAborted(response.json(),controller.signal);
       if(!response.ok || !validAnimateVideoInfo(info))throw new Error(info?.error || '영상 정보를 확인할 수 없습니다.');
       if(active)setVideoInfo(info);
     }catch(problem){if(active)setVideoError(timedOut ? '영상 확인 시간이 초과됐습니다. 다시 선택하세요.' : problem.message || '영상을 확인할 수 없습니다.');}
@@ -126,8 +126,8 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
           {motionError && <p role="status">이 브라우저에서 저장된 동작 영상을 재생할 수 없습니다. 원본 파일을 열어 확인하세요.</p>}
           <a href={saved.motion} target="_blank" rel="noreferrer">동작 영상 원본 열기</a></div>}
         <InputVideoPreview file={motionFile} label="동작 영상"/>
-        <label className="reference-image-file">영상 파일 선택<input ref={motionInput} aria-label="RGB 동작 MP4 · 16fps 샘플링" aria-invalid={videoError ? true : undefined} aria-describedby={[videoHelpId,videoError ? videoErrorId : null].filter(Boolean).join(" ")} type="file" accept="video/mp4" onChange={event=>{const file=event.target.files[0];event.target.value="";if(!file)return;onSelectionStart?.();setVideoInfo(null);updateVideoChecking(true);setMotionFile(file);}}/></label>{motionFile && <small>선택한 파일 · {motionFile.name}</small>}
-        {checkingVideo && <p role="status">영상 정보를 확인하고 있습니다.</p>}{videoError && <div ref={videoInfoRef} tabIndex={-1} role="alert"><p id={videoErrorId}>{videoError}</p><button type="button" disabled={checkingVideo} onClick={()=>{if(videoChecking.current)return;videoRetryFocus.current=true;updateVideoChecking(true);retryVideo(value=>value+1);}}>영상 정보 다시 확인</button></div>}
+        <label className="reference-image-file">영상 파일 선택<input ref={motionInput} aria-label="RGB 동작 MP4 · 16fps 샘플링" aria-invalid={videoError ? true : undefined} aria-describedby={[videoHelpId,videoError ? videoErrorId : null].filter(Boolean).join(" ")} type="file" accept="video/mp4" onChange={event=>{const file=event.target.files[0];event.target.value="";if(!file)return;onSelectionStart?.();setVideoInfo(null);updateVideoChecking(true);setMotionFile(file);}}/></label>{motionFile && <small className="reference-image-name">선택한 파일 · {motionFile.name}</small>}
+        {checkingVideo && <p role="status">영상 정보를 확인하고 있습니다.</p>}{videoError && <div ref={videoInfoRef} tabIndex={-1}><p id={videoErrorId} role="alert">{videoError}</p><button type="button" disabled={checkingVideo} onClick={()=>{if(videoChecking.current)return;videoRetryFocus.current=true;updateVideoChecking(true);retryVideo(value=>value+1);}}>영상 정보 다시 확인</button></div>}
         {videoInfo && <p ref={videoInfoRef} tabIndex={-1}>입력 {videoInfo.width}×{videoInfo.height} · {videoInfo.fps.toFixed(2)}fps · {videoInfo.frame_count}프레임 · 출력 최대 {videoInfo.maximum_frames}프레임 <button type="button" onClick={()=>setFrames(videoInfo.maximum_frames)}>최대 프레임 적용</button></p>}
       </div></div></div>
       <div className="generator-input-group"><h2>장면 지시</h2>

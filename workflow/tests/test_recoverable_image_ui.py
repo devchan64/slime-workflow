@@ -21,7 +21,9 @@ class RecoverableImageUiTests(unittest.TestCase):
         self.assertIn('alt="빌보드 원본"', markup)
         self.assertIn('src="/management/map-assets/thumbnails/map.png?v=abc&amp;retry=0"', markup)
         self.assertIn('alt="마을 특징 썸네일"', markup)
-        self.assertIn('썸네일 이미지를 불러오는 중입니다.', markup)
+        self.assertIn('건물 원본 이미지를 불러오는 중입니다.', markup)
+        self.assertIn('빌보드 원본 이미지를 불러오는 중입니다.', markup)
+        self.assertIn('마을 특징 썸네일 이미지를 불러오는 중입니다.', markup)
 
 
 if __name__ == '__main__':

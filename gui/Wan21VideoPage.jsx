@@ -103,8 +103,8 @@ function Wan21VideoPage({mode,embedded=false,session:embeddedSession=""}) {
     <GeneratorUsage generator={service}/>
     <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError || (usesAttack && attackError) ? "상태 조회 실패 · 다시 확인하세요" : !model || (usesAttack && !attackModel) ? "상태 확인 중" : generationReady(model) && (!usesAttack || modelFilesReady(attackModel)) ? "준비 완료" : "준비 필요"}>
-      <ModelReadiness service={service} modelManagementService={`${service}-assets`} onStatus={setModel} onError={setModelError}/>
-      {usesAttack && <><h3>공격 동작 LoRA</h3><ModelReadiness service="wan21-i2v-attack-lora" onStatus={setAttackModel} onError={setAttackError}/></>}
+      <ModelReadiness session={session} service={service} modelManagementService={`${service}-assets`} onStatus={setModel} onError={setModelError}/>
+      {usesAttack && <><h3>공격 동작 LoRA</h3><ModelReadiness session={session} service="wan21-i2v-attack-lora" onStatus={setAttackModel} onError={setAttackError}/></>}
     </GeneratorSectionCard>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     <GeneratorSectionCard title="생성 입력" summary={isImage?"첫 이미지와 동작":"프롬프트"} defaultOpen cardRef={inputCardRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending}><legend className="generator-visually-hidden">생성 입력</legend>

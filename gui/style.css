@@ -31,6 +31,8 @@ article {position:relative;}
 .hermes-chat .conversation-queue {background:var(--surface);border:1px solid var(--line);border-radius:.8rem;white-space:normal;min-width:0}
 .hermes-chat .conversation-queue .panel {max-height:none;overflow:visible;border:0;padding:.2rem 0}
 :where(button,input,textarea,select,summary,a):focus-visible {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
+.recoverable-image:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.media-comparison-result:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .queue-table-scroll {max-width:100%;overflow-x:auto}
 .result-table {min-width:0}.result-table-scroll {max-width:100%;min-width:0;overflow-x:auto}.result-table-scroll:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}
 .hermes-chat .conversation-queue .session-queue table {min-width:58rem}
@@ -45,7 +47,7 @@ article {position:relative;}
 .workflow-step {padding:.65rem 0;border-bottom:1px solid var(--line,#484d50);overflow-wrap:anywhere}.workflow-step p {margin:.2rem 0}.workflow-step-status {display:inline-block;margin-left:.35rem;padding:.1rem .5rem;border:1px solid var(--line,#484d50);border-radius:999px;font-size:.75rem;color:var(--muted,#afbabd)}
 .workflow-output {min-width:0;margin-top:1rem}.workflow-output h4 {margin:.3rem 0;font-size:.95rem}.workflow-output > section {margin:.6rem 0}.workflow-output img,.workflow-output audio {display:block;max-width:100%}
 .kimodo-media {display:grid;gap:.6rem;min-width:0}.kimodo-media label {display:grid;gap:.3rem;max-width:100%}.kimodo-media select {max-width:100%;min-width:0}.kimodo-media video {display:block;width:100%;max-width:100%;max-height:60vh;background:#10121a;border-radius:.5rem}.kimodo-media a {justify-self:start}
-.media-pose-comparison {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-top:.6rem}
+.media-pose-comparison {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr));gap:.75rem;margin-top:.6rem}
 .media-pose-comparison figure {margin:0;min-width:0}.media-pose-comparison figcaption {margin-bottom:.35rem;font-weight:600}.media-pose-comparison video {display:block;width:100%;max-width:100%;background:#10121a;border-radius:.5rem}
 .hermes-chat .floating-panel {top:auto;bottom:6rem}
 @media(max-width:700px){
@@ -263,8 +265,10 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .job-identifier {display:flex;flex-wrap:wrap;align-items:end;gap:.4rem;margin:.55rem 0;min-width:0}.job-identifier label {display:grid;gap:.2rem;flex:1 1 13rem;min-width:0;color:var(--muted);font-size:.8rem}.job-identifier input {width:100%;min-width:0;font-size:.85rem}.job-identifier button {flex-shrink:0}.job-identifier [role=status] {flex-basis:100%;font-size:.8rem;color:var(--muted)}.job-identifier [role=status]:empty {display:none}
 .job-identifier-compact {display:flex;align-items:center;gap:.35rem;margin:.25rem 0}.job-identifier-compact code {min-width:0;overflow-wrap:anywhere}.job-identifier-compact button {font-size:.8rem;padding:.25rem .45rem}
 .media-result-note {font-size:.78rem;color:var(--muted);line-height:1.5;margin:.35rem 0 .7rem}.media-result-card video {display:block;width:100%;border-radius:.5rem;background:#10121a}.media-result-link {display:inline-block;margin:.45rem .75rem .45rem 0}.media-result-actions {display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.6rem}.media-result-card > button {margin:.35rem .35rem 0 0}
+.media-result-card video:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .media-result-image {display:block;max-width:100%}
 .media-audio-tracks {display:grid;gap:.9rem;margin:.8rem 0;min-width:0}.media-audio-track {display:grid;gap:.45rem;min-width:0}.media-audio-track audio {display:block;width:100%;max-width:100%;min-width:0}.media-audio-downloads {display:flex;flex-wrap:wrap;gap:.4rem 1rem}.media-audio-downloads a {overflow-wrap:anywhere}
+.media-audio-track audio:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .generation-progress {margin:.7rem 0;padding:.7rem;border:1px solid var(--line);border-radius:.6rem}.generation-progress p {margin:.35rem 0;color:var(--muted);font-size:.8rem;line-height:1.5}.generation-progress progress {width:100%;accent-color:#a8a5f4}
 .generation-progress > strong {display:block}
 .kimodo-result-actions {display:flex;align-items:flex-start;flex-wrap:wrap;gap:.4rem}.kimodo-result-actions > section {min-width:0}.kimodo-result-actions pre {max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -433,6 +437,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .world-map-review {padding:1rem;min-width:0;overflow-wrap:anywhere}
 .world-map-review img {max-width:100%;height:auto}
 .world-map-thumbnail {max-width:256px}
+.world-map-review button[aria-disabled="true"] {opacity:.65;cursor:not-allowed}
+.world-map-viewport svg a:focus-visible {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .world-map-select {display:block;max-width:100%}.world-map-select select {max-width:100%}
 .world-map-viewport {overflow:auto;max-height:65vh;max-width:100%}
 .world-map-viewport:focus-visible {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
@@ -464,6 +470,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .flux-page form > fieldset {min-width:0;width:100%;overflow-wrap:anywhere}.flux-page :is(input,textarea,select,button,img) {max-width:100%}.flux-page figure {margin-inline:0;min-width:0}.flux-page figcaption {overflow-wrap:anywhere}.flux-page section > button {overflow-wrap:anywhere}
 
 .reference-image-input {min-width:0;border:1px dashed var(--line,#484d50);border-radius:.6rem;padding:.65rem;display:grid;gap:.5rem}.reference-image-input img {display:block;width:100%;max-height:18rem;object-fit:contain;background:#10121a;border-radius:.4rem}.reference-image-input p {overflow-wrap:anywhere}.reference-image-file {position:relative;display:inline-flex;align-items:center;border:1px solid #484d50;border-radius:.5rem;padding:.55rem .8rem;cursor:pointer}.reference-image-file input {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.reference-image-file:focus-within {outline:2px solid var(--accent,#a7c8ff);outline-offset:2px}
+.reference-image-input img:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 
 .reference-image-slots {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:.75rem;min-width:0}.reference-image-input small {color:var(--muted,#afbabd)}
 .reference-image-name {overflow-wrap:anywhere}
@@ -498,6 +505,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .single-generator-shell {display:block;height:auto;min-height:100dvh;padding:1.5rem 1rem}
 .single-generator-page {width:min(100%,56rem);margin:0 auto;gap:.8rem}
 .qwen-archive-result {min-width:0}
+.qwen-archive-result button[aria-disabled="true"] {opacity:.65;cursor:wait}
 .qwen-archive-result:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
 .qwen-archive-result pre {max-width:100%;max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .single-generator-page > h1 {flex:none;font-size:1.5rem}
@@ -883,6 +891,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 
 /* 공용 변경 기록은 클릭 대상과 본문을 기본 글자 크기로 읽을 수 있게 한다. */
 .generator-changelog {font-size:1rem;line-height:1.5}
+.generator-changelog button[aria-disabled="true"] {opacity:.65;cursor:wait}
 .generator-changelog pre {font-size:.9rem;line-height:1.5;max-width:100%;max-height:24rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .generator-job-log {max-width:100%;max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .generator-job-log:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}

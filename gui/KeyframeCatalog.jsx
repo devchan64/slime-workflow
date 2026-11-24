@@ -22,47 +22,49 @@ function Preview({id}){
     }).catch(problem=>{if(active)setError(timedOut ? "원본 조회 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[id,attempt]);
-  if(error)return <div role="alert"><p>{error}</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;setAttempt(value=>value+1);}}>원본 다시 불러오기</button></div>;
+  if(error)return <div><p role="alert">{error}</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;setAttempt(value=>value+1);}}>원본 다시 불러오기</button></div>;
   if(!result)return <p role="status">원본 확인 중…</p>;
   return <figure ref={resultRef} tabIndex={-1}><RecoverableImage src={"data:image/png;base64,"+result.image_base64} name={id+" 키프레임"} maxHeight="none"/>
     <figcaption>{id} · PNG SHA-256 <code>{result.sha256}</code></figcaption></figure>;
 }
 
-function SearchResults({query,choose,add,disabled}){
+function SearchResults({query,choose,add,disabled,disabledReason,sectionRef}){
   const [cursor,setCursor]=useState({}),[page,setPage]=useState(null);
   const [error,setError]=useState(""),[selected,select]=useState("");
   const [loading,setLoading]=useState(true),[receivedAt,setReceivedAt]=useState(null);
-  const previewRef=useRef(null),triggerRef=useRef(null),listHeading=useRef(null),errorRef=useRef(null),pageOrigin=useRef(null),restorePageFocus=useRef(false);
+  const disabledReasonId=useId();
+  const previewRef=useRef(null),triggerRef=useRef(null),listHeading=useRef(null),errorRef=useRef(null),pageOrigin=useRef(null),restorePageFocus=useRef(false),pageTransition=useRef(true);
   useEffect(()=>{if(selected && triggerRef.current && (document.activeElement===triggerRef.current || document.activeElement===document.body)){previewRef.current?.focus({preventScroll:true});previewRef.current?.scrollIntoView({block:"start",inline:"nearest"});}},[selected]);
   useEffect(()=>{if(!loading && restorePageFocus.current){restorePageFocus.current=false;if(document.activeElement===document.body || document.activeElement===pageOrigin.current)(error ? errorRef : listHeading).current?.focus();}},[loading,error,page]);
   function closePreview(){const focused=document.activeElement;select("");requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && triggerRef.current?.isConnected)triggerRef.current.focus();});}
-  function changePage(next,event){pageOrigin.current=event.currentTarget;restorePageFocus.current=document.activeElement===event.currentTarget;setCursor(next);}
+  function changePage(next,event){if(pageTransition.current)return;pageTransition.current=true;setLoading(true);pageOrigin.current=event.currentTarget;restorePageFocus.current=document.activeElement===event.currentTarget;setCursor(next);}
   useEffect(()=>{
     let active=true,deadline,timedOut=false;
     const controller=new AbortController();
-    setLoading(true);setError("");
+    pageTransition.current=true;setLoading(true);setError("");
     const timer=setTimeout(()=>{
       deadline=setTimeout(()=>{timedOut=true;controller.abort();},30000);
       untilAborted(managementCommand("hermes-agent","hermes-kimodo-keyframes",{query,limit:20,...cursor},{signal:controller.signal}),controller.signal)
         .then(result=>{
           if(!validKeyframeCatalogPage(result,cursor))throw new Error("키프레임 목록을 확인할 수 없습니다.");
-          if(active){setPage(result);setReceivedAt(new Date());select("");setLoading(false);}
+          if(active){pageTransition.current=false;setPage(result);setReceivedAt(new Date());select("");setLoading(false);}
         })
-        .catch(problem=>{if(active){setError(timedOut ? "키프레임 목록 조회 시간이 초과됐습니다." : requestErrorMessage(problem));setLoading(false);}}).finally(()=>clearTimeout(deadline));
+        .catch(problem=>{if(active){pageTransition.current=false;setError(timedOut ? "키프레임 목록 조회 시간이 초과됐습니다." : requestErrorMessage(problem));setLoading(false);}}).finally(()=>clearTimeout(deadline));
     },200);
     return ()=>{active=false;clearTimeout(timer);clearTimeout(deadline);controller.abort();};
   },[query,cursor]);
-  return <section className="keyframe-catalog-search" aria-label="Kimodo 키프레임 검색">
-    {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}{page && " 이전 조회 결과를 유지합니다."} <button type="button" onClick={event=>changePage({},event)}>처음부터 다시 조회</button></p>}
-    {loading && page && <p role="status">새 목록 조회 중 · 아래는 이전 결과입니다.</p>}
+  return <section ref={sectionRef} tabIndex={-1} className="keyframe-catalog-search" aria-label="Kimodo 키프레임 검색">
+    {disabledReason && <p id={disabledReasonId}>{disabledReason}</p>}
+    {error && <div><p ref={errorRef} tabIndex={-1} role="alert">{error}{page && " 이전 조회 결과를 유지합니다."}</p><button type="button" onClick={event=>changePage({},event)}>처음부터 다시 조회</button></div>}
+    {loading && page && <p role="status">새 목록 조회 중 · 아래는 이전 결과이며 조회가 끝나면 선택할 수 있습니다.</p>}
     {!error && !page && <p role="status">키프레임 조회 중…</p>}
     {page && <><p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p><h3 ref={listHeading} tabIndex={-1}>등록 키프레임</h3><p>검색 결과 {page.total}개{page.items.length>0 && ` · ${page.offset+1}–${page.offset+page.items.length}번째`}</p>
       {page.items.length===0 && <p>검색 조건에 맞는 키프레임이 없습니다.</p>}
       <ul className="keyframe-catalog-list">{page.items.map(row=><li key={row.id}>
         <strong>{row.tag || "키프레임"}</strong><p>원본 프레임 · {row.source_frame}</p>
         <p className="keyframe-id">ID · <code>{row.id}</code></p>
-        <div className="keyframe-actions"><button type="button" aria-expanded={selected===row.id} aria-label={row.id+(selected===row.id?" 미리보기 닫기":" 미리보기 열기")} onClick={event=>{triggerRef.current=event.currentTarget;if(selected===row.id)closePreview();else select(row.id);}}>{selected===row.id?"미리보기 닫기":"미리보기"}</button>{choose && <button type="button" onClick={()=>choose("Kimodo 키프레임",row.id)}>입력에 추가</button>}
-          <button type="button" disabled={disabled} onClick={event=>add(row.id,row.tag,event.currentTarget)}>배치에 추가</button></div>
+        <div className="keyframe-actions"><button type="button" disabled={loading} aria-expanded={selected===row.id} aria-label={row.id+(selected===row.id?" 미리보기 닫기":" 미리보기 열기")} onClick={event=>{triggerRef.current=event.currentTarget;if(selected===row.id)closePreview();else select(row.id);}}>{selected===row.id?"미리보기 닫기":"미리보기"}</button>{choose && <button type="button" disabled={loading} aria-label={row.id+" 입력에 추가"} onClick={()=>choose("Kimodo 키프레임",row.id)}>입력에 추가</button>}
+          <button type="button" aria-label={row.id+" 배치에 추가"} aria-describedby={disabledReason ? disabledReasonId : undefined} disabled={disabled || loading} onClick={event=>add(row.id,row.tag,event.currentTarget)}>배치에 추가</button></div>
       </li>)}</ul>
       {page.note && <p>{page.note}</p>}
       {(cursor.offset>0 || page.next_offset!=null) && <nav className="keyframe-catalog-pagination" aria-label="키프레임 목록 페이지">{cursor.offset>0 && <button type="button" disabled={loading || !!error} onClick={event=>changePage({offset:Math.max(0,cursor.offset-20),snapshot:page.snapshot},event)}>이전 키프레임</button>}
@@ -75,9 +77,10 @@ export default function KeyframeCatalog({query,choose,apply,initialFrames="",ini
   const [rows,setRows]=useState(initialRows),[frames,setFrames]=useState(initialFrames);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[review,setReview]=useState(null);
   const duplicateErrorId=useId(),duplicateFrames=duplicateKeyframeFrames(rows);
-  const placementRef=useRef(null),focusPlacement=useRef(null),validationRequest=useRef(null),validateButton=useRef(null),validationError=useRef(null),validationResult=useRef(null),restoreValidationFocus=useRef(false);
+  const placementRef=useRef(null),searchRef=useRef(null),focusPlacement=useRef(null),focusRemoval=useRef(null),validationRequest=useRef(null),validateButton=useRef(null),validationError=useRef(null),validationResult=useRef(null),restoreValidationFocus=useRef(false);
   useEffect(()=>()=>validationRequest.current?.abort(),[]);
   useEffect(()=>{if(rows.length && focusPlacement.current){const origin=focusPlacement.current;focusPlacement.current=null;if(document.activeElement===document.body || document.activeElement===origin){placementRef.current?.focus({preventScroll:true});placementRef.current?.scrollIntoView({block:"start",inline:"nearest"});}}},[rows]);
+  useEffect(()=>{if(focusRemoval.current){const origin=focusRemoval.current;focusRemoval.current=null;if(document.activeElement===document.body || document.activeElement===origin)(rows.length ? placementRef : searchRef).current?.focus();}},[rows]);
   useEffect(()=>{if(!busy && restoreValidationFocus.current && (error || review)){restoreValidationFocus.current=false;restoreLostFocus(document,(error ? validationError : validationResult).current);}},[busy,error,review]);
   function edit(next){
     setRows(next);setReview(null);setError("");
@@ -101,7 +104,7 @@ export default function KeyframeCatalog({query,choose,apply,initialFrames="",ini
     finally{clearTimeout(timeout);if(validationRequest.current===controller)validationRequest.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
   }
   return <>
-    <SearchResults key={query} query={query} choose={choose} disabled={busy || rows.length>=20}
+    <SearchResults key={query} sectionRef={searchRef} query={query} choose={choose} disabled={busy || rows.length>=20} disabledReason={busy ? "배치 검증이 끝나면 키프레임을 추가할 수 있습니다." : rows.length>=20 ? "키프레임은 최대 20개까지 배치할 수 있습니다." : ""}
       add={(id,tag,origin)=>{focusPlacement.current=document.activeElement===origin ? origin : null;edit([...rows,{id,tag,frame:""}]);}}/>
     {apply && <button type="button" disabled={busy || rows.length>0} onClick={()=>{
       const standingPose="b0000000000000000000000000000004";
@@ -111,9 +114,9 @@ export default function KeyframeCatalog({query,choose,apply,initialFrames="",ini
       <label>총 출력 프레임 수 (30~300)<input type="number" required min="30" max="300" value={frames}
         onChange={e=>{setFrames(e.target.value);setReview(null);setError("");}}/></label>
       {rows.map((row,index)=><div key={index} className="keyframe-placement-row"><strong>{row.tag || "키프레임"}</strong><p>ID · <code>{row.id}</code></p><label>출력 프레임
-        <input type="number" required min="1" max={frames || undefined} value={row.frame} aria-invalid={duplicateFrames.has(Number(row.frame)) || undefined} aria-describedby={duplicateFrames.has(Number(row.frame)) ? duplicateErrorId : undefined}
+        <input type="number" required min="1" max={frames || undefined} value={row.frame} aria-label={`${index+1}번째 ${row.tag || "키프레임"} ${row.id} 출력 프레임`} aria-invalid={duplicateFrames.has(Number(row.frame)) || undefined} aria-describedby={duplicateFrames.has(Number(row.frame)) ? duplicateErrorId : undefined}
           onChange={e=>edit(rows.map((item,i)=>i===index?{...item,frame:e.target.value}:item))}/></label>
-        <button type="button" aria-label={(row.tag || row.id)+" 배치 삭제"} onClick={()=>edit(rows.filter((_,i)=>i!==index))}>삭제</button></div>)}
+        <button type="button" aria-label={`${row.tag || "키프레임"} ${row.id} · 출력 프레임 ${row.frame || "미입력"} · 배치 삭제`} onClick={event=>{focusRemoval.current=document.activeElement===event.currentTarget ? event.currentTarget : null;edit(rows.filter((_,i)=>i!==index));}}>삭제</button></div>)}
       {duplicateFrames.size>0 && <p id={duplicateErrorId} role="alert">출력 프레임은 중복할 수 없습니다. 각 키프레임에 서로 다른 프레임을 지정하세요.</p>}
       <button ref={validateButton} type="submit" disabled={duplicateFrames.size>0} aria-describedby={duplicateFrames.size>0 ? duplicateErrorId : undefined}>원본과 배치 검증</button>
       {error && <p ref={validationError} tabIndex={-1} role="alert">{error}</p>}

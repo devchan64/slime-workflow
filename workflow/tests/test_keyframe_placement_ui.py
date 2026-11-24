@@ -8,6 +8,17 @@ import unittest
 
 
 class KeyframePlacementUiTests(unittest.TestCase):
+    def test_maximum_placement_reason_is_visible(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'keyframe.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'KeyframeCatalog.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),Catalog=require(process.argv[1]).default;
+              const rows=Array.from({length:20},(_,i)=>({id:String(i).padStart(32,'0'),tag:'자세',frame:i+1}));
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Catalog,{query:'',initialFrames:'30',initialRows:rows})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertIn('키프레임은 최대 20개까지 배치할 수 있습니다.',markup)
+
     def test_duplicate_frames_are_described_and_block_validation(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:
@@ -18,6 +29,8 @@ class KeyframePlacementUiTests(unittest.TestCase):
               process.stdout.write(server.renderToStaticMarkup(React.createElement(Catalog,{query:'',initialFrames:'30',initialRows:rows})));"""
             markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         self.assertEqual(markup.count('aria-invalid="true"'),2)
+        self.assertIn('aria-label="1번째 첫째 '+('a'*32)+' 출력 프레임"',markup)
+        self.assertIn('aria-label="2번째 둘째 '+('b'*32)+' 출력 프레임"',markup)
         identifier=re.search(r'<p id="([^"]+)" role="alert">출력 프레임은 중복',markup).group(1)
         self.assertEqual(markup.count(f'aria-describedby="{identifier}"'),3)
         self.assertRegex(markup,r'<button[^>]*disabled=""[^>]*>원본과 배치 검증</button>')
