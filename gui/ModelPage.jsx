@@ -1,4 +1,5 @@
 import DownloadProgress from "./DownloadProgress.jsx";
+import ModelBackupCompare from "./ModelBackupCompare.jsx";
 import React, {useEffect, useId, useRef, useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import ModelReadiness from "./ModelReadiness.jsx";
@@ -163,6 +164,7 @@ export default function ModelPage() {
     {service === "animationgpt" && <p>제3자 FP16 변환본과 토크나이저·정규화 파일 약 770MB · <a href="https://huggingface.co/Kijai/AnimationGPT_pruned">출처와 라이선스</a> · 생성기 연결과 무기 출력은 별도입니다.</p>}
     {service === "wan22-fighting-lora" && <p>High Noise LoRA 약 38MB · <a href="https://www.runninghub.ai/model/public/1984976690503958530">모델 정보</a> · <a href="https://huggingface.co/r4tn4/Bubble/blob/338e12cb179abf0573b61c310db6163018effdde/wan2.2fighting_high_noise.safetensors">다운로드 사본</a> · VACE 생성기 연결과 실제 동작은 별도 검증이 필요합니다.</p>}
     {service === "wan21-fun-1.3b" && <p>공용 텍스트 인코더와 VAE는 14B 준비 환경을 사용합니다.</p>}
+    <ModelBackupCompare/>
     {service && <ModelReadiness key={service} service={service} manage/>}
     {service && <DownloadProgress key={"progress-" + service} service={service}/>}
     {service === "kimodo" && <KimodoBuild/>}

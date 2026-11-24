@@ -63,6 +63,21 @@ class FluxModelPrepareTests(unittest.TestCase):
         current_download_mock.assert_called_once()
         self.assertEqual((self.current_model_root / 'transformer/config.json').read_bytes(), self.current_payload_bytes)
 
+    def test_prepare_restores_git_blob_from_backup_without_network(self):
+        import json
+        backup_root = self.current_model_root.parent / 'backup'
+        backup_file = backup_root / 'model' / 'transformer' / 'config.json'
+        backup_file.parent.mkdir(parents=True)
+        backup_file.write_bytes(self.current_payload_bytes)
+        config = self.current_model_root.parent / 'backup-config.json'
+        config.write_text(json.dumps({'source_path': str(self.current_model_root.parent), 'local_mount_path': str(backup_root)}))
+        git_digest = hashlib.sha1(f'blob {len(self.current_payload_bytes)}\0'.encode() + self.current_payload_bytes).hexdigest()
+        self.current_lock_record['files'][0].update(hash_type='git-sha1', digest=git_digest)
+        with patch('workflow.common.model_backup_restore.CONFIG_PATH', config), patch('workflow.common.model_huggingface_download.tracked_snapshot_download') as download:
+            flux_model_prepare.prepare_flux_model_files()
+        download.assert_not_called()
+        self.assertEqual((self.current_model_root / 'transformer/config.json').read_bytes(), self.current_payload_bytes)
+
     def test_existing_incomplete_model_is_preserved(self):
         self.current_model_root.mkdir()
         current_file_path = self.current_model_root / 'user.txt'

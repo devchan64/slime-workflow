@@ -57,10 +57,10 @@ def remove_completed_verification(current_checkpoint_target):
     current_checkpoint_target.with_name(current_checkpoint_target.name + '.checkpoint.json').unlink(missing_ok=True)
 
 
-def recover_huggingface_partial(current_repo_name, current_revision_value, current_local_root, current_file_record, current_endpoint_value=None, resume_report_callback=None):
+def recover_huggingface_partial(current_repo_name, current_revision_value, current_local_root, current_file_record, current_endpoint_value=None, resume_report_callback=None, backup_local_root=None):
     """같은 파일·해시의 조각을 서버와 대조해 완성한다. 원본 조각은 보존한다."""
     from huggingface_hub import get_hf_file_metadata, hf_hub_url
-    from huggingface_hub._local_folder import get_local_download_paths
+    from huggingface_hub._local_folder import get_local_download_paths, write_download_metadata
     from huggingface_hub.utils import WeakFileLock
     current_file_name = current_file_record.filename
     current_file_size = current_file_record.file_size
@@ -83,6 +83,12 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
         with WeakFileLock(current_local_paths.lock_path, timeout=0.25):
             if current_target_path.exists():
                 return False
+            if not current_partial_path.exists() and not current_legacy_path.exists():
+                from workflow.common.model_backup_restore import restore_verified_backup
+                backup_source_target = Path(backup_local_root) / current_file_name if backup_local_root else None
+                if restore_verified_backup(current_target_path, current_file_etag, current_file_size, report=resume_report_callback, backup_source_target=backup_source_target):
+                    write_download_metadata(Path(current_local_root), current_file_name, current_revision_value, current_file_etag)
+                    return True
             if current_partial_path.exists():
                 current_previous_target = current_partial_path.with_name(current_partial_path.name + '.verified')
                 if read_completed_verification(current_partial_path, current_partial_path, current_file_etag, current_file_size):

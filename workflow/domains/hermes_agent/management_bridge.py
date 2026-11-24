@@ -68,6 +68,19 @@ def handle_hermes_observer_connection(current_client_socket):
                     current_response_record={'error':'모델 다운로드 상태 조회 실패'}
             elif current_request_bytes == b'model-inventory\n':
                 current_response_record = read_hermes_model_inventory()
+            elif current_request_bytes in (b'model-backup-models\n', b'model-backup-history\n'):
+                try:
+                    from workflow.domains.hermes_agent.model_backup_observer import observe_backup
+                    current_response_record = observe_backup('models' if current_request_bytes == b'model-backup-models\n' else 'history')
+                except (OSError, RuntimeError, ValueError, TypeError, KeyError):
+                    current_response_record = {'error': '모델 백업 조회 실패: 게이트웨이와 백업 연결을 확인하세요.'}
+            elif current_request_bytes.startswith(b'model-backup-compare ') and current_request_bytes.endswith(b'\n') and current_request_bytes.count(b'\n') == 1:
+                try:
+                    from workflow.domains.hermes_agent.model_backup_observer import observe_backup
+                    current_model_name = current_request_bytes[len(b'model-backup-compare '):-1].decode('utf-8')
+                    current_response_record = observe_backup('compare', current_model_name)
+                except (OSError, RuntimeError, ValueError, TypeError, KeyError, UnicodeDecodeError):
+                    current_response_record = {'error': '모델 백업 조회 실패: 게이트웨이와 백업 연결을 확인하세요.'}
             elif current_request_bytes == b'world-map\n':
                 try:
                     current_response_record = read_hermes_world_map_catalog()

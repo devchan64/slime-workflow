@@ -143,7 +143,15 @@ def prepare_flux_model_files():
                     raise ValueError('FLUX 준비 경로가 심볼릭 링크입니다: ' + current_file_record['path'])
             if current_file_path.exists():
                 verify_flux_model_files(current_stage_path, {'files': [current_file_record]})
-        tracked_snapshot_download(FLUX_MODEL_REPOSITORY, revision=FLUX_MODEL_REVISION, local_dir=current_stage_path,
-                                  allow_patterns=[current_record_value['path'] for current_record_value in current_lock_record['files']], max_workers=2)
+            else:
+                from workflow.common.model_backup_restore import restore_verified_backup
+                current_file_path.parent.mkdir(parents=True, exist_ok=True)
+                restore_verified_backup(current_file_path, current_file_record['digest'], current_file_record['size'],
+                                        backup_source_target=current_model_path / current_file_record['path'],
+                                        hash_type=current_file_record['hash_type'])
+        if not inspect_flux_model_file_sizes(current_stage_path, current_lock_record):
+            tracked_snapshot_download(FLUX_MODEL_REPOSITORY, revision=FLUX_MODEL_REVISION, local_dir=current_stage_path,
+                                      allow_patterns=[current_record_value['path'] for current_record_value in current_lock_record['files']], max_workers=2,
+                                      backup_local_dir=current_model_path)
         verify_flux_model_files(current_stage_path, current_lock_record)
         publish_flux_model_directory(current_stage_path, current_model_path)

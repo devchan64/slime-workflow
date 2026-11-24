@@ -1146,6 +1146,18 @@ GUI와 `map-assets building-save`는 `shadowShape`(`circle`/`rectangle`), `shado
 ### 캐릭터 이미지 생성기
 
 관리 메뉴의 `Qwen 2.1 캐릭터 이미지 생성기`는 일반 Qwen 2.1 서비스·CLI·대기열·이력을 공유한다. 기본 입력에 공용 화풍 v1.5.0 영문 원문과 캐릭터 외관 v1.2.0의 단일 이미지용 축약 예시를 제공한다. 캐릭터 조건을 직접 편집하고 최종 99단어 제한을 확인한다. 공용 화풍 v1.5.0은 기본 적용되며 입력에 포함된 원문을 중복하지 않는다. 공유 이력의 삭제·초기화는 일반 Qwen 작업에도 적용된다. 생성 결과는 승인 전 후보다.
+## 모델 Samba 백업
+
+모델 관리 화면의 백업 영역은 `.local/hermes/model-backup.json`에 등록된 모델 원본과 Samba 마운트를 이용한다. 설정 파일은 Git에서 제외하며 `source_path`, `local_mount_path`, `samba_uri`를 지정한다. 파일 작업은 `local_mount_path`에서 수행하며, Samba 주소가 있으면 실제 CIFS 또는 GVFS 마운트의 서버·공유·하위 경로가 설정과 일치하는지 확인한다. 연결이 해제된 로컬 마운트 디렉터리는 백업 대상으로 사용하지 않는다.
+
+`model-downloads backup-models`는 로컬과 백업에만 남은 최상위 모델을 함께 조회한다. 로컬이 없는 모델의 메타정보는 완료된 스냅샷 또는 기존 백업의 매니페스트에서 읽고 출처를 표시한다. 원본이 없으면 비교·검증·백업은 실행하지 않는다. `backup-metadata`, `backup-compare`, `backup-sync`, `backup-verify`, `backup-verify-status`는 `--payload-file`로 JSON을 받는다. 예를 들어 `{"model":"huggingface","target":"latest_snapshot"}`을 UTF-8 JSON 파일로 저장하고 `python3 tools/manager.py command model-downloads backup-compare --payload-file 경로`를 실행한다. `target`은 `canonical`(기본 기존 공유 디렉터리) 또는 `latest_snapshot`이다. 메타정보·백업 접수에는 `model`만 전달하고 상태 조회에는 `{"job_id":"작업 ID"}`를 전달한다. `backup-verify-history`는 최근 작업을 조회한다.
+
+비교는 크기와 수정 시각을 사용하며 내용 검증이 아니다. 비동기 `backup-verify`는 원본과 선택한 백업을 SHA-256으로 대조한다. `backup-verify`의 `target`에 `snapshot_manifest`를 지정하면 로컬 원본이 없어도 스냅샷의 현재 파일을 백업 당시 기록한 해시와 비교한다. 이 결과는 공급처의 원본 인증과 구분한다. 작업 완료 후에도 개별 파일의 누락·불일치와 조회 오류를 확인해야 한다. 기존 매니페스트에 기록된 해시는 선언값이며 실제 검증 결과와 구분한다.
+
+`backup-sync`는 최신 스냅샷과 원본의 SHA-256 및 모델 메타정보가 모두 일치하면 기존 스냅샷을 재사용한다. 변경된 경우 선택 모델 전체를 `.model-backup-snapshots/모델/작업ID`의 새 스냅샷으로 복사하고 각 복사본을 다시 읽어 SHA-256을 확인한다. 스냅샷 매니페스트에는 파일별 관측 해시와 작업 시작 시 조회한 모델 출처·리비전 선언값을 구분해 기록한다. 기존 공유 파일을 덮어쓰지 않으며 새 스냅샷에는 모델 용량만큼 추가 공간이 필요하다. 실행 중 원본 파일 목록이나 상태가 달라지거나 오류가 발생하면 완료로 게시하지 않고 `.pending-작업ID`를 남긴다. 중단된 작업을 다시 접수하면 검사를 새로 수행한다. 삭제 전에는 최신 결과와 복원 가능성을 별도로 확인한다.
+
+고정 SHA-256으로 검증할 수 있는 HTTP 및 지원 Hugging Face 다운로드는 등록된 백업과 완료된 스냅샷을 먼저 확인한다. 공급처 해시가 없는 파일이나 백업을 검증하지 못한 경우 기존 다운로드 경로를 사용한다. FLUX 준비 디렉터리는 최종 모델 경로에 대응하는 백업을 확인하며, Kimodo는 고정 SHA-256이 등록된 가중치를 네트워크 요청 전에 백업에서 확인한다.
+
 ## Hermes 코딩 모델 다운로드
 
 모델 관리의 **Hermes 코딩 모델 Qwen3.8 27B IQ4_XS**는 공개 GGUF 파일을 고정 리비전과 SHA-256으로 검증하여 `.model/hermes-agent/`에 저장한다. GUI와 CLI는 `hermes-model` 서비스의 `model-status`와 `prepare`를 공유한다. 상태 조회는 다운로드 당시 검증 기록과 현재 파일의 크기·수정 시각을 비교하며 매 조회마다 파일을 다시 해시하지 않는다. 실제 추론 작업자는 `verify_hermes_model_integrity`로 실행 직전 파일 해시를 다시 확인한다. 파일 준비는 Hermes 설치나 GPU 추론 검증을 뜻하지 않는다. 실패 시 `.local/model-preparation/hermes-model/worker.log`를 확인하고 다시 시도한다. 가중치는 Git에 등록하지 않는다.

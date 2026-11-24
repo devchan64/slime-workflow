@@ -20,6 +20,15 @@ def download_verified_http(current_download_url, current_target_path, expected_s
                     raise ValueError(f'기존 파일 해시 불일치: {current_target_path}')
             current_record_value.update(stage='검증 완료', bytes=current_target_path.stat().st_size, total_bytes=current_target_path.stat().st_size)
             return
+        if not current_partial_path.exists():
+            from workflow.common.model_backup_restore import restore_verified_backup
+            current_record_value.update(stage='백업 확인 중')
+            if restore_verified_backup(current_target_path, expected_sha256_value, expected_total_bytes,
+                    report=lambda size: current_record_value.update(stage='백업에서 복원', bytes=size, total_bytes=expected_total_bytes),
+                    outcome=lambda reason: current_record_value.update(backup_warning=reason)):
+                current_size = current_target_path.stat().st_size
+                current_record_value.update(stage='백업 SHA-256 검증 완료', bytes=current_size, total_bytes=current_size)
+                return
         current_resume_offset = current_partial_path.stat().st_size if current_partial_path.exists() else 0
         if expected_total_bytes is not None and current_resume_offset > expected_total_bytes:
             raise ValueError('부분 다운로드 크기가 예상 크기를 초과합니다.')
@@ -213,6 +222,14 @@ def download_verified_curl(current_download_url, current_target_path, expected_s
     if current_resume_bytes > expected_total_bytes:
         raise ValueError('부분 다운로드 크기가 예상 크기를 초과합니다.')
     with track_model_download(model_identifier_value) as current_download_record:
+        if not current_target_path.exists():
+            from workflow.common.model_backup_restore import restore_verified_backup
+            current_download_record.update(stage='백업 확인 중', total_bytes=expected_total_bytes)
+            if restore_verified_backup(current_target_path, expected_sha256_value, expected_total_bytes,
+                    report=lambda size: current_download_record.update(stage='백업에서 복원', bytes=size, total_bytes=expected_total_bytes),
+                    outcome=lambda reason: current_download_record.update(backup_warning=reason)):
+                current_download_record.update(stage='백업 SHA-256 검증 완료', bytes=expected_total_bytes, total_bytes=expected_total_bytes)
+                return
         current_download_record.update(stage='다운로드', bytes=current_resume_bytes, total_bytes=expected_total_bytes, resumed_bytes=current_resume_bytes)
         current_stop_event = threading.Event()
         def report_curl_download_progress():

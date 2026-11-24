@@ -12,6 +12,24 @@ from generators.kimodo.contracts import KIMODO_ASSET_CONFIG, KIMODO_ENVIRONMENT_
 from workflow.common.generation_records import write_record_atomically
 
 
+def prepare_pinned_kimodo_file(asset, file_record, download):
+    """Try the verified local backup before requesting a pinned upstream file."""
+    role_root = KIMODO_MODEL_ROOT / asset['role']
+    if KIMODO_MODEL_ROOT.is_symlink() or role_root.is_symlink():
+        raise ValueError('Kimodo 모델 경로에 심볼릭 링크를 사용할 수 없습니다.')
+    target = role_root
+    for part in Path(file_record['path']).parts:
+        target = target / part
+        if target.is_symlink():
+            raise ValueError('Kimodo 모델 경로에 심볼릭 링크를 사용할 수 없습니다.')
+    if not target.exists() and file_record['sha256']:
+        from workflow.common.model_backup_restore import restore_verified_backup
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if restore_verified_backup(target, file_record['sha256'], file_record['size']):
+            return target
+    return Path(download(asset['repository'], file_record['path'], revision=asset['revision'], local_dir=role_root, token=False))
+
+
 def prepare_kimodo_assets():
     if not KIMODO_ENVIRONMENT_PYTHON.is_file():
         raise ValueError('Kimodo ROCm 실행 환경을 먼저 준비하세요: .local/venvs/kimodo-rocm')
@@ -105,7 +123,7 @@ def download_kimodo_pinned_assets():
         for current_asset_record in KIMODO_ASSET_CONFIG['models']:
             for current_file_record in current_asset_record['files']:
                 record_prepare_progress(f"download {current_asset_record['repository']} {current_file_record['path']}")
-                current_file_path = hf_hub_download(current_asset_record['repository'],current_file_record['path'],revision=current_asset_record['revision'],local_dir=KIMODO_MODEL_ROOT/current_asset_record['role'],token=False)
+                current_file_path = prepare_pinned_kimodo_file(current_asset_record, current_file_record, hf_hub_download)
                 if Path(current_file_path).stat().st_size != current_file_record['size']:
                     raise ValueError(f'모델 파일 크기 불일치: {current_file_path}')
                 with open(current_file_path,'rb') as current_file_stream:

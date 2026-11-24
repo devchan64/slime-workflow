@@ -10,6 +10,8 @@ from workflow.common.model_huggingface_recovery import ModelRecoveryError
 
 def execute_huggingface_download(current_function_name, current_argument_values, current_keyword_values):
     from huggingface_hub import hf_hub_download, snapshot_download
+    current_keyword_values = dict(current_keyword_values)
+    backup_local_root = current_keyword_values.pop('backup_local_dir', None)
     current_download_function = {'file': hf_hub_download, 'snapshot': snapshot_download}[current_function_name]
     current_repo_name = current_keyword_values.get('repo_id', current_argument_values[0] if current_argument_values else '')
     current_file_name = current_keyword_values.get('filename', current_argument_values[1] if len(current_argument_values) > 1 else '')
@@ -37,7 +39,10 @@ def execute_huggingface_download(current_function_name, current_argument_values,
                                     def report_file_resume(current_resume_bytes):
                                         if current_function_name == 'file':
                                             current_download_record.update(bytes=current_resume_bytes, resumed_bytes=current_resume_bytes)
-                                    if recover_huggingface_partial(current_repo_name, current_file_record.commit_hash, current_keyword_values['local_dir'], current_file_record, current_keyword_values.get('endpoint'), resume_report_callback=report_file_resume):
+                                    recovery_options = {'resume_report_callback': report_file_resume}
+                                    if backup_local_root is not None:
+                                        recovery_options['backup_local_root'] = backup_local_root
+                                    if recover_huggingface_partial(current_repo_name, current_file_record.commit_hash, current_keyword_values['local_dir'], current_file_record, current_keyword_values.get('endpoint'), **recovery_options):
                                         current_cached_bytes += current_file_record.file_size
                                         current_download_record.update(bytes=current_cached_bytes)
                                 except ModelRecoveryError:

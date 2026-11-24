@@ -23,7 +23,7 @@ MANAGEMENT_SERVICE_COMMANDS = {'qwen-21-circular': ('history-delete', 'resume', 
 
 
 MANAGEMENT_SERVICE_ROUTES['model-downloads']='/model-downloads'
-MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status','download-inventory','download-observe')
+MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status','download-inventory','download-observe','backup-models','backup-compare','backup-metadata','backup-sync','backup-verify','backup-verify-status','backup-verify-history')
 MANAGEMENT_SERVICE_ROUTES['hermes-model'] = '/hermes-model'
 MANAGEMENT_SERVICE_COMMANDS['hermes-model'] = ('model-status', 'prepare')
 MANAGEMENT_SERVICE_ROUTES['animationgpt'] = '/animationgpt'
@@ -52,6 +52,13 @@ for _wan21_service in ('wan21-t2v', 'wan21-i2v'):
 MANAGEMENT_COMMAND_ROUTES['download-observe']=('GET','/observe')
 MANAGEMENT_COMMAND_ROUTES['download-status']=('GET','/status')
 MANAGEMENT_COMMAND_ROUTES['download-inventory']=('GET','/inventory')
+MANAGEMENT_COMMAND_ROUTES['backup-models']=('GET','/backup/models')
+MANAGEMENT_COMMAND_ROUTES['backup-compare']=('POST','/backup/compare')
+MANAGEMENT_COMMAND_ROUTES['backup-metadata']=('POST','/backup/metadata')
+MANAGEMENT_COMMAND_ROUTES['backup-sync']=('POST','/backup/sync')
+MANAGEMENT_COMMAND_ROUTES['backup-verify']=('POST','/backup/verify')
+MANAGEMENT_COMMAND_ROUTES['backup-verify-status']=('POST','/backup/verify/status')
+MANAGEMENT_COMMAND_ROUTES['backup-verify-history']=('GET','/backup/verify/history')
 
 MANAGEMENT_SERVICE_ROUTES['wan22-animate2']='/wan22-animate2'
 MANAGEMENT_SERVICE_COMMANDS['wan22-animate2']=('history-delete','resume','generate','prepare','status','logs','history','active','model-status','cancel','history-reset')
@@ -237,6 +244,24 @@ def resolve_management_command(service_command_name, operation_command_name, com
     if operation_command_name in ('history-reset-preview','writer-state','writer-token','download-status','download-inventory','download-observe','download-model','download-model-status') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
     if service_command_name == 'expression-lora' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+    if service_command_name == 'model-downloads' and operation_command_name == 'backup-models' and command_payload_value:
+        raise ValueError('모델 목록에는 입력을 전달할 수 없습니다.')
+    if service_command_name == 'model-downloads' and operation_command_name in ('backup-compare', 'backup-metadata'):
+        allowed = ({'model'}, {'model', 'target'}) if operation_command_name == 'backup-compare' else ({'model'},)
+        if set(command_payload_value) not in allowed or not isinstance(command_payload_value['model'], str) or command_payload_value.get('target', 'canonical') not in ('canonical', 'latest_snapshot'):
+            raise ValueError('비교할 모델 이름을 입력하세요.')
+    if service_command_name == 'model-downloads' and operation_command_name in ('backup-verify', 'backup-sync'):
+        allowed = {'model', 'target', 'request_id'} if operation_command_name == 'backup-verify' else {'model', 'request_id'}
+        if (not set(command_payload_value) <= allowed or 'model' not in command_payload_value
+                or not isinstance(command_payload_value['model'], str)
+                or command_payload_value.get('target', 'canonical') not in ('canonical', 'latest_snapshot', 'snapshot_manifest')
+                or ('request_id' in command_payload_value and not isinstance(command_payload_value['request_id'], str))):
+            raise ValueError('검증할 모델 이름을 입력하세요.')
+    if service_command_name == 'model-downloads' and operation_command_name == 'backup-verify-status':
+        if set(command_payload_value) != {'job_id'} or not isinstance(command_payload_value['job_id'], str):
+            raise ValueError('검증 작업 ID를 입력하세요.')
+    if service_command_name == 'model-downloads' and operation_command_name == 'backup-verify-history' and command_payload_value:
+        raise ValueError('검증 이력에는 입력을 전달할 수 없습니다.')
         raise ValueError('표정 LoRA 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'prop-generator' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
@@ -457,6 +482,26 @@ def execute_management_command(service_command_name, operation_command_name, com
         if service_command_name == 'model-downloads':
             from workflow.common.management_transport import send_management_json_response
             if operation_command_name == 'download-inventory':
+            if operation_command_name == 'backup-models':
+                from workflow.common.model_backup_service import list_backup_models
+                return send_management_json_response(gateway_request_handler, 200, list_backup_models())
+            if operation_command_name == 'backup-compare':
+                from workflow.common.model_backup_service import compare_backup_model
+                return send_management_json_response(gateway_request_handler, 200, compare_backup_model(command_payload_value['model'], target=command_payload_value.get('target', 'canonical')))
+            if operation_command_name == 'backup-metadata':
+                from workflow.common.model_backup_metadata import model_metadata
+                return send_management_json_response(gateway_request_handler, 200, model_metadata(command_payload_value['model']))
+            if operation_command_name in ('backup-sync', 'backup-verify', 'backup-verify-status', 'backup-verify-history'):
+                from workflow.common.model_backup_verification import start_backup_job, start_verification, read_verification, list_verifications
+                if operation_command_name == 'backup-verify':
+                    result = start_verification(command_payload_value['model'], target=command_payload_value.get('target', 'canonical'), request_id=command_payload_value.get('request_id'))
+                elif operation_command_name == 'backup-sync':
+                    result = start_backup_job(command_payload_value['model'], 'sync', request_id=command_payload_value.get('request_id'))
+                elif operation_command_name == 'backup-verify-status':
+                    result = read_verification(command_payload_value['job_id'])
+                else:
+                    result = {'records': list_verifications()}
+                return send_management_json_response(gateway_request_handler, 200, result)
                 from workflow.common.model_file_inventory import list_model_inventory_files
                 return send_management_json_response(gateway_request_handler, 200, {'models': list_model_inventory_files()})
             if operation_command_name == 'download-observe':
@@ -618,6 +663,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
         if operation_command_name == 'preview':
+        if service_command_name == 'model-downloads' and operation_command_name in ('backup-compare', 'backup-metadata', 'backup-sync', 'backup-verify', 'backup-verify-status'):
+            operation_argument_parser.add_argument('--payload-file', type=Path, required=True, help='모델 이름 또는 작업 ID를 담은 JSON 파일')
             operation_argument_parser.add_argument('--payload-file', type=Path, required=True, help='생성 입력 JSON')
         if operation_command_name == 'resume-reviewed':
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='검토한 작업 ID와 두 확인값 JSON')
@@ -762,6 +809,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         if operation_command_name=='sprite-save':command_payload_value['document']=parse_management_request_json(command_argument_values.document_file.read_text())
     if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES + HERMES_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-register-check','effect-register-reviewed','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-save-reviewed','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
     if operation_command_name == 'preview': command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text(encoding='utf-8'))
+    if service_command_name == 'model-downloads' and operation_command_name in ('backup-compare', 'backup-metadata', 'backup-sync', 'backup-verify', 'backup-verify-status'):
+        command_payload_value = parse_management_request_json(command_argument_values.payload_file.read_text(encoding='utf-8'))
     if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
