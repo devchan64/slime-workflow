@@ -17,7 +17,10 @@ function renderGenerationProgress(currentJobRecord){
  const currentLogLink=document.querySelector('#log-file');currentLogLink.href=currentJobRecord.log_url;currentLogLink.hidden=!currentJobRecord.log_updated_at;
  document.querySelector('#log-updated').textContent=currentJobRecord.log_updated_at?'로그 최종 기록: '+new Date(currentJobRecord.log_updated_at*1000).toLocaleTimeString():'';
 }
-document.querySelector('#log-copy').onclick=async()=>{try{await navigator.clipboard.writeText(document.querySelector('#log').textContent);document.querySelector('#log-copy').textContent='복사 완료';}catch(currentCopyError){document.querySelector('#log-copy').textContent='복사 실패 · 직접 선택해 복사하세요';}};
+const currentLogCopyButton=document.querySelector('#log-copy');
+const currentLogCopyStatus=document.createElement('span');currentLogCopyStatus.setAttribute('role','status');currentLogCopyButton.after(currentLogCopyStatus);
+currentLogCopyButton.textContent='📋';currentLogCopyButton.setAttribute('aria-label','로그 복사');currentLogCopyButton.title='로그 복사';
+currentLogCopyButton.onclick=async()=>{try{await navigator.clipboard.writeText(document.querySelector('#log').textContent);currentLogCopyStatus.textContent='로그를 복사했습니다.';}catch(currentCopyError){currentLogCopyStatus.textContent='복사 실패 · 직접 선택해 복사하세요';}};
 document.querySelector('#cancel-generation').onclick=async()=>{
  const currentCancelButton=document.querySelector('#cancel-generation');currentCancelButton.disabled=true;
  try{const currentCancelRoute=document.querySelector('#generation-history').dataset.route;const currentCancelResponse=await fetch(currentCancelRoute+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:activeJobIdentifier})});const currentCancelRecord=await currentCancelResponse.json();if(!currentCancelResponse.ok)throw Error(currentCancelRecord.error);await synchronizeGenerationAvailability();document.querySelector('#status').textContent='취소됨';document.querySelector('#generation-progress').value=0;document.querySelector('#progress-label').textContent='취소됨';}catch(currentCancelError){document.querySelector('#status').textContent='취소 실패: '+currentCancelError.message;currentCancelButton.disabled=false;}

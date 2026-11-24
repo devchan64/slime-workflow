@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
+import ClipboardCopyButton from "./ClipboardCopyButton.jsx";
 import {writeClipboardText} from "./clipboardWrite.mjs";
 
 export default function JobIdentifier({id,compact=false,label="작업 ID"}){
@@ -27,7 +28,7 @@ function JobIdentifierForValue({id,compact=false,label="작업 ID"}){
       setNotice("ID를 선택해 복사 단축키를 사용하세요.");
     }
   }
-  if(compact)return <span className="job-identifier job-identifier-compact"><code ref={valueRef} tabIndex={-1}>{id}</code><button ref={buttonRef} type="button" onClick={copy} aria-label={label+" 복사 · "+id}>복사</button><span role="status">{notice}</span></span>;
+  if(compact)return <span className="job-identifier job-identifier-compact"><code ref={valueRef} tabIndex={-1}>{id}</code><ClipboardCopyButton ref={buttonRef} onClick={copy} label={label+" 복사 · "+id} title={label+" 복사"}/><span role="status">{notice}</span></span>;
   return <div className="job-identifier"><label>{label}<input ref={valueRef} aria-label={label} type="text" readOnly value={id} onFocus={event=>event.currentTarget.select()}/></label>
-    <button ref={buttonRef} type="button" onClick={copy} aria-label={label+" 복사 · "+id}>ID 복사</button><span role="status">{notice}</span></div>;
+    <ClipboardCopyButton ref={buttonRef} onClick={copy} label={label+" 복사 · "+id} title={label+" 복사"}/><span role="status">{notice}</span></div>;
 }

@@ -1,5 +1,6 @@
 import React, {useEffect,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
+import ClipboardCopyButton from "./ClipboardCopyButton.jsx";
 import {writeClipboardText} from "./clipboardWrite.mjs";
 import ResultTable from "./ResultTable.jsx";
 import {requestErrorMessage} from "./requestError.mjs";
@@ -42,7 +43,7 @@ export default function TranslationResult({job, text}) {
     catch {if(sequence!==copySequence.current)return;if(draftRef.current===draft && (document.activeElement===document.body || document.activeElement===copyRef.current)){textRef.current?.focus();textRef.current?.select();}setNotice(draftRef.current===draft ? "복사 여부를 확인하지 못했습니다. 번역문을 선택해 복사 단축키를 사용하세요." : "이전 번역문의 복사 여부를 확인하지 못했습니다. 현재 내용을 복사하려면 다시 누르세요.");}
   }
   return <section><label>복사용 번역문 <textarea ref={textRef} value={draft} onChange={e=>{setDraft(e.target.value);setNotice("");}}/></label>
-    <button ref={copyRef} onClick={copy}>번역문 복사</button>
+    <ClipboardCopyButton ref={copyRef} onClick={copy} label="번역문 복사"/>
     <button ref={inspectRef} disabled={busy} onClick={inspect}>{busy ? "번역 점검 조회 중…" : "원본 번역 점검 조회"}</button>
     {checks && <>{stale && <p role="status">아래 점검 표는 마지막으로 조회한 결과입니다.</p>}<div className="translation-check-table"><ResultTable table={checks}/></div></>}
     <p role="status">{notice}</p>

@@ -190,7 +190,7 @@ function renderAppliedTileSourceList(){
    currentAssetThumbnail.src=currentAssetLink.href;currentAssetThumbnail.alt=`${currentCatalogKey} 원본 썸네일`;currentAssetThumbnail.loading='lazy';
    currentAssetLink.append(currentAssetThumbnail);currentPreviewCell.append(currentAssetLink);
    const currentNameCell=document.createElement('td');currentNameCell.textContent=currentCatalogKey;currentNameCell.title=currentAssetRecord.source;
-   const currentCopyButton=document.createElement('button');currentCopyButton.type='button';currentCopyButton.textContent='이름 복사';currentCopyButton.setAttribute('aria-label',`${currentCatalogKey} 이름 복사`);
+   const currentCopyButton=document.createElement('button');currentCopyButton.type='button';currentCopyButton.textContent='📋';currentCopyButton.title='이름 복사';currentCopyButton.setAttribute('aria-label',`${currentCatalogKey} 이름 복사`);
    const currentCopyStatus=document.createElement('span');currentCopyStatus.setAttribute('role','status');
    currentCopyButton.addEventListener('click',async()=>{
     try{await navigator.clipboard.writeText(currentCatalogKey);currentCopyStatus.textContent=' 복사 완료';}

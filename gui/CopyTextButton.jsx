@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from "react";
+import ClipboardCopyButton from "./ClipboardCopyButton.jsx";
 import {writeClipboardText} from "./clipboardWrite.mjs";
 
 export default function CopyTextButton({value,label,buttonLabel}){
@@ -23,5 +24,5 @@ export default function CopyTextButton({value,label,buttonLabel}){
     request.current++;clearTimeout(timer.current);setState("");
     if(restore)requestAnimationFrame(()=>{if(document.activeElement===document.body)button.current?.focus();});
   }
-  return <span className="message-copy"><button ref={button} type="button" aria-label={label} onClick={copy}>{buttonLabel}</button><span role="status">{state==="copied" ? "복사했습니다." : state==="fallback" ? "클립보드 복사 여부를 확인하지 못했습니다. 아래 내용에서 복사 단축키를 사용하세요." : ""}</span>{state==="fallback" && <><button ref={closeButton} type="button" onClick={closeFallback}>선택 닫기</button><textarea ref={fallback} readOnly aria-label={label+"용 선택 내용"} value={value} onFocus={event=>event.currentTarget.select()}/></>}</span>;
+  return <span className="message-copy"><ClipboardCopyButton ref={button} label={label} title={buttonLabel} onClick={copy}/><span role="status">{state==="copied" ? "복사했습니다." : state==="fallback" ? "클립보드 복사 여부를 확인하지 못했습니다. 아래 내용에서 복사 단축키를 사용하세요." : ""}</span>{state==="fallback" && <><button ref={closeButton} type="button" onClick={closeFallback}>선택 닫기</button><textarea ref={fallback} readOnly aria-label={label+"용 선택 내용"} value={value} onFocus={event=>event.currentTarget.select()}/></>}</span>;
 }

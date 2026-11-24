@@ -1,6 +1,7 @@
 import React, {useEffect,useRef,useState} from "react";
 import {requestErrorMessage} from "./requestError.mjs";
 import {untilAborted} from "./managementCommand.js";
+import ClipboardCopyButton from "./ClipboardCopyButton.jsx";
 import {writeClipboardText} from "./clipboardWrite.mjs";
 
 export default function RecordFolder({service,id,direct=false}) {
@@ -40,7 +41,7 @@ function RecordFolderForJob({service,id,direct=false}) {
     {path && <label>기록 폴더 경로<input ref={pathInput} aria-label="기록 폴더 경로" readOnly value={path} onFocus={event=>event.currentTarget.select()}/></label>}
     {stale && <p role="status">표시된 경로는 마지막으로 확인한 값입니다. 현재 폴더 상태는 확인하지 못했습니다.</p>}
     <div className="choice-buttons"><button type="button" disabled={busy} onClick={event=>request("inspect",event.currentTarget)}>경로 다시 확인</button>
-      <button ref={copyButton} type="button" disabled={busy || !path} onClick={copy}>경로 복사</button>
+      <ClipboardCopyButton ref={copyButton} disabled={busy || !path} onClick={copy} label="기록 폴더 경로 복사" title="경로 복사"/>
       {!direct && openButton}</div>
     {!direct && feedback}
   </details>{direct && feedback}</>;
