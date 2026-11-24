@@ -43,7 +43,7 @@ export default function ModelBackupCompare({requestedSelection}) {
   const historyRequest = useRef(null);
   const jobReadRequest = useRef(null);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const handledSelection = useRef(null), headingRef = useRef(null), searchRef = useRef(null);
+  const handledSelection = useRef(null), headingRef = useRef(null), searchRef = useRef(null), fileSearchRef = useRef(null), folderHeadingRef = useRef(null);
   const [selectionNotice, setSelectionNotice] = useState('');
   const [pendingRequest, setPendingRequest] = useState(() => {
     try {return readPendingBackupRequest(sessionStorage);} catch {return null;}
@@ -258,7 +258,7 @@ export default function ModelBackupCompare({requestedSelection}) {
     {historyLoading && <p role="status">이력을 조회하고 있습니다.{jobs && ' 아래는 마지막 조회 결과입니다.'}</p>}
     <p>이 이력은 이 화면과 게이트웨이에서 접수한 작업만 표시합니다. 외부 백업 진행률은 포함되지 않습니다.</p>
     <label><input type="checkbox" checked={selectedHistoryOnly} onChange={event => setSelectedHistoryOnly(event.target.checked)} disabled={!selected}/> 선택한 디렉터리의 이력만 보기</label>
-    {jobs ? <><p>최근 조회된 이력 {jobs.length}건 중 {visibleJobs.length}건 표시 · 오래된 이력은 이 목록에 없을 수 있습니다.</p>
+    {jobs ? <><p role="status">최근 조회된 이력 {jobs.length}건 중 {visibleJobs.length}건 표시 · 오래된 이력은 이 목록에 없을 수 있습니다.</p>
     {visibleJobs.length > 0 ? <details><summary>최근 백업·검증 작업 {visibleJobs.length}건 보기</summary><ul>{visibleJobs.map(job => <li key={job.job_id}><strong>{job.model} · {job.operation === 'sync' ? '백업' : '검증'} · {jobLabels[job.status] || job.status}</strong><br/>시작 · {jobTime(job.started_at)} · {job.operation === 'sync' ? '스냅샷 백업' : (targets[job.target] || '기존 공유 디렉터리')} · 작업 ID {job.job_id}{job.stage && ` · ${job.stage}`}{job.current_file && ` · ${job.current_file}`}{Number.isFinite(job.file_bytes) ? ` · 현재 파일 ${job.file_bytes.toLocaleString()} / ${job.file_total_bytes?.toLocaleString() ?? '?'}바이트` : Number.isFinite(job.bytes) ? ` · ${job.bytes.toLocaleString()} / ${job.total_bytes?.toLocaleString() ?? '?'}바이트` : ''} <button type="button" aria-label={`${job.model} ${jobTime(job.started_at)} ${job.operation === 'sync' ? '백업' : '검증'} 상태·결과 확인`} aria-disabled={busy} onClick={() => {if (!busy) showJob(job.job_id);}}>상태·결과 확인</button>{jobResult && shownJobId === job.job_id && <p>{failedJobId === job.job_id && error ? '이전 조회 결과 · ' : ''}{jobSummary(jobResult)}</p>}{error && failedJobId === job.job_id && <p>{error}</p>}</li>)}</ul></details> : <p>{selectedHistoryOnly ? '최근 조회된 이력에 선택한 디렉터리의 작업이 없습니다.' : '최근 백업·검증 이력이 없습니다.'}</p>}</> : !historyLoading && <p>이력을 확인하지 못했습니다. 이력 새로고침을 시도하세요.</p>}
     {comparison && <div><h3>비교·검증 결과</h3><p role="status">{comparison.model} · {comparison.complete ? '목록 조회 완료' : '일부 경로 확인 실패'} · 파일 {comparison.files.length.toLocaleString()}개</p>
       {comparisonOrigin?.kind === 'history' && <p>이력의 과거 결과 · {jobTime(comparisonOrigin.time)} · 이후 파일이나 경로가 변경됐을 수 있습니다.</p>}
@@ -272,17 +272,18 @@ export default function ModelBackupCompare({requestedSelection}) {
       <p>결과 요약{directory && ' · 선택 폴더와 하위 폴더'}{fileQuery.trim() && ' · 검색된 파일'} · {Object.entries(resultPage.counts).map(([status, count]) => `${labels[status] || status} ${count.toLocaleString()}개`).join(' · ') || '파일 없음'}</p>
       {comparison.source_errors?.map((item, index) => <p key={'source'+index}>원본 {item.path} · {item.reason}</p>)}
       {comparison.backup_errors?.map((item, index) => <p key={'backup'+index}>백업 {item.path} · {item.reason}</p>)}
-      <h4>폴더별로 보기</h4>
-      <p>현재 폴더 · {directory || '최상위'} · 파일 목록은 하위 폴더를 포함합니다.</p>
-      {directory && <button type="button" onClick={() => {setDirectory(directory.includes('/') ? directory.slice(0, directory.lastIndexOf('/')) : ''); setPage(0);}}>상위 폴더로</button>}
-      {directories.length > 0 && <ul>{directories.map(folder => <li key={folder.path}><button type="button" onClick={() => {setDirectory(folder.path); setPage(0);}}>{folder.name} · 파일 {folder.count}개</button> · {Object.entries(folder.statuses).map(([status, count]) => `${labels[status] || status} ${count}개`).join(' · ')}</li>)}</ul>}
-      <label>파일 경로 검색 <input type="search" value={fileQuery} onChange={event => {setFileQuery(event.target.value); setFilter('all'); setPage(0);}} placeholder="파일명 또는 경로"/></label>
+      <h4 ref={folderHeadingRef} tabIndex={-1}>폴더별로 보기</h4>
+      <p role="status">현재 폴더 · {directory || '최상위'} · 파일 목록은 하위 폴더를 포함합니다.</p>
+      {directory && <button type="button" onClick={() => {setDirectory(directory.includes('/') ? directory.slice(0, directory.lastIndexOf('/')) : ''); setPage(0); folderHeadingRef.current?.focus();}}>상위 폴더로</button>}
+      {directories.length > 0 && <ul>{directories.map(folder => <li key={folder.path}><button type="button" onClick={() => {setDirectory(folder.path); setPage(0); folderHeadingRef.current?.focus();}}>{folder.name} · 파일 {folder.count}개</button> · {Object.entries(folder.statuses).map(([status, count]) => `${labels[status] || status} ${count}개`).join(' · ')}</li>)}</ul>}
+      <label>파일 경로 검색 <input ref={fileSearchRef} type="search" value={fileQuery} onChange={event => {setFileQuery(event.target.value); setFilter('all'); setPage(0);}} placeholder="파일명 또는 경로"/></label>
+      {fileQuery && <button type="button" onClick={() => {setFileQuery(''); setFilter('all'); setPage(0); fileSearchRef.current?.focus();}}>파일 경로 검색 지우기</button>}
       <label>상태 필터 <select value={filter} onChange={event => {setFilter(event.target.value); setPage(0);}}>
         <option value="all">전체 · {Object.values(resultPage.counts).reduce((sum, count) => sum + count, 0).toLocaleString()}개</option>
         {Object.entries(resultPage.counts).map(([status, count]) => <option key={status} value={status}>{labels[status] || status} · {count.toLocaleString()}개</option>)}
       </select></label>
-      {resultPage.total === 0 ? <p>해당하는 파일이 없습니다.</p> : <>
-        <p>{(resultPage.page * pageSize + 1).toLocaleString()}–{Math.min((resultPage.page + 1) * pageSize, resultPage.total).toLocaleString()} / {resultPage.total.toLocaleString()}개</p>
+      <p role="status">{resultPage.total === 0 ? '해당하는 파일이 없습니다.' : `${(resultPage.page * pageSize + 1).toLocaleString()}–${Math.min((resultPage.page + 1) * pageSize, resultPage.total).toLocaleString()} / ${resultPage.total.toLocaleString()}개`}</p>
+      {resultPage.total > 0 && <>
         <details><summary>파일 목록 보기</summary><ul>{resultPage.files.map(item => <li key={item.path}>{item.path} · {labels[item.status] || item.status}</li>)}</ul></details>
         <button type="button" disabled={resultPage.page === 0} onClick={() => setPage(resultPage.page - 1)}>이전 파일</button>
         <button type="button" disabled={(resultPage.page + 1) * pageSize >= resultPage.total} onClick={() => setPage(resultPage.page + 1)}>다음 파일</button>
