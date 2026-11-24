@@ -126,12 +126,13 @@ export default function ModelPage() {
   const [models, setModels] = useState([]);
   const [service, select] = useState("");
   const [modelQuery,setModelQuery] = useState("");
-  const selectedRef=useRef(""),missingRef=useRef("");
+  const selectedRef=useRef(""),missingRef=useRef(""),searchRef=useRef(null);
   const [error, setError] = useState("");
   const [missingModel,setMissingModel]=useState("");
   const [checkedAt,setCheckedAt]=useState(null);
   const missingModelId=useId();
   const [loading,setLoading]=useState(true),[revision,setRevision]=useState(0);
+  useEffect(()=>{document.title="모델 상태와 파일";},[]);
   useEffect(() => {
     let active=true,timedOut=false;
     const controller=new AbortController();
@@ -169,8 +170,8 @@ export default function ModelPage() {
     {missingModel && <p id={missingModelId} role="status">요청한 모델 ‘{missingModel}’을 목록에서 찾지 못했습니다. 모델을 선택해 주세요.</p>}
     {models.length>0 && <section className="model-finder" aria-labelledby="model-list-heading"><h2 id="model-list-heading">모델 찾기</h2>
       <p>목록에서 모델을 선택하면 아래에 준비 상태와 다운로드 기록이 표시됩니다. 이름이나 서비스 ID로 검색할 수도 있습니다.</p>
-      <label>모델 검색 <input type="search" value={modelQuery} onChange={event=>setModelQuery(event.target.value)} placeholder="예: FLUX, 번역, wan22"/></label>
-      {modelQuery && <button type="button" onClick={()=>setModelQuery("")}>검색 지우기</button>}
+      <label>모델 검색 <input ref={searchRef} type="search" value={modelQuery} onChange={event=>setModelQuery(event.target.value)} placeholder="예: FLUX, 번역, wan22"/></label>
+      {modelQuery && <button type="button" onClick={()=>{setModelQuery("");searchRef.current?.focus();}}>검색 지우기</button>}
       {selectedModel && <p>선택한 모델 · <strong>{selectedModel.label}</strong> <small>({selectedModel.id})</small></p>}
       <p role="status">{modelQuery.trim() ? `검색 결과 ${matchingModels.length}개 / 전체 ${models.length}개` : `등록 모델 ${models.length}개`}{service && searchTerms.length>0 && !matchingModels.some(model=>model.id===service) ? " · 현재 선택은 유지됩니다." : ""}</p>
       <div role="group" aria-label="모델 목록" className="model-choice-list">

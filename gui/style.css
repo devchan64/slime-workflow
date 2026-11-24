@@ -660,15 +660,15 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .model-management-page .model-backup .generator-history-actions {align-items:center;gap:.5rem}
 .model-management-page .model-backup .generator-history-actions button {margin:0}
 .model-management-page .model-backup details {min-width:0}
-.model-management-page .model-backup summary {min-height:var(--generator-disclosure-min-height,2.75rem);padding:var(--generator-disclosure-padding,.6rem .8rem);box-sizing:border-box;border:1px solid var(--line,#484d50);border-radius:.5rem;font-size:var(--generator-disclosure-font-size,1rem);line-height:var(--generator-disclosure-line-height,1.5);cursor:pointer}
-.model-management-page .model-backup summary:focus-visible {outline:2px solid var(--accent,#a7c8ff);outline-offset:2px}
+.model-management-page :is(.model-backup,.model-catalog) summary {min-height:var(--generator-disclosure-min-height,2.75rem);padding:var(--generator-disclosure-padding,.6rem .8rem);box-sizing:border-box;border:1px solid var(--line,#484d50);border-radius:.5rem;font-size:var(--generator-disclosure-font-size,1rem);line-height:var(--generator-disclosure-line-height,1.5);cursor:pointer}
+.model-management-page :is(.model-backup,.model-catalog) summary:focus-visible {outline:2px solid var(--accent,#a7c8ff);outline-offset:2px}
 .model-management-page .model-backup li {padding:.4rem 0;overflow-wrap:anywhere}
 .model-management-page .model-backup > div:not(.model-choice-list):not(.generator-history-actions) {min-width:0;overflow-wrap:anywhere}
 .model-management-page .model-backup > div:not(.model-choice-list):not(.generator-history-actions) > :is(p,label,details) {margin:.65rem 0}
 .model-management-page > .model-catalog {display:grid;gap:.65rem;min-width:0;line-height:1.5}
 .model-management-page > .model-catalog > :is(h2,p,ul) {margin:0}
 .model-management-page > .model-catalog > button {justify-self:start;margin:0}
-.model-management-page > .model-catalog label {display:grid;gap:.3rem;max-width:32rem;font-size:.9rem}
+.model-management-page > .model-catalog label {display:grid;gap:.3rem;max-width:32rem;font-size:1rem}
 .model-management-page > .model-catalog input[type="search"] {box-sizing:border-box;width:100%;min-width:0;font:inherit;color:inherit;background:var(--surface,#202326);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
 .model-management-page > .model-catalog li {padding:.4rem 0;overflow-wrap:anywhere}
 .generator-page-header h1 {font-size:clamp(1.35rem,2vw,1.75rem);line-height:1.25}

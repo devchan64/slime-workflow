@@ -8,7 +8,7 @@ const jobLabels = {running: '진행 중', completed: '완료', failed: '실패',
 const presence = value => value === true ? '있음' : value === false ? '없음' : '확인 불가';
 const targets = {canonical: '기존 공유 디렉터리', latest_snapshot: '가장 최근 완료 스냅샷', snapshot_manifest: '스냅샷 자체 무결성', legacy: '이관 전 공유 디렉터리'};
 const legacyModels = new Set(['catalog-flux-report-vision', 'catalog-trellis-dinov2', 'catalog-trellis-image-large', 'catalog-hermes-coding', 'catalog-writer-agent', 'catalog-translation-model', 'catalog-heartmula', 'catalog-dasheng-audiogen', 'catalog-minimax-hf-cache']);
-const directoryLabel = (name, relativePath) => relativePath || ({'catalog-flux-report-vision': 'models/flux-report-vision · 개별 모델', 'catalog-trellis-dinov2': 'models/trellis-dinov2 · 개별 모델', 'catalog-trellis-image-large': 'models/trellis-image-large · 개별 모델', 'catalog-hermes-coding': 'models/hermes-coding · 개별 모델', 'catalog-writer-agent': 'models/qwen3-embedding-0.6b · 개별 모델', 'catalog-translation-model': 'models/translategemma-4b · 개별 모델', 'catalog-heartmula': 'models/audio/heartmula · 음악 모델', 'catalog-dasheng-audiogen': 'models/audio/dasheng-audiogen · 효과음 모델', 'catalog-minimax-hf-cache': 'cache/huggingface · 캐시'}[name] || name);
+const directoryLabel = (name, relativePath) => relativePath ? `${relativePath} · 개별 백업 대상` : ({'catalog-flux-report-vision': 'models/flux-report-vision · 개별 모델', 'catalog-trellis-dinov2': 'models/trellis-dinov2 · 개별 모델', 'catalog-trellis-image-large': 'models/trellis-image-large · 개별 모델', 'catalog-hermes-coding': 'models/hermes-coding · 개별 모델', 'catalog-writer-agent': 'models/qwen3-embedding-0.6b · 개별 모델', 'catalog-translation-model': 'models/translategemma-4b · 개별 모델', 'catalog-heartmula': 'models/audio/heartmula · 음악 모델', 'catalog-dasheng-audiogen': 'models/audio/dasheng-audiogen · 효과음 모델', 'catalog-minimax-hf-cache': 'cache/huggingface · 캐시'}[name] || name);
 function jobTime(value) {const time = new Date(value); return value && Number.isFinite(time.getTime()) ? time.toLocaleString('ko-KR') : '시작 시각 확인 불가';}
 
 export default function ModelBackupCompare({requestedSelection}) {
@@ -33,7 +33,7 @@ export default function ModelBackupCompare({requestedSelection}) {
   const [modelsLoading, setModelsLoading] = useState(true);
   const [modelsError, setModelsError] = useState('');
   const requestInFlight = useRef(false);
-  const handledSelection = useRef(null), headingRef = useRef(null);
+  const handledSelection = useRef(null), headingRef = useRef(null), searchRef = useRef(null);
   const [selectionNotice, setSelectionNotice] = useState('');
   const [pendingRequest, setPendingRequest] = useState(() => {
     try {return readPendingBackupRequest(sessionStorage);} catch {return null;}
@@ -165,8 +165,8 @@ export default function ModelBackupCompare({requestedSelection}) {
     {modelsLoading && <p role="status">모델과 백업 목록을 확인하고 있습니다.</p>}
     <h3>1. 대상 선택</h3>
     <p>로컬 모델 폴더와 Samba 백업의 최상위 디렉터리입니다. 아래 목록에서 비교할 디렉터리를 선택하세요.</p>
-    <label>디렉터리 검색 <input type="search" value={modelQuery} onChange={event => setModelQuery(event.target.value)} placeholder="예: flux, wan22, kimodo"/></label>
-    {modelQuery && <button type="button" onClick={() => setModelQuery('')}>디렉터리 검색 지우기</button>}
+    <label>디렉터리 검색 <input ref={searchRef} type="search" value={modelQuery} onChange={event => setModelQuery(event.target.value)} placeholder="예: flux, wan22, kimodo"/></label>
+    {modelQuery && <button type="button" onClick={() => {setModelQuery(''); searchRef.current?.focus();}}>디렉터리 검색 지우기</button>}
     {selectedModel && <p>선택한 디렉터리 · <strong>{directoryLabel(selectedModel.name, selectedModel.relative_path)}</strong> · 로컬 {presence(selectedModel.local_present)} · 기존 공유 {presence(selectedModel.backup_present)} · 완료 스냅샷 {presence(selectedModel.snapshot_present)}</p>}
     {selectedModel?.included_targets?.length > 0 && <p>이 폴더에는 개별 백업 대상 {selectedModel.included_targets.map(name => directoryLabel(name)).join(', ')}이 포함됩니다. 전체 폴더와 개별 대상을 각각 백업하면 내용이 여러 스냅샷에 저장됩니다.</p>}
     {selectedModel?.parent_target && <p>이 설치본은 상위 백업 대상 {selectedModel.parent_target}에도 포함됩니다. 각각 백업하면 내용이 여러 스냅샷에 저장됩니다.</p>}

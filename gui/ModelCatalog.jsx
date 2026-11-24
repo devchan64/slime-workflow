@@ -1,5 +1,6 @@
-import React, {useState} from 'react';
-import {managementCommand} from './managementCommand.js';
+import React, {useEffect, useRef, useState} from 'react';
+import {managementCommand, untilAborted} from './managementCommand.js';
+import {requestErrorMessage} from './requestError.mjs';
 import {installationJobs, relatedActivity, searchCatalog, sortCatalog} from './modelCatalogSearch.mjs';
 import {backupTargetLabel, verificationSummary} from './modelBackupResults.mjs';
 
@@ -13,24 +14,25 @@ export default function ModelCatalog({onCompare}) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState('');
+  const searchRef = useRef(null);
+  const requestRef = useRef(null);
   const [order, setOrder] = useState('catalog');
   const [checkedAt, setCheckedAt] = useState(null);
   const [jobs, setJobs] = useState(null);
   const [jobsError, setJobsError] = useState('');
   const [verificationRecords, setVerificationRecords] = useState({});
+  useEffect(() => () => {const request=requestRef.current; requestRef.current=null; request?.abort();}, []);
   async function load() {
+    if (requestRef.current) return;
+    const controller=new AbortController(); requestRef.current=controller; let timedOut=false;
+    const timeout=setTimeout(() => {timedOut=true; controller.abort();}, 30000);
     setBusy(true); setError('');
     try {
-      const [next, history] = await Promise.allSettled([
-        managementCommand('model-downloads', 'catalog-overview'),
-        managementCommand('model-downloads', 'backup-verify-history', {})
-      ]);
+      const [next, history] = await untilAborted(Promise.allSettled([
+        managementCommand('model-downloads', 'catalog-overview', {}, {signal:controller.signal}),
+        managementCommand('model-downloads', 'backup-verify-history', {}, {signal:controller.signal})
+      ]),controller.signal);
       if (next.status === 'rejected') throw next.reason;
-      if (history.status === 'fulfilled' && Array.isArray(history.value.records)) {
-        setJobs(history.value.records); setJobsError('');
-      } else {
-        setJobs(null); setJobsError('최근 백업·검증 작업을 조회하지 못했습니다.');
-      }
       const value = next.value;
       if (!Array.isArray(value.components) || !Array.isArray(value.unclassified)) throw new Error('카탈로그 응답 형식이 올바르지 않습니다.');
       const recent = history.status === 'fulfilled' && Array.isArray(history.value.records) ? history.value.records : [];
@@ -40,21 +42,28 @@ export default function ModelCatalog({onCompare}) {
         const active = entries.find(entry => entry.local_present === true && entry.backup_target);
         return active ? [active.backup_target] : [];
       });
-      const checks = await Promise.all(targets.map(async target => {
+      const checks = await untilAborted(Promise.all(targets.map(async target => {
         const job = recent.find(record => record.model === target && record.operation !== 'sync');
         if (!job) return [target, null];
-        try {return [target, await managementCommand('model-downloads', 'backup-verify-status', {job_id: job.job_id})];}
+        try {return [target, await managementCommand('model-downloads', 'backup-verify-status', {job_id: job.job_id}, {signal:controller.signal})];}
         catch {return [target, {status: 'unavailable'}];}
-      }));
+      })),controller.signal);
+      if (requestRef.current!==controller || controller.signal.aborted) return;
+      if (history.status === 'fulfilled' && Array.isArray(history.value.records)) {
+        setJobs(history.value.records); setJobsError('');
+      } else {
+        setJobs(null); setJobsError('최근 백업·검증 작업을 조회하지 못했습니다.');
+      }
       setVerificationRecords(Object.fromEntries(checks));
       setResult(value);
       setCheckedAt(new Date());
-    } catch (problem) {setError(problem.message || '카탈로그를 조회하지 못했습니다.');}
-    finally {setBusy(false);}
+    } catch (problem) {if(requestRef.current===controller)setError(timedOut ? '카탈로그 조회 시간이 초과됐습니다. 다시 조회하세요.' : '카탈로그를 조회하지 못했습니다. '+requestErrorMessage(problem));}
+    finally {clearTimeout(timeout); if(requestRef.current===controller){requestRef.current=null; setBusy(false);}}
   }
   return <section className="model-catalog"><h2>모델 카탈로그</h2>
     <p>등록된 모델과 공유 구성요소, 아직 분류하지 않은 디렉터리를 확인합니다. 표시된 관계는 현재 등록된 정보이며 전체 의존성을 보장하지 않습니다.</p>
-    <button type="button" onClick={load} disabled={busy}>{busy ? '카탈로그 조회 중…' : '카탈로그 조회'}</button>
+    <button type="button" onClick={load} aria-disabled={busy}>{busy ? '카탈로그 조회 중…' : '카탈로그 조회'}</button>
+    {busy && <p role="status">카탈로그를 조회하고 있습니다.{result && ' 아래는 마지막 조회 결과입니다.'}</p>}
     {error && <p role="alert">{error}{result && ' · 이전 조회 결과를 표시합니다.'}</p>}
     {result && <>
       {result.backup_error && <p role="status">{result.backup_error} 백업 존재 여부는 확인할 수 없습니다.</p>}
@@ -86,9 +95,9 @@ export default function ModelCatalog({onCompare}) {
       </details>
       <p>마지막 조회 · {checkedAt?.toLocaleString('ko-KR')}</p>
       {result.storage_survey && <p>저장 공간 조사 · {result.storage_survey.finished_at || '시각 확인 불가'} · 과거 관측값이며 현재 용량과 다를 수 있습니다. 링크 대상은 포함하지 않으며 하드링크가 중복 계산될 수 있습니다. 기존 경로가 없으면 추가 설치본의 크기로 정렬합니다.{(result.storage_survey.changed || result.storage_survey.errors) && ' 조사 중 변경 또는 오류가 감지되었습니다.'}</p>}
-      <label>카탈로그 검색 <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="모델, 서비스, 출처, 경로"/></label>
+      <label>카탈로그 검색 <input ref={searchRef} type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="모델, 서비스, 출처, 경로"/></label>
       <label>정렬 <select value={order} onChange={event => setOrder(event.target.value)}><option value="catalog">카탈로그 순서</option><option value="allocated">이전 조사 할당 크기순</option></select></label>
-      {query && <button type="button" onClick={() => setQuery('')}>카탈로그 검색 지우기</button>}
+      {query && <button type="button" onClick={() => {setQuery(''); searchRef.current?.focus();}}>카탈로그 검색 지우기</button>}
       <p role="status">검색 결과 {searchCatalog(result.components, query).length}개 / 등록 {result.components.length}개 · 미분류 디렉터리 {result.unclassified.length}개</p>
       {searchCatalog(result.components, query).length === 0 && <p>일치하는 등록 항목이 없습니다. 다른 이름이나 경로를 검색하세요.</p>}
       <ul>{sortCatalog(searchCatalog(result.components, query), order).map(({declaration: item, declared_version: version, presence: state, installation_metadata: installed, storage_observation: storage, observed_links: links, alternate_installations: alternates}) => {
