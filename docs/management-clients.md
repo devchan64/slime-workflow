@@ -12,7 +12,7 @@
 
 **구현 및 실제 모델 검증 진행 중.** 텍스트 기반 분류의 프롬프트 번역 화면과 `prompt-translation` 게이트웨이는 한국어 원문을 영어 또는 중국어 간체로 번역하는 작업을 공용 GPU 대기열에 접수한다. 결과는 화면에서 확인·수정하여 생성기에 직접 복사한다. 기본 모델은 [TranslateGemma 4B](https://huggingface.co/google/translategemma-4b-it)이며, [공개 비교](https://huggingface.co/ThakiCloud/K-MT-7B-v0.1)의 한국어→영어 FLORES 1,012문장 COMET-22는 0.8742다. 이는 프로젝트 프롬프트의 정확성을 보장하지 않는다. Gemma 약관·접근 조건을 확인하고 사용한다. ROCm BF16으로 실행하며 외부 번역 API는 사용하지 않는다.
 
-모델 준비: Hugging Face에서 모델 접근 조건에 동의하고 해당 계정으로 로컬 인증한 뒤 **모델 관리 → TranslateGemma 4B → 모델 다운로드**를 실행한다. GUI와 CLI의 `prompt-translation prepare`는 동일한 독립 준비 프로세스를 사용한다. 공식 리비전 `10042cb0e6e7fdce748996a71dc3dc432a4e0c89`의 파일과 해시 목록을 `.model/prompt-translation/`에 기록한다. 이는 다운로드 후 변경을 감지하는 로컬 해시이며 공급자가 별도 서명한 해시 검증은 아니다. 추론은 네트워크 없이 해당 파일을 재검증하여 실행한다. 번역과 의미 검토의 공용 GPU 메모리 예약은 최소 16384 MiB이며 실제 피크는 별도 검증해야 한다. 가중치와 작업 기록은 Git에 등록하지 않는다.
+모델 준비: Hugging Face에서 모델 접근 조건에 동의하고 해당 계정으로 로컬 인증한 뒤 **모델 관리 → TranslateGemma 4B → 모델 다운로드**를 실행한다. GUI와 CLI의 `prompt-translation prepare`는 동일한 독립 준비 프로세스를 사용한다. 공식 리비전 `10042cb0e6e7fdce748996a71dc3dc432a4e0c89`의 파일과 해시 목록을 `.model/models/translategemma-4b/`에 기록한다 (기존 설치의 `.model/prompt-translation/`도 인식한다). 이는 다운로드 후 변경을 감지하는 로컬 해시이며 공급자가 별도 서명한 해시 검증은 아니다. 추론은 네트워크 없이 해당 파일을 재검증하여 실행한다. 번역과 의미 검토의 공용 GPU 메모리 예약은 최소 16384 MiB이며 실제 피크는 별도 검증해야 한다. 가중치와 작업 기록은 Git에 등록하지 않는다.
 
 CLI는 `python tools/manager.py command prompt-translation translation-submit --payload-file <JSON>`을 사용하며 입력 형식은 `{"text":"한국어 원문","target_language":"en"}` 또는 목표 언어 `zh-CN`이다. 작가 AI 색인의 용어 후보는 `python tools/manager.py command prompt-translation translation-rag --payload-file <JSON>`에 `{"text":"검색할 원문"}`을 전달해 조회한다. `translation-status`·`translation-cancel`은 `{"id":"작업 ID"}`, `translation-history`는 `{}`를 파일로 전달한다. GUI와 CLI는 `.tmp/test/prompt-translation/`의 같은 작업을 조회한다. 작업 상태는 수동 새로고침한다. 원문과 결과는 로컬 작업 폴더에 저장되므로 해당 경로의 접근 권한과 보존 정책을 운영자가 관리한다.
 
@@ -1150,17 +1150,21 @@ GUI와 `map-assets building-save`는 `shadowShape`(`circle`/`rectangle`), `shado
 
 모델 관리 화면의 백업 영역은 `.local/hermes/model-backup.json`에 등록된 모델 원본과 Samba 마운트를 이용한다. 설정 파일은 Git에서 제외하며 `source_path`, `local_mount_path`, `samba_uri`를 지정한다. 파일 작업은 `local_mount_path`에서 수행하며, Samba 주소가 있으면 실제 CIFS 또는 GVFS 마운트의 서버·공유·하위 경로가 설정과 일치하는지 확인한다. 연결이 해제된 로컬 마운트 디렉터리는 백업 대상으로 사용하지 않는다.
 
-`model-downloads backup-models`는 로컬과 백업에만 남은 최상위 모델을 함께 조회한다. 로컬이 없는 모델의 메타정보는 완료된 스냅샷 또는 기존 백업의 매니페스트에서 읽고 출처를 표시한다. 원본이 없으면 비교·검증·백업은 실행하지 않는다. `backup-metadata`, `backup-compare`, `backup-sync`, `backup-verify`, `backup-verify-status`는 `--payload-file`로 JSON을 받는다. 예를 들어 `{"model":"huggingface","target":"latest_snapshot"}`을 UTF-8 JSON 파일로 저장하고 `python3 tools/manager.py command model-downloads backup-compare --payload-file 경로`를 실행한다. `target`은 `canonical`(기본 기존 공유 디렉터리) 또는 `latest_snapshot`이다. 메타정보·백업 접수에는 `model`만 전달하고 상태 조회에는 `{"job_id":"작업 ID"}`를 전달한다. `backup-verify-history`는 최근 작업을 조회한다.
+`model-downloads backup-models`는 로컬과 백업에만 남은 최상위 모델 및 등록된 개별 설치본을 조회한다. 로컬이 없는 모델의 메타정보는 완료된 스냅샷 또는 기존 백업의 매니페스트에서 읽고 출처를 표시한다. 원본이 없으면 원본 비교와 새 백업은 실행하지 않는다. `backup-metadata`, `backup-compare`, `backup-sync`, `backup-verify`, `backup-verify-status`는 `--payload-file`로 JSON을 받는다. 예를 들어 `{"model":"huggingface","target":"latest_snapshot"}`을 UTF-8 JSON 파일로 저장하고 `python3 tools/manager.py command model-downloads backup-compare --payload-file 경로`를 실행한다. 비교 대상 `target`은 `canonical`(선택 경로의 기존 공유 디렉터리), `latest_snapshot` 또는 이관된 개별 설치본의 `legacy`(이관 전 공유 디렉터리)다. 메타정보·백업 접수에는 `model`만 전달하고 상태 조회에는 `{"job_id":"작업 ID"}`를 전달한다. `backup-verify-history`는 최근 작업을 조회한다.
 
 비교는 크기와 수정 시각을 사용하며 내용 검증이 아니다. 비동기 `backup-verify`는 원본과 선택한 백업을 SHA-256으로 대조한다. `backup-verify`의 `target`에 `snapshot_manifest`를 지정하면 로컬 원본이 없어도 스냅샷의 현재 파일을 백업 당시 기록한 해시와 비교한다. 이 결과는 공급처의 원본 인증과 구분한다. 작업 완료 후에도 개별 파일의 누락·불일치와 조회 오류를 확인해야 한다. 기존 매니페스트에 기록된 해시는 선언값이며 실제 검증 결과와 구분한다.
 
 `backup-sync`는 최신 스냅샷과 원본의 SHA-256 및 모델 메타정보가 모두 일치하면 기존 스냅샷을 재사용한다. 변경된 경우 선택 모델 전체를 `.model-backup-snapshots/모델/작업ID`의 새 스냅샷으로 복사하고 각 복사본을 다시 읽어 SHA-256을 확인한다. 스냅샷 매니페스트에는 파일별 관측 해시와 작업 시작 시 조회한 모델 출처·리비전 선언값을 구분해 기록한다. 기존 공유 파일을 덮어쓰지 않으며 새 스냅샷에는 모델 용량만큼 추가 공간이 필요하다. 실행 중 원본 파일 목록이나 상태가 달라지거나 오류가 발생하면 완료로 게시하지 않고 `.pending-작업ID`를 남긴다. 중단된 작업을 다시 접수하면 검사를 새로 수행한다. 삭제 전에는 최신 결과와 복원 가능성을 별도로 확인한다.
 
+이관된 설치본은 `catalog-flux-report-vision`, `catalog-trellis-dinov2`, `catalog-trellis-image-large`, `catalog-hermes-coding`, `catalog-writer-agent`, `catalog-translation-model`, `catalog-heartmula`, `catalog-dasheng-audiogen`으로 개별 선택할 수 있다. 상위 `models`를 백업하면 이 설치본들도 포함되므로 상위와 개별 대상을 모두 백업하면 내용이 별도 스냅샷에 중복 저장된다. `.local/model-catalog/retained`의 보존 원본은 모델 백업 루트 밖에 있다. 모델 루트 내부 심볼릭 링크는 대상 파일을 따라 복사하므로 링크 구조는 복원되지 않는다. 폴더 정리가 끝난 뒤 사용자가 백업을 시작하며, 완료 상태와 파일별 검증·복원 결과를 확인하기 전에는 보존 원본을 제거하지 않는다.
+
+MiniMax가 참조하는 Hugging Face 캐시는 프로젝트의 `.cache/huggingface`에 있으며 Git과 `.model` 백업 대상에서 제외된다. 이전 Samba의 `huggingface` 디렉터리나 과거 스냅샷은 별도로 보존된다. 캐시 전체의 백업·복원과 심볼릭 링크 보존은 모델 스냅샷의 보장 범위가 아니다.
+
 고정 SHA-256으로 검증할 수 있는 HTTP 및 지원 Hugging Face 다운로드는 등록된 백업과 완료된 스냅샷을 먼저 확인한다. 공급처 해시가 없는 파일이나 백업을 검증하지 못한 경우 기존 다운로드 경로를 사용한다. FLUX 준비 디렉터리는 최종 모델 경로에 대응하는 백업을 확인하며, Kimodo는 고정 SHA-256이 등록된 가중치를 네트워크 요청 전에 백업에서 확인한다.
 
 ## Hermes 코딩 모델 다운로드
 
-모델 관리의 **Hermes 코딩 모델 Qwen3.8 27B IQ4_XS**는 공개 GGUF 파일을 고정 리비전과 SHA-256으로 검증하여 `.model/hermes-agent/`에 저장한다. GUI와 CLI는 `hermes-model` 서비스의 `model-status`와 `prepare`를 공유한다. 상태 조회는 다운로드 당시 검증 기록과 현재 파일의 크기·수정 시각을 비교하며 매 조회마다 파일을 다시 해시하지 않는다. 실제 추론 작업자는 `verify_hermes_model_integrity`로 실행 직전 파일 해시를 다시 확인한다. 파일 준비는 Hermes 설치나 GPU 추론 검증을 뜻하지 않는다. 실패 시 `.local/model-preparation/hermes-model/worker.log`를 확인하고 다시 시도한다. 가중치는 Git에 등록하지 않는다.
+모델 관리의 **Hermes 코딩 모델 Qwen3.8 27B IQ4_XS**는 공개 GGUF 파일을 고정 리비전과 SHA-256으로 검증하여 `.model/models/hermes-coding/`에 저장한다. 이전 `.model/hermes-agent/` 경로도 호환된다. GUI와 CLI는 `hermes-model` 서비스의 `model-status`와 `prepare`를 공유한다. 상태 조회는 다운로드 당시 검증 기록과 현재 파일의 크기·수정 시각을 비교하며 매 조회마다 파일을 다시 해시하지 않는다. 실제 추론 작업자는 `verify_hermes_model_integrity`로 실행 직전 파일 해시를 다시 확인한다. 파일 준비는 Hermes 설치나 GPU 추론 검증을 뜻하지 않는다. 실패 시 `.local/model-preparation/hermes-model/worker.log`를 확인하고 다시 시도한다. 가중치는 Git에 등록하지 않는다.
 
 ## Hermes 격리 코딩 작업과 MCP
 
@@ -1172,4 +1176,14 @@ AnimationGPT 모델 관리는 전체 학습 데이터셋 대신 FP16 가중치, 
 
 ### 헤르메스 MiniMax 우선 선택
 
-`./scripts/workflow.sh gateway --minimax` 또는 `./scripts/workflow.sh start --minimax`는 헤르메스가 지원되는 요청에서 MiniMax를 우선 제안하도록 지시합니다. 사용자가 생성기를 지정하면 그 지시가 우선합니다. 현재 MiniMax H3는 첫 이미지가 필요한 영상 생성기이며 이미지 생성기는 아직 연결되지 않았습니다. 옵션 없이도 MiniMax 생성기를 직접 사용할 수 있습니다. 헤르메스 작업 접수 시 정책을 기록하며 영상 제안에서 서버가 선택을 검증합니다. 생성기 지정 여부를 확인할 수 없으면 다시 확인해야 합니다. GUI에서 게이트웨이 상태 조회가 실패하면 우선 정책을 확인할 수 없습니다. 모델 준비 및 생성 접수는 별도로 확인합니다.
+`./scripts/workflow.sh gateway --minimax` 또는 `./scripts/workflow.sh start --minimax`는 헤르메스가 지원되는 요청에서 MiniMax를 우선 제안하도록 지시합니다. 사용자가 생성기를 지정하면 그 지시가 우선합니다. 첫 이미지 기반 영상과 512×512 또는 1024×1024 일반 텍스트 이미지는 MiniMax를 우선 선택합니다. 다른 크기나 참조·특수 이미지 프로필은 기존 생성기를 사용합니다. 옵션 없이도 MiniMax 생성기를 직접 사용할 수 있습니다. 헤르메스 작업 접수 시 정책을 기록하며 서버가 선택을 검증합니다. 생성기 지정 여부를 확인할 수 없으면 다시 확인해야 합니다. GUI에서 게이트웨이 상태 조회가 실패하면 우선 정책을 확인할 수 없습니다. 모델 준비 및 생성 접수는 별도로 확인합니다.
+
+### MiniMax 대화 연결 보고
+
+헤르메스가 지원되는 이미지 또는 첫 프레임 영상 제안을 마치면 대화에 연결된 접수폼을 준비한다. 대화의 **접수폼 열기** 또는 우측 **도구 탐색 → MiniMax 접수폼**에서 입력을 확인하고 수정·저장할 수 있다. 수정한 값은 저장한 뒤 헤르메스에게 폼을 대기열에 접수하도록 지시한다. 첫 프레임 영상은 접수 전에 참조 이미지를 첨부해야 한다. 기존 접수 여부가 불확실하면 상태를 확인하며 자동으로 다시 접수하지 않는다. Ref2VA 영상 편집은 이 접수폼 경로에 포함되지 않는다.
+
+헤르메스 제안을 확인해 접수한 MiniMax 이미지·영상만 원 대화에 자동 분석 보고한다. `hermes-agent hermes-minimax-submit --payload-file`은 session_id·proposal_job_id·request_id·service·request를 받으며, request_id는 대화·제안·서비스로부터 고정한다. `hermes-minimax-report-status --payload-file`은 같은 식별자와 service로 접수·보고 상태를 조회한다. 접수 결과가 불확실하면 생성 이력과 접수 상태를 먼저 확인한다. 시각 관찰 실패와 생성 실패는 구분하며 영상은 최종 MP4를 디코딩한 시작·중간·끝 표본을 관찰하며 전체 동작과 오디오 내용을 검증하지 않는다.
+
+보고서가 실패했거나 시각 관찰 불가로 완료된 경우 상태 응답의 `retry_available`과 `retry_revision`을 확인한 뒤 `hermes-minimax-report-retry --payload-file`에 기존 대화·제안·접수·서비스와 `expected_revision`을 전달해 재분석할 수 있다. 리비전이 변경되거나 생성 결과가 완료되지 않았으면 거절한다. 재분석은 GPU 생성 작업을 재접수하지 않는다.
+
+MiniMax 대화 접수 ID는 `flux_`에 `sha256(json.dumps([session_id, proposal_job_id, service], separators=(",", ":")).encode())`의 16진 값을 이어 붙인 값이다. 세 식별자는 ASCII이며 GUI와 CLI가 같은 접수 ID를 사용한다.

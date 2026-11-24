@@ -53,7 +53,7 @@ def list_hermes_service_receipt_names():
     from workflow.domains.hermes_agent.audio_operations import HERMES_AUDIO_SERVICES
     from workflow.domains.hermes_agent.video_operations import HERMES_VIDEO_SERVICES
     from workflow.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
-    return (*HERMES_AUDIO_SERVICES, *HERMES_VIDEO_SERVICES, *FLUX_IMAGE_PROFILE_RECORDS, 'flux-expression', 'prompt-translation', 'writer-agent')
+    return (*HERMES_AUDIO_SERVICES, *HERMES_VIDEO_SERVICES, *FLUX_IMAGE_PROFILE_RECORDS, 'flux-expression', 'minimax-h3-image', 'prompt-translation', 'writer-agent')
 
 
 def validate_service_job_identifier(current_service_name, current_job_identifier):
@@ -180,7 +180,7 @@ class HermesDelegationStore:
             write_record_atomically(current_record_path, current_saved_record)
             return {'state': 'accepted', 'duplicate': False, 'job_id': current_saved_record['job_id']}
 
-    def read_service_delegation(self, delegation_identifier_value, expected_service_name):
+    def read_service_delegation(self, delegation_identifier_value, expected_service_name, *, expected_request_sha256=None):
         """서비스가 일치하는 새 버전의 접수 상태만 반환한다."""
         if not isinstance(expected_service_name, str) or not HERMES_DELEGATION_SERVICE_PATTERN.fullmatch(expected_service_name) or len(expected_service_name) > 80:
             raise ValueError('위임 서비스 식별자 형식 오류')
@@ -191,6 +191,8 @@ class HermesDelegationStore:
             current_record_value = read_bounded_delegation_record(current_record_path)
             if not isinstance(current_record_value, dict) or current_record_value.get('version') != 2 or current_record_value.get('id') != delegation_identifier_value or current_record_value.get('service') != expected_service_name or current_record_value.get('state') not in ('dispatching', 'accepted', 'rejected'):
                 raise ValueError('위임 서비스 또는 기록이 일치하지 않습니다.')
+            if expected_request_sha256 is not None and (not isinstance(expected_request_sha256, str) or not re.fullmatch(r'[a-f0-9]{64}', expected_request_sha256) or current_record_value.get('request_sha256') != expected_request_sha256):
+                raise ValueError('폼 입력과 기존 접수 기록이 일치하지 않습니다.')
             if current_record_value['state'] == 'rejected' and 'job_id' not in current_record_value:
                 return {'state':'rejected', 'request_id':delegation_identifier_value, 'service':expected_service_name}
             if current_record_value['state'] == 'dispatching':

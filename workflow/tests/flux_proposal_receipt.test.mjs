@@ -53,3 +53,9 @@ test('FLUX proposal must belong to the same unchanged session and job',async()=>
 test('rejected receipt is distinct from an uncertain submission',()=>{
   assert.deepEqual(classifyFluxProposalReceipt({request_id:'x',service:'flux-image',state:'rejected'},'x','flux-image'),{state:'rejected'});
 });
+
+test('MiniMax proposal identifiers match the gateway receipt contract',async()=>{
+  assert.equal(await fluxProposalRequestId('a'.repeat(32),'2026-11-24_10-00-00-12345678','minimax-h3-image'),
+    'flux_8ea9de353c6e763076102d659ccdde42cea293e9f92f423142143ae51fdcdedc');
+  assert.match(await fluxProposalRequestId('a'.repeat(32),'2026-11-24_10-00-00-12345678','minimax-h3-i2v'),/^flux_[a-f0-9]{64}$/);
+});

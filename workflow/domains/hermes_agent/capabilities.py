@@ -5,7 +5,7 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-chat-queue-update','label':'대화 대기 요청 수정·취소','required':['session_id','request_id','revision'],'optional':['prompt','cancel'],'effect':'local_bookkeeping','gpu':'none','retry':'check_status','interfaces':['gui'],'result':'chat_queue','note':'대기 중인 요청을 버전 확인 후 수정하거나 취소한다. prompt와 cancel 중 하나만 전달한다.'},
     {'command':'hermes-live-instruction','label':'진행 중 대화 지시 전달','required':['session_id','request_id','job_id','mode','text'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'request_id_or_unknown','interfaces':['gui'],'result':'live_instruction','note':'진행 중인 대화 작업에 지시를 전달한다. 전달 여부가 불명확하면 상태를 먼저 확인한다.'},
     {'command':'hermes-live-instruction-recover','label':'미전달 지시 복구','required':['session_id','request_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'request_id_or_unknown','interfaces':['gui'],'result':'chat_queue','note':'미전달이 확인된 지시만 새 대화 대기 요청으로 복구한다.'},
-    {'command':'hermes-session-context-settings','label':'대화 자동 정리 설정','required':['session_id','enabled'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui'],'result':'session_settings','note':'해당 세션의 자동 정리 설정을 변경한다.'},
+    {'command':'hermes-session-context-settings','label':'대화 자동 정리 설정','required':['session_id'],'optional':['enabled','threshold'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui'],'result':'session_settings','note':'자동 정리 또는 정리 시작 기준 중 하나를 변경한다.'},
     {'command':'hermes-session-context-compress','label':'대화 문맥 정리 접수','required':['session_id','request_id'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui'],'result':'session_context_job','note':'대화 문맥 정리 작업을 접수한다. 완료 상태는 세션에서 확인한다.'},
     {'command':'hermes-video-form-save','label':'대화 영상 생성 양식 저장','required':['session_id','form_id','request','video_info'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui'],'result':'video_form','note':'세션에 영상 생성 입력을 저장한다. 생성은 접수하지 않는다.'},
     {'command':'hermes-video-form-read','label':'대화 영상 생성 양식 조회','required':['session_id','form_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui'],'result':'video_form','note':'세션에 저장된 영상 입력을 읽는다.'},
@@ -66,6 +66,16 @@ HERMES_CAPABILITY_RECORDS = (
     {'command':'hermes-history','label':'격리 작업 이력 조회','required':[],'optional':['offset','limit','snapshot','query','status'],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'hermes_history','note':'빈 입력은 기존 최근 100건이며 전체 이력의 검색·상태 필터와 최대 30건 페이지를 지원한다. 다음 페이지는 동일 조건과 목록 확인값이 필요하다. 작업 상태는 조회 시점의 값이다.'},
     {'command':'hermes-cancel','label':'격리 작업 중지 요청','required':['id'],'optional':[],'effect':'cancel_request','gpu':'none','retry':'check_status','interfaces':['gui','mcp'],'result':'cancel_request_status','note':'중지 요청과 실제 프로세스 종료는 구분한다.'},
     {'command':'hermes-delegation-history','label':'Kimodo 위임 접수 이력','required':[],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'receipt_history','note':'Kimodo 위임 접수 기록만 확인한다.'},
+    {'command':'hermes-minimax-submit','label':'MiniMax 대화 제안 접수','required':['session_id','proposal_job_id','request_id','service','request'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui','cli'],'result':'receipt_and_job_id','note':'대화 제안과 접수 ID를 확인한 뒤 한 번만 생성하고 완료 보고서를 연결한다.'},
+    {'command':'hermes-minimax-form-create','label':'MiniMax 접수폼 생성','required':['session_id','form_id','proposal_job_id','service','request'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','cli'],'result':'minimax_form','note':'검증된 대화 제안에 폼 인스턴스를 연결한다.'},
+    {'command':'hermes-minimax-form-prepare','label':'MiniMax 제안으로 접수폼 준비','required':['session_id','proposal_job_id','service'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','cli'],'result':'minimax_form','note':'확인된 대화 제안에서 같은 폼 인스턴스를 준비한다. 영상 첫 프레임은 추가해야 한다.'},
+    {'command':'hermes-minimax-form-list','label':'MiniMax 접수폼 목록','required':['session_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','cli'],'result':'minimax_forms','note':'대화에 속한 폼 인스턴스와 상태를 조회한다.'},
+    {'command':'hermes-minimax-form-read','label':'MiniMax 접수폼 조회','required':['session_id','form_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','cli'],'result':'minimax_form','note':'폼의 현재 버전과 입력을 조회한다.'},
+    {'command':'hermes-minimax-form-save','label':'MiniMax 접수폼 수정','required':['session_id','form_id','revision','request'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','cli'],'result':'minimax_form','note':'현재 버전이 일치할 때 폼 입력의 새 버전을 저장한다.'},
+    {'command':'hermes-minimax-form-update','label':'MiniMax 접수폼 항목 변경','required':['session_id','form_id','revision','request'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'check_status','interfaces':['gui','cli'],'result':'minimax_form','note':'현재 버전의 프롬프트·시드·크기 중 지정한 항목만 변경하고 첨부를 보존한다.'},
+    {'command':'hermes-minimax-form-submit','label':'MiniMax 접수폼 접수','required':['session_id','form_id','revision'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui','cli'],'result':'receipt_and_job_id','note':'지정 버전을 고정하고 기존 대화 제안의 접수 기록에 연결한다.'},
+    {'command':'hermes-minimax-report-retry','label':'MiniMax 보고 재시도','required':['session_id','proposal_job_id','request_id','service','expected_revision'],'optional':[],'effect':'local_bookkeeping','gpu':'queued','retry':'check_status','interfaces':['gui','cli'],'result':'report_status','note':'완료된 생성 결과의 보고 실패 또는 관찰 불가를 리비전 검증 후 재분석한다.'},
+    {'command':'hermes-minimax-report-status','label':'MiniMax 보고 상태','required':['session_id','proposal_job_id','request_id','service'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','cli'],'result':'report_status','note':'대화에 연결된 생성 접수와 자동 보고 진행 상태를 읽는다.'},
     {'command':'hermes-video-proposal','label':'동작·영상 위임 제안 읽기','required':['id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'safe','interfaces':['gui','mcp'],'result':'untrusted_video_proposal','note':'서비스·모드·지시만 읽는다. 사용자가 첨부하고 기존 검증을 완료해야 한다.'},
     {'command':'hermes-delegate-video','label':'동작·영상 작업 위임','required':['request_id','service','request'],'optional':[],'effect':'enqueue','gpu':'queued','retry':'request_id_or_unknown','interfaces':['gui','mcp'],'result':'video_receipt','note':'DWPose와 Wan 3개 생성기의 입력·첨부 검증과 공용 GPU 대기열을 사용한다.'},
     {'command':'hermes-video-source-status','label':'동작·영상 원본 작업 상태','required':['service','job_id'],'optional':[],'effect':'read','gpu':'none','retry':'safe','interfaces':['gui','mcp','isolated_fixed_bridge'],'result':'video_source_job_status','note':'Kimodo·DWPose·Wan의 중단 작업을 복구하지 않고 기록과 결과 세 파일 존재만 확인한다. 참조 분석 전용 결과와 재생·품질은 원 서비스에서 확인한다.'},
@@ -220,6 +230,7 @@ HERMES_FIELD_SCHEMAS = {
     'confirmed': {'const':True},
     'cancel': {'type':'boolean'},
     'enabled': {'type':'boolean'},
+    'threshold': {'enum':[None,8000,16000,32000,54400]},
     'mode': {'type':'string'},
     'video_info': {'type':['object','null']},
     'model_profile': {'type':'string','enum':['qwen3.8-27b']},
@@ -306,6 +317,22 @@ def list_hermes_capability_catalog():
         current_method_value, current_route_suffix = MANAGEMENT_COMMAND_ROUTES[current_command_name]
         current_field_names = current_capability_record['required'] + current_capability_record['optional']
         current_payload_schema = {'type':'object', 'required':current_capability_record['required'], 'properties':{current_field_name:HERMES_FIELD_SCHEMAS[current_field_name] for current_field_name in current_field_names}, 'additionalProperties':False}
+        if current_command_name in ('hermes-minimax-submit', 'hermes-minimax-report-status', 'hermes-minimax-report-retry'):
+            current_payload_schema['properties']['service'] = {'type':'string', 'enum':['minimax-h3-image','minimax-h3-i2v']}
+            current_payload_schema['properties']['request_id'] = {'type':'string', 'pattern':'^flux_[a-f0-9]{64}$', 'note':'대화·제안·생성기에서 결정되는 접수 ID'}
+            if current_command_name == 'hermes-minimax-submit':
+                current_payload_schema['properties']['request'] = {'type':'object', 'validation':'선택한 MiniMax 이미지 또는 영상 생성기의 입력 검증'}
+            if current_command_name == 'hermes-minimax-report-retry':
+                current_payload_schema['properties']['expected_revision'] = {'type':'integer', 'minimum':0, 'maximum':9}
+        if current_command_name.startswith('hermes-minimax-form-'):
+            if 'revision' in current_field_names:
+                current_payload_schema['properties']['revision'] = {'type':'integer', 'minimum':1}
+            if 'service' in current_field_names:
+                current_payload_schema['properties']['service'] = {'type':'string', 'enum':['minimax-h3-image','minimax-h3-i2v']}
+            if 'request' in current_field_names:
+                current_payload_schema['properties']['request'] = {'type':'object', 'validation':'접수 시 선택한 MiniMax 생성기 계약 적용'}
+        if current_command_name == 'hermes-session-context-settings':
+            current_payload_schema['oneOf'] = [{'required':['enabled'],'not':{'required':['threshold']}},{'required':['threshold'],'not':{'required':['enabled']}}]
         if current_command_name in ('hermes-session-queue-submit', 'hermes-chat-queue-update'):
             current_payload_schema['properties']['prompt'] = {**HERMES_FIELD_SCHEMAS['prompt'], 'maxLength':12000}
         if current_command_name == 'hermes-workflow-list':

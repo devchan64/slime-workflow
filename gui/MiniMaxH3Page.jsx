@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from "react";
 import {generationProposalScope,readGenerationProposal} from "./generationProposal.mjs";
 import {managementCommand,untilAborted} from "./managementCommand.js";
+import {useMinimaxReportReceipt,MinimaxReportStatus} from "./useMinimaxReportReceipt.jsx";
 import {validVideoJobId} from "./videoJobId.mjs";
 import {referencePng} from "./videoInputs.js";
 import {generationReady} from "./generationReady.mjs";
@@ -26,6 +27,9 @@ import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 const service="minimax-h3-i2v";
 export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""}={}) {
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
+  const [proposalScope,setProposalScope]=useState(null);
+  const hasProposal=new URLSearchParams(location.search).has("proposal_job");
+  const receipt=useMinimaxReportReceipt(proposalScope,service);
   const [policy,setPolicy]=useState(null);
   const [policyRevision,setPolicyRevision]=useState(0);
   useEffect(()=>{
@@ -44,9 +48,10 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
   const formRef=useRef(null),inputRef=useRef(null),historyRef=useRef(null),resultRef=useRef(null),reviewRef=useRef(null),sending=useRef(false),reviewRequest=useRef(null),imageVersion=useRef(0),promptEdited=useRef(false),current=useRef(null);
   current.current={prompt,seed,file,pending,busy,checking};
   useEffect(()=>()=>{reviewRequest.current?.abort();reviewRequest.current=null;},[]);
-  useEffect(()=>{let active=true;(async()=>{try{const scope=generationProposalScope(location.search,session,'video');if(!scope)return;const proposal=await readGenerationProposal(managementCommand,scope);if(proposal.service!==service || proposal.mode!=='first_frame' || !proposal.prompt.trim())throw new Error('MiniMax 영상 제안을 확인할 수 없습니다.');if(active)setPrompt(old=>promptEdited.current ? old : old || proposal.prompt);}catch(e){if(active)setError(e.message || '대화 제안을 확인할 수 없습니다.');}})();return ()=>{active=false;};},[session]);
+  useEffect(()=>{let active=true;(async()=>{try{const scope=generationProposalScope(location.search,session,'video');if(!scope)return;const proposal=await readGenerationProposal(managementCommand,scope);if(proposal.service!==service || proposal.mode!=='first_frame' || !proposal.prompt.trim())throw new Error('MiniMax 영상 제안을 확인할 수 없습니다.');if(active){setProposalScope(scope);setPrompt(old=>promptEdited.current ? old : old || proposal.prompt);}}catch(e){if(active)setError(e.message || '대화 제안을 확인할 수 없습니다.');}})();return ()=>{active=false;};},[session]);
+  useEffect(()=>{if(receipt.state==="accepted" && receipt.job)setJob(receipt.job);},[receipt.state,receipt.job]);
   const invalidSeed=!Number.isInteger(seed) || seed<0 || seed>2147483647;
-  const reasons=[!generationReady(model) && "모델 준비 상태를 확인하세요.",checking && "이미지 확인이 끝날 때까지 기다리세요.",!file && "첫 프레임 이미지를 선택하세요.",!prompt.trim() && "동작 프롬프트를 입력하세요.",invalidSeed && "시드는 0~2147483647의 정수여야 합니다."];
+  const reasons=[hasProposal && (!proposalScope || receipt.state!=="editing") && "대화 접수 상태를 확인하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요.",checking && "이미지 확인이 끝날 때까지 기다리세요.",!file && "첫 프레임 이미지를 선택하세요.",!prompt.trim() && "동작 프롬프트를 입력하세요.",invalidSeed && "시드는 0~2147483647의 정수여야 합니다."];
   async function review(event){
     event.preventDefault();if(busy || pending || reviewRequest.current || reasons.some(Boolean))return;
     const controller=new AbortController(),version=imageVersion.current,origin=document.activeElement;reviewRequest.current=controller;let timedOut=false;
@@ -62,12 +67,12 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
     finally{clearTimeout(timer);if(reviewRequest.current===controller){reviewRequest.current=null;setBusy(false);}}
   }
   async function submit(){
-    if(!pending || sending.current || !generationReady(model))return;
+    if(!pending || sending.current || !generationReady(model) || (hasProposal && (!proposalScope || receipt.state!=="editing")))return;
     sending.current=true;setBusy(true);setError("");setNotice("");const request=pending;
     const controller=new AbortController();let timedOut=false;
     const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-    try{const result=await untilAborted(managementCommand(service,"generate",request,{signal:controller.signal}),controller.signal);if(!validVideoJobId(result?.id))throw new Error("접수 ID를 확인할 수 없습니다.");setJob(result.id);setRevision(n=>n+1);setNotice("생성 요청을 접수했습니다. 작업 이력에서 진행 상태를 확인하세요.");}
-    catch(problem){setError((timedOut ? "접수 응답 시간이 초과됐습니다." : problem.message || "접수 여부를 확인할 수 없습니다.")+" · 접수 여부가 불확실합니다. 재접수하기 전에 이력을 확인하세요.");}
+    try{if(proposalScope)await untilAborted(readGenerationProposal(managementCommand,proposalScope),controller.signal);const result=await untilAborted(proposalScope ? managementCommand("hermes-agent","hermes-minimax-submit",{session_id:proposalScope.session,proposal_job_id:proposalScope.job,request_id:receipt.id,service,request},{signal:controller.signal}) : managementCommand(service,"generate",request,{signal:controller.signal}),controller.signal);const resultId=proposalScope ? (result?.state==="accepted" ? result.job_id : null) : result?.id;if(!validVideoJobId(resultId))throw new Error("접수 ID를 확인할 수 없습니다.");if(proposalScope)receipt.refresh();setJob(resultId);setRevision(n=>n+1);setNotice("생성 요청을 접수했습니다. 작업 이력에서 진행 상태를 확인하세요.");}
+    catch(problem){if(proposalScope)receipt.unknown();setError((timedOut ? "접수 응답 시간이 초과됐습니다." : problem.message || "접수 여부를 확인할 수 없습니다.")+" · 접수 여부가 불확실합니다. 재접수하기 전에 이력을 확인하세요.");}
     finally{const restore=reviewRef.current?.contains(document.activeElement);clearTimeout(timer);sending.current=false;setBusy(false);setPending(null);if(restore)requestAnimationFrame(()=>{if(document.activeElement===document.body)formRef.current?.focus();});}
   }
   async function readSavedInput(id,forRestore=true){
@@ -100,6 +105,7 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}>
     <GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
     <GeneratorUsage generator={service}/>
+    {hasProposal && (proposalScope ? <MinimaxReportStatus receipt={receipt}/> : <p role="status">대화 제안을 확인하고 있습니다.</p>)}
     <button type="button" onClick={()=>setPolicyRevision(n=>n+1)}>정책 상태 새로고침</button>
     <p role="status">헤르메스 MiniMax 우선 정책: {policy===null ? "조회 중" : policy===true ? "적용 중" : policy===false ? "적용 안 함" : policy==="timeout" ? "조회 시간 초과 · 새로고침하여 다시 확인하세요" : "게이트웨이 상태 확인 불가 · 새로고침하여 다시 확인하세요"}</p>
     <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>

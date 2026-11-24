@@ -30,7 +30,10 @@ class MiniMaxH3ImageTests(unittest.TestCase):
         self.assertIn('history-delete', MANAGEMENT_SERVICE_COMMANDS['minimax-h3-image'])
 
     def test_rejects_invalid_or_unsupported_inputs(self):
-        for changes in ({'steps': 8}, {'width': 1040}, {'images': ['not-an-image']},
+        result = validate_request({**self.request, 'width': 512, 'height': 512})
+        self.assertEqual((result['width'], result['height']), (512, 512))
+        verify_saved_request(result)
+        for changes in ({'steps': 8}, {'width': 1040}, {'width': 480}, {'images': ['not-an-image']},
                         {'seed': -1}, {'prompt': '  '}):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 validate_request({**self.request, **changes})

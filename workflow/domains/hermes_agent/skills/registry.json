@@ -3,7 +3,7 @@
   "skills": [
     {"name": "model-backup-sync", "terms": ["모델 백업", "모델 동기화", "모델 싱크", "삼바", "samba", "model backup", "model sync"]},
     {"name": "generation-result-lookup", "terms": ["결과", "상태", "완료", "재생", "다운로드", "이미지 보여", "그림 보여", "사진 보여", "영상 보여", "생성물", "검수 보고서", "리포트", "result", "status", "output", "preview"]},
-    {"name": "generation-request", "terms": ["생성", "만들", "제작", "그려", "이미지", "영상", "모션", "음악", "효과음", "번역", "그래픽 메모리", "비디오 메모리", "상주 모델", "generate", "create", "image", "video", "audio", "flux", "kimodo", "wan", "qwen", "gpu", "vram"]},
+    {"name": "generation-request", "terms": ["생성", "만들", "제작", "그려", "이미지", "영상", "모션", "음악", "효과음", "번역", "접수폼", "접수 폼", "폼 접수", "폼을 접수", "대기열에 접수", "대기열에 넣", "대기열에 추가", "대기열로", "접수해", "시드", "바꿔", "고쳐", "그래픽 메모리", "비디오 메모리", "상주 모델", "generate", "create", "image", "video", "audio", "flux", "kimodo", "wan", "qwen", "gpu", "vram"]},
     {"name": "history-operations", "terms": ["이력", "기록", "재개", "중단", "취소", "삭제", "초기화", "작업", "상태", "history", "resume", "status", "job", "queue"]},
     {"name": "generator-development", "terms": ["코드", "구현", "수정", "개발", "버그", "테스트", "생성기", "gateway", "gui", "cli", "code", "implement", "debug", "test", "generator"]},
     {"name": "map-asset-review", "terms": ["맵", "지도", "에셋", "건물", "빌보드", "스프라이트", "이펙트", "앵커", "좌표", "map", "asset", "building", "billboard", "sprite", "effect", "anchor"]}

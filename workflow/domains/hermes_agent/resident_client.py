@@ -6,6 +6,9 @@ import select
 import socket
 import stat
 import threading
+import time
+from datetime import datetime, timezone
+from workflow.common.generation_records import write_record_atomically
 
 
 def connect_resident_socket(directory, name, *, timeout=5):
@@ -45,7 +48,22 @@ def hold_resident_lease(directory):
         yield
 
 
-def _relay_resident_connection(client, directory):
+class ModelRequestObservation:
+    """이 작업의 프록시 연결 상태만 기록하며 요청 내용은 보관하지 않는다."""
+    def __init__(self, path):
+        self.path=Path(path);self.lock=threading.Lock();self.active=0;self.last_request=None;self.last_response=None;self.last_end=None
+    def change(self, kind):
+        with self.lock:
+            now=datetime.now(timezone.utc).isoformat()
+            if kind=='start': self.active+=1;self.last_request=now
+            elif kind=='response': self.last_response=now
+            elif kind=='end': self.active=max(0,self.active-1);self.last_end=now
+            try: write_record_atomically(self.path,{'active':self.active,'last_request_at':self.last_request,'last_response_at':self.last_response,'last_end_at':self.last_end})
+            except OSError: pass
+
+
+def _relay_resident_connection(client, directory, observation=None):
+    started=False; last_write=0.0
     try:
         with client, connect_resident_socket(directory, 'resident-model.sock', timeout=15) as server:
             server.settimeout(None)
@@ -57,16 +75,22 @@ def _relay_resident_connection(client, directory):
                     data = source.recv(65536)
                     if not data:
                         return
+                    if observation and source is client and not started:
+                        observation.change('start');started=True
+                    if observation and source is server and started and time.monotonic()-last_write>=2:
+                        observation.change('response');last_write=time.monotonic()
                     (server if source is client else client).sendall(data)
     except (OSError, ValueError):
         return
+    finally:
+        if observation and started: observation.change('end')
 
 
-def serve_resident_model_proxy(listener, directory):
+def serve_resident_model_proxy(listener, directory, observation=None):
     """사용권 보유자가 격리된 대화에 제공하는 유닉스 소켓 중계기."""
     while True:
         try:
             client, _ = listener.accept()
         except OSError:
             return
-        threading.Thread(target=_relay_resident_connection, args=(client, directory), daemon=True).start()
+        threading.Thread(target=_relay_resident_connection, args=(client, directory, observation), daemon=True).start()

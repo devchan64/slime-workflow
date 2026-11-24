@@ -107,6 +107,8 @@ def update(store: HermesSessionStore, session_id, request_id, revision, prompt=N
         row = next((item for item in queue if item.get('request_id') == request_id), None)
         if row is None or row.get('state') != 'queued' or row.get('revision') != revision:
             raise ValueError('대기 요청이 변경됐거나 실행을 시작했습니다. 다시 조회하세요.')
+        if row.get('edit_token'):
+            raise ValueError('수정 중인 대기 요청입니다.')
         if cancel:
             row['state'] = 'cancelled'
         else:
@@ -121,12 +123,38 @@ def transition(store, session_id, request_id, old_state, new_state, job_id=None)
     with store.hold_session_storage_lock():
         session = store.read_session_record_locked(session_id)
         row = next((item for item in session.get('chat_queue', []) if item.get('request_id') == request_id), None)
-        if row is None or row.get('state') != old_state:
-            raise ValueError('대기 요청 상태가 변경됐습니다.')
+        if row is None or row.get('state') != old_state or (new_state == 'dispatching' and row.get('edit_token')):
+            raise ValueError('대기 요청 상태가 변경됐거나 수정 중입니다.')
         row['state'] = new_state
         row['revision'] += 1
         if job_id is not None:
             row['job_id'] = job_id
         session['updated_at'] = datetime.now(timezone.utc).isoformat()
         write_record_atomically(store.resolve_session_record_path(session_id), session)
+        return dict(row)
+
+
+def edit(store, session_id, request_id, revision, action, token, prompt=None):
+    """대기열에 편집 잠금을 저장하고 명시적으로 저장 또는 취소한다."""
+    if not isinstance(request_id,str) or not _REQUEST_ID.fullmatch(request_id) or type(revision) is not int or revision<1 or action not in ('begin','save','cancel') or not isinstance(token,str) or not re.fullmatch(r'[a-f0-9]{32}',token):
+        raise ValueError('대기 요청 편집 형식 오류')
+    if action == 'save': prompt=_text(prompt)
+    elif prompt is not None: raise ValueError('편집 입력 형식 오류')
+    with store.hold_session_storage_lock():
+        session=store.read_session_record_locked(session_id)
+        row=next((item for item in session.get('chat_queue',[]) if item.get('request_id')==request_id),None)
+        if not isinstance(row,dict) or row.get('state')!='queued' or row.get('revision')!=revision:
+            raise ValueError('대기 요청이 변경됐거나 실행을 시작했습니다.')
+        owner=row.get('edit_token')
+        if action=='begin':
+            if owner and owner!=token: raise ValueError('다른 화면에서 수정 중입니다.')
+            if owner==token: return dict(row)
+            row['edit_token']=token
+        else:
+            if owner!=token: raise ValueError('편집 소유권을 확인할 수 없습니다.')
+            if action=='save': row['prompt']=prompt
+            row.pop('edit_token',None)
+        row['revision']+=1
+        session['updated_at']=datetime.now(timezone.utc).isoformat()
+        write_record_atomically(store.resolve_session_record_path(session_id),session)
         return dict(row)

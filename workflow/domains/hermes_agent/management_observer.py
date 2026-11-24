@@ -336,7 +336,8 @@ def read_hermes_model_readiness(current_service_name):
     from workflow.common.model_management_catalog import MODEL_PREPARATION_SERVICES
     from workflow.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
     from workflow.common.management_gateway import execute_management_command, MANAGEMENT_SERVICE_COMMANDS, inspect_registered_model_operation
-    if current_service_name not in {name for _, name in MODEL_PREPARATION_SERVICES}:
+    # MiniMax는 게이트웨이 옵션으로 등록되는 생성기이며 모델 준비 명령 목록과 별개다.
+    if current_service_name not in {name for _, name in MODEL_PREPARATION_SERVICES} | {'minimax-h3-image', 'minimax-h3-i2v'}:
         raise ValueError('등록된 모델 관리 서비스가 아닙니다.')
     current_command_names = MANAGEMENT_SERVICE_COMMANDS.get(current_service_name, ())
     current_prepare_allowed = inspect_registered_model_operation(current_service_name, current_command_names, 'prepare') is not None

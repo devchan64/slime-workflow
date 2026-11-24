@@ -51,13 +51,15 @@ def parse_hermes_flux_proposal(current_answer_text):
     if current_block_match is None or len(current_block_match.group(1)) > 4000:
         raise ValueError('FLUX 제안 형식 또는 크기 오류')
     current_proposal_record = parse_management_request_json(current_block_match.group(1))
-    if not isinstance(current_proposal_record, dict) or set(current_proposal_record) not in ({'prompt','width','height','seed'},{'service','prompt','width','height','seed'}):
-        raise ValueError('FLUX 제안에는 service, prompt, width, height, seed만 허용합니다.')
+    if not isinstance(current_proposal_record, dict) or set(current_proposal_record) - {'service','prompt','width','height','seed','explicit_service'} or not {'prompt','width','height','seed'} <= set(current_proposal_record):
+        raise ValueError('이미지 제안 형식 오류')
+    if 'explicit_service' in current_proposal_record and type(current_proposal_record['explicit_service']) is not bool:
+        raise ValueError('생성기 명시 여부 형식 오류')
     current_service_name=current_proposal_record.get('service','flux-image')
     from workflow.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
     if not isinstance(current_service_name,str) or current_service_name not in (*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression'):
         raise ValueError('지원하는 FLUX 이미지 프로필이 아닙니다.')
-    current_generation_record = {key:value for key,value in current_proposal_record.items() if key!='service'}
+    current_generation_record = {key:value for key,value in current_proposal_record.items() if key not in ('service','explicit_service')}
     current_placeholder_images=[]
     if current_service_name=='flux-expression' or FLUX_IMAGE_PROFILE_RECORDS[current_service_name][4]:
         import base64

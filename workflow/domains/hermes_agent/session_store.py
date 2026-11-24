@@ -210,6 +210,17 @@ class HermesSessionStore:
             write_record_atomically(self.resolve_session_record_path(session_identifier_value), session)
             return {'session_id': session_identifier_value, 'enabled': enabled}
 
+    def set_context_threshold(self, session_id, threshold):
+        if threshold is not None and (type(threshold) is not int or threshold not in (8000,16000,32000,54400)):
+            raise ValueError('지원하지 않는 대화 정리 기준입니다.')
+        with self.hold_session_storage_lock():
+            session = self.read_session_record_locked(session_id)
+            if threshold is None: session.pop('context_threshold', None)
+            else: session['context_threshold'] = threshold
+            session['updated_at'] = datetime.now(timezone.utc).isoformat()
+            write_record_atomically(self.resolve_session_record_path(session_id), session)
+            return {'session_id':session_id, 'threshold':threshold}
+
     def begin_context_operation(self, session_id, request_id, execution_context):
         if not isinstance(request_id, str) or not HERMES_SESSION_REQUEST_PATTERN.fullmatch(request_id):
             raise ValueError('대화 정리 접수 식별자 형식 오류')

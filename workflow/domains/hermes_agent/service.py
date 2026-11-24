@@ -322,7 +322,7 @@ class HermesServiceManager:
             if dispatcher_stop_event is not None and dispatcher_stop_event.is_set():
                 return None
             pending_request_record = prepare_legacy_chat_request(store, session_id)
-            if not pending_request_record:
+            if not pending_request_record or pending_request_record.get('edit_token'):
                 return None
             if pending_request_record.get('require_resident') is True:
                 from workflow.common import gpu_job_queue
@@ -334,8 +334,13 @@ class HermesServiceManager:
                     register_chat_queue_intent(gpu_job_queue.GPU_QUEUE_DIRECTORY, session_id, pending_request_record['request_id'], pending_order_nanoseconds)
         runtime_prevalidated = False
         if pending_request_record.get('require_resident') is True:
-            from workflow.domains.hermes_agent.resident_queue import find_session_resident
-            if find_session_resident(session_id) is None:
+            from workflow.domains.hermes_agent.resident_queue import find_session_resident, recover_clean_failed_residents
+            try:
+                resident_id = find_session_resident(session_id)
+            except ValueError:
+                recover_clean_failed_residents(session_id)
+                resident_id = find_session_resident(session_id)
+            if resident_id is None:
                 validate_hermes_runtime_ready(COMPLEX_MODEL)
                 runtime_prevalidated = True
         with self.hold_hermes_service_lock():
@@ -343,7 +348,7 @@ class HermesServiceManager:
                 return None
             session = store.read_session_record(session_id)
             row = next((item for item in session.get('chat_queue', []) if item.get('state') in ('queued', 'dispatching')), None)
-            if not row or row.get('request_id') != pending_request_record.get('request_id'):
+            if not row or row.get('request_id') != pending_request_record.get('request_id') or row.get('edit_token'):
                 return None
             if row.get('require_resident') is True:
                 from workflow.domains.hermes_agent.resident_queue import ensure_session_resident, inspect_resident
@@ -552,11 +557,14 @@ class HermesServiceManager:
         policy = os.environ.get('SLIME_HERMES_MINIMAX_PREFERRED')
         if policy in ('0', '1'):
             request_record['minimax_preferred'] = policy == '1'
+            request_record['image_selection_version'] = 1
         if context is not None:
             request_record['context'] = context
         if resident_id is not None:
             request_record['resident_id'] = resident_id
         write_record_atomically(hermes_job_path / 'request.json', request_record)
+        if isinstance(context, dict) and context.get('session_id') and policy in ('0', '1'):
+            write_record_atomically(hermes_job_path / 'minimax-form-pending.json', {'session_id':context['session_id'], 'job_id':hermes_job_identifier})
         with (hermes_job_path / 'worker.log').open('a') as hermes_log_stream:
             if resident_id is not None:
                 from workflow.domains.hermes_agent.resident_chat_executor import launch_resident_chat
@@ -608,6 +616,7 @@ class HermesServiceManager:
                                  'expected_checkpoint': session.get('context_checkpoint'),
                                  'automatic': session.get('context_automatic', True)}
             last_job = next((record.get('job_id') for record in reversed(session['messages']) if record.get('job_id')), None)
+            if session.get('context_threshold') is not None: execution_context['threshold_tokens'] = session['context_threshold']
             execution_context['model_profile'] = read_job(last_job)['request'].get('model_profile', COMPLEX_MODEL) if last_job else COMPLEX_MODEL
             operation = store.begin_context_operation(session_id, request_id, execution_context)
         execution_context = operation['execution_context']
@@ -667,6 +676,7 @@ class HermesServiceManager:
                                  'messages_digest': context_digest,
                                  'expected_checkpoint': hermes_session_record.get('context_checkpoint'),
                                  'automatic': hermes_session_record.get('context_automatic', True)}
+            if hermes_session_record.get('context_threshold') is not None: execution_context['threshold_tokens'] = hermes_session_record['context_threshold']
             if coding_context:
                 execution_context['context_mode'] = 'coding'
             hermes_execution_prompt = hermes_prompt_text
@@ -755,6 +765,9 @@ class HermesServiceManager:
                     current_final_answer, current_answer_truncated = read_hermes_final_response(current_job_path)
                     from .conversation_results import generation_history_table
                     activity = read_hermes_tool_activity(current_job_path)
+                    if current_status_record.get('status') in ('queued','running','unknown'):
+                        from .conversation_observation import conversation_observation
+                        activity['observation'] = conversation_observation(current_job_path, current_status_record, hermes_session_record['id'])
                     table = generation_history_table(activity)
                     if table is None and current_final_answer:
                         table = generation_history_table({"source_history_summary": current_final_answer})
@@ -776,7 +789,7 @@ class HermesServiceManager:
                     current_view_record['job'] = {'status': {'status':'unavailable', 'message':'작업 상태를 읽을 수 없습니다.'}, 'final_response': None, 'final_response_truncated': False}
             hermes_view_messages.append(current_view_record)
             collect_source(current_message_record)
-        context_view = {'automatic': hermes_session_record.get('context_automatic', True), 'checkpoint': None, 'operation': None, 'usage': None}
+        context_view = {'automatic': hermes_session_record.get('context_automatic', True), 'threshold': hermes_session_record.get('context_threshold'), 'checkpoint': None, 'operation': None, 'usage': None}
         checkpoint = hermes_session_record.get('context_checkpoint')
         if checkpoint:
             from workflow.domains.hermes_agent.context_checkpoint import validate_context_checkpoint
@@ -791,6 +804,10 @@ class HermesServiceManager:
                 try:
                     job = self.read_hermes_job_record(self.resolve_hermes_job_path(job_id))
                     context_view['operation']['status'] = job['status'].get('status', 'unknown')
+                    if context_view['operation']['status'] in ('queued', 'running', 'unknown'):
+                        from workflow.domains.hermes_agent.conversation_observation import conversation_observation
+                        context_view['operation']['observation'] = conversation_observation(
+                            self.resolve_hermes_job_path(job_id), job['status'], hermes_session_record['id'])
                 except (OSError, ValueError, KeyError, TypeError):
                     context_view['operation']['status'] = 'unknown'
         latest_job = next((item.get('job_id') for item in reversed(hermes_session_record['messages']) if item.get('job_id')), None)
@@ -1432,6 +1449,36 @@ class HermesServiceManager:
             if set(hermes_payload_record)!={'service','job_id'}:raise ValueError('영상 서비스와 원본 작업 ID가 필요합니다.')
             from workflow.domains.hermes_agent.video_operations import read_hermes_video_source_job
             return {'service':hermes_payload_record['service'],'job_id':hermes_payload_record['job_id'],'job':read_hermes_video_source_job(hermes_payload_record['service'],hermes_payload_record['job_id'])}
+        if hermes_command_name in ('hermes-minimax-form-prepare', 'hermes-minimax-form-create', 'hermes-minimax-form-list', 'hermes-minimax-form-read', 'hermes-minimax-form-save', 'hermes-minimax-form-update', 'hermes-minimax-form-submit'):
+            from workflow.domains.hermes_agent.minimax_form_commands import execute_minimax_form_command
+            from workflow.domains.hermes_agent.session_store import HermesSessionStore
+            from workflow.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
+            from workflow.common.management_gateway import execute_management_command
+            import os
+            sessions = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            address = validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
+            return execute_minimax_form_command(hermes_command_name, hermes_payload_record, sessions=sessions,
+                read_job=self.read_context_job, dispatch=lambda service, command, request: execute_management_command(service, command, request, address))
+        if hermes_command_name == 'hermes-minimax-report-retry':
+            from workflow.domains.hermes_agent.minimax_submission import retry_report
+            from workflow.domains.hermes_agent.session_store import HermesSessionStore
+            sessions = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            return retry_report(hermes_payload_record, sessions=sessions)
+        if hermes_command_name == 'hermes-minimax-report-status':
+            from workflow.domains.hermes_agent.minimax_submission import read_report_status
+            from workflow.domains.hermes_agent.session_store import HermesSessionStore
+            sessions = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            return read_report_status(hermes_payload_record, sessions=sessions)
+        if hermes_command_name == 'hermes-minimax-submit':
+            import os as minimax_os
+            from workflow.domains.hermes_agent.minimax_submission import submit_from_proposal
+            from workflow.domains.hermes_agent.session_store import HermesSessionStore
+            from workflow.common.management_environment import DEFAULT_GATEWAY_ADDRESS, validate_gateway_address
+            from workflow.common.management_gateway import execute_management_command
+            sessions = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            address = validate_gateway_address(minimax_os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
+            return submit_from_proposal(hermes_payload_record, sessions=sessions, read_job=self.read_context_job,
+                                        dispatch=lambda service, command, request: execute_management_command(service, command, request, address))
         if hermes_command_name in ('hermes-delegate-video','hermes-video-status','hermes-video-history','hermes-video-cancel'):
             from workflow.domains.hermes_agent.video_operations import submit_hermes_video_request, read_hermes_video_status, list_hermes_video_receipts, cancel_hermes_video_request
             if hermes_command_name=='hermes-video-history':
@@ -1803,7 +1850,9 @@ class HermesServiceManager:
                 if current_job_record.get('final_response_truncated'):
                     raise ValueError('최종 답변이 잘려 제안을 확인할 수 없습니다.')
                 from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_flux_proposal
-                return {'job_id':hermes_payload_record['id'], 'proposal':parse_hermes_flux_proposal(current_job_record.get('final_response'))}
+                from workflow.domains.hermes_agent.image_selection import select_image_proposal
+                proposal = parse_hermes_flux_proposal(current_job_record.get('final_response'))
+                return {'job_id':hermes_payload_record['id'], 'proposal':select_image_proposal(proposal, current_job_record['request'])}
             if hermes_command_name == 'hermes-kimodo-proposal':
                 if set(hermes_payload_record) != {'id'}:
                     raise ValueError('Hermes 작업 ID만 전달하세요.')
@@ -1862,6 +1911,15 @@ class HermesServiceManager:
                         result['chat_active'] = {'job_id': job_id, 'prompt': message.get('text', ''), 'status': state, 'control_ready': control_ready}
                     break
                 return result
+            if hermes_command_name == 'hermes-chat-queue-edit':
+                from workflow.domains.hermes_agent.session_store import HermesSessionStore
+                from workflow.domains.hermes_agent.chat_queue_store import edit
+                if set(hermes_payload_record) not in ({'session_id','request_id','revision','action','token'}, {'session_id','request_id','revision','action','token','prompt'}):
+                    raise ValueError('대기 요청 편집 형식 오류')
+                store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+                result = edit(store, **hermes_payload_record)
+                if result.get('edit_token') is None: self.chat_queue_wakeup.set()
+                return result
             if hermes_command_name == 'hermes-chat-queue-update':
                 from workflow.domains.hermes_agent.session_store import HermesSessionStore
                 from workflow.domains.hermes_agent.chat_queue_store import update
@@ -1888,11 +1946,13 @@ class HermesServiceManager:
                     retire_chat_queue_intent(gpu_job_queue.GPU_QUEUE_DIRECTORY, hermes_payload_record['session_id'], updated_queue_record['request_id'], updated_queue_record['queue_order_ns'])
                 return updated_queue_record
             if hermes_command_name == 'hermes-session-context-settings':
-                if set(hermes_payload_record) != {'session_id', 'enabled'}:
-                    raise ValueError('세션 ID와 자동 정리 설정만 전달하세요.')
                 from workflow.domains.hermes_agent.session_store import HermesSessionStore
                 store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
-                return store.set_context_automatic(hermes_payload_record['session_id'], hermes_payload_record['enabled'])
+                if set(hermes_payload_record) == {'session_id','enabled'}:
+                    return store.set_context_automatic(hermes_payload_record['session_id'], hermes_payload_record['enabled'])
+                if set(hermes_payload_record) == {'session_id','threshold'}:
+                    return store.set_context_threshold(hermes_payload_record['session_id'], hermes_payload_record['threshold'])
+                raise ValueError('세션 ID와 설정 하나만 전달하세요.')
             if hermes_command_name == 'hermes-session-context-compress':
                 return self.submit_hermes_session_context_locked(hermes_payload_record)
             if hermes_command_name == 'hermes-submit':
@@ -1952,6 +2012,22 @@ class HermesServiceManager:
                     if existing is not None:
                         return self.submit_hermes_session_message_locked(hermes_payload_record)
                     queued = any(row.get('state') in ('queued','dispatching') for row in session.get('chat_queue', []))
+                    # 상주 모델이 없거나 상태가 불명확해도 요청은 안전한 대기열에 보존한다.
+                    # 실제 모델 적재는 대기열 실행기가 별도로 상태와 GPU 예약을 검증한다.
+                    from workflow.domains.hermes_agent.resident_queue import find_session_resident
+                    try:
+                        resident_id = find_session_resident(hermes_payload_record['session_id'])
+                    except (OSError, ValueError):
+                        resident_id = None
+                    if resident_id is None:
+                        receipt = enqueue(store, hermes_payload_record['session_id'], hermes_payload_record['request_id'], hermes_payload_record['prompt'], hermes_payload_record.get('model_profile'), require_resident=True)
+                        row = receipt['request']
+                        if row.get('state') in ('queued', 'dispatching') and row.get('queue_order_ns') is not None:
+                            from workflow.common import gpu_job_queue
+                            from workflow.common.gpu_chat_admission import register_chat_queue_intent
+                            register_chat_queue_intent(gpu_job_queue.GPU_QUEUE_DIRECTORY, hermes_payload_record['session_id'], row['request_id'], row['queue_order_ns'])
+                        self.chat_queue_wakeup.set()
+                        return {'session_id':hermes_payload_record['session_id'], 'queued':True, **receipt}
                     try:
                         self.ensure_context_operation_finished(session)
                         build_context_messages(session, self.read_context_job)

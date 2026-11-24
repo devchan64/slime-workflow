@@ -14,7 +14,7 @@ def format_context_query(messages, query):
 
 
 def prepare_context_request(messages, query, count_tokens, base_url, *, automatic=True,
-                            force=False, compressor_factory=None, on_progress=None):
+                            force=False, compressor_factory=None, on_progress=None, threshold_tokens=None):
     """현재 요청을 포함해 크기를 측정하지만 압축 대상에서는 현재 요청을 제외한다."""
     initial_query = format_context_query(messages, query)
     token_count = count_tokens(initial_query)
@@ -22,7 +22,7 @@ def prepare_context_request(messages, query, count_tokens, base_url, *, automati
         return {'state': 'disabled', 'messages': messages, 'tokens': token_count,
                 'tokens_after': token_count, 'threshold': None, 'query': initial_query}
     result = compress_context(messages, token_count, base_url, force=force,
-                              compressor_factory=compressor_factory, on_progress=on_progress)
+                              compressor_factory=compressor_factory, on_progress=on_progress, threshold_tokens=threshold_tokens)
     final_query = format_context_query(result['messages'], query)
     tokens_after = count_tokens(final_query) if result['state'] == 'compressed' else token_count
     if result['state'] == 'unchanged' and tokens_after > result['threshold']:
@@ -71,7 +71,7 @@ def prepare_context_request(messages, query, count_tokens, base_url, *, automati
     return {**result, 'tokens_after': tokens_after, 'query': final_query}
 
 
-def compress_context(messages, token_count, base_url, *, force=False, compressor_factory=None, on_progress=None):
+def compress_context(messages, token_count, base_url, *, force=False, compressor_factory=None, on_progress=None, threshold_tokens=None):
     if type(token_count) is not int or token_count < 0:
         raise ValueError('문맥 토큰 수를 확인할 수 없습니다.')
     if compressor_factory is None:
@@ -80,6 +80,10 @@ def compress_context(messages, token_count, base_url, *, force=False, compressor
     compressor = compressor_factory(model='hermes-local', base_url=base_url, api_key='none',
                                     provider='custom', config_context_length=64000,
                                     abort_on_summary_failure=True)
+    if threshold_tokens is not None:
+        if type(threshold_tokens) is not int or threshold_tokens not in (8000,16000,32000,54400):
+            raise ValueError('대화 정리 기준 오류')
+        compressor.threshold_tokens = threshold_tokens
     threshold = compressor.threshold_tokens
     if not force and not compressor.should_compress(token_count):
         return {'state': 'not_needed', 'messages': messages, 'tokens': token_count, 'threshold': threshold}

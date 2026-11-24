@@ -83,6 +83,8 @@ def enqueue_resident_once(request_id, session_id, *, root=RESIDENT_ROOT, launche
                     raise ValueError('실패한 상주 작업의 정리를 확인할 수 없습니다.')
                 recovered_verified = True
                 continue
+            if _verified_clean_failure(previous, session_id):
+                continue
             successor_id = _verified_recovery_successor(root, previous.name, session_id)
             if successor_id:
                 successor = root / successor_id
@@ -420,6 +422,62 @@ def _verified_recovery_successor(root, failed_id, session_id):
         return None
 
 
+def _failed_cleanup_snapshot(directory, session_id):
+    """실패 실행의 불변 식별 기록만 복구 증명에 묶는다."""
+    request = read_bounded_delegation_record(directory / 'request.json')
+    launch = read_bounded_delegation_record(directory / 'launch.json')
+    status = read_bounded_delegation_record(directory / 'status.json')
+    if (not isinstance(request, dict) or request.get('model_profile') != 'qwen3.8-27b'
+            or request.get('context') != {'session_id': session_id}
+            or launch != {'id': directory.name, 'state': 'accepted'}
+            or not isinstance(status, dict) or status.get('status') != 'failed'
+            or type(status.get('exit_code')) is not int or status['exit_code'] == 0):
+        return None
+    return {'session_id': session_id, 'id': directory.name,
+            'request': request, 'launch': launch, 'status': status}
+
+
+def _verified_clean_failure(directory, session_id):
+    try:
+        if directory.is_symlink() or not directory.is_dir(): return False
+        marker = read_bounded_delegation_record(directory / 'cleanup-verified.json')
+        snapshot = _failed_cleanup_snapshot(directory, session_id)
+        if snapshot is None or marker != snapshot: return False
+        fd = os.open(directory / 'execution.lock', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, 'r') as lock:
+            if not stat.S_ISREG(os.fstat(lock.fileno()).st_mode): return False
+            try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError: return False
+            return _failed_cleanup_snapshot(directory, session_id) == marker
+    except (OSError, ValueError, TypeError):
+        return False
+
+
+def recover_clean_failed_residents(session_id, *, root=RESIDENT_ROOT):
+    """GPU 유휴, 실행기 종료, 예약 부재가 함께 확인된 실패만 복구한다."""
+    if not isinstance(session_id, str) or not _SESSION.fullmatch(session_id):
+        raise ValueError('대화 세션 ID 오류')
+    root = Path(root)
+    if not root.exists(): return 0
+    recovered = 0
+    with _lock(root):
+        for directory in root.iterdir():
+            if directory.name == '.lock': continue
+            if directory.is_symlink() or not directory.is_dir() or not _ID.fullmatch(directory.name):
+                raise ValueError('상주 모델 목록을 확인할 수 없습니다.')
+            request = read_bounded_delegation_record(directory / 'request.json')
+            if not isinstance(request, dict) or not isinstance(request.get('context'), dict):
+                raise ValueError('상주 모델 요청을 확인할 수 없습니다.')
+            if request['context'].get('session_id') != session_id or _verified_clean_failure(directory, session_id): continue
+            def save():
+                snapshot = _failed_cleanup_snapshot(directory, session_id)
+                if snapshot is None: return False
+                write_record_atomically(directory / 'cleanup-verified.json', snapshot)
+                return True
+            if inspect_failed_resident_cleanup(directory.name, session_id, root=root, _root_locked=True, _on_verified=save):
+                recovered += 1
+    return recovered
+
 def find_session_resident(session_id, *, root=RESIDENT_ROOT):
     """같은 세션의 유일한 활성 상주 모델을 찾는다. 모호하면 새 모델을 띄우지 않는다."""
     if not isinstance(session_id, str) or not _SESSION.fullmatch(session_id):
@@ -445,7 +503,7 @@ def find_session_resident(session_id, *, root=RESIDENT_ROOT):
         state = inspect_resident(directory.name, session_id, root=root).get('state')
         if state in ('queued', 'running', 'ready'):
             candidates.append(directory.name)
-        elif state != 'released' and not _verified_recovery_successor(root, directory.name, session_id):
+        elif state != 'released' and not _verified_clean_failure(directory, session_id) and not _verified_recovery_successor(root, directory.name, session_id):
             raise ValueError('이 세션의 상주 모델 상태를 확인할 수 없습니다.')
     if len(candidates) > 1:
         raise ValueError('이 세션의 상주 모델이 둘 이상입니다. 상태를 확인하세요.')

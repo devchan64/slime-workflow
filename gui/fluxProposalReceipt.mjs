@@ -1,6 +1,6 @@
 // A proposal has one receipt across tabs; the gateway also locks this ID.
 export async function fluxProposalRequestId(session,job,service) {
-  if(!/^[a-f0-9]{32}$/.test(session || "") || !/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(job || "") || !/^flux-[a-z]+$/.test(service || "")) throw new Error("대화 또는 제안의 식별자를 확인할 수 없습니다.");
+  if(!/^[a-f0-9]{32}$/.test(session || "") || !/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(job || "") || !/^(?:flux-[a-z]+|minimax-h3-image|minimax-h3-i2v)$/.test(service || "")) throw new Error("대화 또는 제안의 식별자를 확인할 수 없습니다.");
   if(!globalThis.crypto?.subtle) throw new Error("안전한 접수 확인을 사용할 수 없습니다. localhost 또는 HTTPS 주소로 관리 화면을 열어 주세요.");
   const bytes=new TextEncoder().encode(JSON.stringify([session,job,service]));
   const digest=await crypto.subtle.digest("SHA-256",bytes);

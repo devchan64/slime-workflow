@@ -35,7 +35,7 @@ def execute(job):
         request['prompt_sha256'] = hashlib.sha256(request['prompt'].encode('utf-8')).hexdigest()
     validate_three_reference_request({key: request[key] for key in ('action', 'width', 'height', 'steps', 'seed', 'tag')}
         | {'prompt': request['user_prompt'], 'images': []}, allowed_inference_steps=(6,), maximum_reference_count=0,
-        minimum_output_size=1024, maximum_output_size=2048)
+        minimum_output_size=512, maximum_output_size=2048)
     if request['width'] % 32 or request['height'] % 32:
         raise ValueError('출력 크기는 32의 배수여야 합니다.')
     status = inspect_runtime()

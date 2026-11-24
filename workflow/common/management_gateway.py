@@ -23,7 +23,7 @@ MANAGEMENT_SERVICE_COMMANDS = {'qwen-21-circular': ('history-delete', 'resume', 
 
 
 MANAGEMENT_SERVICE_ROUTES['model-downloads']='/model-downloads'
-MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status','download-inventory','download-observe','backup-models','backup-compare','backup-metadata','backup-sync','backup-verify','backup-verify-status','backup-verify-history')
+MANAGEMENT_SERVICE_COMMANDS['model-downloads']=('download-status','download-inventory','download-observe','catalog-overview','backup-models','backup-compare','backup-metadata','backup-sync','backup-verify','backup-verify-status','backup-verify-history')
 MANAGEMENT_SERVICE_ROUTES['hermes-model'] = '/hermes-model'
 MANAGEMENT_SERVICE_COMMANDS['hermes-model'] = ('model-status', 'prepare')
 MANAGEMENT_SERVICE_ROUTES['animationgpt'] = '/animationgpt'
@@ -54,6 +54,7 @@ for _wan21_service in ('wan21-t2v', 'wan21-i2v'):
 MANAGEMENT_COMMAND_ROUTES['download-observe']=('GET','/observe')
 MANAGEMENT_COMMAND_ROUTES['download-status']=('GET','/status')
 MANAGEMENT_COMMAND_ROUTES['download-inventory']=('GET','/inventory')
+MANAGEMENT_COMMAND_ROUTES['catalog-overview']=('GET','/catalog/overview')
 MANAGEMENT_COMMAND_ROUTES['backup-models']=('GET','/backup/models')
 MANAGEMENT_COMMAND_ROUTES['backup-compare']=('POST','/backup/compare')
 MANAGEMENT_COMMAND_ROUTES['backup-metadata']=('POST','/backup/metadata')
@@ -98,7 +99,7 @@ TRANSLATION_PAYLOAD_COMMAND_NAMES = ('translation-submit', 'translation-status',
 HERMES_PAYLOAD_COMMAND_NAMES = ('hermes-video-form-save', 'hermes-video-form-read', 'hermes-video-form-submit', 'hermes-video-form-status', 'hermes-workflow-list', 'hermes-workflow-catalog', 'hermes-workflow-review', 'hermes-workflow-register', 'hermes-workflow-view', 'hermes-workflow-cancel', 'hermes-workflow-select', 'hermes-workflow-retry', 'hermes-workflow-draft-read', 'hermes-workflow-draft-save', 'hermes-form-list', 'hermes-form-read', 'hermes-form-save', 'hermes-workflow-image-preview', 'hermes-workflow-audio-preview', 'hermes-anchor-history-observe', 'hermes-generator-reservation-recover', 'hermes-generator-reservation-receipt', 'hermes-generator-reservation-inspect', 'hermes-submit', 'hermes-detail', 'hermes-history', 'hermes-diff', 'hermes-cancel', 'hermes-session-archived', 'hermes-session-archive', 'hermes-session-restore', 'hermes-session-delete', 'hermes-session-create', 'hermes-session-read', 'hermes-session-list', 'hermes-session-submit', 'hermes-session-queue-submit', 'hermes-unified-queue-observe', 'hermes-session-withdraw-unsubmitted', 'hermes-session-view', 'hermes-management-status', 'hermes-priority-preview', 'hermes-priority-submit', 'hermes-priority-receipt', 'hermes-service-receipt', 'hermes-capture-status', 'hermes-capture-proposal', 'hermes-expression-catalog', 'hermes-model-inventory', 'hermes-model-download-status', 'hermes-content-database-status', 'hermes-map-database-receipt', 'hermes-kimodo-build-status', 'hermes-model-readiness', 'hermes-model-prepare', 'hermes-model-prepare-status', 'hermes-model-prepare-history', 'hermes-billboard-catalog', 'hermes-billboard-proposal', 'hermes-billboard-load', 'hermes-billboard-preview', 'hermes-billboard-save', 'hermes-billboard-receipt', 'hermes-building-catalog', 'hermes-building-preview', 'hermes-building-save', 'hermes-building-receipt', 'hermes-sprite-pending-status', 'hermes-sprite-clip-playback', 'hermes-sprite-playback', 'hermes-sprite-proposal', 'hermes-sprite-preview', 'hermes-sprite-save', 'hermes-sprite-receipt', 'hermes-sprite-catalog', 'hermes-sprite-detail', 'hermes-effect-catalog', 'hermes-effect-detail', 'hermes-effect-proposal', 'hermes-effect-preview', 'hermes-effect-save', 'hermes-effect-receipt', 'hermes-effect-register-preview', 'hermes-effect-register', 'hermes-effect-register-receipt', 'hermes-waypoint-preview', 'hermes-waypoint-replace', 'hermes-waypoint-receipt', 'hermes-world-map', 'hermes-field-load', 'hermes-field-region', 'hermes-field-preview', 'hermes-field-save', 'hermes-field-receipt', 'hermes-field-history', 'hermes-city-load', 'hermes-city-preview', 'hermes-city-save', 'hermes-city-receipt', 'hermes-city-history', 'hermes-service-registration', 'hermes-delegate-writer', 'hermes-writer-proposal', 'hermes-writer-index-status', 'hermes-writer-search-paths', 'hermes-writer-status', 'hermes-writer-history', 'hermes-writer-cancel', 'hermes-writer-reservation-preview', 'hermes-writer-reservation-recover', 'hermes-writer-reservation-receipt', 'hermes-writer-apply', 'hermes-writer-apply-status', 'hermes-writer-apply-history', 'hermes-delegate-translation', 'hermes-translation-proposal', 'hermes-translation-evidence', 'hermes-translation-status', 'hermes-translation-history', 'hermes-translation-cancel', 'hermes-delegate-video', 'hermes-video-proposal', 'hermes-video-status', 'hermes-video-history', 'hermes-video-cancel', 'hermes-delegate-audio', 'hermes-audio-proposal', 'hermes-audio-status', 'hermes-audio-history', 'hermes-audio-source-history', 'hermes-generator-source-history', 'hermes-audio-cancel', 'hermes-delegate-flux-profile', 'hermes-flux-profile-status', 'hermes-flux-profile-history', 'hermes-flux-profile-cancel', 'hermes-delegate-flux-image', 'hermes-flux-delegation-history', 'hermes-flux-delegation-status', 'hermes-flux-delegation-cancel', 'hermes-delegate-kimodo', 'hermes-kimodo-proposal', 'hermes-kimodo-keyframes', 'hermes-kimodo-keyframe-preview', 'hermes-kimodo-keyframe-validate', 'hermes-flux-proposal', 'hermes-field-proposal', 'hermes-delegation-status', 'hermes-delegation-cancel', 'hermes-delegation-job-status', 'hermes-delegation-history', 'hermes-capabilities')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-writer-job-search-paths','hermes-writer-job-review','hermes-writer-job-material',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-session-context-settings', 'hermes-session-context-compress')
-HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-chat-queue-update', 'hermes-live-instruction', 'hermes-live-instruction-recover')
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-chat-queue-edit', 'hermes-chat-queue-update', 'hermes-live-instruction', 'hermes-live-instruction-recover')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-audio-source-status',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-video-source-status','hermes-flux-source-status','hermes-image-source-status','hermes-character-source-status','hermes-kimodo-source-frame',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-kimodo-keyframe-source-review','hermes-kimodo-keyframe-save','hermes-kimodo-keyframe-receipt',)
@@ -115,6 +116,8 @@ HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-flux-resume-preview','hermes-flux-resum
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-resident-start','hermes-resident-status','hermes-resident-release','hermes-gpu-handoff-preview','hermes-gpu-handoff-approve','hermes-gpu-handoff-status','hermes-gpu-handoff-list','hermes-gpu-handoff-withdraw','hermes-gpu-handoff-writer-context','hermes-gpu-handoff-recover-release','hermes-gpu-handoff-recover-submission','hermes-gpu-handoff-recover-reload','hermes-gpu-handoff-cancel')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-writer-proposal-submit','hermes-writer-proposal-receipt')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-gpu-handoff-retry-reload',)
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-minimax-submit', 'hermes-minimax-report-status', 'hermes-minimax-report-retry')
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-minimax-form-prepare', 'hermes-minimax-form-create', 'hermes-minimax-form-list', 'hermes-minimax-form-read', 'hermes-minimax-form-save', 'hermes-minimax-form-update', 'hermes-minimax-form-submit')
 MANAGEMENT_SERVICE_COMMANDS['hermes-agent'] = HERMES_PAYLOAD_COMMAND_NAMES
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in HERMES_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['prompt-translation'] = '/prompt-translation'
@@ -245,17 +248,17 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('MIGraphX 빌드 명령은 입력 필드를 받지 않습니다.')
     if operation_command_name in ('history-reset-preview','writer-state','writer-token','download-status','download-inventory','download-observe','download-model','download-model-status') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
-    if service_command_name == 'model-downloads' and operation_command_name == 'backup-models' and command_payload_value:
+    if service_command_name == 'model-downloads' and operation_command_name in ('backup-models', 'catalog-overview') and command_payload_value:
         raise ValueError('모델 목록에는 입력을 전달할 수 없습니다.')
     if service_command_name == 'model-downloads' and operation_command_name in ('backup-compare', 'backup-metadata'):
         allowed = ({'model'}, {'model', 'target'}) if operation_command_name == 'backup-compare' else ({'model'},)
-        if set(command_payload_value) not in allowed or not isinstance(command_payload_value['model'], str) or command_payload_value.get('target', 'canonical') not in ('canonical', 'latest_snapshot'):
+        if set(command_payload_value) not in allowed or not isinstance(command_payload_value['model'], str) or command_payload_value.get('target', 'canonical') not in ('canonical', 'latest_snapshot', 'legacy'):
             raise ValueError('비교할 모델 이름을 입력하세요.')
     if service_command_name == 'model-downloads' and operation_command_name in ('backup-verify', 'backup-sync'):
         allowed = {'model', 'target', 'request_id'} if operation_command_name == 'backup-verify' else {'model', 'request_id'}
         if (not set(command_payload_value) <= allowed or 'model' not in command_payload_value
                 or not isinstance(command_payload_value['model'], str)
-                or command_payload_value.get('target', 'canonical') not in ('canonical', 'latest_snapshot', 'snapshot_manifest')
+                or command_payload_value.get('target', 'canonical') not in ('canonical', 'latest_snapshot', 'snapshot_manifest', 'legacy')
                 or ('request_id' in command_payload_value and not isinstance(command_payload_value['request_id'], str))):
             raise ValueError('검증할 모델 이름을 입력하세요.')
     if service_command_name == 'model-downloads' and operation_command_name == 'backup-verify-status':
@@ -383,7 +386,7 @@ class ManagementCommandGateway:
 
 MANAGEMENT_COMMAND_DESCRIPTIONS = {'flux-expression': 'FLUX 3 표정 생성 · 얼굴 참조 1장', 'expression-lora': 'Qwen 2.1 표정 LoRA 사용·다운로드 중단 · 기존 모델 상태 조회', 'qwen-21-circular': 'Qwen 2.1 순환 VAE 생성기 아카이브 · 기존 이력 조회', 'qwen-21': 'Qwen Image 2.1 생성기 아카이브 · 기존 이력 조회', 'seamless-tile': 'Qwen 심리스 패턴 생성기 아카이브 · 기존 이력 조회', 'expression': 'Qwen 2.1 표정 생성기 아카이브 · 기존 이력 조회', 'floor-tile': '바닥 타일 생성기 폐기 · 기존 이력 조회·삭제 가능 · 생성·재개 불가', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2511': 'Qwen Image Edit 2511 생성기 폐기 · 모든 관리 명령 거부 · 사용 가능한 FLUX 생성기 확인'}
 
-MANAGEMENT_COMMAND_DESCRIPTIONS['model-downloads']='공유 모델 다운로드 상태 조회'
+MANAGEMENT_COMMAND_DESCRIPTIONS['model-downloads']='공유 모델 다운로드와 Samba 백업 조회·비교·스냅샷 백업·검증 · JSON 입력은 --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-model']='Hermes 코딩 모델 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['animationgpt']='AnimationGPT 제3자 FP16 모델 파일 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace-q8']='Wan VACE Q8_0 High/Low 파일 다운로드 및 SHA-256 검증 · Q8 생성 경로 실험'
@@ -483,6 +486,9 @@ def execute_management_command(service_command_name, operation_command_name, com
             return send_management_json_response(gateway_request_handler, 200, {'ready': current_models_ready, 'generation_ready': current_models_ready and TRANSLATION_PYTHON_PATH.is_file(), 'message': current_status_message, 'preparation_status': current_preparation_status})
         if service_command_name == 'model-downloads':
             from workflow.common.management_transport import send_management_json_response
+            if operation_command_name == 'catalog-overview':
+                from workflow.common.model_catalog import catalog_overview
+                return send_management_json_response(gateway_request_handler, 200, catalog_overview())
             if operation_command_name == 'backup-models':
                 from workflow.common.model_backup_service import list_backup_models
                 return send_management_json_response(gateway_request_handler, 200, list_backup_models())
@@ -810,9 +816,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
         if operation_command_name=='sprite-history-delete':command_payload_value['revision']=command_argument_values.revision
         if operation_command_name=='sprite-save':command_payload_value['document']=parse_management_request_json(command_argument_values.document_file.read_text())
     if operation_command_name in WRITER_PAYLOAD_COMMAND_NAMES + TRANSLATION_PAYLOAD_COMMAND_NAMES + HERMES_PAYLOAD_COMMAND_NAMES or operation_command_name in ('sheet-auto','sheet-export','sheet-gif','sheet-search','sheet-image','sheet-update','capture','export-vnccs','resize','map-anchor-save','effect-list','effect-load','effect-save','effect-register','effect-register-check','effect-register-reviewed','effect-replace','asset-list','asset-register','asset-preview','asset-save','asset-save-reviewed','asset-crop-preview','asset-crop','asset-retire-preview','asset-retire','map-edit-load','map-edit-preview','map-edit-save','city-edit-load','city-edit-preview','city-edit-save','building-list','building-save','building-register','building-retire','database-seed','database-status','database-sync','database-snapshot','database-restore'):command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
-    if operation_command_name == 'preview': command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text(encoding='utf-8'))
     if service_command_name == 'model-downloads' and operation_command_name in ('backup-compare', 'backup-metadata', 'backup-sync', 'backup-verify', 'backup-verify-status'):
         command_payload_value = parse_management_request_json(command_argument_values.payload_file.read_text(encoding='utf-8'))
+    if operation_command_name == 'preview': command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text(encoding='utf-8'))
     if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}

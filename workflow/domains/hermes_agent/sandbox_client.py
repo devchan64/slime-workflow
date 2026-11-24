@@ -91,7 +91,7 @@ def prepare_sandbox_context(port):
         temporary.write_text(json.dumps(value), encoding='utf-8')
         temporary.replace(directory / 'progress.json')
     result = prepare_context_request(context['messages'], query, lambda text: count_model_tokens(base_url, text, system_prompt, tools),
-                                     base_url + '/v1', automatic=context['automatic'], force=context.get('force', False), on_progress=progress)
+                                     base_url + '/v1', automatic=context['automatic'], force=context.get('force', False), on_progress=progress, threshold_tokens=context.get('threshold_tokens'))
     Path('/tmp/hermes-context-query.txt').write_text(result['query'], encoding='utf-8')
     with (directory / 'result.json').open('w', encoding='utf-8') as stream:
         json.dump(result, stream, ensure_ascii=False)

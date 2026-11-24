@@ -9,7 +9,7 @@ test('MiniMax 이미지 검토는 시간 초과 후 입력을 유지하고 늦�
  const source=readFileSync(new URL('../../gui/MiniMaxH3ImagePage.jsx',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('  async function review(event)'),source.indexOf('  function closeReview()'));
  let timeout,finish,error='',busy=false,pending=null,calls=0;const sending={current:false},previewRequest={current:null};
- const context=vm.createContext({AbortController,untilAborted,document:{activeElement:{}},sending,previewRequest,busy:false,pending:null,model:{generation_ready:true},prompt:'원래 입력',seed:42,service:'service',setBusy:value=>busy=value,setError:value=>error=value,setPending:value=>pending=value,setPreview:()=>{},setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},managementCommand:()=>{calls++;return new Promise(resolve=>finish=resolve);}});
+ const context=vm.createContext({AbortController,untilAborted,proposalScope:null,document:{activeElement:{}},sending,previewRequest,busy:false,pending:null,model:{generation_ready:true},prompt:'원래 입력',seed:42,size:512,service:'service',setBusy:value=>busy=value,setError:value=>error=value,setPending:value=>pending=value,setPreview:()=>{},setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},managementCommand:(_service,_command,request)=>{calls++;assert.equal(request.width,512);assert.equal(request.height,512);return new Promise(resolve=>finish=resolve);}});
  vm.runInContext(code,context);const task=context.review({preventDefault(){}});await context.review({preventDefault(){}});assert.equal(calls,1);
  timeout();await task;assert.match(error,/시간이 초과/);assert.equal(busy,false);assert.equal(sending.current,false);assert.equal(pending,null);
  finish({prompt:'늦은 결과',prompt_sha256:'a'.repeat(64)});await new Promise(done=>setImmediate(done));assert.equal(pending,null);
@@ -21,7 +21,7 @@ test('MiniMax 이미지 접수는 중복을 막고 불확실한 응답에 이력
  for(const mode of ['timeout','invalid','success']){
   let timeout,finish,error='',busy=false,job='',pending={prompt:'입력'},calls=0;
   const sending={current:false},submissionRequest={current:null};
-  const context=vm.createContext({AbortController,untilAborted,validGenerationJobId,sending,submissionRequest,modelStatus:{current:{generation_ready:true}},pending,service:'service',setBusy:value=>busy=value,setError:value=>error=value,setJob:value=>job=value,setRevision:()=>{},setPending:value=>pending=value,setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},managementCommand:()=>{calls++;return new Promise(resolve=>finish=resolve);}});
+  const context=vm.createContext({AbortController,untilAborted,validGenerationJobId,proposalScope:null,sending,submissionRequest,modelStatus:{current:{generation_ready:true}},pending,service:'service',setBusy:value=>busy=value,setError:value=>error=value,setJob:value=>job=value,setRevision:()=>{},setPending:value=>pending=value,setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},managementCommand:()=>{calls++;return new Promise(resolve=>finish=resolve);}});
   vm.runInContext(code,context);const task=context.submit();await context.submit();assert.equal(calls,1);assert.equal(busy,true);
   if(mode==='timeout')timeout();else finish({id:mode==='invalid'?'bad-id':'2026-11-24_12-34-56-1234abcd'});
   await task;assert.equal(busy,false);assert.equal(sending.current,false);
@@ -34,4 +34,14 @@ test('MiniMax 이미지 검토 후 모델 준비가 해제되면 접수하지 �
  const code=source.slice(source.indexOf('  async function submit()'),source.indexOf('  return <article'));
  let calls=0;const context=vm.createContext({pending:{prompt:'입력'},sending:{current:false},modelStatus:{current:{generation_ready:false}},managementCommand:()=>calls++});
  vm.runInContext(code,context);await context.submit();assert.equal(calls,0);
+});
+
+test('대화 이미지 제안은 고정 접수 ID로 위임하고 결과를 확인한다',async()=>{
+ const source=readFileSync(new URL('../../gui/MiniMaxH3ImagePage.jsx',import.meta.url),'utf8');
+ const code=source.slice(source.indexOf('  async function submit()'),source.indexOf('  return <article'));
+ const scope={session:'a'.repeat(32),job:'2026-11-24_10-00-00-12345678',proposal:{service:'minimax-h3-image'}};
+ let captured,job='',refresh=0;const receipt={state:'editing',id:'flux_'+ '1'.repeat(64),refresh:()=>refresh++,unknown:()=>{throw Error('unexpected')}};
+ const context=vm.createContext({AbortController,untilAborted,validGenerationJobId,proposalScope:scope,receipt,verifyFluxProposal:async()=>{},sending:{current:false},submissionRequest:{current:null},modelStatus:{current:{generation_ready:true}},pending:{prompt:'house'},service:'minimax-h3-image',setBusy:()=>{},setError:()=>{},setJob:value=>job=value,setRevision:()=>{},setPending:()=>{},setTimeout:()=>1,clearTimeout:()=>{},managementCommand:async(...args)=>{captured=args;return {state:'accepted',job_id:'2026-11-24_12-00-00-12345678'};}});
+ vm.runInContext(code,context);await context.submit();
+ assert.equal(captured[0],'hermes-agent');assert.equal(captured[1],'hermes-minimax-submit');assert.equal(captured[2].request_id,receipt.id);assert.equal(captured[2].session_id,scope.session);assert.equal(job,'2026-11-24_12-00-00-12345678');assert.equal(refresh,1);
 });

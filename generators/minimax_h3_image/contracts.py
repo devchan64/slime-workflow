@@ -4,6 +4,7 @@ import hashlib
 
 from generators.image.common_art_style import compose_common_style_prompt
 from workflow.domains.image.three_reference_generation import validate_three_reference_request
+from workflow.common.model_storage_layout import resolve_minimax_snapshot
 
 ROOT = Path(__file__).resolve().parents[2]
 STORAGE = ROOT / '.tmp/test/minimax-h3-image'
@@ -12,7 +13,7 @@ RUNTIME = ROOT / '.local/minimax-h3-diffusers'
 BASE = ROOT / '.model/minimax-h3-image'
 TRANSFORMER = ROOT / '.model/minimax-h3-image-quant/MiniMax-H3-Image-INT8-ConvRot.safetensors'
 ENCODER = ROOT / '.model/minimax-h3-i2v/text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors'
-ENCODER_BASE = ROOT / '.model/huggingface/hub/models--MiniMaxAI--MiniMax-H3/snapshots/1cc7549f2cf0af8ff2f09b24f3c57303c8aa6317'
+ENCODER_BASE = resolve_minimax_snapshot(ROOT / '.model')
 FILES = ((TRANSFORMER, 20272349984), (ENCODER, 27141342152),
          (BASE / 'vae/diffusion_pytorch_model.safetensors', 2336964672))
 
@@ -39,7 +40,7 @@ def validate_request(request):
     if expected is not None and (not isinstance(expected, str) or len(expected) != 64):
         raise ValueError('프롬프트 확인값 오류')
     result = validate_three_reference_request(request, allowed_inference_steps=(6,), maximum_reference_count=0,
-                                              minimum_output_size=1024, maximum_output_size=2048)
+                                              minimum_output_size=512, maximum_output_size=2048)
     if result['width'] % 32 or result['height'] % 32:
         raise ValueError('출력 너비와 높이는 32의 배수여야 합니다.')
     user_prompt = result['prompt'].strip()

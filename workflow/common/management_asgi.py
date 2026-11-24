@@ -1119,6 +1119,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/sound-effect/')
     @current_root_application.get('/management/frame/wan22-vace-generator')
     @current_root_application.get('/management/frame/wan22-vace-generator/')
+    @current_root_application.get('/management/frame/minimax-h3-image-generator')
+    @current_root_application.get('/management/frame/minimax-h3-image-generator/')
     @current_root_application.get('/management/frame/minimax-h3-i2v-generator')
     @current_root_application.get('/management/frame/minimax-h3-i2v-generator/')
     @current_root_application.get('/management/frame/minimax-h3-ref2va-generator')

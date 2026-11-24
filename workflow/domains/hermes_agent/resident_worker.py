@@ -121,7 +121,7 @@ def run_resident_worker(job_directory):
         with socket.socket() as port_socket:
             port_socket.bind(('127.0.0.1', 0))
             port = port_socket.getsockname()[1]
-        arguments = [str(worker.RUNTIME_SERVER_PATH), '-m', str(worker.HERMES_MODEL_DIRECTORY / worker.HERMES_MODEL_FILENAME),
+        arguments = [str(worker.RUNTIME_SERVER_PATH), '-m', str(worker.current_hermes_model_directory() / worker.HERMES_MODEL_FILENAME),
                      '--alias', 'hermes-local', '--host', '127.0.0.1', '--port', str(port), '-ngl', 'all',
                      '--fit', 'off', '-c', '64000', '-np', '1', '-b', '256', '-ub', '128',
                      '--jinja', '--no-context-shift', '--verbosity', '4']

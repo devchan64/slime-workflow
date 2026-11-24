@@ -1,3 +1,6 @@
+import {formatActivityCopy} from './formatActivityCopy.mjs';
+import {ConversationPending} from './ConversationPending.jsx';
+import MiniMaxForms from './MiniMaxForms.jsx';
 import {classifyQueueUpdate,validChatActive,validChatQueue,matchesChatQueueReceipt} from "./chatQueueUpdate.mjs";
 import {sessionQueueStateLabel} from "./sessionQueueValidation.mjs";
 import LiveInstructionInput from "./LiveInstructionInput.jsx";
@@ -296,7 +299,7 @@ function ActivityOutput({output}){
   const formatted=useMemo(()=>formatActivityOutput(output),[output]);
   const text=useMemo(()=>{if(!formatted)return "";try{const value=JSON.parse(output);return typeof value?.matches_text==="string" ? value.matches_text : typeof value?.content==="string" ? value.content : "";}catch{return "";}},[output,formatted]);
   const shown=(mode==="text" && text ? text : mode!=="raw" && formatted ? formatted : output) || "";
-  return <>{formatted && <button className="activity-output-toggle" type="button" onClick={()=>setMode(mode==="raw"?"formatted":"raw")}>{mode==="raw"?"정리해서 보기":"원문 보기"}</button>}{text && <button className="activity-output-toggle" type="button" onClick={()=>setMode(mode==="text"?"formatted":"text")}>{mode==="text"?"구조 보기":"텍스트 보기"}</button>}{shown && <CopyTextButton value={shown} label="도구 결과 출력 복사" buttonLabel="출력 복사"/>}{mode==="text" && text && <p>텍스트 필드만 표시합니다. 다른 필드는 구조 보기에서 확인하세요.</p>}<pre tabIndex={0} aria-label="도구 결과 출력">{shown || "출력 없음"}</pre></>;
+  return <><div className="activity-detail-heading"><strong>도구 결과</strong><div className="activity-detail-actions">{formatted && <button className="activity-output-toggle" type="button" onClick={()=>setMode(mode==="raw"?"formatted":"raw")}>{mode==="raw"?"정리해서 보기":"원문 보기"}</button>}{text && <button className="activity-output-toggle" type="button" onClick={()=>setMode(mode==="text"?"formatted":"text")}>{mode==="text"?"구조 보기":"텍스트 보기"}</button>}{shown && <CopyTextButton value={shown} label="도구 결과 출력 복사" buttonLabel="출력 복사"/>}</div></div>{mode==="text" && text && <p>텍스트 필드만 표시합니다. 다른 필드는 구조 보기에서 확인하세요.</p>}<pre tabIndex={0} aria-label="도구 결과 출력">{shown || "출력 없음"}</pre></>;
 }
 function ActivityEvent({start,result,running}){
   const [open,setOpen]=useState(false);
@@ -304,7 +307,7 @@ function ActivityEvent({start,result,running}){
   const label={running:"실행 중",completed:"완료",failed:"실패",unknown:"결과 미확인"}[state];
   return <li><details onToggle={event=>{if(event.target===event.currentTarget)setOpen(event.currentTarget.open);}}><summary>
     <span className={'activity-state '+state}><span className="activity-icon" aria-hidden="true">{state==="running"?"◌":state==="completed"?"✓":state==="failed"?"!":"?"}</span>{label}</span><span>{event.name}</span>{event.timestamp && <time dateTime={event.timestamp}>{new Date(event.timestamp).toLocaleTimeString("ko-KR")}</time>}</summary>
-    {open && <div className="hermes-activity-detail">{start?.target && <><strong>실행 대상</strong><pre tabIndex={0} aria-label="도구 실행 대상">{start.target}</pre></>}{result && <><strong>도구 결과</strong>{typeof result.output==="string" ? <><ActivityOutput output={result.output}/>{result.output_truncated && <small>출력의 앞부분만 표시합니다.</small>}</> : <p>상세 출력을 불러오지 못했습니다.</p>}{Number.isInteger(result.duration_ms) && <p>소요 시간 · {(result.duration_ms/1000).toFixed(1)}초</p>}</>}{!result && <p>{state==="running" ? "도구 결과를 기다리는 중입니다." : "기록된 결과가 없습니다."}</p>}{event.call_id && <p>호출 ID · <code>{event.call_id}</code></p>}</div>}
+    {open && <div className="hermes-activity-detail"><div className="activity-detail-header"><span>도구 실행 상세</span><CopyTextButton value={formatActivityCopy(start,result,label)} label="도구 활동 전체 복사" buttonLabel="전체 복사"/></div>{start?.target && <section className="activity-detail-section"><div className="activity-detail-heading"><strong>실행 대상</strong></div><pre tabIndex={0} aria-label="도구 실행 대상">{start.target}</pre></section>}{result && <section className="activity-detail-section">{typeof result.output==="string" ? <><ActivityOutput output={result.output}/>{result.output_truncated && <small>출력의 앞부분만 표시합니다.</small>}</> : <><strong>도구 결과</strong><p>상세 출력을 불러오지 못했습니다.</p></>}</section>}{!result && <p>{state==="running" ? "도구 결과를 기다리는 중입니다." : "기록된 결과가 없습니다."}</p>}<div className="activity-detail-meta">{Number.isInteger(result?.duration_ms) && <span>소요 시간 · {(result.duration_ms/1000).toFixed(1)}초</span>}{event.call_id && <span>호출 ID · <code>{event.call_id}</code></span>}</div></div>}
   </details></li>;
 }
 function groupActivityEvents(events){
@@ -325,15 +328,41 @@ function ActivityEvents({entries,truncated,running=false}){
   const activeTool=entries.some(item=>item.start?.call_id && !item.result);
   return <><ol className="hermes-activity-events">{entries.map(({start,result,index})=>{const event=start || result;return <ActivityEvent key={(event.call_id || "event")+":"+(event.timestamp || index)} {...{start,result,running}}/>;})}</ol>{running && !activeTool && <p className="hermes-activity-wait" role="status"><span className="activity-state running"><span className="activity-icon" aria-hidden="true">◌</span>기록상 작업 실행 중</span> · 현재 실행 중인 도구 활동은 관측되지 않았습니다. 다음 활동을 기다리는 중입니다.</p>}{truncated && <small>최근 활동만 표시합니다.</small>}</>;
 }
+function ObservationStatus({observation}){
+  if(!observation)return null;
+  const formatted=value=>{if(!value)return '기록 없음';const date=new Date(value);return Number.isNaN(date.getTime())?'확인 불가':date.toLocaleString('ko-KR');};
+  const executor={verified:'실행기 확인됨',unknown:'실행기 확인 불가',not_running:'실행 종료'}[observation.executor] || '실행기 확인 불가';
+  const model={ready:'준비됨',running:'준비 중',queued:'대기 중',released:'해제됨',unknown:'확인 불가'}[observation.model?.state] || '확인 불가';
+  const request=observation.request, tokens=observation.model?.tokens;
+  return <p className="hermes-observation" role="status">{executor} · 마지막 도구 활동 {formatted(observation.last_event_at)}<br/>{request ? <>{request.active>0?'이 작업의 모델 연결 중':'이 작업의 모델 연결 없음'} · 마지막 응답 수신 {formatted(request.last_response_at)} <small>(연결 중이어도 추론 진행 여부는 확인되지 않습니다)</small><br/></> : <>이 작업의 모델 연결 정보 확인 불가<br/></>}상주 모델 {model} · 모델 로그 갱신 {formatted(observation.model?.last_log_at)} <small>(상주 모델 전체 신호)</small>{tokens?.input && <><br/>최근 입력 처리 {tokens.input.tokens.toLocaleString()}토큰 · {Math.round(tokens.input.tokens_per_second)}토큰/초 · {Math.round(tokens.input.fraction*100)}% (마지막 기록)</>}{tokens?.output_completed && <><br/>최근 완료 응답 {tokens.output_completed.tokens.toLocaleString()}토큰 · {tokens.output_completed.tokens_per_second.toFixed(1)}토큰/초</>}</p>;
+}
 function ActivitySection({activity,running=false}){
   const [open,setOpen]=useState(false);
   const entries=useMemo(()=>groupActivityEvents(activity?.events || []),[activity?.events]);
   const count=entries.length;
   return <section className="hermes-activity" aria-label={running?"헤르메스 진행 상황":undefined} aria-live={running?"polite":undefined}>
+    {running && <ObservationStatus observation={activity?.observation}/>}
     <details onToggle={event=>{if(event.target===event.currentTarget)setOpen(event.currentTarget.open);}}><summary>{running ? "진행 상황 · 기록상 작업 실행 중"+(count ? " · 최근 도구 활동 "+count+"건" : " · 도구 활동 대기 중") : "도구 사용 내역 · 최근 "+count+"건"}</summary>
       {open && <>{count ? <ActivityEvents entries={entries} truncated={activity.truncated} running={running}/> : <p>{running?"아직 관측된 도구 활동이 없습니다. 작업을 진행 중입니다.":"표시할 도구 활동이 없습니다."}</p>}{running && <small>진행 중에는 약 3초 간격으로 갱신됩니다.</small>}</>}
     </details>
   </section>;
+}
+function StopConversationJob({job}){
+  const [confirm,setConfirm]=useState(false),[busy,setBusy]=useState(false),[notice,setNotice]=useState(''),[requested,setRequested]=useState(false);
+  const inFlight=useRef(false),controller=useRef(null);
+  useEffect(()=>()=>controller.current?.abort(),[]);
+  async function stop(){
+    if(inFlight.current)return;
+    inFlight.current=true;setBusy(true);setNotice('');const request=new AbortController();controller.current=request;
+    const timer=setTimeout(()=>request.abort(),30000);
+    try{
+      const result=await callUntilAborted('cancel',{id:job},request.signal);
+      if(result.id!==job || result.cancel_requested!==true)throw new Error('중단 접수를 확인할 수 없습니다.');
+      setNotice('중단을 요청했습니다. 실제 종료 상태를 확인 중입니다.');setRequested(true);setConfirm(false);
+    }catch(error){if(!request.signal.aborted)setNotice((error.message || '중단 요청을 확인하지 못했습니다.')+' 작업 상태를 확인하세요.');else setNotice('중단 요청 결과가 불확실합니다. 작업 상태를 확인하세요.');}
+    finally{clearTimeout(timer);if(controller.current===request){controller.current=null;inFlight.current=false;setBusy(false);}}
+  }
+  return <div className="conversation-stop-job">{!confirm ? <button type="button" onClick={()=>setConfirm(true)} disabled={busy || requested}>이 작업 중단</button> : <div role="group" aria-label="작업 중단 확인"><p>이 헤르메스 작업에 중단을 요청합니다. 이미 실행된 도구의 변경은 남을 수 있습니다.</p><button type="button" onClick={stop} disabled={busy}>{busy?'요청 중':'중단 요청'}</button><button type="button" onClick={()=>setConfirm(false)} disabled={busy}>돌아가기</button></div>}{notice && <p role="status">{notice}</p>}</div>;
 }
 function Message() {
   const actions=React.useContext(ProposalActions);
@@ -356,9 +385,9 @@ function Message() {
     {meta.formId && <ConversationVideoForm session={meta.session} formId={meta.formId} open={actions.openVideoForm} reuse={actions.openJobForm}/>}
     {meta.seedProposal && <SeedProposal proposal={meta.seedProposal} onOpen={actions.openSeedForm}/>}
     {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} append={actions.append} openStep={actions.openStep}/>}
-    {meta.generationProposal && meta.job && <GenerationProposal key={meta.job} kind={meta.generationProposal} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
+    {meta.generationProposal && meta.job && <GenerationProposal key={meta.job} kind={meta.generationProposal} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} onOpenForm={actions.openMinimaxForm}/>}
     {meta.captureProposal && meta.job && <CaptureProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
-    {meta.fluxProposal && meta.job && <FluxProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
+    {meta.fluxProposal && meta.job && <FluxProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} onOpenForm={actions.openMinimaxForm}/>}
     {meta.buildingProposal && meta.job && <BuildingProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
     {meta.billboardProposal && meta.job && <BillboardProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
     {meta.spriteProposal && meta.job && <SpriteProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
@@ -372,10 +401,11 @@ function Message() {
     {(meta.status==="running" || meta.activity?.events?.length>0) && <ActivitySection activity={meta.activity} running={meta.status==="running"}/>}
     {meta.queueMessage && <p role="status">{meta.queueMessage}</p>}
     {copyText.trim() && !meta.formId && meta.status!=="failed" && <CopyTextButton value={copyText} label={message.role==="user" ? "사용자 메시지 복사" : "헤르메스 메시지 복사"} buttonLabel="메시지 복사"/>}
+    {message.role==="assistant" && meta.job && ["running","queued"].includes(meta.status) && <StopConversationJob key={meta.job} job={meta.job}/>}
     {meta.status && <small>{sessionQueueStateLabel(statusLabels,meta.status)} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a> <CopyTextButton value={meta.job} label="헤르메스 작업 ID 복사" buttonLabel="ID 복사"/></>}</small>}
   </MessagePrimitive.Root>;
 }
-function Conversation({view,historyPage,changeHistory}) {
+function Conversation({view,historyPage,changeHistory,refreshPending}) {
   const messages=React.useMemo(()=>messagesFrom(view),[view]);
   const viewport=useRef(null),returningLatest=useRef(false);
   useEffect(()=>{
@@ -402,6 +432,7 @@ function Conversation({view,historyPage,changeHistory}) {
     {view.next_offset != null && <nav className="conversation-history-nav" aria-label="이전 대화 페이지"><button type="button" onClick={()=>changeHistory({offset:view.next_offset,snapshot:view.snapshot})}>이전 메시지 보기</button><span>이전 메시지 {Math.max(0,(view.message_count || 0)-(view.offset || 0)-(view.messages || []).length)}건</span></nav>}
     <ThreadPrimitive.Empty><h2 className="conversation-empty-title">무엇을 도와드릴까요?</h2></ThreadPrimitive.Empty>
     <ThreadPrimitive.Messages components={{Message}}/>
+    {!historyPage && <ConversationPending items={view.chat_queue} session={view.id} refresh={refreshPending}/>}
     {historyPage && <nav className="conversation-history-nav" aria-label="이후 대화 페이지">
       {historyPage.offset>CONVERSATION_PAGE_SIZE && <button type="button" onClick={()=>changeHistory({offset:Math.max(0,historyPage.offset-CONVERSATION_PAGE_SIZE),snapshot:historyPage.snapshot})}>다음 메시지 보기</button>}
       <button type="button" onClick={event=>{returningLatest.current=event.currentTarget;changeHistory(null);}}>최신 대화로 돌아가기</button>
@@ -476,6 +507,8 @@ function App() {
   const [viewError,setViewError]=useState("");
   const [viewLoading,setViewLoading]=useState(false);
   const [targetForm,setTargetForm]=useState("");
+  const [minimaxFormTarget,setMinimaxFormTarget]=useState("");
+  useEffect(()=>{setMinimaxFormTarget('');},[session]);
   const [targetProposal,setTargetProposal]=useState("");
   const [viewRevision,retryView]=useState(0);
   const sending=useRef(false),text=useRef(null);
@@ -653,6 +686,13 @@ function App() {
     catch(problem){if((query().get("session") || "")===selected)setError(problem.message);}
     finally{setBusy(false);}
   }
+  async function setContextThreshold(value){
+    if(!session || busy)return;
+    const selected=session, threshold=value==='default' ? null : Number(value);setBusy(true);setError('');
+    try{await call('session-context-settings',{session_id:selected,threshold});retryView(n=>n+1);}
+    catch(problem){if((query().get('session') || '')===selected)setError(problem.message || '문맥 기준을 저장하지 못했습니다.');}
+    finally{setBusy(false);}
+  }
   async function compactContext(){
     if(!session || busy)return;
     const selected=session, key="hermes-context-pending-"+selected;
@@ -794,18 +834,23 @@ function App() {
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1></header>
 
 
-    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
+    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openMinimaxForm:formId=>{setShowGpu(false);setQueue(null);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setMinimaxFormTarget(formId);setSearchMode('minimax-forms');setShowTools(true);},openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory} refreshPending={()=>retryView(n=>n+1)}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
 
     <form onSubmit={e=>{e.preventDefault();send()}}>
     {session && view.context && <details name="composer-popover" className="composer-context"><summary>대화 문맥{view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}{view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) && " · 정리 진행 중"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
       <p>이전 대화를 요약해 이후 요청의 문맥으로 사용합니다. 대화 기록은 유지됩니다.</p>
       <label><input type="checkbox" checked={view.context.automatic} disabled={busy} onChange={event=>setAutomaticContext(event.target.checked)}/> 자동 대화 정리</label>{" "}
+      <label> 정리 시작 기준 <select aria-label="대화 정리 시작 기준" disabled={busy || !view.context.automatic} value={view.context.threshold ?? 'default'} onChange={event=>setContextThreshold(event.target.value)}><option value="default">기본값 · 54,400 토큰</option><option value="32000">32,000 토큰</option><option value="16000">16,000 토큰</option><option value="8000">8,000 토큰</option><option value="54400">54,400 토큰</option></select></label><p>정리 기준은 다음에 실행되는 요청부터 적용됩니다. 현재 지시와 최근 대화를 우선 보존합니다.</p>
       <button type="button" title={!view.message_count?"정리할 대화가 없습니다.":undefined} disabled={busy || !view.message_count || Boolean(view.context.operation?.job_id && ["queued","running","unknown"].includes(view.context.operation.status))} onClick={compactContext}>
         {view.context.operation && !view.context.operation.job_id ? "정리 접수 다시 확인" : "대화 정리"}</button>
       {view.context.operation && <small role="status"> 정리 작업: {sessionQueueStateLabel(statusLabels,view.context.operation.status)}{view.context.operation.job_id && <> · <a href={jobLink(view.context.operation.job_id,session)}>작업 상세</a></>}</small>}
+      {view.context.operation?.observation && <ObservationStatus observation={view.context.operation.observation}/>}
+      {view.context.usage?.state==="compressing" && !view.context.operation?.observation && <ObservationStatus observation={[...(view.messages || [])].reverse().find(message=>message.job?.status?.status==="running")?.job?.tool_activity?.observation}/>}
       {view.context.usage && <small> · 최근 입력 추정 {(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()} 토큰{view.context.usage.threshold && " / 정리 기준 "+view.context.usage.threshold.toLocaleString()} (시스템·도구 지시 포함)</small>}
       {view.context.usage?.state==="compressed" && <small role="status"> · 대화 정리 완료</small>}
-      {view.context.usage?.state==="compressing" && <small role="status"> · 대화 정리 중</small>}
+      {view.context.usage?.state==="compressing" && <small role="status"> · 대화 요약 요청 중 · 전체 완료율과 남은 시간은 확인할 수 없습니다.</small>}
+      {view.context.usage?.state==="compressed" && Number.isInteger(view.context.usage.tokens_after) && <small>정리 전 {view.context.usage.tokens.toLocaleString()} → 정리 후 {view.context.usage.tokens_after.toLocaleString()} 토큰</small>}
+      {view.queried_at && <small>상태 조회 시각 · {new Date(view.queried_at).toLocaleString('ko-KR')}{historyPage && ' · 이전 대화 조회 중에는 자동 갱신되지 않습니다.'}</small>}
       {view.context.usage?.state==="unchanged" && <small role="status"> · 정리할 수 있는 대화 범위가 없습니다.</small>}
       {view.context.checkpoint && <details><summary>대화 정리 내용 · {view.context.checkpoint.count}개 지시{view.context.checkpoint.created_at && " · "+view.context.checkpoint.created_at}</summary><pre>{view.context.checkpoint.summary || "정리된 대화에 별도 요약 표시가 없습니다."}</pre></details>}
     </section></details>}
@@ -834,11 +879,12 @@ function App() {
     {showTools && <div className="tool-drawer-content">
       <label className="search-scope">탐색 대상 <select ref={toolScope} value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
         <optgroup label="도구와 기능"><option value="tools">도구 목록</option><option value="capabilities">관리 명령 검색</option></optgroup>
-        <optgroup label="저장된 자료"><option value="expressions">표정 프리셋</option><option value="billboards">빌보드 에셋</option><option value="keyframes">Kimodo 키프레임</option></optgroup>
+        <optgroup label="저장된 자료"><option value="minimax-forms">MiniMax 접수폼</option><option value="expressions">표정 프리셋</option><option value="billboards">빌보드 에셋</option><option value="keyframes">Kimodo 키프레임</option></optgroup>
         <optgroup label="작업과 검수 이력"><option value="history">생성 이력</option><option value="jobs">운영 작업 이력</option><option value="anchors">앵커 검수 이력</option></optgroup>
         <optgroup label="시스템 상태"><option value="services">서비스 등록 상태</option><option value="content">콘텐츠 DB 상태</option></optgroup>
       </select></label>
       <p className="generator-help-text">탐색 대상은 찾을 정보의 종류입니다.{searchMode==="tools" && " 도구 분야는 목록을 작업 영역별로 좁힙니다."}</p>
+      {searchMode==="minimax-forms" && session && <MiniMaxForms key={session+':'+minimaxFormTarget} session={session} initialFormId={minimaxFormTarget}/>}
       {["capabilities","expressions","keyframes","services"].includes(searchMode) && <input ref={toolSearch} aria-label={{capabilities:"관리 기능 검색",expressions:"표정 프리셋 검색",keyframes:"Kimodo 키프레임 검색",services:"서비스 검색"}[searchMode]} maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>}
       {["capabilities","expressions","keyframes","services"].includes(searchMode) && search && <button type="button" onClick={()=>{setSearch("");requestAnimationFrame(()=>toolSearch.current?.focus());}}>검색어 지우기</button>}
       {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}

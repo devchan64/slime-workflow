@@ -12,7 +12,7 @@ HERMES_OBSERVER_MAX_REQUEST = 80000
 HERMES_OBSERVER_MAX_RESPONSE = 262144
 
 
-def handle_hermes_observer_connection(current_client_socket):
+def handle_hermes_observer_connection(current_client_socket, session_id=None):
     """고정된 단일 요청만 처리하며 다른 명령과 임의 입력은 거절한다."""
     with current_client_socket:
         current_client_socket.settimeout(2)
@@ -30,6 +30,12 @@ def handle_hermes_observer_connection(current_client_socket):
             elif current_request_bytes == b'sprite-pending-status\n':
                 from workflow.domains.hermes_agent.sprite_pending_observer import inspect_hermes_sprite_pending_status
                 current_response_record=inspect_hermes_sprite_pending_status()
+            elif current_request_bytes == b'minimax-forms\n':
+                try:
+                    from workflow.domains.hermes_agent.minimax_form_observer import read_session_minimax_forms
+                    current_response_record = read_session_minimax_forms(session_id)
+                except (OSError, RuntimeError, ValueError, TypeError, KeyError):
+                    current_response_record = {'error':'이 대화의 MiniMax 접수폼을 확인할 수 없습니다.'}
             elif current_request_bytes == b'writer-index-status\n':
                 try:
                     from workflow.domains.hermes_agent.writer_operations import read_hermes_writer_index_status
@@ -378,11 +384,11 @@ def handle_hermes_observer_connection(current_client_socket):
             return
 
 
-def serve_hermes_observer_connections(current_listener_socket):
+def serve_hermes_observer_connections(current_listener_socket, session_id=None):
     """작업 수명 동안 연결을 순차 처리하며 소켓이 닫히면 종료한다."""
     while True:
         try:
             current_client_socket, _ = current_listener_socket.accept()
         except OSError:
             return
-        handle_hermes_observer_connection(current_client_socket)
+        handle_hermes_observer_connection(current_client_socket, session_id)

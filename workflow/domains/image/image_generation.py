@@ -313,6 +313,11 @@ class ImageGenerationManager:
                     return True
                 flux_service = self.route_prefix_value.strip('/').removesuffix('-generator')
                 report_origin = None
+                minimax_origin = current_request_record.pop('_minimax_report_origin', None)
+                if minimax_origin is not None:
+                    from workflow.domains.hermes_agent.minimax_submission import validate_origin, submission_digest
+                    validate_origin(minimax_origin, flux_service)
+                    minimax_digest = submission_digest(flux_service, current_request_record)
                 if flux_service.startswith('flux-'):
                     from workflow.domains.hermes_agent.flux_reports import register_report, validate_origin
                     report_origin = current_request_record.pop('_report_origin', None)
@@ -334,6 +339,9 @@ class ImageGenerationManager:
                     (current_job_root/'request.json').write_text(json.dumps(current_request_record,ensure_ascii=False))
                     if flux_service.startswith('flux-'):
                         register_report(current_job_root, flux_service, report_origin)
+                    if minimax_origin is not None:
+                        from workflow.domains.hermes_agent.minimax_report_lifecycle import register_minimax_report
+                        register_minimax_report(current_job_root, flux_service, minimax_origin, minimax_digest)
                     (current_job_root/'status.json').write_text('{"status":"running"}')
                     with MANAGER_HISTORY_LOCK:
                         self.history_storage_path().mkdir(parents=True,exist_ok=True)

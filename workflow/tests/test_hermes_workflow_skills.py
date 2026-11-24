@@ -8,6 +8,14 @@ from workflow.domains.hermes_agent.workflow_skills import build_workflow_guidanc
 
 
 class WorkflowSkillTests(unittest.TestCase):
+    def test_short_form_submission_selects_generation_skill(self):
+        for prompt in ('이 폼을 접수해줘', '대기열에 넣어줘', '시드를 42로 변경해줘'):
+            with self.subTest(prompt=prompt):
+                self.assertIn('generation-request',select_workflow_skills(prompt))
+
+    def test_natural_form_edit_selects_generation_skill(self):
+        self.assertIn('generation-request', select_workflow_skills('지붕을 파란색으로 바꿔줘'))
+        self.assertIn('generation-request', select_workflow_skills('대기열에 추가해줘'))
     def test_building_anchor_guidance_requires_observation_and_confirmation(self):
         root=Path(__file__).resolve().parents[2]
         guidance=build_workflow_guidance(root,'건물 앵커를 변경해줘')
@@ -87,11 +95,12 @@ class WorkflowSkillTests(unittest.TestCase):
             shutil.copytree(source, root)
             registry_path = root / 'registry.json'
             registry = json.loads(registry_path.read_text())
-            registry['skills'][0]['terms'].append('새단어')
+            result_skill = next(item for item in registry['skills'] if item['name'] == 'generation-result-lookup')
+            result_skill['terms'].append('새단어')
             registry_path.write_text(json.dumps(registry, ensure_ascii=False))
             self.assertEqual(select_workflow_skills('새단어', workspace=workspace), ['generation-result-lookup'])
             self.assertEqual(select_workflow_skills('새단어'), [])
-            registry['skills'][0]['name'] = '../outside'
+            result_skill['name'] = '../outside'
             registry_path.write_text(json.dumps(registry))
             with self.assertRaises(ValueError):
                 load_skill_registry(workspace)

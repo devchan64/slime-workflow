@@ -4,6 +4,7 @@ import io
 from PIL import Image
 from workflow.domains.image.three_reference_generation import decode_reference_image
 from generators.minimax_h3.assets import FILES
+from workflow.common.model_storage_layout import resolve_minimax_snapshot
 
 ROOT = Path(__file__).resolve().parents[2]
 JOB_STORAGE = ROOT / '.tmp/test/minimax-h3-i2v'
@@ -28,7 +29,7 @@ def inspect_runtime():
         if (RUNTIME/'UNSLOTH_REVISION').read_text().strip()!=REVISION: missing.append('변환 로더 리비전')
     except OSError:
         missing.append('변환 로더 리비전')
-    snapshot=ROOT/'.model/huggingface/hub/models--MiniMaxAI--MiniMax-H3/snapshots/1cc7549f2cf0af8ff2f09b24f3c57303c8aa6317'
+    snapshot=resolve_minimax_snapshot(ROOT / '.model')
     for relative in ('modular_model_index.json','transformer/config.json','text_encoder/config.json','processor/preprocessor_config.json','tokenizer/tokenizer.json','scheduler/scheduler_config.json','audio_scheduler/scheduler_config.json'):
         if not (snapshot/relative).is_file(): missing.append(relative)
     return {'ready':not missing,'missing':missing,'message':'Diffusers I2V 파일 준비 완료 · 실행 시 SHA-256 검증' if not missing else '준비 필요: '+', '.join(missing)}

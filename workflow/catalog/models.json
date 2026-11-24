@@ -1,0 +1,393 @@
+{
+  "schema_version": 1,
+  "components": [
+    {
+      "id": "flux-klein",
+      "label": "FLUX 3 Image Klein",
+      "kind": "model",
+      "path": "flux-3-image-klein",
+      "services": [
+        "flux-image"
+      ],
+      "source": "black-forest-labs/flux-3-image-klein",
+      "revision": "09561231f44e41381c461caf53d5452005a60ac9"
+    },
+    {
+      "id": "kimodo",
+      "label": "Kimodo",
+      "kind": "model",
+      "path": "kimodo",
+      "services": [
+        "kimodo"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-fun-pose",
+      "label": "공유 포즈 모델",
+      "kind": "shared",
+      "path": "wan22-fun-pose",
+      "services": [
+        "kimodo",
+        "dwpose",
+        "wan22-fun-control"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "minimax-hf-cache",
+      "label": "MiniMax 공유 Hugging Face 캐시",
+      "kind": "cache",
+      "path": "huggingface",
+      "services": [
+        "minimax-h3-i2v",
+        "minimax-h3-image",
+        "minimax-h3-ref2va"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "hermes-coding",
+      "label": "Hermes 코딩 모델",
+      "kind": "model",
+      "path": "hermes-agent",
+      "services": [
+        "hermes-model"
+      ],
+      "source": "bartowski/Qwen3.8-27B-GGUF",
+      "revision": "87410e7b9a5c21e6ca70c0c9cc5237de909fe621"
+    },
+    {
+      "id": "animationgpt",
+      "label": "AnimationGPT",
+      "kind": "model",
+      "path": "animationgpt",
+      "services": [
+        "animationgpt"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "minimax-h3-diffusers",
+      "label": "MiniMax H3 Diffusers 구성요소",
+      "kind": "model",
+      "path": "minimax-h3-diffusers",
+      "services": [
+        "minimax-h3-i2v",
+        "minimax-h3-ref2va"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "minimax-h3-i2v",
+      "label": "MiniMax H3 I2V 구성요소",
+      "kind": "shared",
+      "path": "minimax-h3-i2v",
+      "services": [
+        "minimax-h3-i2v",
+        "minimax-h3-image",
+        "minimax-h3-ref2va"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "minimax-h3-image",
+      "label": "MiniMax H3 Image 구성요소",
+      "kind": "model",
+      "path": "minimax-h3-image",
+      "services": [
+        "minimax-h3-image"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "minimax-h3-image-quant",
+      "label": "MiniMax H3 Image 양자화 모델",
+      "kind": "model",
+      "path": "minimax-h3-image-quant",
+      "services": [
+        "minimax-h3-image"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "translation-model",
+      "label": "TranslateGemma 번역 모델",
+      "kind": "model",
+      "path": "prompt-translation",
+      "services": [
+        "prompt-translation"
+      ],
+      "source": "google/translategemma-4b-it",
+      "revision": "10042cb0e6e7fdce748996a71dc3dc432a4e0c89"
+    },
+    {
+      "id": "writer-agent",
+      "label": "작가 AI 임베딩 모델",
+      "kind": "model",
+      "path": "writer-agent",
+      "services": [
+        "writer-agent"
+      ],
+      "source": "Qwen/Qwen3-Embedding-0.6B-GGUF",
+      "revision": "370f27d7550e0def9b39c1f16d3fbaa13aa67728"
+    },
+    {
+      "id": "wan-animate2",
+      "label": "Wan Animate-2",
+      "kind": "model",
+      "path": "wan22-animate2",
+      "services": [
+        "wan22-animate2"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-animate2-loras",
+      "label": "Wan Animate-2 LoRA",
+      "kind": "model",
+      "path": "wan22-animate2-loras",
+      "services": [
+        "wan22-animate2-lightx2v"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-vace-q8",
+      "label": "Wan VACE Q8",
+      "kind": "model",
+      "path": "wan22-vace-q8",
+      "services": [
+        "wan22-vace-q8"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-vace-official",
+      "label": "Wan VACE 공식 구성요소",
+      "kind": "model",
+      "path": "wan22-vace-official",
+      "services": [
+        "wan22-vace"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-fun-21",
+      "label": "Wan 2.1 Fun Control",
+      "kind": "model",
+      "path": "wan21-fun-control-1.3b",
+      "services": [
+        "wan21-fun-1.3b"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan21-i2v-assets",
+      "label": "Wan 2.1 I2V 모델과 LoRA",
+      "kind": "collection",
+      "path": "wan21-i2v",
+      "services": [
+        "wan21-i2v-assets",
+        "wan21-i2v-attack-lora"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan21-t2v-assets",
+      "label": "Wan 2.1 T2V 모델과 LoRA",
+      "kind": "collection",
+      "path": "wan21-t2v",
+      "services": [
+        "wan21-t2v-assets"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-animate-components",
+      "label": "Wan 공용 구성요소",
+      "kind": "shared",
+      "path": "wan22-animate-components",
+      "services": [
+        "wan22-fun-control",
+        "wan22-vace"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-fun-control",
+      "label": "Wan Fun Control 구성요소",
+      "kind": "collection",
+      "path": "wan22-fun-control",
+      "services": [
+        "wan22-fun-control"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan22-i2v-assets",
+      "label": "Wan 2.2 I2V 모델과 LoRA",
+      "kind": "collection",
+      "path": "wan22-i2v",
+      "services": [
+        "wan22-i2v-assets"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-vace-assets",
+      "label": "Wan VACE 구성요소",
+      "kind": "collection",
+      "path": "wan22-vace",
+      "services": [
+        "wan22-vace"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-vace-loras",
+      "label": "Wan VACE LoRA 모음",
+      "kind": "collection",
+      "path": "wan22-vace-loras",
+      "services": [
+        "wan22-fighting-lora",
+        "wan22-vace-lightning"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "music-models",
+      "label": "음악과 효과음 모델 모음",
+      "kind": "collection",
+      "path": "music",
+      "services": [
+        "music-heartmula",
+        "sfx-dasheng-audiogen"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "heartmula",
+      "label": "HeartMuLa 음악 모델과 공유 구성요소",
+      "kind": "model",
+      "path": "music/music-heartmula",
+      "services": [
+        "music-heartmula"
+      ],
+      "source": "HeartMuLa/HeartMuLa-oss-3B-happy-new-year",
+      "revision": "41f6fc68490e11dc43fdabaa6b5767946408c903"
+    },
+    {
+      "id": "dasheng-audiogen",
+      "label": "Dasheng 효과음 모델과 공유 구성요소",
+      "kind": "model",
+      "path": "music/sfx-dasheng-audiogen",
+      "services": [
+        "sfx-dasheng-audiogen"
+      ],
+      "source": "mispeech/Dasheng-AudioGen",
+      "revision": "e269f58e700d627b67600cbced86316c6585eae3"
+    },
+    {
+      "id": "animationgpt-author",
+      "label": "AnimationGPT 원본 실험 구성요소",
+      "kind": "collection",
+      "path": "animationgpt-author",
+      "services": [],
+      "source": null,
+      "revision": null,
+      "usage_note": "AnimationGPT 제작자 방식의 별도 CPU 실험에서 가중치를 사용한다. 관리 생성기 연결 여부는 확인되지 않았다."
+    },
+    {
+      "id": "flux-report-vision",
+      "label": "FLUX 보고서 시각 관찰 모델",
+      "kind": "model",
+      "path": "flux-report-vision",
+      "services": [
+        "hermes-agent"
+      ],
+      "source": "HuggingFaceTB/SmolVLM-500M-Instruct",
+      "revision": "753c1752602b5e739af7a7fa6947a635051897a3",
+      "optional_services": [
+        "hermes-agent"
+      ]
+    },
+    {
+      "id": "trellis-image-large",
+      "label": "TRELLIS 이미지 실험 모델",
+      "kind": "model",
+      "path": "trellis-image-large",
+      "services": [],
+      "source": "microsoft/TRELLIS-image-large",
+      "revision": "25e0d31ffbebe4b5a97464dd851910efc3002d96"
+    },
+    {
+      "id": "trellis-dinov2",
+      "label": "TRELLIS 실험 DINOv2 가중치",
+      "kind": "model",
+      "path": "trellis-dinov2",
+      "services": [],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "minimax-h3-ref2va",
+      "label": "MiniMax H3 Ref2VA 실험 구성요소",
+      "kind": "collection",
+      "path": "minimax-h3-ref2va",
+      "services": [
+        "minimax-h3-ref2va"
+      ],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-animate-preprocess",
+      "label": "Wan Animate 전처리 참조 파일",
+      "kind": "collection",
+      "path": "wan22-animate-preprocess",
+      "services": [],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "flux-klein-prompt-upsampler",
+      "label": "FLUX 3 Image Klein 프롬프트 확장 모델",
+      "kind": "model",
+      "path": "flux-3-image-klein-pup",
+      "services": [],
+      "source": null,
+      "revision": null
+    },
+    {
+      "id": "wan-move",
+      "label": "WanMove 가중치",
+      "kind": "model",
+      "path": "wan-move",
+      "services": [],
+      "source": null,
+      "revision": null
+    }
+  ]
+}

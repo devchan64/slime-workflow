@@ -560,6 +560,31 @@ def is_registered_flux_report(directory):
         return False
 
 
+def is_registered_minimax_report(directory):
+    """원 MiniMax 작업과 일치하는 보고서 작성만 상주 모델 반환 대상으로 허용한다."""
+    try:
+        directory = Path(directory)
+        if directory.parent != WORKFLOW_ROOT_DIRECTORY / '.tmp/test/hermes-agent/jobs' or directory.resolve() != directory:
+            return False
+        request = json.loads(read_bounded_gpu_observation_bytes(directory / 'request.json', 65536)[0])
+        if not re.fullmatch(r'report_[0-9a-f]{64}', request['request_id']):
+            return False
+        payload = json.loads(request['prompt'].split('\n', 1)[1])
+        evidence = payload['evidence']
+        service, job = evidence['service'], evidence['job_id']
+        if service not in ('minimax-h3-image', 'minimax-h3-i2v') or not re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[0-9a-f]{8}', job):
+            return False
+        source = WORKFLOW_ROOT_DIRECTORY / '.tmp/test' / service / job
+        if source.resolve() != source:
+            return False
+        report = json.loads(read_bounded_gpu_observation_bytes(source / 'hermes-report.json', 131072)[0])
+        return (report.get('hermes_job_id') == directory.name and report.get('state') == 'writing'
+                and report.get('report_request_id') == request['request_id']
+                and report.get('report_prompt') == request['prompt'])
+    except (OSError, ValueError, KeyError, IndexError, TypeError):
+        return False
+
+
 def is_hermes_resident_job(waiting_job_directory):
     return Path(waiting_job_directory).parent == WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent/residents'
 
@@ -698,7 +723,9 @@ def select_ticket_after_resident_release(current_available_memory_mib, released_
     released_ticket_record = json.loads(read_bounded_gpu_observation_bytes(released_runnable_ticket, 65536)[0])
     released_job_directory = Path(released_ticket_record['path'])
     released_command_record = json.loads(read_bounded_gpu_observation_bytes(released_job_directory / 'gpu-command.json', 65536)[0])
-    if released_command_record.get('service') == 'hermes-agent' and not is_registered_flux_report(released_job_directory):
+    if (released_command_record.get('service') == 'hermes-agent'
+            and not is_registered_flux_report(released_job_directory)
+            and not is_registered_minimax_report(released_job_directory)):
         waiting_session_identifier = read_hermes_queue_session(released_job_directory)
         if (not is_hermes_resident_job(released_job_directory) or waiting_session_identifier is None
                 or waiting_session_identifier in resident_session_identifiers):

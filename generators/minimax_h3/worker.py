@@ -6,7 +6,8 @@ sys.path[:0]=[str(ROOT),str(ROOT/'.local/minimax-h3-diffusers/deps'),str(ROOT/'.
 os.environ['HF_HUB_OFFLINE']='1';os.environ['UNSLOTH_DIFFUSION_FP8_STORAGE']='1';os.environ['PYTORCH_ALLOC_CONF']='expandable_segments:False'
 from generators.common.reference_video_worker import run_reference_video_worker,save_video_outputs
 from workflow.common.generation_records import write_record_atomically
-BASE=ROOT/'.model/huggingface/hub/models--MiniMaxAI--MiniMax-H3/snapshots/1cc7549f2cf0af8ff2f09b24f3c57303c8aa6317'
+from workflow.common.model_storage_layout import resolve_minimax_snapshot
+BASE=resolve_minimax_snapshot(ROOT / '.model')
 from generators.minimax_h3.assets import ASSETS, FILES
 
 def validate(request):
