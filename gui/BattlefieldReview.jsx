@@ -27,6 +27,7 @@ export default function BattlefieldReview(){
   const [state,setState]=useState(null),[error,setError]=useState(""),[revision,retry]=useState(0);
   const [cleanupFailed,setCleanupFailed]=useState(false);
   const cameraReasonId=useId();
+  useEffect(()=>{document.title="전투필드 검수";},[]);
   useEffect(()=>{
     if(!restoreFocus.current || (!state && !error))return;
     restoreFocus.current=false;restoreLostFocus(document,error ? retryRef.current : selectRef.current);
@@ -89,7 +90,7 @@ export default function BattlefieldReview(){
     catch(problem){fail(problem);}
   }
   const back=new URL(location.href);back.pathname="/management/frame/map-review/";back.searchParams.set("mapKind","field");back.searchParams.delete("field");
-  return <article><a href={back.href}>지도 검수로 돌아가기</a><h1>전투필드 검수</h1>
+  return <article className="battlefield-review"><a href={back.href}>지도 검수로 돌아가기</a><h1>전투필드 검수</h1>
     {error && <BattlefieldError error={error} cleanupFailed={cleanupFailed} retryRef={retryRef} href={location.href} onRetry={event=>{if(retryPending.current)return;retryPending.current=true;restoreFocus.current=document.activeElement===event.currentTarget;setError("");retry(value=>value+1);}}/>}
     {!state && !error && <p role="status">전장 검수 화면을 불러오는 중입니다.</p>}
     {state && <BattlefieldControls state={state} controlsRef={controls} selectRef={selectRef} cameraReasonId={cameraReasonId} onSelect={select}

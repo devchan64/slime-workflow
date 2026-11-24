@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
 import {readGpuHandoffStatus} from "./readGpuHandoffStatus.mjs";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export default function useGpuHandoff(session,service,onJob,onError){
   const key=session ? `generator-gpu-handoff:${session}:${service}` : "";
@@ -14,7 +15,7 @@ export default function useGpuHandoff(session,service,onJob,onError){
     let active=true,timedOut=false;const controller=new AbortController();
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     readGpuHandoffStatus(managementCommand,session,id,service,controller.signal).then(value=>{if(active)update(value);})
-      .catch(problem=>{if(active)onError(timedOut ? "GPU 양도 상태 조회 시간이 초과됐습니다. 상태를 다시 확인하세요." : problem.message);})
+      .catch(problem=>{if(active)onError(timedOut ? "GPU 양도 상태 조회 시간이 초과됐습니다. 상태를 다시 확인하세요." : "GPU 양도 상태를 확인하지 못했습니다. "+requestErrorMessage(problem));})
       .finally(()=>clearTimeout(timeout));
     return()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[id,key,stateKey]);

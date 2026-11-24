@@ -156,6 +156,7 @@ export default function BuildingEditor(){
   const [dirty,setDirty]=useState(false);
   const [loading,setLoading]=useState(true),[checkedAt,setCheckedAt]=useState(null),[catalogVersion,setCatalogVersion]=useState(0);
   const reloadButton=useRef(null),listHeading=useRef(null),catalogError=useRef(null),restoreCatalogFocus=useRef(false),retiring=useRef(false);
+  useEffect(()=>{document.title="건물 에셋 관리";},[]);
   function refreshCatalog(restore=false){restoreCatalogFocus.current=restore;setLoading(true);reload(value=>value+1);}
   useEffect(()=>{
     if(loading || !restoreCatalogFocus.current)return;

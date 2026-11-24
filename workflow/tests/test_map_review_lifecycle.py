@@ -55,7 +55,7 @@ SOURCE
 
     def test_unsaved_cell_guards_same_tab_and_unload(self):
         source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
-        guard='function guardNavigation(event){'+source.split('function guardNavigation(event){',1)[1].split('\n  return <article>',1)[0]
+        guard='function guardNavigation(event){'+source.split('function guardNavigation(event){',1)[1].split('\n  return <article',1)[0]
         effect='useEffect(()=>{'+source.split('const cellDirty=isMapCellDirty(cell,cellOriginal);',1)[1].split('useEffect(()=>{',1)[1].split('},[cellDirty,unsafeAutosave,saving,saveUncertain]);',1)[0]+'},[cellDirty,unsafeAutosave,saving,saveUncertain]);'
         script=r"""
 const assert=require('node:assert/strict');let cellDirty=true,unsafeAutosave=false,saving=false,saveUncertain=false,message='',blocked=false,handler,removed=false,cleanup;

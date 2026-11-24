@@ -202,7 +202,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     </details><ModelReadiness session={session} service={service} onStatus={setModel}/><GeneratorChangelog generator={service}/>
     {!form && (inputError ? <div><p role="alert">{inputError}</p><button ref={inputRetryRef} type="button" onClick={()=>{if(inputPending.current)return;inputPending.current=true;inputRetryFocus.current=document.activeElement===inputRetryRef.current;setInputError("");retryInput(value=>value+1);}}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
-    {music && <fieldset disabled={busy || Boolean(review) || Boolean(handoff.id) || !form}><legend className="generator-visually-hidden">음악 예제</legend><MusicExamples apply={request=>setForm(current=>({...current,...request}))}/></fieldset>}
+    {music && <fieldset className="audio-examples-controls" disabled={busy || Boolean(review) || Boolean(handoff.id) || !form}><legend className="generator-visually-hidden">음악 예제</legend><MusicExamples apply={request=>setForm(current=>({...current,...request}))}/></fieldset>}
     <AudioReviewPending busy={busy} review={review}/>
     {form && <form ref={inputRegion} tabIndex={-1} aria-label={music ? "음악 생성 입력" : "효과음 생성 입력"} onSubmit={preview}><fieldset disabled={busy || Boolean(review) || Boolean(handoff.id)}>
       <legend className="generator-visually-hidden">{music?"음악 생성 입력":"효과음 생성 입력"}</legend>

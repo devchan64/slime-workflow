@@ -23,6 +23,7 @@ function WorldMapMarker({node,x,y,selected,href,onSelect,revision}) {
   },[loaded,failed]);
   return <a href={href} aria-label={node.name+" 선택"+(failed ? " · 미리보기 없음" : "")} aria-current={selected ? "true" : undefined} onClick={onSelect}>
     <title>{node.name} 선택</title><WorldMapThumbnail src={imageRetryUrl(node.thumbnail.url,revision)} x={x} y={y} failed={failed} onError={()=>{cancelDeadline.current?.();setFailed(true);}} onLoad={()=>{cancelDeadline.current?.();setLoaded(true);}}/>
+    {selected && <rect className="world-map-selected-marker" x={x-69} y={y-97} width="138" height="138" fill="none" vectorEffect="non-scaling-stroke" aria-hidden="true"/>}
     <text x={x} y={y+56} textAnchor="middle" fill="currentColor">{node.name}</text>
     <text x={x} y={y+78} textAnchor="middle" fill="currentColor">{node.safeTown?"도시":"필드"} {selected && "· 선택"}</text>
   </a>;
@@ -105,6 +106,7 @@ export default function WorldMap() {
         <button type="button" aria-disabled={zoom<=.1} title={zoom<=.1 ? "최소 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.max(.1,v*.8))}>축소</button>
         <button type="button" aria-disabled={zoom>=2} title={zoom>=2 ? "최대 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.min(2,v*1.25))}>확대</button>
         <button type="button" onClick={()=>setZoom(Math.max(.1,Math.min(1,viewport.current.clientWidth/width,innerHeight*.65/height)))}>전체 보기</button>
+        <button type="button" disabled={!selected} onClick={()=>{const area=viewport.current;if(!area)return;area.scrollTo({left:x(selected)*zoom-area.clientWidth/2,top:y(selected)*zoom-area.clientHeight/2});area.scrollIntoView({block:"nearest"});area.focus({preventScroll:true});}}>선택 맵 보기</button>
         <output aria-live="polite">확대 {Math.round(zoom*100)}%{zoom<=.1 ? " · 최소 배율" : zoom>=2 ? " · 최대 배율" : ""}</output>
       </div>
       <p id={viewportHelpId}>지도 영역에 초점을 두고 방향키로 스크롤할 수 있습니다. 맵은 목록이나 지도에서 선택하세요. 미리보기가 없으면 원본을 다시 불러와 재시도하세요.</p>

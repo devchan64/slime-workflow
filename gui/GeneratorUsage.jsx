@@ -4,6 +4,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import MarkdownTable from "./MarkdownTable.jsx";
 import {readGeneratorUsage} from "./readGeneratorUsage.mjs";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export default function GeneratorUsage({generator}) {
   const [open,setOpen]=useState(false),[content,setContent]=useState(null),[error,setError]=useState(""),[revision,setRevision]=useState(0);
@@ -20,7 +21,7 @@ export default function GeneratorUsage({generator}) {
     (async()=>{try{
       const text=await readGeneratorUsage(generator,controller.signal);
       if(active && !controller.signal.aborted)setContent({generator,text});
-    }catch(problem){if(active && (problem.name!=="AbortError" || timedOut))setError({generator,message:timedOut ? "사용설명 조회 시간이 초과됐습니다. 다시 확인하세요." : problem.message || "사용설명을 읽을 수 없습니다."});}finally{clearTimeout(timer);if(active)retrying.current=false;}})();
+    }catch(problem){if(active && (problem.name!=="AbortError" || timedOut))setError({generator,message:timedOut ? "사용설명 조회 시간이 초과됐습니다. 다시 확인하세요." : "사용설명을 읽을 수 없습니다. "+requestErrorMessage(problem)});}finally{clearTimeout(timer);if(active)retrying.current=false;}})();
     return ()=>{active=false;retrying.current=false;clearTimeout(timer);controller.abort();};
   },[open,generator,revision]);
   return <GeneratorSectionCard title="사용설명" summary="사용 방법과 제한 사항" onOpenChange={setOpen}>

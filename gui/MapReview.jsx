@@ -324,12 +324,12 @@ export default function MapReview(){
   function guardNavigation(event){
     if((cellDirty || unsafeAutosave || saving) && event.button===0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey){event.preventDefault();setFeedback(saving ? "지도 저장 결과를 확인하는 중입니다." : cellDirty ? "변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요." : "탭 임시저장을 확인하지 못했습니다. 이동 전 초안을 저장하거나 JSON으로 내려받으세요.");}
   }
-  return <article><MapReviewNavigation field={field} destination={destination} onNavigate={guardNavigation} saving={saving} cellDirty={cellDirty} unsafeAutosave={unsafeAutosave}/>
+  return <article className="map-review"><MapReviewNavigation field={field} destination={destination} onNavigate={guardNavigation} saving={saving} cellDirty={cellDirty} unsafeAutosave={unsafeAutosave}/>
     <h1 id="map-title">{title} 검수</h1>
     <fieldset className="map-view-controls" disabled={!ready}><legend>지도와 시점</legend>
-      <label>맵 선택<select id="map-select" disabled={Boolean(draft) || reading} aria-describedby={draft ? "map-change-reason" : undefined}/></label><button id="load-map" disabled={Boolean(draft) || reading} aria-describedby={draft ? "map-change-reason" : undefined}>맵 불러오기</button>
+      <div className="map-selection-row"><label>맵 선택<select id="map-select" disabled={Boolean(draft) || reading} aria-describedby={draft ? "map-change-reason" : undefined}/></label><button id="load-map" disabled={Boolean(draft) || reading} aria-describedby={draft ? "map-change-reason" : undefined}>맵 불러오기</button></div>
       {draft && <p id="map-change-reason">현재 지도 초안이 열려 있습니다. 지도를 바꾸려면 초안을 저장하거나 초안 보관 및 복원에서 원본으로 되돌리세요.</p>}
-      <section hidden={field}><label>건물 선택<select id="building"><option value="">건물 선택</option></select></label></section>
+      <section className="map-selection-row" hidden={field}><label>건물 선택<select id="building"><option value="">건물 선택</option></select></label></section>
       <div className="ui-action-row" role="group" aria-label="지도 시점">
         {[["zoom-out","축소"],["zoom-in","확대"],["actual-size","사람 중심 · 100%"],["fit","전체 보기"]].map(([id,label])=><button key={id} id={id}>{label}</button>)}
         <output id="zoom-level" aria-live="polite"/>
@@ -348,7 +348,7 @@ export default function MapReview(){
       {saveUncertain && <section aria-label="저장 결과 확인"><p>이전 저장 결과가 불확실합니다. 초안은 유지됩니다. 새로 검증하거나 원본 리비전을 조회해도 이전 저장의 완료 여부가 확인되는 것은 아닙니다.</p><button type="button" onClick={inspectSaveRevision}>현재 원본 리비전 확인</button></section>}
       <label><input type="checkbox" checked={editing} aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined} onChange={event=>{if(cellDirty){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}window.mapReviewEditingEnabled=event.target.checked;setEditing(event.target.checked);setBrush("pan");window.mapReviewSelectedCell=null;setCell(null);setCellOriginal(null);}}/>캐릭터 이동 대신 셀 선택</label>
       <button aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined} onClick={()=>inspectCell()}>선택 셀 속성 조회</button>
-      <form onSubmit={event=>{event.preventDefault();inspectCell({column:Number(cellColumn),row:Number(cellRow)});}}>
+      <form className="map-cell-inspect-form" onSubmit={event=>{event.preventDefault();inspectCell({column:Number(cellColumn),row:Number(cellRow)});}}>
         <div className="generator-settings-grid">
         <label>셀 열 (0부터 시작)<input type="number" required min="0" step="1" value={cellColumn} onChange={event=>setCellColumn(event.target.value)}/></label>
         <label>셀 행 (0부터 시작)<input type="number" required min="0" step="1" value={cellRow} onChange={event=>setCellRow(event.target.value)}/></label>

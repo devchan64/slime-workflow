@@ -217,6 +217,7 @@ export default function EffectEditor(){
   const [detailLoading,setDetailLoading]=useState(false);
   const [dirty,setDirty]=useState(false),[editorBusy,setEditorBusy]=useState(false),[editorVersion,setEditorVersion]=useState(0);
   const detailRequest=useRef(null),listPending=useRef(true),selectRef=useRef(null),reloadRef=useRef(null),loadRef=useRef(null),detailHeading=useRef(null),errorRef=useRef(null),restorePickerFocus=useRef("");
+  useEffect(()=>{document.title="이펙트 좌표 검수";},[]);
   useEffect(()=>{
     if(busy || !restorePickerFocus.current)return;
     const target=restorePickerFocus.current;restorePickerFocus.current="";
@@ -247,7 +248,7 @@ export default function EffectEditor(){
     finally{clearTimeout(timeout);if(detailRequest.current===controller){detailRequest.current=null;setDetailLoading(false);setBusy(false);}}
   }
   return <article className="effect-editor-page"><h1>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy || editorBusy}><legend>이펙트 선택</legend>
-    <select ref={selectRef} aria-label="이펙트" aria-describedby={dirty ? dirtyHelpId : undefined} disabled={dirty} value={selected} onChange={e=>{select(e.target.value);setDetail(null);}}>
+    <select ref={selectRef} aria-label="이펙트" aria-describedby={dirty ? dirtyHelpId : !effects.length ? selectionHelpId : undefined} disabled={dirty || !effects.length} value={selected} onChange={e=>{select(e.target.value);setDetail(null);}}>
       {selected && !effects.some(item=>item.id===selected) && <option value={selected}>{selected} · 현재 목록에 없음</option>}
       {!effects.length && <option value="">{busy ? "목록 조회 중…" : error ? "이펙트 목록 조회 실패" : "선택할 이펙트가 없습니다"}</option>}
       {effects.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select>
