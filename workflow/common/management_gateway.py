@@ -43,6 +43,8 @@ MANAGEMENT_SERVICE_ROUTES['wan22-i2v'] = '/wan22-i2v'
 MANAGEMENT_SERVICE_COMMANDS['wan22-i2v'] = ('history-delete', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')
 MANAGEMENT_SERVICE_ROUTES['minimax-h3-i2v'] = '/minimax-h3-i2v'
 MANAGEMENT_SERVICE_COMMANDS['minimax-h3-i2v'] = MANAGEMENT_SERVICE_COMMANDS['wan22-i2v']
+MANAGEMENT_SERVICE_ROUTES['minimax-h3-image'] = '/minimax-h3-image'
+MANAGEMENT_SERVICE_COMMANDS['minimax-h3-image'] = ('history-delete', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset', 'prioritize')
 for _wan21_service in ('wan21-t2v', 'wan21-i2v'):
     MANAGEMENT_SERVICE_ROUTES[_wan21_service] = '/' + _wan21_service
     MANAGEMENT_SERVICE_COMMANDS[_wan21_service] = MANAGEMENT_SERVICE_COMMANDS['wan22-i2v']
@@ -364,6 +366,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v-assets']='Wan 2.1 T2V 1.3B 및 가속
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-assets']='Wan 2.1 I2V 480p 및 LoRA 파일 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-attack-lora']='Wan 2.1 I2V 공격 동작 LoRA 실험 파일 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['minimax-h3-i2v']='MiniMax H3 Diffusers I2V · 참조 1장 · 8스텝 Turbo'
+MANAGEMENT_COMMAND_DESCRIPTIONS['minimax-h3-image']='MiniMax H3 Image INT8 · 텍스트 이미지 생성 · 6스텝'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v']='Wan 2.2 I2V 실험 · 참조 1장 · --payload-file · GPU 품질 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v']='Wan 2.1 T2V 실험 · --payload-file · GPU 품질 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v']='Wan 2.1 I2V 실험 · 참조 1장 · --payload-file · GPU 품질 미검증'
@@ -715,7 +718,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     operation_argument_parser.add_argument('--translation-ko',help='영어 준비 문구에 결합할 한국어 설명')
                 operation_argument_parser.add_argument('--width',type=int,default=768 if service_command_name=='flux-expression' else FLUX_IMAGE_PROFILE_RECORDS[service_command_name][2] if service_command_name in FLUX_IMAGE_PROFILE_RECORDS else None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('mannequin-generator','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
                 operation_argument_parser.add_argument('--height',type=int,default=512 if service_command_name=='flux-expression' else FLUX_IMAGE_PROFILE_RECORDS[service_command_name][3] if service_command_name in FLUX_IMAGE_PROFILE_RECORDS else None if service_command_name=='seamless-tile' else 512 if service_command_name=='qwen-21-circular' else 768 if service_command_name in ('mannequin-generator','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','outfit-transfer') else 512 if service_command_name in ('qwen-2511','expression','floor-tile') else 1024)
-                operation_argument_parser.add_argument('--steps',type=int,choices=range(1,51) if service_command_name=='flux-character' else (16,) if service_command_name=='flux-expression' or service_command_name in FLUX_IMAGE_PROFILE_RECORDS else (20,30,40,50) if service_command_name in ('mannequin-generator','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer','expression') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=16 if service_command_name=='flux-expression' or service_command_name in FLUX_IMAGE_PROFILE_RECORDS else 40 if service_command_name in ('mannequin-generator','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer','expression') else 4)
+                operation_argument_parser.add_argument('--steps',type=int,choices=(6,) if service_command_name=='minimax-h3-image' else range(1,51) if service_command_name=='flux-character' else (16,) if service_command_name=='flux-expression' or service_command_name in FLUX_IMAGE_PROFILE_RECORDS else (20,30,40,50) if service_command_name in ('mannequin-generator','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer','expression') else (40,) if service_command_name=='seamless-tile' else (4,) if service_command_name=='floor-tile' else (4,30),default=6 if service_command_name=='minimax-h3-image' else 16 if service_command_name=='flux-expression' or service_command_name in FLUX_IMAGE_PROFILE_RECORDS else 40 if service_command_name in ('mannequin-generator','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer','expression') else 4)
                 if service_command_name == 'flux-seamless':
                     operation_argument_parser.add_argument('--seamless-method', choices=('global-periodic-v1',), default='global-periodic-v1', help='심리스 처리 방식 (전역 주기 어텐션 + 순환 VAE)')
                 if service_command_name in ('mannequin-generator','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21'):
@@ -796,6 +799,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             current_design_text=getattr(command_argument_values,'design_ko',None)
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8') if command_argument_values.prompt_file else current_design_text if current_design_text is not None else (__import__('workflow.domains.image.outfit_transfer_generation',fromlist=['load_outfit_transfer_prompt']).load_outfit_transfer_prompt()),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
             if current_design_text is not None: command_payload_value['building_design_ko']=current_design_text
+            if service_command_name == 'minimax-h3-image': command_payload_value['images'] = []
             if getattr(command_argument_values,'translation_ko',None): command_payload_value['translation_source_ko']=command_argument_values.translation_ko
             if service_command_name == 'flux-seamless': command_payload_value['seamless_method']=command_argument_values.seamless_method
             if service_command_name in ('outfit-transfer',):

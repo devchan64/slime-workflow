@@ -26,6 +26,7 @@ import ConversationVideoForm from "./ConversationVideoForm.jsx";
 import VacePage from "./VacePage.jsx";
 import I2VPage from "./I2VPage.jsx";
 import MiniMaxH3Page from "./MiniMaxH3Page.jsx";
+import MiniMaxH3ImagePage from "./MiniMaxH3ImagePage.jsx";
 import {Wan21T2VPage,Wan21I2VPage} from "./Wan21VideoPage.jsx";
 import AnimatePage from "./AnimatePage.jsx";
 import WriterPage from "./WriterPage.jsx";
@@ -69,7 +70,7 @@ import {createRoot} from "react-dom/client";
 import {AssistantRuntimeProvider, ThreadPrimitive, MessagePrimitive, useAuiState, useExternalStoreRuntime} from "@assistant-ui/react";
 
 const embeddedGenerators={
-  "wan22-vace-generator":VacePage,"wan22-i2v-generator":I2VPage,"minimax-h3-i2v-generator":MiniMaxH3Page,"wan21-t2v-generator":Wan21T2VPage,"wan21-i2v-generator":Wan21I2VPage,"wan22-animate2-generator":AnimatePage,
+  "wan22-vace-generator":VacePage,"wan22-i2v-generator":I2VPage,"minimax-h3-i2v-generator":MiniMaxH3Page,"minimax-h3-image-generator":MiniMaxH3ImagePage,"wan21-t2v-generator":Wan21T2VPage,"wan21-i2v-generator":Wan21I2VPage,"wan22-animate2-generator":AnimatePage,
   "sfx-dasheng-audiogen":SoundEffectPage,"music-heartmula":HeartmulaPage,
   "dwpose-generator":DwposePage,"prompt-translation":TranslationPage,"writer-agent":WriterPage,
 };
@@ -899,6 +900,7 @@ const pages = {
   "/management/frame/wan22-vace-generator": VacePage,
   "/management/frame/wan22-i2v-generator": I2VPage,
   "/management/frame/minimax-h3-i2v-generator": MiniMaxH3Page,
+  "/management/frame/minimax-h3-image-generator": MiniMaxH3ImagePage,
   "/management/frame/wan21-t2v-generator": Wan21T2VPage,
   "/management/frame/wan21-i2v-generator": Wan21I2VPage,
   "/management/assistant/vace": VacePage,

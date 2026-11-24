@@ -7,6 +7,31 @@ from unittest.mock import patch, Mock
 from workflow.common import gpu_job_queue as queue_module
 
 class GpuJobQueueTests(unittest.TestCase):
+    def test_minimax_h3_image_uses_exclusive_confined_reservation(self):
+        service = 'minimax-h3-image'
+        self.assertIn(service, queue_module.GPU_EXCLUSIVE_SERVICES)
+        self.assertEqual(queue_module.GPU_MEMORY_REQUIREMENTS[service], 81920)
+        self.assertTrue(queue_module.is_dedicated_gpu_source_verifiable(service))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            job = root / '.tmp/test/minimax-h3-image/example'
+            job.mkdir(parents=True)
+            self.assertEqual(queue_module.identify_dedicated_gpu_reservation_source(str(job), service, root), service)
+            other = root / '.tmp/test/minimax-h3-i2v/example'
+            other.mkdir(parents=True)
+            self.assertIsNone(queue_module.identify_dedicated_gpu_reservation_source(str(other), service, root))
+            link = job.parent / 'linked'
+            link.symlink_to(other, target_is_directory=True)
+            self.assertIsNone(queue_module.identify_dedicated_gpu_reservation_source(str(link), service, root))
+
+    def test_minimax_h3_image_keeps_memory_floor_after_small_run(self):
+        from workflow.common.gpu_memory_history import estimate_required_memory
+        with patch('workflow.common.gpu_memory_history.load_recent_observations', return_value=[]), \
+             patch('workflow.common.gpu_memory_history.summarize_memory_observations', return_value={
+                 'peak_memory_mib': 1024, 'usable_runs': 1, 'retained_runs': 1,
+             }):
+            self.assertEqual(estimate_required_memory('minimax-h3-image', 81920)['required_memory_mib'], 81920)
+
     def test_minimax_h3_experiment_has_exclusive_reservation_and_confined_source(self):
         service = 'minimax-h3-experiment'
         self.assertIn(service, queue_module.GPU_EXCLUSIVE_SERVICES)

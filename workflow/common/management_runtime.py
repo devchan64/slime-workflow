@@ -79,6 +79,7 @@ def build_building_compatibility_handler(billboard_generation_service):
 
 
 def create_management_runtime(writer_workspace_config=None):
+    from workflow.domains.minimax_h3_image.generation import MiniMaxH3ImageManager
     from workflow.domains.image.image_generation import ImageGenerationManager
     from workflow.domains.image.seamless_generation import SeamlessGenerationManager
     from workflow.domains.image.qwen_circular_generation import QwenCircularGenerationManager
@@ -125,6 +126,7 @@ def create_management_runtime(writer_workspace_config=None):
         kimodo_generation_service = KimodoGenerationManager()
         vace_generation_service = VaceVideoGenerationManager()
         minimax_h3_generation_service = MiniMaxH3GenerationManager()
+        minimax_h3_image_service = MiniMaxH3ImageManager()
         i2v_generation_service = I2VGenerationManager()
         wan21_t2v_generation_service = Wan21T2VGenerationManager()
         wan21_i2v_generation_service = Wan21I2VGenerationManager()
@@ -169,6 +171,7 @@ def create_management_runtime(writer_workspace_config=None):
             'wan22-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
             'wan22-i2v': bind_stored_management_service(i2v_generation_service.handle_image_request,i2v_generation_service.job_storage_root),
             'minimax-h3-i2v': bind_stored_management_service(minimax_h3_generation_service.handle_image_request,minimax_h3_generation_service.job_storage_root),
+            'minimax-h3-image': bind_stored_management_service(minimax_h3_image_service.handle_image_request,minimax_h3_image_service.job_storage_root),
             'wan21-t2v': bind_stored_management_service(wan21_t2v_generation_service.handle_image_request,wan21_t2v_generation_service.job_storage_root),
             'wan21-i2v': bind_stored_management_service(wan21_i2v_generation_service.handle_image_request,wan21_i2v_generation_service.job_storage_root),
             'map-assets': bind_stored_management_service(handle_map_resize_request,RESIZE_STORAGE_DIRECTORY),

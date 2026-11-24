@@ -11,7 +11,7 @@ function recordedTime(id) {
   const match=typeof id==="string" && id.match(/^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})-/);
   return match ? `ID 시각 · ${match[1]} ${match[2]}:${match[3]}:${match[4]} (한국 시간)` : "";
 }
-const fluxServices=new Set(["flux-image","flux-character","flux-mannequin","flux-billboard","flux-prop","flux-vegetation","flux-building","flux-seamless","flux-expression"]);
+const fluxServices=new Set(["minimax-h3-image","flux-image","flux-character","flux-mannequin","flux-billboard","flux-prop","flux-vegetation","flux-building","flux-seamless","flux-expression"]);
 const videoServices=new Set(["wan22-fun-control","wan22-vace","wan22-i2v","minimax-h3-i2v","wan21-t2v","wan21-i2v","wan22-animate2","dwpose","kimodo"]);
 function HistoryImage({service,record,summary,unavailable}) {
 
@@ -20,7 +20,7 @@ function HistoryImage({service,record,summary,unavailable}) {
   if(!summary)return <span className="history-card-image-placeholder">{unavailable ? "이미지 확인 불가" : "이미지 확인 중"}</span>;
   const attempt=typeof summary.image_attempt==="string" && /^[a-f0-9]{32}$/.test(summary.image_attempt) ? summary.image_attempt : "";
   if((flux && !summary.image_available) || (video && !attempt))return <span className="history-card-image-placeholder">{["queued","running"].includes(record.recorded_status) ? "결과 준비 중" : "이미지 없음"}</span>;
-  const src=flux ? `/${service}-generator/jobs/${encodeURIComponent(record.id)}/result.png` : `/${service}/jobs/${encodeURIComponent(record.id)}/attempts/${attempt}/output-000.png`;
+  const src=flux ? `/${service}${service === "minimax-h3-image" ? "" : "-generator"}/jobs/${encodeURIComponent(record.id)}/result.png` : `/${service}/jobs/${encodeURIComponent(record.id)}/attempts/${attempt}/output-000.png`;
   return <HistoryThumbnail key={src} src={src}/>;
 }
 
