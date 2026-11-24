@@ -1,13 +1,18 @@
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
+
+export function validMapReceiptId(value){return typeof value==="string" && Array.from(value.trim()).length>0 && Array.from(value.trim()).length<=180;}
 
 export default function MapDatabaseReceipt(){
   const [id,setId]=useState(""),[hash,setHash]=useState("");
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
+  const idHint=useId(),idError=useId(),hashHint=useId(),hashError=useId();
   const request=useRef(null),sequence=useRef(0),button=useRef(null),restoreFocus=useRef(false);
   useEffect(()=>()=>{sequence.current++;request.current?.abort();},[]);
   useEffect(()=>{if(!busy && restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body)button.current?.focus();}},[busy]);
   const requestId=id.trim(),requestHash=hash.trim().toLowerCase();
+  const invalidId=Boolean(requestId && !validMapReceiptId(requestId));
+  const invalidHash=Boolean(requestHash && !/^[a-f0-9]{64}$/.test(requestHash));
   async function lookup(){
     if(request.current)return;
     const controller=new AbortController(),current=++sequence.current;request.current=controller;let timedOut=false;
@@ -27,10 +32,13 @@ export default function MapDatabaseReceipt(){
     finally{clearTimeout(timer);if(sequence.current===current){request.current=null;setBusy(false);}}
   }
   return <details><summary>맵 DB 변경 접수 확인</summary><fieldset disabled={busy}>
-    <label>DB 요청 ID <input value={id} onChange={e=>{setId(e.target.value);setNotice("");}}/></label>
-    <label>원본 요청 SHA-256 <input value={hash} aria-describedby="map-receipt-hash-hint" onChange={e=>{setHash(e.target.value);setNotice("");}}/></label>
-    <p id="map-receipt-hash-hint">원본 요청에 기록된 64자리 해시를 입력하세요.</p>
-    <button ref={button} disabled={!requestId || !/^[a-f0-9]{64}$/.test(requestHash)} onClick={lookup}>DB 접수 확인</button>
+    <label>DB 요청 ID <input value={id} aria-invalid={invalidId || undefined} aria-describedby={[idHint,invalidId ? idError : null].filter(Boolean).join(" ")} onChange={e=>{setId(e.target.value);setNotice("");}}/></label>
+    <p id={idHint}>요청 ID는 180자 이내로 입력하세요.</p>
+    {invalidId && <p id={idError} role="alert">요청 ID는 180자 이내여야 합니다.</p>}
+    <label>원본 요청 SHA-256 <input value={hash} aria-invalid={invalidHash || undefined} aria-describedby={[hashHint,invalidHash ? hashError : null].filter(Boolean).join(" ")} onChange={e=>{setHash(e.target.value);setNotice("");}}/></label>
+    <p id={hashHint}>원본 요청에 기록된 64자리 해시를 입력하세요.</p>
+    {invalidHash && <p id={hashError} role="alert">SHA-256 해시는 0~9와 a~f로 된 64자리여야 합니다.</p>}
+    <button ref={button} disabled={!validMapReceiptId(requestId) || !/^[a-f0-9]{64}$/.test(requestHash)} onClick={lookup}>DB 접수 확인</button>
     {busy && <p role="status">접수 기록을 조회하고 있습니다.</p>}
     {notice && <p role="status">{notice}</p>}
   </fieldset></details>;

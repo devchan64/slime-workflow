@@ -23,7 +23,7 @@ async function verifyImage(file,accept){
 export default function ReferenceImageInput({label,source,onChange,onSelectionStart,onCheckingChange,accept="image/*",disabled=false,maxBytes=null,validate=null,describedBy}) {
   const input=useRef(null),pasteButton=useRef(null),removeButton=useRef(null),disabledRef=useRef(disabled),requestRef=useRef(0),restoreFocus=useRef(false),restorePasteFocus=useRef(false),restoreFileFocus=useRef(false);
   const previewRef=useRef(null),previewRetryRef=useRef(null),restorePreviewFocus=useRef(false);
-  const errorId=useId();
+  const errorId=useId(),limitId=useId();
   disabledRef.current=disabled;
   const [preview,setPreview]=useState(""),[error,setError]=useState(""),[checking,setChecking]=useState(false),[previewError,setPreviewError]=useState(false),[previewRevision,retryPreview]=useState(0);
   const checkingCallback=useRef(onCheckingChange);checkingCallback.current=onCheckingChange;
@@ -72,10 +72,10 @@ export default function ReferenceImageInput({label,source,onChange,onSelectionSt
   }
   return <div className={"reference-image-input"+(disabled ? " is-disabled" : "")} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();select(event.dataTransfer.files[0]);}}>
     <span>{label}</span>
-    {maxBytes!==null && <small>PNG · 파일당 최대 {formatReferenceLimit(maxBytes)}</small>}
+    {maxBytes!==null && <small id={limitId}>{accept==="image/png" ? "PNG · " : ""}파일당 최대 {formatReferenceLimit(maxBytes)}</small>}
     {preview ? previewError ? <div role="alert"><p>이미지 미리보기를 불러오지 못했습니다. 첨부는 유지됩니다.</p><button ref={previewRetryRef} type="button" aria-label={label+" 미리보기 다시 불러오기"} onClick={()=>{restorePreviewFocus.current=document.activeElement===previewRetryRef.current;setPreviewError(false);retryPreview(value=>value+1);}}>미리보기 다시 불러오기</button></div> : <img ref={previewRef} tabIndex={-1} key={previewRevision} src={preview} alt={label+" 미리보기"} onError={()=>{restorePreviewFocus.current=document.activeElement===previewRef.current;setPreviewError(true);}}/> : <p>{disabled ? "현재 이미지를 선택할 수 없습니다." : "이미지를 여기에 놓거나 파일을 선택하세요."}</p>}
     {preview && typeof source?.name==="string" && source.name && <small className="reference-image-name">선택한 파일 · {source.name}</small>}
-    <div className="choice-buttons"><label className="reference-image-file">파일 선택<input ref={input} type="file" disabled={disabled || checking} accept={accept} aria-label={label} aria-describedby={[describedBy,error ? errorId : null].filter(Boolean).join(" ") || undefined} onChange={event=>{select(event.target.files[0]);event.target.value="";}}/></label>
+    <div className="choice-buttons"><label className="reference-image-file">파일 선택<input ref={input} type="file" disabled={disabled || checking} accept={accept} aria-label={label} aria-invalid={Boolean(error)} aria-describedby={[describedBy,maxBytes!==null ? limitId : null,error ? errorId : null].filter(Boolean).join(" ") || undefined} onChange={event=>{select(event.target.files[0]);event.target.value="";}}/></label>
       <button ref={pasteButton} type="button" aria-label={label+" 클립보드 붙여넣기"} disabled={disabled || checking} onClick={paste}>클립보드 붙여넣기</button>
       {preview && <button ref={removeButton} type="button" aria-label={label+" 이미지 제거"} disabled={disabled || checking} onClick={()=>{restoreFocus.current=document.activeElement===removeButton.current;setError("");onChange(null);}}>이미지 제거</button>}</div>
     {checking && <p role="status">이미지 확인 중…</p>}

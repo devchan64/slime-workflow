@@ -1,21 +1,31 @@
-import React,{useState} from "react";
+import React,{useEffect,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
+import {readProposalPreview} from "./readProposalPreview.mjs";
 import KimodoGeneration from "./KimodoGeneration.jsx";
 import {verifyKimodoProposal} from "./kimodoProposalMembership.mjs";
 
 export default function KimodoProposal({job,session,snapshot,offset,append,openStep}){
+  return <KimodoProposalForSelection key={JSON.stringify([session,job])} job={job} session={session} snapshot={snapshot} offset={offset} append={append} openStep={openStep}/>;
+}
+function KimodoProposalForSelection({job,session,snapshot,offset,append,openStep}){
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const [original,setOriginal]=useState(null);
   const [exampleOpen,setExampleOpen]=useState(false),[exampleMounted,setExampleMounted]=useState(false);
+  const request=useRef(null);useEffect(()=>()=>request.current?.abort(),[]);
+  useEffect(()=>{if(request.current){request.current.abort();request.current=null;setBusy(false);setError("대화 이력이 변경됐습니다. 제안을 다시 확인하세요.");}},[snapshot,offset]);
   async function load(){
+    if(request.current)return;
+    const controller=new AbortController();request.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setError("");
     try{
-      const result=await verifyKimodoProposal(managementCommand,{job,session,snapshot,offset});
+      const result=await readProposalPreview(verifyKimodoProposal,[{job,session,snapshot,offset}],controller.signal);
       setOriginal(result);setProposal(result);
-    }catch(problem){setError(problem.message);}
-    finally{setBusy(false);}
+    }catch(problem){if(request.current===controller && (!controller.signal.aborted || timedOut))setError(timedOut ? "Kimodo 제안 조회 시간이 초과됐습니다. 다시 확인하세요." : problem.message);}
+    finally{clearTimeout(timeout);if(request.current===controller){request.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}}
   }
   if(!proposal)return <section><button type="button" disabled={busy} onClick={load}>Kimodo 생성 제안 검토</button>
+    {busy && <p role="status">Kimodo 제안을 조회하고 있습니다.</p>}
     {error && <p role="alert">{error}</p>}</section>;
   if(proposal.example_id)return <section className="conversation-kimodo-proposal" aria-label="Kimodo 예제 제안">
     <p>등록된 예제 {proposal.example_id}의 설정과 참조 이미지를 생성 폼에서 불러옵니다. 아직 접수되지 않았습니다.</p>

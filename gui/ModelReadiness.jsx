@@ -26,7 +26,7 @@ export function validModelReadiness(status) {
 }
 
 export function ModelDownloadButton({sending,reason,reasonId,onPrepare}) {
-  return <><button disabled={Boolean(reason)} aria-describedby={reason ? reasonId : undefined} onClick={onPrepare}>
+  return <><button type="button" disabled={Boolean(reason)} aria-describedby={reason ? reasonId : undefined} onClick={onPrepare}>
     {sending?"접수 중…":"모델 다운로드 · 이어받기"}
   </button>{reason && <p id={reasonId}>{reason}</p>}</>;
 }
@@ -94,7 +94,7 @@ function ModelReadinessForService({service, modelManagementService=service, mana
     try {
       const target=status.prepare_request;
       await untilAborted(managementCommand(target.service,target.command,target.payload,{signal:controller.signal}),controller.signal);
-      setNotice("모델 준비 요청을 접수했습니다.");
+      setNotice("모델 준비 요청을 보냈습니다. 현재 준비 상태를 확인하세요.");
     } catch(problem) {
       setNotice("모델 준비 요청의 접수 결과를 확인하지 못했습니다. 다시 요청하기 전에 준비 상태와 다운로드 이력을 확인하세요. · "+(timedOut ? "응답 시간이 초과됐습니다." : requestErrorMessage(problem)));
     } finally {

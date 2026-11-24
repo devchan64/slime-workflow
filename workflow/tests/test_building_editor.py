@@ -6,6 +6,25 @@ from workflow.common.management_gateway import resolve_management_command
 
 
 class BuildingEditorTest(unittest.TestCase):
+    def test_aborted_registration_preparation_never_sends_request(self):
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'building.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingEditor.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""(async()=>{const assert=require('node:assert/strict'),{buildingCommand}=require(process.argv[1]);
+              let finish,calls=0;Object.defineProperty(globalThis,'crypto',{value:{subtle:{digest:()=>new Promise(resolve=>{finish=resolve;})}},configurable:true});
+              globalThis.fetch=()=>{calls++;throw new Error('unexpected request');};
+              const controller=new AbortController(),pending=buildingCommand('register',{texture:'test'},{signal:controller.signal});
+              controller.abort();finish(new Uint8Array(32).buffer);await assert.rejects(pending,{name:'AbortError'});assert.equal(calls,0);
+              globalThis.setTimeout=callback=>setImmediate(callback);globalThis.clearTimeout=handle=>clearImmediate(handle);
+              let dispatched=false;const timeout=buildingCommand('register',{texture:'test'},{onDispatch:()=>{dispatched=true;}});
+              await assert.rejects(timeout,/준비 시간이 초과/);assert.equal(dispatched,false);assert.equal(calls,0);
+            })().catch(error=>{console.error(error);process.exitCode=1;});"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True)
+
     def test_catalog_ui_rejects_invalid_preview_data(self):
         import subprocess
         import tempfile
@@ -14,11 +33,14 @@ class BuildingEditorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             bundle=Path(directory)/'building.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingEditor.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
-            script="""const assert=require('node:assert/strict'),{validBuildingCatalog:valid,validBuildingChange:change}=require(process.argv[1]);
+            script="""const assert=require('node:assert/strict'),{validBuildingCatalog:valid,validBuildingChange:change,invalidBuildingSizeMap:invalidSize}=require(process.argv[1]);
               const row={texture:'house',width:100,height:200,properties:{anchorX:.5,anchorY:1},maps:[{map:'town',name:'집',facing:'front',width:1,height:2,contentWidth:1}]};
               assert.equal(valid({generation:1,assets:[row]}),true);
               assert.equal(valid({generation:1,assets:[]}),true);
               assert.equal(valid({generation:1,assets:[row,row]}),false);
+              assert.equal(invalidSize(row,{displayWidthAdjustment:0,displayHeightAdjustment:0}),null);
+              assert.equal(invalidSize(row,{displayWidthAdjustment:-200,displayHeightAdjustment:0}),'town');
+              assert.equal(invalidSize(row,{displayWidthAdjustment:0,displayHeightAdjustment:-300}),'town');
               const saved={saved:true,asset:'house',generation:2,properties:{anchorX:.5,anchorY:1}};
               assert.equal(change(saved,'house',1,null,{anchorX:.5,anchorY:1}),true);
               for(const result of [null,{...saved,asset:'other'},{...saved,generation:1},{...saved,properties:{anchorX:2}}])assert.equal(change(result,'house',1,null,{anchorX:.5}),false);

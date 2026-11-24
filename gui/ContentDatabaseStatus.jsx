@@ -3,6 +3,14 @@ import React,{useEffect,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 
+const mapModeLabels=new Map([["files","파일"],["database","DB"]]);
+const sourceLabels=new Map([["matched","일치"],["mismatch","불일치"]]);
+const saveLabels=new Map([["clear","중단 기록 없음"],["busy","진행 중"],["pending","중단 기록 확인 필요"]]);
+const contentLabelGroups=new Map([["mode",mapModeLabels],["source",sourceLabels],["save",saveLabels]]);
+export function contentStatusLabel(kind,value){
+  return contentLabelGroups.get(kind)?.get(value) || "확인 불가";
+}
+
 function validContentStatus(result){
   if(!result || !["available","unavailable"].includes(result.status) || (result.note!=null && typeof result.note!=="string"))return false;
   if(result.status==="available" && (!Number.isInteger(result.generation) || result.generation<0 || !Number.isInteger(result.ledger_generation) || result.ledger_generation<0 || result.ledger_generation>result.generation || typeof result.pending!=="boolean" || result.pending!==(result.generation>result.ledger_generation) || (result.latest!=null && (typeof result.latest.state!=="string" || typeof result.latest.lease_expired!=="boolean"))))return false;
@@ -39,10 +47,10 @@ export default function ContentDatabaseStatus(){
       ["반영 대기",record.pending?"예":"아니요"],
       ["최근 반영",record.latest?record.latest.state+(record.latest.lease_expired?" · 임대 만료":""):"기록 없음"]
     ]:[]),
-    ["헤르메스 맵 모드",({files:"파일",database:"DB"})[record.local_map_mode] || "확인 불가"],
-    ["원본·등록부·백엔드 잠금",({matched:"일치",mismatch:"불일치"})[sources?.status] || "확인 불가"],
+    ["헤르메스 맵 모드",contentStatusLabel("mode",record.local_map_mode)],
+    ["원본·등록부·백엔드 잠금",contentStatusLabel("source",sources?.status)],
     ...(Number.isInteger(sources?.checked_files)?[["검사 파일",sources.checked_files],["불일치 파일",sources.mismatched_files]]:[]),
-    ["야외 맵 저장",({clear:"중단 기록 없음",busy:"진행 중",pending:"중단 기록 확인 필요"})[save?.state] || "확인 불가"]
+    ["야외 맵 저장",contentStatusLabel("save",save?.state)]
   ]:[];
   return <section>
     <button ref={refreshRef} disabled={loading} onClick={()=>{restoreFocus.current=true;setLoading(true);refresh(n=>n+1);}}>{loading?"조회 중…":"콘텐츠 DB 상태 새로고침"}</button>

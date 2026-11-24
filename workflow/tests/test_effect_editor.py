@@ -4,6 +4,18 @@ from unittest.mock import patch
 from workflow.domains.map_assets.effect_editor import execute_effect_editor_command
 
 class EffectEditorTests(unittest.TestCase):
+    def test_effect_list_response_is_accepted_by_ui(self):
+        import json
+        import subprocess
+        from pathlib import Path
+        records=[{'id':'a','name':'안개','alignment':{}},{'id':'b','name':'웨이포인트','renderer':'waypoint-animation'}]
+        with patch('workflow.domains.map_assets.effect_editor.execute_content_api_request',return_value={'effects':records}):
+            pages=[execute_effect_editor_command('effect-list',{})]
+        with patch('workflow.domains.map_assets.effect_editor.execute_content_api_request',return_value={'effects':[]}):
+            pages.append(execute_effect_editor_command('effect-list',{}))
+        script="""import {validEffectList} from './gui/effectListValidation.mjs';let input='';for await(const chunk of process.stdin)input+=chunk;if(!JSON.parse(input).every(validEffectList))process.exit(1);"""
+        subprocess.run(['node','--input-type=module','-e',script],input=json.dumps(pages),cwd=Path(__file__).resolve().parents[2],check=True,capture_output=True,text=True)
+
     def test_effect_load_response_is_accepted_by_ui(self):
         import json
         import subprocess

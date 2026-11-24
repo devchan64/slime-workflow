@@ -6,6 +6,7 @@ export function validLiveInstructionRows(rows) {
   const ids=new Set();
   for (const row of rows) {
     if (!row || typeof row.request_id!=="string" || !row.request_id || ids.has(row.request_id) || typeof row.job_id!=="string" || !row.job_id || typeof row.text!=="string" || !["steer","redirect"].includes(row.mode) || !receiptStates.has(row.state)) return false;
+    if(row.recovery!=null && (typeof row.recovery!=="object" || Array.isArray(row.recovery) || !["queued","dispatching","dispatched","cancelled"].includes(row.recovery.state) || (row.recovery.job_id!=null && (typeof row.recovery.job_id!=="string" || !row.recovery.job_id))))return false;
     ids.add(row.request_id);
   }
   return true;

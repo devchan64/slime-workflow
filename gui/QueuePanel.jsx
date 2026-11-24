@@ -8,6 +8,7 @@ import RecentGeneratorJobs from "./RecentGeneratorJobs.jsx";
 import QueuePagination from "./QueuePagination.jsx";
 import {newestSessionJobs,parseSessionTime} from "./sessionJobOrder.mjs";
 import {untilAborted} from "./managementCommand.js";
+import {sessionQueueStateLabel,validSessionQueueResult} from "./sessionQueueValidation.mjs";
 
 const categories = {translation:"번역", image:"이미지", audio:"오디오", motion:"모션"};
 const states = {
@@ -30,7 +31,7 @@ function pendingFluxLabel(step){
 }
 
 export default function QueuePanel({session, call, editNextStep, openMessage, choose, initialRun="", filterCache}) {
-  const dateErrorId=useId();
+  const dateErrorId=useId(),filterHelpId=useId();
   const [selectedRun,setSelectedRun] = useState(initialRun);
   const [selectedDirect,setSelectedDirect]=useState("");
   const detail=useRef(null),resultTrigger=useRef(null),listHeading=useRef(null),retryButton=useRef(null),restoreRetryFocus=useRef(false);
@@ -63,7 +64,7 @@ export default function QueuePanel({session, call, editNextStep, openMessage, ch
     setNavigationError("");
     setLoading(true);
     untilAborted(call("workflow-list", {session_id:session, category, state, search_filters},{signal:controller.signal}),controller.signal)
-      .then(data => { if (!Array.isArray(data?.steps) || (data.direct_jobs != null && !Array.isArray(data.direct_jobs)) || [...data.steps,...(data.direct_jobs || [])].some(row=>!row || typeof row!=="object" || Array.isArray(row))) throw new Error("작업 목록 응답을 읽을 수 없습니다."); if (active) {setResult(data);setResultFilters(filters);} })
+      .then(data => { if (!validSessionQueueResult(data)) throw new Error("작업 목록 응답을 읽을 수 없습니다."); if (active) {setResult(data);setResultFilters(filters);} })
       .catch(problem => { if (active) setError(timedOut ? "작업 목록 조회 시간이 초과됐습니다." : problem.message || "조회에 실패했습니다."); })
       .finally(()=>{clearTimeout(deadline);if(active)setLoading(false);});
     return () => { active = false;clearTimeout(deadline);controller.abort(); };
@@ -90,7 +91,7 @@ export default function QueuePanel({session, call, editNextStep, openMessage, ch
         {Object.entries(states).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
       </select></label>
       <details><summary>상세 필터</summary>{Object.entries({generator:"생성기",run_id:"워크플로우 실행 ID",job_id:"단계 또는 작업 ID",created_from:"시작일",created_through:"종료일"}).map(([key,label]) =>
-        <label key={key}>{label} <input type={key.startsWith("created_")?"date":"text"} aria-invalid={key.startsWith("created_") && invalidDateRange || undefined} aria-describedby={key.startsWith("created_") && invalidDateRange ? dateErrorId : undefined} {...field(key)}/></label>)}<small>날짜 기준 · 한국 시간. 생성기와 작업 ID는 일부 값으로 검색할 수 있습니다. 워크플로우 실행 ID는 전체 값을 입력하세요.</small></details>
+        <label key={key}>{label} <input type={key.startsWith("created_")?"date":"text"} aria-invalid={key.startsWith("created_") && invalidDateRange || undefined} aria-describedby={[filterHelpId,key.startsWith("created_") && invalidDateRange ? dateErrorId : null].filter(Boolean).join(" ")} {...field(key)}/></label>)}<small id={filterHelpId}>날짜 기준 · 한국 시간. 생성기와 작업 ID는 일부 값으로 검색할 수 있습니다. 워크플로우 실행 ID는 전체 값을 입력하세요.</small></details>
       {invalidDateRange && <p id={dateErrorId} role="alert">상세 필터의 시작일은 종료일보다 늦을 수 없습니다.</p>}
       <button disabled={invalidDateRange}>작업 조회</button>
       <button type="button" onClick={()=>{setDraft({...initial});setFilters({...initial});setSelectedRun("");setSelectedDirect("");}}>필터 초기화</button>
@@ -103,11 +104,11 @@ export default function QueuePanel({session, call, editNextStep, openMessage, ch
     {result && <section aria-label="세션 작업 목록"><h3 ref={listHeading} tabIndex={-1}>이 세션의 작업</h3><p className="queue-filter-summary">적용된 조건 · {resultFilterSummary}</p><p>{result.steps.length+(result.direct_jobs || []).length}개 작업{(result.truncated || result.direct_truncated) && " · 일부 이전 항목 제외"} · 조회 {displayTime(result.queried_at)}</p>{result.flux_proposal_unreadable_count>0 && <p role="status">대화 작업 {result.flux_proposal_unreadable_count}건의 제안을 확인하지 못했습니다. 이 작업들의 FLUX 접수 여부는 목록에서 확인할 수 없습니다.</p>}{result.writer_proposal_unreadable_count>0 && <p role="status">대화 작업 {result.writer_proposal_unreadable_count}건의 작가 제안 접수 여부를 확인하지 못했습니다.</p>}
       <div className="session-job-list">
         {visibleJobs.map(({kind,step})=>kind==="workflow" ? <article className="session-job" key={"workflow:"+step.request_id}>
-          <div className="session-job-heading"><strong>{step.generator}</strong><span>{states[step.source_state] || states[step.state] || step.state}</span></div>
+          <div className="session-job-heading"><strong>{step.generator || "생성기 확인 불가"}</strong><span>{step.source_state ? sessionQueueStateLabel(states,step.source_state) : sessionQueueStateLabel(states,step.state)}</span></div>
           <p>{step.step_id}</p>{step.source_job_id ? <JobIdentifier id={step.source_job_id} compact/> : <p>작업 ID 확인 중</p>}<div className="queue-job-times"><small>생성 · {displayTime(step.created_at)}</small><small>관측 · {step.observed_at ? displayTime(step.observed_at) : "관측 전"}</small></div>
           <div className="session-job-actions"><button type="button" aria-label={step.run_id+(selectedRun===step.run_id?" 결과 닫기":" 결과 조회")} aria-expanded={selectedRun===step.run_id} onClick={event=>{if(selectedRun===step.run_id)closeResult();else{resultTrigger.current=event.currentTarget;setSelectedDirect("");setSelectedRun(step.run_id);}}}>{selectedRun===step.run_id?"결과 닫기":"상태·결과 보기"}</button>{step.state==="submitting" && step.source_state==="queued" && <QueuePriority step={step} call={call}/>}</div>
         </article> : <article className="session-job" key={"direct:"+step.request_id}>
-          <div className="session-job-heading"><strong>{step.generator}</strong><span>{states[step.state] || step.state}</span></div>
+          <div className="session-job-heading"><strong>{step.generator || "생성기 확인 불가"}</strong><span>{sessionQueueStateLabel(states,step.state)}</span></div>
           <small>{["flux_proposal","writer_proposal"].includes(step.source_kind) ? "대화 제안" : "직접 접수"}</small>
           {step.source_job_id ? <JobIdentifier id={step.source_job_id} compact/> : <p>{pendingFluxLabel(step)}</p>}<div className="queue-job-times"><small>생성 · {displayTime(step.created_at)}</small><small>관측 · {displayTime(step.observed_at)}</small></div>
           {(step.source_job_id || step.proposal_job_id) && <div className="session-job-actions">{step.source_job_id && <button type="button" aria-label={step.source_job_id+(selectedDirect?.id===step.source_job_id && selectedDirect?.service===step.generator?" 결과 닫기":" 결과 조회")} aria-expanded={selectedDirect?.id===step.source_job_id && selectedDirect?.service===step.generator} onClick={event=>{if(selectedDirect?.id===step.source_job_id && selectedDirect?.service===step.generator)closeResult();else{resultTrigger.current=event.currentTarget;setSelectedRun("");setSelectedDirect({id:step.source_job_id,service:step.generator,kind:step.source_kind==="writer_proposal"?"writer":step.source_kind==="flux_proposal"?"flux":"video"});}}}>{selectedDirect?.id===step.source_job_id && selectedDirect?.service===step.generator?"결과 닫기":"상태·결과 보기"}</button>}{openMessage && (step.form_id || step.proposal_job_id) && Number.isInteger(step.message_offset) && step.message_snapshot && <button type="button" onClick={()=>{if(openMessage(step)===false)setNavigationError("대화 이력이 변경되었거나 연결 정보가 올바르지 않습니다. 작업 목록을 새로고침하세요.");}}>관련 대화 보기</button>}</div>}

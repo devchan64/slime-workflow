@@ -41,4 +41,7 @@ test("지시 내역의 중복 ID와 불완전한 항목을 거부한다",()=>{
   assert.equal(validLiveInstructionRows([{...row,mode:"other"}]),false);
   assert.equal(validLiveInstructionRows([{...row,job_id:""}]),false);
   assert.equal(validLiveInstructionRows([{...row,state:"invalid"}]),false);
+  assert.equal(validLiveInstructionRows([{...row,recovery:{state:"queued",job_id:null}}]),true);
+  assert.equal(validLiveInstructionRows([{...row,recovery:{state:"dispatched",job_id:"job02"}}]),true);
+  for(const recovery of ['bad',[],{state:'toString'},{state:'queued',job_id:{}}])assert.equal(validLiveInstructionRows([{...row,recovery}]),false);
 });

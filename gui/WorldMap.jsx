@@ -73,7 +73,7 @@ export default function WorldMap() {
       </div>
       {selected && <><h2>{selected.name}</h2><img src={selected.thumbnail.url} width="256" alt={selected.name+" 특징 썸네일"}/>
         <p>{selected.thumbnail.managementId} · {selected.thumbnail.version}</p><p>SHA-256 · {selected.thumbnail.sha256}</p><p>{selected.thumbnail.path}</p>
-        <div className="world-map-connections" role="region" aria-label="선택 맵의 이동 연결" tabIndex={0}><ResultTable table={{title:"선택 맵의 이동 연결",columns:["연결 맵","방향","출발 웨이포인트","도착 웨이포인트"],rows:selected.connections.map(edge=>[nodes.get(edge.target).name,edge.direction,edge.id,edge.targetWaypointId ?? "없음"])}}/></div>
+        <div className="world-map-connections"><ResultTable table={{title:"선택 맵의 이동 연결",columns:["연결 맵","방향","출발 웨이포인트","도착 웨이포인트"],rows:selected.connections.map(edge=>[nodes.get(edge.target).name,edge.direction,edge.id,edge.targetWaypointId ?? "없음"])}}/></div>
       </>}
     </>}
   </section>;

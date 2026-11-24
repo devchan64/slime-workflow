@@ -1,5 +1,5 @@
 import React, {useEffect,useRef,useState} from "react";
-import {observeTableOverflow} from "./observeTableOverflow.mjs";
+import {observeTableOverflow,scrollTableOnArrow} from "./observeTableOverflow.mjs";
 
 export default function ResultTable({table}) {
   const scrollRef=useRef(null),tableRef=useRef(null),[overflow,setOverflow]=useState(false);
@@ -9,7 +9,7 @@ export default function ResultTable({table}) {
     return observeTableOverflow(node,tableRef.current,setOverflow,{window,Observer:globalThis.ResizeObserver});
   },[table]);
   return <section className="result-table"><strong>{table.title}</strong>{table.summary!=null && table.summary!=="" && <p>{table.summary}</p>}
-    <div ref={scrollRef} className="result-table-scroll" role={overflow ? "region" : undefined} aria-label={overflow ? table.title+" 표 가로 스크롤" : undefined} tabIndex={overflow ? 0 : undefined}>
+    <div ref={scrollRef} className="result-table-scroll" role={overflow ? "region" : undefined} aria-label={overflow ? table.title+" 표 가로 스크롤" : undefined} tabIndex={overflow ? 0 : undefined} onKeyDown={scrollTableOnArrow}>
     <table ref={tableRef} aria-label={table.title}><thead><tr>
       {table.columns.map(column=><th key={column} scope="col">{column}</th>)}
     </tr></thead><tbody>

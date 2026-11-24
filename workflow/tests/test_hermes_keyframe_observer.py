@@ -50,12 +50,18 @@ class HermesKeyframeObserverTests(unittest.TestCase):
 
     @patch('workflow.domains.hermes_agent.keyframe_observer.read_hermes_kimodo_keyframe_preview')
     def test_batch_compares_skeleton_and_deduplicates_sources(self,current_preview_mock):
+        import json
+        import subprocess
+        from pathlib import Path
         from workflow.domains.hermes_agent.keyframe_observer import validate_hermes_kimodo_keyframe_batch
         current_preview_mock.return_value={'sha256':'b'*64,'skeleton_signature_sha256':'c'*64,'source_sha256':'f'*64}
         current_request_value={'frames':30,'keyframes':[{'id':'a'*32,'frame':20},{'id':'a'*32,'frame':1}]}
         current_result_value=validate_hermes_kimodo_keyframe_batch(current_request_value)
         self.assertEqual([item['frame'] for item in current_result_value['placements']],[1,20])
         self.assertEqual(len(current_result_value['sources']),1)
+        script="""import {validKeyframeBatchResult as valid} from './gui/keyframeBatchValidation.mjs';let data='';for await(const part of process.stdin)data+=part;
+          const result=JSON.parse(data);if(!valid(result,result.placements))process.exit(1);"""
+        subprocess.run(['node','--input-type=module','-e',script],cwd=Path(__file__).resolve().parents[2],input=json.dumps(current_result_value),text=True,check=True)
         current_preview_mock.assert_called_once()
         current_preview_mock.side_effect=[{'sha256':'b'*64,'skeleton_signature_sha256':'c'*64,'source_sha256':'f'*64},{'sha256':'d'*64,'skeleton_signature_sha256':'e'*64,'source_sha256':'f'*64}]
         with self.assertRaisesRegex(ValueError,'골격 구조'):

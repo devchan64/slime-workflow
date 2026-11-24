@@ -10,7 +10,7 @@ from workflow.domains.hermes_agent import city_map_operations
 
 class HermesCityMapOperationsTests(unittest.TestCase):
     def test_current_city_review_shows_changes_and_blocks_new_save(self):
-        import json
+        import json, os
         import subprocess
         from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_city_proposal
         proposal={'map':'stonewarm','generation':5,'revision':2,'changes':[{'path':['data','buildings',0,'name'],'before':'기존','after':'변경'}]}
@@ -19,13 +19,13 @@ class HermesCityMapOperationsTests(unittest.TestCase):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with TemporaryDirectory() as directory:
             bundle=Path(directory)/'city.cjs'
-            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'CityProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'CityProposal.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');
               const {CityProposalReview}=require(process.argv[1]);
               const proposal=JSON.parse(require('fs').readFileSync(0,'utf8'));
               const preview={source_alignment:{status:'matched'},source_plan:{status:'available',before_sha256:'a'.repeat(64),after_sha256:'b'.repeat(64)}};
               process.stdout.write(server.renderToStaticMarkup(React.createElement(CityProposalReview,{proposal,preview})));"""
-            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(proposal,ensure_ascii=False),text=True)
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(proposal,ensure_ascii=False),text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         for value in ('stonewarm','data / buildings / 0 / name','기존','변경','신규 저장은 현재 지원되지 않습니다','저장 또는 복구 준비 완료를 뜻하지 않습니다'):
             self.assertIn(value,markup)
         self.assertNotIn('확인 후 저장',markup)

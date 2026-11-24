@@ -5,7 +5,7 @@ import useGpuHandoff from "./useGpuHandoff.js";
 import ActionButton from "./ActionButton.jsx";
 import {videoFrameLimit} from "./videoFrameLimit.mjs";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
-import InputVideoPreview from "./InputVideoPreview.jsx";
+import VaceVideoInput from "./VaceVideoInput.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
 import SeedInput from "./SeedInput.jsx";
 import {referencePng,videoData} from "./videoInputs.js";
@@ -236,12 +236,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       {embedded ? <details><summary>선택한 생성 모드 안내</summary><p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p></details> : <p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p>}
       {Object.entries({reference:values.mode==="first_frame"?"첫 프레임 이미지":"참조 이미지",...labels}).map(([key,label])=>{
         const visible=key==="reference"?values.mode!=="text":attachments.includes(key);
-        return <div key={key} hidden={!visible}>{key==="reference" ? <ReferenceImageInput disabled={busy || !!pending || !visible} label={label} source={files[key]} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={file=>setFiles(current=>({...current,[key]:file}))}/> : <div><label>{label}<input key={historyRevision} type="file" accept="video/mp4" required={visible && !files[key]} disabled={!visible}
-          onChange={e=>{selectVideo(key,e.target.files[0]);e.target.value="";}}/></label><p>MP4 · 파일당 최대 32MiB{files[key] && " · 선택: "+files[key].name}</p>
-          {checking[key] && <p role="status">영상 정보 확인 중…</p>}
-          {videoInfo[key] && <p>{videoInfo[key].summary}</p>}
-          {fileErrors[key] && <p role="alert">{fileErrors[key]}{files[key] && " 기존 영상은 유지됩니다."}</p>}
-          {visible && <InputVideoPreview file={files[key]} label={label}/>}</div>}</div>;
+        return <div key={key} hidden={!visible}>{key==="reference" ? <ReferenceImageInput disabled={busy || !!pending || !visible} label={label} source={files[key]} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={file=>setFiles(current=>({...current,[key]:file}))}/> : <VaceVideoInput label={label} visible={visible} file={files[key]} checking={checking[key]} info={videoInfo[key]} error={fileErrors[key]} historyRevision={historyRevision} onSelect={file=>selectVideo(key,file)}/>}</div>;
       })}
       </div><div className="vace-input-group"><h2>장면 지시</h2><p className="vace-group-help">인물·동작·카메라를 설명하세요.</p>
       {["prompt","negative_prompt"].map(key=>{

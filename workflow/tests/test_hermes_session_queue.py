@@ -62,7 +62,9 @@ class SessionQueueTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             bundle=Path(directory)/'recent.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'RecentGeneratorJobs.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
-            script="""const React=require('react'),server=require('react-dom/server');const {RecentJobResult}=require(process.argv[1]);
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');const {RecentJobResult,validRecentHistorySource:valid}=require(process.argv[1]);
+              const source={service:'flux-image',command:'hermes-generator-source-history',result_kind:'flux',video_result:false,result_path:'/management/frame/flux-image/'};
+              assert.equal(valid(source),true);for(const bad of [{...source,result_kind:{}},{...source,result_path:'//example.com/'},{...source,result_path:'javascript:alert(1)'},{...source,video_result:'yes'}])assert.equal(valid(bad),false);
               const render=source=>server.renderToStaticMarkup(React.createElement(RecentJobResult,{source,id:'2026-11-18_00-00-00-12345678',choose:()=>{}}));
               process.stdout.write(JSON.stringify([render({service:'kimodo'}),render({service:'flux-image',result_kind:'flux'})]));"""
             kimodo,flux=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')}))

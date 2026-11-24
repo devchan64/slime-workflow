@@ -12,8 +12,8 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
   const [log,setLog]=useState(null);
-  const logRequest=useRef(null);
-  useEffect(()=>()=>{logRequest.current?.abort();},[]);
+  const logRequest=useRef(null),previewRequest=useRef(null);
+  useEffect(()=>()=>{logRequest.current?.abort();previewRequest.current?.abort();},[]);
   useEffect(()=>{onInteractionChange?.(busy || Boolean(review));return ()=>onInteractionChange?.(false);},[busy,review,onInteractionChange]);
   const resumeCommand=generationResumeCommand(service);
   const reasonId=useId();
@@ -29,7 +29,12 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
     finally{setBusy(false);}
   }
   async function prepareResume() {
-    const checked=await managementCommand(service,"resume-preview",{id});
+    const controller=new AbortController();previewRequest.current=controller;let timedOut=false;
+    const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    let checked;
+    try{checked=await untilAborted(managementCommand(service,"resume-preview",{id},{signal:controller.signal}),controller.signal);}
+    catch(problem){if(timedOut)throw new Error("재개 검토 조회 시간이 초과됐습니다. 다시 확인하세요.");throw problem;}
+    finally{clearTimeout(timer);if(previewRequest.current===controller)previewRequest.current=null;}
     if(checked.id!==id || checked.service!==service || checked.status!==state ||
         !/^[a-f0-9]{64}$/.test(checked.expected_resume_fingerprint))
       throw new Error("검토한 작업과 상태가 일치하지 않습니다. 상태를 갱신하세요.");
@@ -71,7 +76,7 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
       }catch(error){if(timedOut)throw new Error("작업 로그 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
       finally{clearTimeout(timer);if(logRequest.current===controller)logRequest.current=null;}
     });}}>{log!==null ? "작업 로그 닫기" : "작업 로그 조회"}</button>}
-    {log!==null && <pre>{log}</pre>}
+    {log!==null && <pre className="generator-job-log" tabIndex={0} aria-label="작업 로그">{log}</pre>}
     {showActions && (!review || showUnavailable) && (showUnavailable || ["failed","cancelled","paused"].includes(state)) &&
       <button className={showUnavailable ? "history-action-resume" : undefined} type="button" disabled={disabled || busy || Boolean(review) || !canResume} aria-describedby={!canResume ? reasonId : undefined} onClick={()=>perform(prepareResume)}>생성 재개 검토</button>}
     {showActions && renderPriority?.(disabled || busy || Boolean(review))}
@@ -84,6 +89,6 @@ function GeneratorJobControlsForJob({service,id,state,refresh,showLog=true,showA
       <button type="button" disabled={busy} onClick={()=>setReview(null)}>취소</button>
       <button type="button" disabled={disabled || busy || reviewOutdated} onClick={()=>perform(confirm)}>{review.command==="resume"?"확인 후 재개":"확인 후 중지"}</button>
     </section>}
-    <p className={showUnavailable ? "history-action-detail" : undefined} role="status">{notice}</p>
+    <p className={showUnavailable ? "history-action-detail" : undefined} role="status">{busy ? "작업 제어 요청을 처리하고 있습니다." : notice}</p>
   </section>;
 }

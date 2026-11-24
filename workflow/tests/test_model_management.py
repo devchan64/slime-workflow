@@ -467,6 +467,7 @@ class ModelManagementTest(unittest.TestCase):
             self.assertFalse(current_inventory_value['incomplete'])
 
     def test_model_inventory_display(self):
+        import os
         import subprocess
         import tempfile
         from pathlib import Path
@@ -474,7 +475,7 @@ class ModelManagementTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             bundle = Path(directory) / 'inventory.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'ModelInventory.jsx', '--bundle',
-                            '--platform=node', '--format=cjs', '--outfile='+str(bundle)],
+                            '--platform=node', '--format=cjs', '--external:react', '--external:react-dom', '--outfile='+str(bundle)],
                            cwd=gui, check=True, capture_output=True, text=True)
             script = """const React=require('react'), server=require('react-dom/server');
               const {InventoryContents}=require(process.argv[1]);
@@ -482,8 +483,8 @@ class ModelManagementTest(unittest.TestCase):
               process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory})));
               process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory:{files:[],count:0,total_bytes:0,incomplete:true}})));
               process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory:{files:[],count:0,total_bytes:0,incomplete:false}})));"""
-            rendered = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True)
-        for expected in ('파일 2개', '7바이트', '일부 저장 위치 확인 실패', 'sample/z.safetensors', '해시 검증 결과가 아닙니다', '확인된 파일이 없습니다. 일부 저장 위치를 확인하지 못했습니다.', '저장된 모델 파일이 없습니다.', '저장된 모델 파일 표'):
+            rendered = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True, env={**os.environ, 'NODE_PATH':str(gui/'node_modules')})
+        for expected in ('파일 2개', '7바이트', '일부 저장 위치 확인 실패', 'sample/z.safetensors', '해시 검증 결과가 아닙니다', '확인된 파일이 없습니다. 일부 저장 위치를 확인하지 못했습니다.', '저장된 모델 파일이 없습니다.', 'aria-label="저장된 모델 파일"'):
             self.assertIn(expected, rendered)
 
     def test_retired_qwen_2512_is_not_in_model_management(self):
@@ -508,6 +509,7 @@ class ModelManagementTest(unittest.TestCase):
               process.stdout.write(server.renderToStaticMarkup(React.createElement(ModelDownloadButton,{reason,reasonId:'why'})));"""
             markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
         self.assertIn('disabled=',markup)
+        self.assertIn('type="button"',markup)
         self.assertIn('모델 준비가 진행 중입니다.',markup)
         self.assertIn('aria-describedby="why"',markup)
 

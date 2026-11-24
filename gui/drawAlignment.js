@@ -1,3 +1,5 @@
+import {effectAlignmentBoundsError} from "./effectAlignmentBounds.mjs";
+
 export async function drawAlignment(currentCanvasElement,currentDetailRecord,alignment,currentPlayEnabled,currentFrameIndex,currentHostEnabled,currentBoundsEnabled){
  currentCanvasElement.effectPreviewRevision=(currentCanvasElement.effectPreviewRevision||0)+1;
  const currentPreviewRevision=currentCanvasElement.effectPreviewRevision;
@@ -15,23 +17,8 @@ export async function drawAlignment(currentCanvasElement,currentDetailRecord,ali
  const currentFrameValues=alignment.frames,currentAlphaValue=Number(alignment.alpha);
  const currentRawFrameRows=Array.isArray(currentFrameValues)?currentFrameValues:currentFrameValues?.data;
  const currentFrameRows=currentRawFrameRows?.map(currentFrameRow=>currentFrameRow.map(currentCellValue=>typeof currentCellValue==='string'&&currentCellValue.trim()!==''?Number(currentCellValue):currentCellValue));
- const currentCoordinateLabels=['왼쪽','위쪽','오른쪽','아래쪽'];
- const validateCurrentBounds=(currentBoundsValues,currentBoundsLabel)=>{
-  if(!Array.isArray(currentBoundsValues)||currentBoundsValues.length!==4)return `${currentBoundsLabel}: 좌표 4개가 필요합니다.`;
-  for(let currentCoordinateIndex=0;currentCoordinateIndex<4;currentCoordinateIndex++){
-   const currentCoordinateValue=currentBoundsValues[currentCoordinateIndex];
-   if(!Number.isFinite(currentCoordinateValue)||currentCoordinateValue<0||currentCoordinateValue>1)return `${currentBoundsLabel} · ${currentCoordinateLabels[currentCoordinateIndex]}: 0~1 사이 숫자를 입력하세요.`;
-  }
-  if(currentBoundsValues[0]>=currentBoundsValues[2]||currentBoundsValues[1]>=currentBoundsValues[3])return `${currentBoundsLabel}: 왼쪽 < 오른쪽, 위쪽 < 아래쪽이어야 합니다.`;
-  return '';
- };
- const currentTargetError=validateCurrentBounds(currentTargetBounds,'대상 영역');
- if(currentTargetError)return rejectCurrentPreviewInput(currentTargetError);
- if(!Array.isArray(currentFrameRows)||currentFrameRows.length!==8)return rejectCurrentPreviewInput('프레임 영역은 8개가 필요합니다.');
- for(let currentRowIndex=0;currentRowIndex<8;currentRowIndex++){
-  const currentFrameError=validateCurrentBounds(currentFrameRows[currentRowIndex],`프레임 ${currentRowIndex+1}`);
-  if(currentFrameError)return rejectCurrentPreviewInput(currentFrameError);
- }
+ const currentBoundsError=effectAlignmentBoundsError({target:currentTargetBounds,frames:currentFrameRows});
+ if(currentBoundsError)return rejectCurrentPreviewInput(currentBoundsError);
  const {calculateEffectFramePlacement,sampleMothAnimationFrame,sampleEffectAnimationFrame,sampleFogAnimationFrame}=await import(currentDetailRecord.rendererModule);
  const currentImageValues=await Promise.all([currentDetailRecord.hostImage,currentDetailRecord.sheetImage].map(currentSourceUrl=>new Promise((resolveCurrentImage,rejectCurrentImage)=>{if(!currentSourceUrl){resolveCurrentImage(null);return;}const currentLoadedImage=new Image();currentLoadedImage.onload=()=>resolveCurrentImage(currentLoadedImage);currentLoadedImage.onerror=()=>rejectCurrentImage(Error('원본 이미지 로드 실패'));currentLoadedImage.src=currentSourceUrl;})));
  const [currentHostImage,currentSheetImage]=currentImageValues;

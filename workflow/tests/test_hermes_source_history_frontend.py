@@ -25,6 +25,13 @@ class SourceHistoryFrontendTests(unittest.TestCase):
             self.assertFalse(rows[service]['archived'])
         self.assertTrue(rows['character-animation']['archived'])
         self.assertEqual(rows['character-animation']['result_kind'],'character')
+        root=Path(__file__).resolve().parents[2]
+        script="""import {validRecentHistorySource,selectRecentHistorySources} from './gui/recentHistorySource.mjs';
+          const sources=JSON.parse(process.argv[1]);for(const source of sources)if(!validRecentHistorySource(source))throw Error(source.service);
+          if(!selectRecentHistorySources(sources).length)throw Error('no sources');
+          for(const bad of [[],[{...sources[0],command:'unsupported'}],[sources[0],sources[0]]]){let failed=false;try{selectRecentHistorySources(bad)}catch{failed=true}if(!failed)throw Error('bad source list accepted');}"""
+        result=subprocess.run(['node','--input-type=module','-e',script,json.dumps(response.json())],cwd=root,capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
 
     def test_real_sanitized_pages_are_accepted_for_image_video_and_audio(self):
         root=Path(__file__).resolve().parents[2]
@@ -33,7 +40,9 @@ class SourceHistoryFrontendTests(unittest.TestCase):
         pages=[sanitize_hermes_source_history(service,{'offset':0,'limit':10},source)
                for service in ('flux-image','wan22-fun-control','music-heartmula')]
         script="""import {validSourceHistoryPage} from './gui/sourceHistoryPage.mjs';
+          import {validRecentHistoryPage} from './gui/recentHistorySource.mjs';
           const pages=JSON.parse(process.argv[1]);
-          for(const page of pages) if(!validSourceHistoryPage(page,page.service,0)) throw Error(page.service);"""
+          for(const page of pages){if(!validSourceHistoryPage(page,page.service,0) || !validRecentHistoryPage(page,page.service))throw Error(page.service);
+            for(const count of [-1,'0',null])if(validRecentHistoryPage({...page,unavailable_count:count},page.service))throw Error('bad unavailable count');}"""
         result=subprocess.run(['node','--input-type=module','-e',script,json.dumps(pages)],cwd=root,capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)

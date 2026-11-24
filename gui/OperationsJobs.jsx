@@ -253,7 +253,7 @@ export default function OperationsJobs({session,linkedJob,linkedStatus}){
     <button onClick={loadGpu}>GPU 대기열·예약 조회</button>
     {gpuError && <p role="alert">{gpuError}</p>}
     {gpuCheckedAt && <p>GPU 관측 시각 · {gpuCheckedAt.toLocaleString("ko-KR")}{gpuStale && " · 이전 결과"}</p>}
-    {gpu?.map(table=>table.available ? <div className="operations-gpu-table" role="region" aria-label={table.title+" 표"} tabIndex={0} key={table.title}><ResultTable table={gpuTable(table)}/></div> :
+    {gpu?.map(table=>table.available ? <div className="operations-gpu-table" key={table.title}><ResultTable table={gpuTable(table)}/></div> :
       <p role="status" key={table.title}>{table.summary}</p>)}
     {capture && <p role="status">{capture}</p>}
     {inspection && <p role="status">{inspection}</p>}

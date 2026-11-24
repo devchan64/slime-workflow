@@ -14,7 +14,7 @@ function formatBytes(bytes) {
 
 export function InventoryContents({inventory}) {
   return <>{inventory.count===0 && <p>{inventory.incomplete ? "확인된 파일이 없습니다. 일부 저장 위치를 확인하지 못했습니다." : "저장된 모델 파일이 없습니다."}</p>}
-  <div className="model-inventory-table" role="region" aria-label="저장된 모델 파일 표" tabIndex={0}><ResultTable table={{
+  <div className="model-inventory-table"><ResultTable table={{
     title: "저장된 모델 파일",
     summary: [
       "파일 " + inventory.count.toLocaleString() + "개",

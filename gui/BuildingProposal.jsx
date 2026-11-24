@@ -1,5 +1,6 @@
 import React,{useEffect,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
+import {verifyProposalWithDeadline} from "./readProposalPreview.mjs";
 import ResultTable from "./ResultTable.jsx";
 import {prepareBuildingProposal,verifyBuildingProposalBeforeSave} from "./buildingProposalProtocol.mjs";
 
@@ -37,14 +38,14 @@ function BuildingProposalForSelection({session,job,snapshot,offset}){
   }
   async function save(){
     if(!review || sending.current)return;
-    sending.current=true;setBusy(true);setNotice("");
+    sending.current=true;setBusy(true);setNotice("");let dispatched=false;const controller=new AbortController();inspection.current=controller;
     try{
-      await verifyBuildingProposalBeforeSave(managementCommand,session,job,review);
+      await verifyProposalWithDeadline(verifyBuildingProposalBeforeSave,[session,job,review],controller);inspection.current=null;dispatched=true;
       const result=await managementCommand("hermes-agent","hermes-building-save",{request_id:review.id,draft:review.draft,review_sha256:review.preview.review_sha256});
       if(result.request_id!==review.id || result.texture!==review.draft.texture || result.state!=="completed" || result.saved!==true)throw new Error("저장 결과를 확인할 수 없습니다. 접수 상태를 다시 확인하세요.");
       setReceipt(result);setReview(null);
-    }catch(error){setReceipt({state:"unknown",request_id:review.id});setReview(null);setNotice(error.message+" · 자동 재저장하지 않습니다.");}
-    finally{sending.current=false;setBusy(false);}
+    }catch(error){if(dispatched){setReceipt({state:"unknown",request_id:review.id});setReview(null);setNotice(error.message+" · 자동 재저장하지 않습니다.");}else if(error.name!=="AbortError")setNotice(error.message+" · 저장 요청은 보내지 않았습니다.");}
+    finally{if(inspection.current===controller)inspection.current=null;sending.current=false;setBusy(false);}
   }
   return <section aria-label="건물 앵커 변경 제안">
     <button type="button" disabled={busy} onClick={inspect}>{receipt ? "접수 상태 다시 확인" : "건물 변경 제안 검토"}</button>

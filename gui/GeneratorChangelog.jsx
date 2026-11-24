@@ -13,7 +13,8 @@ export default function GeneratorChangelog({generator,card=false}) {
   const [error,setError]=useState(null);
   const [loading,setLoading]=useState(false);
   const refreshRef=useRef(null),focusRequest=useRef(null);
-  useEffect(()=>{setPosition({generator,index:0});},[generator]);
+  useEffect(()=>{setPosition({generator,index:0});focusRequest.current=null;},[generator]);
+  useEffect(()=>{if(!open)focusRequest.current=null;},[open]);
   useEffect(()=>{
     if(loading || !focusRequest.current)return;
     const target=focusRequest.current;focusRequest.current=null;

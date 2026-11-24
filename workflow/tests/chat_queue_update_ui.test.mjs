@@ -1,10 +1,17 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {classifyQueueUpdate,matchesChatQueueReceipt} from "../../gui/chatQueueUpdate.mjs";
+import {classifyQueueUpdate,matchesChatQueueReceipt,validChatActive} from "../../gui/chatQueueUpdate.mjs";
 
 const pending={request_id:"request01",revision:1,prompt:"수정"};
 const row={request_id:"request01",revision:1,prompt:"원본",state:"queued"};
 const view=rows=>({id:"session",chat_queue:rows});
+
+test("현재 요청의 지시 가능 여부는 불리언으로 확인한다",()=>{
+  const active={job_id:'job',prompt:'요청',status:'running',control_ready:true};
+  assert.equal(validChatActive(active),true);assert.equal(validChatActive(null),true);
+  assert.equal(validChatActive({...active,control_ready:'false'}),false);
+  assert.equal(validChatActive({...active,job_id:''}),false);
+});
 
 test("변경 전 버전은 미확인으로 유지하고 확인된 수정만 반영으로 표시한다",()=>{
   assert.equal(classifyQueueUpdate(view([row]),"session",pending),"waiting");

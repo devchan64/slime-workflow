@@ -8,6 +8,10 @@ export function validChatQueue(view, session) {
   return true;
 }
 
+export function validChatActive(value){
+  return value==null || Boolean(value && typeof value==='object' && !Array.isArray(value) && typeof value.job_id==='string' && value.job_id && typeof value.prompt==='string' && typeof value.status==='string' && (value.control_ready===undefined || typeof value.control_ready==='boolean'));
+}
+
 export function matchesChatQueueReceipt(queueReceiptValue, pendingRequestValue) {
   if (!queueReceiptValue || queueReceiptValue.session_id !== pendingRequestValue.session_id || typeof queueReceiptValue.duplicate !== "boolean") return false;
   if (queueReceiptValue.queued === true) return queueReceiptValue.request?.request_id === pendingRequestValue.request_id &&

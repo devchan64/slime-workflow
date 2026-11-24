@@ -172,7 +172,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     finally{saving.current=false;setBusy(false);setReview(null);}
   }
   return <form onSubmit={exportSheet}><fieldset disabled={busy}><legend>크롭과 앵커 편집</legend>
-    <div className="sprite-frame-table" role="region" aria-label="프레임 좌표 표" tabIndex={0}><ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
+    <div className="sprite-frame-table"><ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
         required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/></div>
     <BulkEdit rows={rows} onEdit={editRows}/>

@@ -2,10 +2,13 @@ import SnapshotStatus from "./SnapshotStatus.jsx";
 import BillboardLifecycle from "./BillboardLifecycle.jsx";
 import BillboardRegistration from "./BillboardRegistration.jsx";
 import BillboardProperties from "./BillboardProperties.jsx";
+import RecoverableImage from "./RecoverableImage.jsx";
 import React,{useEffect,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
+import {validBillboardCatalogPage,billboardCategoryLabel} from "./billboardCatalogPage.mjs";
+import {restoreLostFocus} from "./restoreLostFocus.mjs";
 
 const categories={vegetation:"식생",herbaceous:"초본","large-trees":"대형 나무","rocks-minerals":"바위·광물",props:"소품"};
 
@@ -21,15 +24,20 @@ export default function BillboardCatalog({choose}){
   const [imageRevision,setImageRevision]=useState(0),[editingProperties,setEditingProperties]=useState(false);
   const [lifecycleActive,setLifecycleActive]=useState(false);
   const [selected,select]=useState(null),[error,setError]=useState("");
-  const detailRef=useRef(null),triggerRef=useRef(null),searchRef=useRef(null);
+  const detailRef=useRef(null),triggerRef=useRef(null),searchRef=useRef(null),resultsRef=useRef(null),errorRef=useRef(null),restoreSearchFocus=useRef(false);
   const locked=editingProperties || lifecycleActive;
   useEffect(()=>{if(selected && triggerRef.current)detailRef.current?.focus();},[selected]);
+  useEffect(()=>{
+    if(loading || !restoreSearchFocus.current)return;
+    restoreSearchFocus.current=false;
+    restoreLostFocus(document,(error ? errorRef : resultsRef).current);
+  },[loading,error,page]);
   useEffect(()=>{
     let active=true,timedOut=false;
     const controller=new AbortController(),timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setLoading(true);setError("");
     untilAborted(managementCommand("hermes-agent","hermes-billboard-catalog",request,{signal:controller.signal}),controller.signal).then(result=>{
-      if(!result || !Array.isArray(result.items) || !Number.isInteger(result.total) || !Number.isInteger(result.offset) || !Number.isInteger(result.limit) || result.limit<1 || result.items.some(item=>!item || typeof item.id!=="string" || typeof item.name!=="string" || typeof item.category!=="string" || !item.modeling || typeof item.modeling!=="object" || !Array.isArray(item.maps) || item.maps.some(map=>!map || typeof map.map!=="string" || typeof map.source_path!=="string")))throw new Error("빌보드 목록 응답 형식을 확인할 수 없습니다.");
+      if(!validBillboardCatalogPage(result,request))throw new Error("빌보드 목록 응답 형식을 확인할 수 없습니다.");
       if(active){setPage(result);setDisplayedRequest(request);setLoading(false);}
     }).catch(problem=>{if(active){setError(timedOut ? "카탈로그 조회 시간이 초과됐습니다. 다시 검색하세요." : requestErrorMessage(problem));setLoading(false);}}).finally(()=>clearTimeout(timeout));
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
@@ -37,8 +45,10 @@ export default function BillboardCatalog({choose}){
   function search(e){
     e.preventDefault();
     if(loading || locked)return;
+    restoreSearchFocus.current=document.activeElement===searchRef.current;
     setRequest({offset:0,limit:10,query,...(category?{category}:{})});
   }
+  function movePage(offset,event){restoreSearchFocus.current=document.activeElement===event.currentTarget;setRequest({...request,offset});}
   const resultsStale=!!page && displayedRequest!==request;
   const filtersChanged=query!==(request.query || "") || category!==(request.category || "");
   return <section className={"billboard-catalog"+(!choose ? " billboard-standalone" : "")}><h2>공용 빌보드 에셋</h2>
@@ -53,21 +63,21 @@ export default function BillboardCatalog({choose}){
     {resultsStale && <p role="status">{loading?"새 결과를 조회하고 있습니다. 아래는 이전 조회 결과입니다.":"조회에 실패했습니다. 아래는 이전 조회 결과입니다. 다시 검색해 주세요."}</p>}
     {page?.storage==="database" && <SnapshotStatus/>}
     {notice && <p role="status">{notice}</p>}
-    {error && <p role="alert">{error}</p>}
+    {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
     {!page && !error && <p role="status">카탈로그 조회 중…</p>}
-    {page && <><ResultTable table={{title:"검색 결과",summary:page.total+"종",columns:["이름","에셋 ID","분류"],
+    {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><ResultTable table={{title:"검색 결과",summary:page.total+"종"+(page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""),columns:["이름","에셋 ID","분류"],
       rows:page.items.map(asset=>[<button type="button" disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
-          width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,categories[asset.category]])}}/>
-      {page.offset>0 && <button disabled={filtersChanged || resultsStale || loading || locked} onClick={()=>setRequest({...request,offset:Math.max(0,page.offset-page.limit)})}>이전 페이지</button>}
-      {page.next_offset!=null && <button disabled={filtersChanged || resultsStale || loading || locked} onClick={()=>setRequest({...request,offset:page.next_offset})}>다음 페이지</button>}</>}
+          width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,billboardCategoryLabel(categories,asset.category)])}}/></div>
+      {page.offset>0 && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} onClick={event=>movePage(Math.max(0,page.offset-page.limit),event)}>이전 페이지</button>}
+      {page.next_offset!=null && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} onClick={event=>movePage(page.next_offset,event)}>다음 페이지</button>}</>}
     {selected && <section ref={detailRef} tabIndex={-1} aria-label="선택한 빌보드 상세"><button type="button" disabled={locked} onClick={()=>{select(null);requestAnimationFrame(()=>{if(triggerRef.current?.isConnected)triggerRef.current.focus();else searchRef.current?.focus();});}}>상세 닫기</button><h3>{selected.name}</h3>
       {page && !page.items.some(item=>item.id===selected.id) && <p role="status">열린 빌보드는 현재 검색 결과에 없습니다. 마지막으로 선택한 상세를 유지합니다.</p>}
-      <img src={imageUrl(selected.id)+"?r="+imageRevision} alt={selected.name+" 원본"} style={{maxWidth:"100%",maxHeight:420,objectFit:"contain"}}/>
+      <RecoverableImage key={selected.id+":"+imageRevision} src={imageUrl(selected.id)+"?r="+imageRevision} name={selected.name}/>
       <p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>
       <ResultTable table={{title:"사용 맵",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
         columns:["맵","원본 경로","사용 횟수"],rows:selected.maps.map(map=>[map.map,map.source_path,map.occurrences ?? "미확인"])}}/>
       <fieldset disabled={lifecycleActive} style={{border:0,padding:0,margin:0}}><BillboardProperties key={selected.id} texture={selected.id} onDirtyChange={setEditingProperties} onCrop={()=>setImageRevision(n=>n+1)}/></fieldset>
-      <fieldset disabled={editingProperties} style={{border:0,padding:0,margin:0}}><BillboardLifecycle key={selected.id} texture={selected.id} onInteractionChange={setLifecycleActive} onComplete={(msg,{retired})=>{setNotice(msg);if(retired)select(null);setImageRevision(n=>n+1);setRequest({...request,offset:0});}}/></fieldset>
+      <fieldset disabled={editingProperties} style={{border:0,padding:0,margin:0}}><BillboardLifecycle key={selected.id} texture={selected.id} onInteractionChange={setLifecycleActive} onComplete={(msg,{retired})=>{setNotice(msg);if(retired){restoreSearchFocus.current=document.activeElement===document.body || Boolean(detailRef.current?.contains(document.activeElement));select(null);}setImageRevision(n=>n+1);setRequest({...request,offset:0});}}/></fieldset>
       {choose && <button onClick={()=>choose("빌보드 "+selected.name,selected.id)}>대화 입력에 추가</button>}
     </section>}
   </section>;

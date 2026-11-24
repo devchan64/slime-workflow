@@ -2,7 +2,7 @@ import PromptWordCount from "./PromptWordCount.jsx";
 import SeedInput from "./SeedInput.jsx";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import {referencePng,videoData} from "./videoInputs.js";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {generationReady} from "./generationReady.mjs";
@@ -16,6 +16,7 @@ import {validAnimateVideoInfo} from "./videoFrameLimit.mjs";
 import {prepareAnimatePreview} from "./animatePreview.mjs";
 
 export default function AnimateInputs({saved,onSelectionStart,onJob,session,model,loraModel,onInteractionChange,onAttachmentCheckingChange}) {
+  const videoHelpId=useId(),videoErrorId=useId();
   const [prompt,setPrompt]=useState(saved?.request.prompt ?? "");
   const [seed,setSeed]=useState(saved?.request.seed ?? "42");
   const [reference,setReference]=useState(saved?.reference ?? null);
@@ -120,13 +121,13 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
       {saved && <div className="generator-source-job"><span>불러온 원본 작업</span> <JobIdentifier id={saved.id} compact/></div>}
       <div className="generator-attachments">
       <ReferenceImageInput label="캐릭터 참조 PNG · 필수 · 832×480" source={reference} onSelectionStart={onSelectionStart} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);checkingCallback.current?.(value || videoChecking.current);}} onChange={value=>{onSelectionStart?.();setReference(value);}} accept="image/png" maxBytes={8*1024*1024}/>
-      <div className="generator-video-input"><span>동작 영상 · 필수</span><small>MP4 · 최대 32MiB · 16fps로 샘플링</small>
+      <div className="generator-video-input"><span>동작 영상 · 필수</span><small id={videoHelpId}>MP4 · 최대 32MiB · 16fps로 샘플링</small>
         {saved && !motionFile && <div><video key={saved.motion} aria-label="저장된 동작 영상" controls preload="metadata" hidden={motionError} src={saved.motion} onError={()=>setMotionError(true)}/>
           {motionError && <p role="status">이 브라우저에서 저장된 동작 영상을 재생할 수 없습니다. 원본 파일을 열어 확인하세요.</p>}
           <a href={saved.motion} target="_blank" rel="noreferrer">동작 영상 원본 열기</a></div>}
         <InputVideoPreview file={motionFile} label="동작 영상"/>
-        <label className="reference-image-file">영상 파일 선택<input ref={motionInput} aria-label="RGB 동작 MP4 · 16fps 샘플링" type="file" accept="video/mp4" onChange={event=>{const file=event.target.files[0];event.target.value="";if(!file)return;onSelectionStart?.();setVideoInfo(null);updateVideoChecking(true);setMotionFile(file);}}/></label>{motionFile && <small>선택한 파일 · {motionFile.name}</small>}
-        {checkingVideo && <p role="status">영상 정보를 확인하고 있습니다.</p>}{videoError && <div ref={videoInfoRef} tabIndex={-1} role="alert"><p>{videoError}</p><button type="button" disabled={checkingVideo} onClick={()=>{if(videoChecking.current)return;videoRetryFocus.current=true;updateVideoChecking(true);retryVideo(value=>value+1);}}>영상 정보 다시 확인</button></div>}
+        <label className="reference-image-file">영상 파일 선택<input ref={motionInput} aria-label="RGB 동작 MP4 · 16fps 샘플링" aria-invalid={videoError ? true : undefined} aria-describedby={[videoHelpId,videoError ? videoErrorId : null].filter(Boolean).join(" ")} type="file" accept="video/mp4" onChange={event=>{const file=event.target.files[0];event.target.value="";if(!file)return;onSelectionStart?.();setVideoInfo(null);updateVideoChecking(true);setMotionFile(file);}}/></label>{motionFile && <small>선택한 파일 · {motionFile.name}</small>}
+        {checkingVideo && <p role="status">영상 정보를 확인하고 있습니다.</p>}{videoError && <div ref={videoInfoRef} tabIndex={-1} role="alert"><p id={videoErrorId}>{videoError}</p><button type="button" disabled={checkingVideo} onClick={()=>{if(videoChecking.current)return;videoRetryFocus.current=true;updateVideoChecking(true);retryVideo(value=>value+1);}}>영상 정보 다시 확인</button></div>}
         {videoInfo && <p ref={videoInfoRef} tabIndex={-1}>입력 {videoInfo.width}×{videoInfo.height} · {videoInfo.fps.toFixed(2)}fps · {videoInfo.frame_count}프레임 · 출력 최대 {videoInfo.maximum_frames}프레임 <button type="button" onClick={()=>setFrames(videoInfo.maximum_frames)}>최대 프레임 적용</button></p>}
       </div></div></div>
       <div className="generator-input-group"><h2>장면 지시</h2>
@@ -137,7 +138,7 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
       <label>프레임<input type="number" min={5} max={81} step={4} value={frames} onChange={event=>setFrames(event.target.value)}/></label>
       <label>가속 LoRA<select value={lora} onChange={event=>{const value=event.target.value;setLora(value);setSteps(value==='lightx2v' ? 6 : 40);}}><option value="none">사용 안 함 · Base</option><option value="lightx2v">LightX2V · 6스텝</option></select></label>
       <label>스텝<input type="number" min={2} max={50} value={steps} onChange={event=>setSteps(event.target.value)}/></label>
-      <SeedInput value={seed} max={2147483647} onChange={setSeed} required={false}/>
+      <SeedInput value={seed} max={2147483647} onChange={setSeed}/>
       </div>{!invalidFrames && <p>출력 16fps · 예상 재생 길이 {(frameNumber/16).toFixed(2)}초</p>}
       <p>{lora === 'lightx2v' ? 'LightX2V 강도 1 · LCM · shift 5 · CFG 1 · 생성 품질 검증 필요' : '공식 Base BF16 · 공식 스케줄러 및 CFG'} · AMD ROCm GPU 연산</p>
       </div>

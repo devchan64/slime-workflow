@@ -1,4 +1,5 @@
 """빌보드 위임의 검토 고정·중복 방지·응답 유실을 검사한다."""
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -35,13 +36,13 @@ class HermesBillboardOperationTests(unittest.TestCase):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:
             bundle=Path(directory)/'billboard.cjs'
-            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BillboardProperties.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BillboardProperties.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');
               const {BillboardReviewSummary,validBillboardReview}=require(process.argv[1]);
               const result={token:'t',review_sha256:'a'.repeat(64),changes:[{texture:'tree-v1',before:{displayHeight:520},after:{displayHeight:500}}],maps:['meadow'],map_warnings:[{map:'meadow',message:'접지 확인'}],note:'맵 재확인'};
               if(!validBillboardReview(result,'tree-v1') || validBillboardReview({...result,map_warnings:[null]},'tree-v1') || validBillboardReview(result,'other'))throw Error('review validation');
               process.stdout.write(server.renderToStaticMarkup(React.createElement(BillboardReviewSummary,{result})));"""
-            html=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
+            html=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         for value in ('tree-v1','표시 높이','520','500','meadow','접지 확인','맵 재확인'):
             self.assertIn(value,html)
 
@@ -58,12 +59,12 @@ class HermesBillboardOperationTests(unittest.TestCase):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:
             bundle=Path(directory)/'billboard.cjs'
-            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BillboardProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BillboardProposal.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');
               const {BillboardProposalReview}=require(process.argv[1]);
               const preview={changes:[{texture:'tree-v1',before:{displayHeight:520},after:{displayHeight:500}}],maps:['assets/maps/field_tiles/meadow.yaml'],map_warnings:[{map:'assets/maps/field_tiles/meadow.yaml',message:'접지 확인'}],note:'맵은 다시 확인'};
               process.stdout.write(server.renderToStaticMarkup(React.createElement(BillboardProposalReview,{preview})));"""
-            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         for value in ('tree-v1','표시 높이','520','500','assets/maps/field_tiles/meadow.yaml','접지 확인','맵은 다시 확인','확인 후 저장','취소'):
             self.assertIn(value,markup)
 

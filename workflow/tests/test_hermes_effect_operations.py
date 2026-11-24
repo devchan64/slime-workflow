@@ -30,22 +30,22 @@ class HermesEffectOperationTests(unittest.TestCase):
         self.assertNotIn('effect_id',inspect_hermes_effect_receipt(current_record,'effect_request_123'))
 
     def test_history_rejects_mismatched_effect_and_labels_legacy(self):
-        import subprocess
+        import os, subprocess
         root=Path(__file__).resolve().parents[2]
         result=subprocess.run(['node','--test',str(root/'workflow/tests/effect_proposal_protocol.test.mjs')],cwd=root,capture_output=True,text=True,timeout=30)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
     def test_effect_summary_preserves_each_frame_and_scope(self):
-        import subprocess
+        import os, subprocess
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:
             bundle=Path(directory)/'effect.cjs'
-            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'EffectProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'EffectProposal.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');
               const {EffectProposalReview}=require(process.argv[1]);
               const preview={id:'firefly-v1',before:{alpha:0.5,target:[0,0,1,1],frames:[[0,0,1,1],[1,1,2,2]]},after:{alpha:0.7,target:[1,0,1,1],frames:[[0,0,1,1],[2,1,2,2]]},note:'모든 맵에 적용'};
               process.stdout.write(server.renderToStaticMarkup(React.createElement(EffectProposalReview,{preview,busy:true})));"""
-            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         for value in ('불투명도','0.5','0.7','프레임 1','[1,1,2,2]','[2,1,2,2]','모든 맵에 적용','이펙트 도구','확인 후 저장','취소','disabled'):
             self.assertIn(value,markup)
 

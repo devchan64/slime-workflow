@@ -64,7 +64,7 @@ export default function AnchorHistory() {
     {busy && <p role="status">앵커 이력을 조회하고 있습니다.</p>}
     {page && <p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p>}
     {pagination("상단")}
-    {page && <div ref={resultRef} tabIndex={-1} aria-label="앵커 검수 이력 결과"><div className="anchor-history-table" role="region" aria-label="앵커 검수 이력 표" tabIndex={0}><ResultTable table={{title:"과거 좌표 검수 기록",summary:"전체 "+page.total+"건",
+    {page && <div ref={resultRef} tabIndex={-1} aria-label="앵커 검수 이력 결과"><div className="anchor-history-table"><ResultTable table={{title:"과거 좌표 검수 기록",summary:"전체 "+page.total+"건",
       columns:["이력 ID","저장 시각","프레임 수"],rows:page.records.map(row=>[row.id,row.created_at,row.frames])}}/></div></div>}
     {page?.note && <p>{page.note}</p>}
     {page?.records.length>5 && pagination("하단")}

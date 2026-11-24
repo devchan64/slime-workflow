@@ -340,17 +340,17 @@ with hold_sprite_asset_update_lock():
             self.assertTrue(sprite_operations.save_hermes_sprite_anchor_once(*current_save_args)['saved'])
 
     def test_conversation_review_preserves_sprite_changes(self):
-        import subprocess
+        import os, subprocess
         current_preview_record=sprite_operations.preview_hermes_sprite_anchor_edit(self.current_draft_record)
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:
             bundle=Path(directory)/'sprite.cjs'
-            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'SpriteProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'SpriteProposal.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');
               const {SpriteProposalReview}=require(process.argv[1]);
               const preview=JSON.parse(require('fs').readFileSync(0,'utf8'));
               process.stdout.write(server.renderToStaticMarkup(React.createElement(SpriteProposalReview,{preview,busy:true})));"""
-            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(current_preview_record),text=True)
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(current_preview_record),text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         for value in ('앵커 변경','프레임 배치',current_preview_record['output_sha256'],current_preview_record['clips'][0]['id'],str(current_preview_record['clips'][0]['frames'][0]['duration_ms'])+'ms','확인 후 저장','취소','disabled'):
             self.assertIn(value,markup)
 

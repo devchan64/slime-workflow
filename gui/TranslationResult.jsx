@@ -44,7 +44,7 @@ export default function TranslationResult({job, text}) {
   return <section><label>복사용 번역문 <textarea ref={textRef} value={draft} onChange={e=>{setDraft(e.target.value);setNotice("");}}/></label>
     <button ref={copyRef} onClick={copy}>번역문 복사</button>
     <button ref={inspectRef} disabled={busy} onClick={inspect}>{busy ? "번역 점검 조회 중…" : "원본 번역 점검 조회"}</button>
-    {checks && <>{stale && <p role="status">아래 점검 표는 마지막으로 조회한 결과입니다.</p>}<div className="translation-check-table" role="region" aria-label="번역 점검 표" tabIndex={0}><ResultTable table={checks}/></div></>}
+    {checks && <>{stale && <p role="status">아래 점검 표는 마지막으로 조회한 결과입니다.</p>}<div className="translation-check-table"><ResultTable table={checks}/></div></>}
     <p role="status">{notice}</p>
   </section>;
 }

@@ -1,3 +1,5 @@
+import {startImageLoadDeadline} from "./imageLoadDeadline.mjs";
+
 export function drawBuildingPreview(canvas,preview,placement,values,onStatus=()=>{}){
   const {anchorX,anchorY,displayWidthAdjustment:widthAdjustment,displayHeightAdjustment:heightAdjustment,
     shadowShape:currentShadowShape,shadowOffsetColumn:currentShadowColumnOffset,shadowOffsetRow:currentShadowRowOffset,
@@ -6,9 +8,12 @@ export function drawBuildingPreview(canvas,preview,placement,values,onStatus=()=
  const ticket=(canvas.__buildingPreviewTicket||0)+1;canvas.__buildingPreviewTicket=ticket;
  ctx.clearRect(0,0,canvas.width,canvas.height);
  onStatus("loading");
- img.onerror=()=>{if(canvas.__buildingPreviewTicket===ticket)onStatus("image-error");};
+ let active=true;
+ const cancelTimeout=startImageLoadDeadline(()=>{if(active && canvas.__buildingPreviewTicket===ticket){img.onload=null;img.onerror=null;onStatus("image-error");}});
+ img.onerror=()=>{cancelTimeout();if(active && canvas.__buildingPreviewTicket===ticket)onStatus("image-error");};
  img.onload=()=>{
-  if(canvas.__buildingPreviewTicket!==ticket)return;
+  cancelTimeout();
+  if(!active || canvas.__buildingPreviewTicket!==ticket)return;
   if(!img.width || !img.height){onStatus("image-error");return;}
   ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#e9eef2';ctx.fillRect(0,0,canvas.width,canvas.height);
   if(!placement){const scale=Math.min(440/img.width,320/img.height);ctx.drawImage(img,(canvas.width-img.width*scale)/2,(canvas.height-img.height*scale)/2,img.width*scale,img.height*scale);onStatus("ready");return;}
@@ -34,5 +39,5 @@ export function drawBuildingPreview(canvas,preview,placement,values,onStatus=()=
   onStatus("ready");
  };
  img.src=preview;
- return ()=>{img.onload=null;img.onerror=null;};
+ return ()=>{active=false;cancelTimeout();img.onload=null;img.onerror=null;};
 }

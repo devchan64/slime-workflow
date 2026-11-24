@@ -4,6 +4,9 @@ import JobIdentifier from "./JobIdentifier.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import KimodoFrames from "./KimodoFrames.jsx";
 import QueuePagination from "./QueuePagination.jsx";
+import {sessionQueueStateLabel} from "./sessionQueueValidation.mjs";
+import {selectRecentHistorySources,validRecentHistoryPage} from "./recentHistorySource.mjs";
+export {validRecentHistorySource} from "./recentHistorySource.mjs";
 
 const labels={queued:"대기 중",running:"실행 중",completed:"완료",failed:"실패",cancelled:"취소",canceled:"취소",paused:"일시 중지",unknown:"확인 불가"};
 function category(source){
@@ -59,8 +62,7 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
           if(!response.ok)throw new Error('생성기 목록 조회 실패');
           return response.json();
         });
-        if(!Array.isArray(sources) || sources.some(source=>!source || typeof source.service!=='string' || !source.service || typeof source.command!=='string' || !source.command))throw new Error('생성기 목록 형식 오류');
-        const eligible=sources.filter(s=>s && typeof s.service==='string' && ['hermes-generator-source-history','hermes-audio-source-history'].includes(s.command));
+        const eligible=selectRecentHistorySources(sources);
         const collected=[],failed=[];let cursor=0,succeeded=0;
         async function worker(){
           while(active && cursor<eligible.length){
@@ -75,7 +77,7 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
                   if(!active)return;
                 }
               }
-              if(page.service!==source.service || !Array.isArray(page.records))throw new Error('이력 응답 오류');
+              if(!validRecentHistoryPage(page,source.service))throw new Error('이력 응답 오류');
               succeeded++;
               let invalid=0;
               for(const record of page.records){if(record && typeof record.recorded_status==='string' && typeof record.id==='string' && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(record.id))collected.push({source,record});else invalid++;}
@@ -85,7 +87,7 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
           }
         }
         await Promise.all(Array.from({length:Math.min(4,eligible.length)},()=>worker()));
-        if(active){setErrors(failed);if(eligible.length>0 && succeeded===0){setListUnavailable(true);}else{setRows(collected.sort((a,b)=>b.record.id.localeCompare(a.record.id)));setChecked(new Date());setListUnavailable(false);}}
+        if(active){setErrors(failed);if(succeeded===0){setListUnavailable(true);}else{setRows(collected.sort((a,b)=>b.record.id.localeCompare(a.record.id)));setChecked(new Date());setListUnavailable(false);}}
       }catch(error){if(active){setErrors([{service:'생성기 목록',reason:error instanceof Error ? error.message : '목록을 조회할 수 없습니다.'}]);setListUnavailable(true);}}
       finally{if(active)setLoading(false);}
     }
@@ -102,7 +104,7 @@ export default function RecentGeneratorJobs({session,filters,filterSummary,revis
     {errors.length>0 && <div>{!(listUnavailable && checked) && <p role="status">{listUnavailable ? "최근 작업을 확인하지 못했습니다" : "일부 이력을 확인하지 못했습니다"} · {errors.length}곳</p>}<details open={errorsOpen} onToggle={event=>setErrorsOpen(event.currentTarget.open)}><summary>조회 실패 원인과 조치</summary><p>문제를 확인한 뒤 최근 작업을 새로고침하세요.</p><ul>{errors.map(({service,reason},index)=><li key={service+"/"+index}>{service} · {reason}{service==='writer-agent' && reason.includes('문서 폴더') && <> 운영자에게 <code>.local/writer-agent/workspace.yaml</code>의 문서 폴더 설정과 접근 권한 확인을 요청하세요.</>}</li>)}</ul></details></div>}
     {!loading && !matching.length && !listUnavailable && <p>{errors.length ? "확인된 이력에는 조건에 맞는 최근 작업이 없습니다. 조회하지 못한 이력은 포함되지 않았습니다." : "조건에 맞는 최근 작업이 없습니다."}</p>}
     <div className="session-job-list">{matching.slice(currentPage*pageSize,(currentPage+1)*pageSize).map(({source,record})=><article className="session-job" key={source.service+'/'+record.id}>
-      <div className="session-job-heading"><strong>{source.service}</strong><span>기록 · {labels[record.recorded_status] || record.recorded_status}</span></div>
+      <div className="session-job-heading"><strong>{source.service}</strong><span>기록 · {sessionQueueStateLabel(labels,record.recorded_status)}</span></div>
       <JobIdentifier id={record.id} compact/>
       <div className="session-job-actions">
         {(source.result_kind || source.service==='kimodo') && <button type="button" aria-label={record.id+(selected?.source.service===source.service && selected?.id===record.id ? " 결과 닫기" : " 상태·결과 보기")} aria-expanded={selected?.source.service===source.service && selected?.id===record.id} onClick={event=>{if(selected?.source.service===source.service && selected?.id===record.id)closeResult();else{triggerRef.current=event.currentTarget;setSelected({source,id:record.id});}}}>{selected?.source.service===source.service && selected?.id===record.id ? "결과 닫기" : "상태·결과 보기"}</button>}

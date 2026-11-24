@@ -1,5 +1,5 @@
-import React,{useRef,useState} from 'react';
-import {managementCommand} from './managementCommand.js';
+import React,{useEffect,useRef,useState} from 'react';
+import {readProposalPreview} from './readProposalPreview.mjs';
 import {readGenerationProposal} from './generationProposal.mjs';
 
 const names={audio:'오디오',video:'영상',writer:'작가'};
@@ -18,8 +18,19 @@ export function GenerationProposalReview({kind,proposal,session,job,snapshot,off
   </>;
 }
 export default function GenerationProposal({session,job,snapshot,offset,kind}){
+  return <GenerationProposalForSelection key={JSON.stringify([session,job,snapshot,offset,kind])} session={session} job={job} snapshot={snapshot} offset={offset} kind={kind}/>;
+}
+function GenerationProposalForSelection({session,job,snapshot,offset,kind}){
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const buttonRef=useRef(null);
-  async function inspect(){setBusy(true);setError('');setProposal(null);try{setProposal(await readGenerationProposal(managementCommand,{session,job,snapshot,offset,kind}));}catch(problem){setError(problem.message);}finally{setBusy(false);requestAnimationFrame(()=>{if(document.activeElement===document.body && buttonRef.current?.isConnected && !buttonRef.current.disabled)buttonRef.current.focus();});}}
-  return <section aria-label={names[kind]+' 제안'}><button ref={buttonRef} type="button" disabled={busy} onClick={inspect}>{names[kind]} 제안 확인</button>{error && <p role="alert">{error}</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</section>;
+  const buttonRef=useRef(null),request=useRef(null);useEffect(()=>()=>request.current?.abort(),[]);
+  async function inspect(){
+    if(request.current)return;
+    const controller=new AbortController();request.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setBusy(true);setError('');setProposal(null);
+    try{setProposal(await readProposalPreview(readGenerationProposal,[{session,job,snapshot,offset,kind}],controller.signal));}
+    catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? '생성 제안 조회 시간이 초과됐습니다. 다시 확인하세요.' : problem.message);}
+    finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);requestAnimationFrame(()=>{if(document.activeElement===document.body && buttonRef.current?.isConnected && !buttonRef.current.disabled)buttonRef.current.focus();});}}
+  }
+  return <section aria-label={names[kind]+' 제안'}><button ref={buttonRef} type="button" disabled={busy} onClick={inspect}>{names[kind]} 제안 확인</button>{busy && <p role="status">생성 제안을 조회하고 있습니다.</p>}{error && <p role="alert">{error}</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</section>;
 }

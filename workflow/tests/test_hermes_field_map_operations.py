@@ -2,6 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import os
 import unittest
 from unittest.mock import patch
 
@@ -20,13 +21,13 @@ class HermesFieldMapOperationsTests(unittest.TestCase):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with TemporaryDirectory() as directory:
             bundle=Path(directory)/'field.cjs'
-            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'FieldProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'FieldProposal.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');
               const {FieldProposalReview}=require(process.argv[1]);
               const proposal=JSON.parse(require('fs').readFileSync(0,'utf8'));
               const review={proposal,source:{tiles:{rows:['ab']},terrain:{elevations:[[1,2]],blocked:[[1,0]]}},preview:{save_available:false,save_block_reason:'database'}};
               process.stdout.write(server.renderToStaticMarkup(React.createElement(FieldProposalReview,{review,busy:false})));"""
-            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(proposal),text=True)
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,input=json.dumps(proposal),text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         for value in ('1, 0','b / 2 / false','c / 3 / false','DB 모드','확인 후 저장','disabled','취소'):
             self.assertIn(value,markup)
 
@@ -51,11 +52,11 @@ class HermesFieldMapOperationsTests(unittest.TestCase):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with TemporaryDirectory() as directory:
             bundle=Path(directory)/'field.cjs'
-            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'FieldProposal.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'FieldProposal.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server');const {FieldProposalReview}=require(process.argv[1]);
               const review={proposal:{map:'sample',revision:'r',cells:[{column:4,row:9,tile:'a',height:1,blocked:false}]},source:{tiles:{rows:[]},terrain:{}},preview:{save_available:null}};
               process.stdout.write(server.renderToStaticMarkup(React.createElement(FieldProposalReview,{review})));"""
-            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True)
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         self.assertIn('확인 불가 / 확인 불가 / 확인 불가',markup)
         self.assertIn('주변 배치',markup)
         self.assertIn('disabled',markup)

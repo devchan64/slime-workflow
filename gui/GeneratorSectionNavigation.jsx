@@ -1,5 +1,11 @@
 import React from "react";
 
+export function focusGeneratorRegion(element){
+  if(!element.matches('a[href],button,input,select,textarea,summary,[tabindex]'))element.setAttribute('tabindex','-1');
+  element.scrollIntoView({block:'start'});
+  element.focus({preventScroll:true});
+}
+
 /** 현재 페이지의 작업 흐름으로 이동한다. 이동은 생성이나 작업 선택을 실행하지 않는다. */
 export default function GeneratorSectionNavigation({inputRef,historyRef,resultRef,inputReady=true,resultReady=false,openOnNavigate=false}){
   const targets=[
@@ -17,12 +23,12 @@ export default function GeneratorSectionNavigation({inputRef,historyRef,resultRe
       if(target.label==='생성 이력' || waitingForResult){const detail=region.querySelector('details');if(detail)detail.open=true;}
     }
     const focus=target.label==='생성 이력' || waitingForResult ? region.querySelector('summary') || region : region;
-    focus.scrollIntoView({block:'start'});
-    focus.focus({preventScroll:true});
+    focusGeneratorRegion(focus);
   }
   return <nav className="generator-section-navigation" aria-label="생성기 영역 이동">
     <span>바로 이동</span>
     {targets.map(target=><button key={target.label} type="button" disabled={!target.ready} title={!target.ready ? target.reason : undefined} onClick={()=>move(target)}>{target.label}</button>)}
+    {!inputReady && <small>생성 입력을 불러오는 중입니다.</small>}
     {!resultReady && <small>결과는 이력에서 작업을 선택하면 볼 수 있습니다.</small>}
   </nav>;
 }
