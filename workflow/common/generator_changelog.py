@@ -23,6 +23,7 @@ GENERATOR_CHANGELOG_PATHS = {
     'wan22-animate2-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan_animate2/CHANGELOG.md',
     'wan22-vace-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan_vace/CHANGELOG.md',
     'minimax-h3-i2v-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/minimax_h3/CHANGELOG.md',
+    'minimax-h3-ref2va-generator': WORKFLOW_ROOT_DIRECTORY / 'workflow/generators/minimax_h3_ref2va/CHANGELOG.md',
     'minimax-h3-image-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/minimax_h3_image/CHANGELOG.md',
     'wan22-i2v-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan_i2v/CHANGELOG.md',
     'wan21-t2v-generator': WORKFLOW_ROOT_DIRECTORY / 'generators/wan21_t2v/CHANGELOG.md',

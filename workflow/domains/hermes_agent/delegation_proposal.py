@@ -227,6 +227,7 @@ HERMES_VIDEO_PROPOSAL_MODES = {
     'wan22-vace':('text','reference','first_frame','video_edit','video_condition','pose'),
     'wan22-i2v':('first_frame',),
     'minimax-h3-i2v':('first_frame',),
+    'minimax-h3-ref2va':('video_edit',),
     'wan21-t2v':('text',),
     'wan21-i2v':('first_frame',),
 }

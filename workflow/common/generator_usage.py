@@ -6,6 +6,7 @@ GENERATOR_USAGE_PATHS = {
     'wan22-animate2': ROOT / 'generators/wan_animate2/README.md',
     'wan22-vace': ROOT / 'generators/wan_vace/README.md',
     'minimax-h3-i2v': ROOT / 'generators/minimax_h3/README.md',
+    'minimax-h3-ref2va': ROOT / 'workflow/generators/minimax_h3_ref2va/README.md',
     'minimax-h3-image': ROOT / 'generators/minimax_h3_image/README.md',
     'wan22-i2v': ROOT / 'generators/wan_i2v/README.md',
     'wan21-t2v': ROOT / 'generators/wan21_t2v/README.md',

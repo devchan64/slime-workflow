@@ -14,11 +14,13 @@ NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'flux-express
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'hermes-agent'}
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'wan22-i2v-generator','minimax-h3-i2v-generator'}
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'minimax-h3-image-generator'}
+NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'minimax-h3-ref2va-generator'}
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {'wan21-t2v-generator','wan21-i2v-generator'}
 NATIVE_MANAGEMENT_APPLICATIONS = NATIVE_MANAGEMENT_APPLICATIONS | {current_flux_profile+'-generator' for current_flux_profile in ('flux-image','flux-character','flux-mannequin','flux-billboard','flux-prop','flux-vegetation','flux-building','flux-seamless')}
 LEGACY_PAGE_IDENTIFIER_VALUES={'map-review':'map-review-iseulon','animation-2':'animation-1','animation-3':'animation-1'}
 REACT_REVIEW_PATHS = {"kimodo-generator": "/management/frame/kimodo-generator/", "asset-editor": "/management/frame/asset-editor/", "sprite-sheet-editor": "/management/frame/sprite-sheet-editor/", "effect-editor": "/management/frame/effect-editor/", "building-editor": "/management/frame/building-editor/", "map-review": "/management/frame/map-review/", "wan22-fun-control-generator":"/management/frame/wan22-fun-control-generator/", "wan22-vace-generator":"/management/frame/wan22-vace-generator/", "wan22-animate2-generator":"/management/frame/wan22-animate2-generator/", "writer-agent":"/management/frame/writer-agent/", **{name+"-generator": "/management/frame/"+name+"-generator/" for name in ("flux-prop","flux-vegetation","flux-billboard","flux-mannequin","flux-building","flux-character","flux-seamless","flux-expression")}, "flux-image-generator": "/management/frame/flux-image-generator/", "music-heartmula": "/management/frame/music-heartmula/", "sfx-dasheng-audiogen": "/management/frame/sfx-dasheng-audiogen/", "dwpose-generator": "/management/frame/dwpose-generator/", "hermes-agent": "/management/frame/hermes-agent/", "model-management": "/management/frame/model-management/", "world-map": "/management/frame/world-map/", "prompt-translation": "/management/frame/prompt-translation/"}
 REACT_REVIEW_PATHS['minimax-h3-i2v-generator'] = '/management/frame/minimax-h3-i2v-generator/'
+REACT_REVIEW_PATHS['minimax-h3-ref2va-generator'] = '/management/frame/minimax-h3-ref2va-generator/'
 REACT_REVIEW_PATHS['minimax-h3-image-generator'] = '/management/frame/minimax-h3-image-generator/'
 REACT_REVIEW_PATHS['wan22-i2v-generator'] = '/management/frame/wan22-i2v-generator/'
 REACT_REVIEW_PATHS.update({name: '/management/frame/'+name+'/' for name in ('wan21-t2v-generator','wan21-i2v-generator')})
@@ -36,6 +38,7 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'kimodo-generator','label':'Kimodo 모션 생성기','path':'/management/frame/kimodo-generator/','category':'animation-tool','uiMode':'react','description':'ROCm · SOMA v1.2 · 텍스트→3D 모션 · 비양자화 BF16 인코더'},
     {'id':'wan22-vace-generator','label':'Wan2.2 VACE-Fun 영상 생성기','path':'/management/frame/wan22-vace-generator/','category':'animation-tool','uiMode':'react','description':'A14B BF16 · 텍스트·외형 참조·첫 프레임'},
     {'id':'minimax-h3-i2v-generator','label':'MiniMax H3 I2V 영상 생성기','path':'/management/frame/minimax-h3-i2v-generator/','category':'animation-tool','uiMode':'react','description':'첫 이미지 + 프롬프트 · Turbo 8스텝'},
+    {'id':'minimax-h3-ref2va-generator','label':'MiniMax H3 Ref2VA 영상 편집기','path':'/management/frame/minimax-h3-ref2va-generator/','category':'animation-tool','uiMode':'react','description':'원본 영상 + 편집 프롬프트 · Turbo 8스텝'},
     {'id':'minimax-h3-image-generator','label':'MiniMax H3 이미지 생성기','path':'/management/frame/minimax-h3-image-generator/','category':'image-generation','uiMode':'react','description':'INT8 · 텍스트 이미지 실험'},
     {'id':'wan22-i2v-generator','label':'Wan2.2 I2V 영상 생성기','path':'/management/frame/wan22-i2v-generator/','category':'animation-tool','uiMode':'react','description':'첫 이미지 + 프롬프트 · Lightning'},
     {'id':'wan21-t2v-generator','label':'Wan 2.1 T2V 영상 생성기','path':REACT_REVIEW_PATHS['wan21-t2v-generator'],'category':'animation-tool','uiMode':'react','description':'1.3B · 텍스트 · 가속 및 KXSR LoRA 실험'},

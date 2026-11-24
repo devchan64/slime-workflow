@@ -37,6 +37,7 @@
 | Wan Animate-2 캐릭터 동작 전사 | Wan Animate-2 동작 전사 생성기 | 생성기 | `wan22-animate2-generator` | `/management/frame/wan22-animate2-generator/` |
 | Wan Fun Control 영상 생성기 | Wan Fun Control 영상 생성기 | 생성기 | `wan22-fun-control-generator` | `/management/frame/wan22-fun-control-generator/` |
 | Wan2.2 VACE-Fun 영상 생성기 | Wan2.2 VACE-Fun 영상 생성기 | 생성기 | `wan22-vace-generator` | `/management/frame/wan22-vace-generator/` |
+| MiniMax H3 Ref2VA 영상 편집기 | MiniMax H3 영상 편집 | 생성기 | `minimax-h3-ref2va-generator` | `/management/frame/minimax-h3-ref2va-generator/` |
 | 건물 에셋 관리 | 건물 에셋 관리 | 관리 | `building-editor` | `/management/frame/building-editor/` |
 | 공용 빌보드 에셋 관리 | 공용 빌보드 에셋 관리 | 관리 | `asset-editor` | `/management/frame/asset-editor/` |
 | 디자인 시스템 · 토큰과 기본 컴포넌트 | 디자인 시스템 · 토큰과 기본 컴포넌트 | 검수 | `ui-c76f5eb898082981-design-system` | `/ui-c76f5eb898082981/review/design-system.html` |

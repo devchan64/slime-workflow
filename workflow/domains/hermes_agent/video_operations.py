@@ -30,6 +30,9 @@ def make_hermes_video_manager(current_service_name):
     if current_service_name=='wan22-fun-control':
         from workflow.domains.wan_fun.generation import FunControlGenerationManager
         return FunControlGenerationManager()
+    if current_service_name=='minimax-h3-ref2va':
+        from workflow.domains.minimax_h3_ref2va.generation import MiniMaxH3Ref2VAManager
+        return MiniMaxH3Ref2VAManager()
     if current_service_name=='minimax-h3-i2v':
         from workflow.domains.minimax_h3.generation import MiniMaxH3GenerationManager
         return MiniMaxH3GenerationManager()

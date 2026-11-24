@@ -887,6 +887,15 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         return FileResponse(path, media_type='video/mp4', headers={'Cache-Control':'no-store'})
 
+    @current_root_application.get('/management/assistant/minimax-h3-ref2va-input/{job}')
+    async def minimax_h3_ref2va_input(job: str):
+        from workflow.generators.minimax_h3_ref2va.contracts import JOB_STORAGE
+        from workflow.domains.minimax_h3_ref2va.input_restore import load_saved_input
+        try:
+            return JSONResponse(await asyncio.to_thread(load_saved_input, JOB_STORAGE, job), headers={'Cache-Control':'no-store'})
+        except (ValueError, OSError, KeyError, TypeError):
+            return JSONResponse({'detail':'저장된 입력 또는 영상 사본을 확인할 수 없습니다.'}, status_code=422)
+
     @current_root_application.get('/management/assistant/minimax-h3-i2v-input/{job}')
     def minimax_h3_i2v_input(job: str):
         from generators.minimax_h3.contracts import JOB_STORAGE
@@ -1112,6 +1121,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/wan22-vace-generator/')
     @current_root_application.get('/management/frame/minimax-h3-i2v-generator')
     @current_root_application.get('/management/frame/minimax-h3-i2v-generator/')
+    @current_root_application.get('/management/frame/minimax-h3-ref2va-generator')
+    @current_root_application.get('/management/frame/minimax-h3-ref2va-generator/')
     @current_root_application.get('/management/frame/wan22-i2v-generator')
     @current_root_application.get('/management/frame/wan22-i2v-generator/')
     @current_root_application.get('/management/frame/wan21-t2v-generator')

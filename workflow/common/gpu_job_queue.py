@@ -34,10 +34,11 @@ GPU_MEMORY_REQUIREMENTS['kimodo-cache-check'] = 1024  # 모델 적재 없이 장
 GPU_MEMORY_REQUIREMENTS['trellis-experiment'] = 32768  # 실측 전 보수적 예약; 단독 실행으로 다른 작업과 경합하지 않는다.
 GPU_MEMORY_REQUIREMENTS['pixal-experiment'] = 65536  # 초기 실측 전 GPU 단독 예약.
 GPU_MEMORY_REQUIREMENTS['minimax-h3-i2v'] = 81920
+GPU_MEMORY_REQUIREMENTS['minimax-h3-ref2va'] = 81920
 GPU_MEMORY_REQUIREMENTS['minimax-h3-experiment'] = 81920  # H3 최초 실행 전 보수적 GPU 단독 예약.
 GPU_MEMORY_REQUIREMENTS['minimax-h3-image'] = 81920  # 이미지 모델 실측 전 단독 예약.
 GPU_MEMORY_REQUIREMENTS['unirig-experiment'] = 32768  # 초기 실측 전 보수적 단독 예약.
-GPU_EXCLUSIVE_SERVICES = frozenset(('hermes-agent', 'wan-fun-prepare', 'management-setup', 'kimodo-cache-check', 'trellis-experiment', 'pixal-experiment', 'minimax-h3-experiment', 'minimax-h3-i2v', 'minimax-h3-image', 'unirig-experiment', 'wan22-i2v', 'wan21-t2v', 'wan21-i2v'))
+GPU_EXCLUSIVE_SERVICES = frozenset(('hermes-agent', 'wan-fun-prepare', 'management-setup', 'kimodo-cache-check', 'trellis-experiment', 'pixal-experiment', 'minimax-h3-experiment', 'minimax-h3-i2v', 'minimax-h3-ref2va', 'minimax-h3-image', 'unirig-experiment', 'wan22-i2v', 'wan21-t2v', 'wan21-i2v'))
 GPU_MEMORY_REQUIREMENTS['prompt-translation'] = 32768  # 번역 후 작가 AI 의미 검토 모델을 순차 사용한다.
 GPU_MEMORY_REQUIREMENTS['flux3-evaluation'] = 36864  # 768×1152 편집 시험에서 관측한 32812 MiB 피크에 여유를 둔다.
 GPU_MEMORY_REQUIREMENTS['flux-expression'] = 45056  # 768×512 표정 작업 관측 피크 39166 MiB에 여유를 둔다.
@@ -1143,7 +1144,7 @@ def execute_locked_generation(generation_job_path):
                     current_terminate_callback=lambda:signal.pidfd_send_signal(hermes_worker_pid_descriptor,signal.SIGKILL,None,HERMES_PIDFD_GROUP_FLAG))
             elif generation_command_record['service']=='writer-agent' and generation_command_record['command'][1:3]==['-m','generators.writer_agent.jobs']:
                 current_memory_guard = start_animate_memory_guard(generation_worker_process, current_include_group=True)
-            elif generation_command_record['service'] in ('minimax-h3-experiment','minimax-h3-i2v','minimax-h3-image'):
+            elif generation_command_record['service'] in ('minimax-h3-experiment','minimax-h3-i2v','minimax-h3-ref2va','minimax-h3-image'):
                 current_memory_guard = start_animate_memory_guard(generation_worker_process, current_include_group=True, current_swap_aware=True)
             elif len(generation_command_record['command'])>1 and Path(generation_command_record['command'][1]).resolve()==WORKFLOW_ROOT_DIRECTORY/'generators/kimodo/migraphx_build_worker.py':
                 current_memory_guard = start_animate_memory_guard(generation_worker_process, current_include_group=True)
@@ -1294,7 +1295,7 @@ def identify_gpu_queue_source(current_job_path,current_queue_service,current_wor
 def is_dedicated_gpu_source_verifiable(current_queue_service):
     """원 서비스 작업 루트를 지정해 검증할 수 있는 대기열 서비스다."""
     from generators.music.service_constants import AUDIO_SERVICE_NAMES
-    return current_queue_service in (*AUDIO_SERVICE_NAMES,'prompt-translation','wan-fun','wan-fun-prepare','wan22-i2v','wan21-t2v','wan21-i2v','minimax-h3-experiment','minimax-h3-i2v','minimax-h3-image','flux-expression','review-capture')
+    return current_queue_service in (*AUDIO_SERVICE_NAMES,'prompt-translation','wan-fun','wan-fun-prepare','wan22-i2v','wan21-t2v','wan21-i2v','minimax-h3-experiment','minimax-h3-i2v','minimax-h3-ref2va','minimax-h3-image','flux-expression','review-capture')
 
 
 def identify_dedicated_gpu_reservation_source(current_job_path,current_queue_service,current_workflow_root=None):
@@ -1302,7 +1303,7 @@ def identify_dedicated_gpu_reservation_source(current_job_path,current_queue_ser
     import re
     from generators.music.service_constants import AUDIO_SERVICE_NAMES
     current_source_directories={current_audio_name:current_audio_name for current_audio_name in AUDIO_SERVICE_NAMES}
-    current_source_directories.update({'prompt-translation':'prompt-translation','wan-fun':'wan22-fun-control','wan-fun-prepare':'wan22-fun-control','wan22-i2v':'wan22-i2v','wan21-t2v':'wan21-t2v','wan21-i2v':'wan21-i2v','minimax-h3-experiment':'minimax-h3-experiment','minimax-h3-i2v':'minimax-h3-i2v','minimax-h3-image':'minimax-h3-image','flux-expression':'flux-expression-generator','review-capture':'review-capture'})
+    current_source_directories.update({'prompt-translation':'prompt-translation','wan-fun':'wan22-fun-control','wan-fun-prepare':'wan22-fun-control','wan22-i2v':'wan22-i2v','wan21-t2v':'wan21-t2v','wan21-i2v':'wan21-i2v','minimax-h3-experiment':'minimax-h3-experiment','minimax-h3-i2v':'minimax-h3-i2v','minimax-h3-ref2va':'minimax-h3-ref2va','minimax-h3-image':'minimax-h3-image','flux-expression':'flux-expression-generator','review-capture':'review-capture'})
     current_directory_name=current_source_directories.get(current_queue_service)
     if current_directory_name is None or not isinstance(current_job_path,str):return None
     current_root_path=Path(current_workflow_root or WORKFLOW_ROOT_DIRECTORY)

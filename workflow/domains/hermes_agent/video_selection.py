@@ -2,7 +2,8 @@
 import re
 
 _ALIASES = {
-    'minimax-h3-i2v': ('minimax', 'mini max', '미니맥스', '미니 맥스'),
+    'minimax-h3-i2v': ('minimax-h3-i2v', 'minimax i2v', '미니맥스 i2v'),
+    'minimax-h3-ref2va': ('minimax-h3-ref2va', 'ref2va', '미니맥스 영상 편집'),
     'wan22-i2v': ('wan22-i2v', 'wan 2.2 i2v', 'wan2.2 i2v'),
     'wan21-i2v': ('wan21-i2v', 'wan 2.1 i2v'),
     'wan21-t2v': ('wan21-t2v', 'wan 2.1 t2v'),
@@ -26,6 +27,8 @@ def select_video_proposal(proposal, request):
     texts.append(request.get('prompt', ''))
     text = '\n'.join(value for value in texts if isinstance(value, str)).casefold()
     mentioned = {service for service, aliases in _ALIASES.items() if any(re.search(r'(?<![a-z0-9])' + re.escape(alias) + r'(?![a-z0-9])', text) for alias in aliases)}
+    if not mentioned and re.search(r'(?<![a-z0-9])(?:minimax|mini max)(?![a-z0-9])|미니\s*맥스', text):
+        mentioned.add('minimax-h3-ref2va' if proposal.get('mode') == 'video_edit' else 'minimax-h3-i2v')
     # 일반적인 Wan 명칭만으로는 버전이나 용도를 확정할 수 없다.
     ambiguous_wan = bool(re.search(r'(?<![a-z0-9])wan(?:\s*2(?:\.\s*[12])?)?(?![a-z0-9])|완\s*모델', text)) and not mentioned
     explicit = proposal['explicit_service']

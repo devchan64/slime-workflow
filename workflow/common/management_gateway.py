@@ -43,6 +43,8 @@ MANAGEMENT_SERVICE_ROUTES['wan22-i2v'] = '/wan22-i2v'
 MANAGEMENT_SERVICE_COMMANDS['wan22-i2v'] = ('history-delete', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')
 MANAGEMENT_SERVICE_ROUTES['minimax-h3-i2v'] = '/minimax-h3-i2v'
 MANAGEMENT_SERVICE_COMMANDS['minimax-h3-i2v'] = MANAGEMENT_SERVICE_COMMANDS['wan22-i2v']
+MANAGEMENT_SERVICE_ROUTES['minimax-h3-ref2va'] = '/minimax-h3-ref2va'
+MANAGEMENT_SERVICE_COMMANDS['minimax-h3-ref2va'] = MANAGEMENT_SERVICE_COMMANDS['wan22-i2v']
 MANAGEMENT_SERVICE_ROUTES['minimax-h3-image'] = '/minimax-h3-image'
 MANAGEMENT_SERVICE_COMMANDS['minimax-h3-image'] = ('history-delete', 'generate', 'preview', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset', 'prioritize')
 MANAGEMENT_COMMAND_ROUTES['preview'] = ('POST', '/preview')
@@ -243,7 +245,6 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('MIGraphX 빌드 명령은 입력 필드를 받지 않습니다.')
     if operation_command_name in ('history-reset-preview','writer-state','writer-token','download-status','download-inventory','download-observe','download-model','download-model-status') and command_payload_value:
         raise ValueError('초기화 미리보기는 입력 필드를 받지 않습니다.')
-    if service_command_name == 'expression-lora' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
     if service_command_name == 'model-downloads' and operation_command_name == 'backup-models' and command_payload_value:
         raise ValueError('모델 목록에는 입력을 전달할 수 없습니다.')
     if service_command_name == 'model-downloads' and operation_command_name in ('backup-compare', 'backup-metadata'):
@@ -262,6 +263,7 @@ def resolve_management_command(service_command_name, operation_command_name, com
             raise ValueError('검증 작업 ID를 입력하세요.')
     if service_command_name == 'model-downloads' and operation_command_name == 'backup-verify-history' and command_payload_value:
         raise ValueError('검증 이력에는 입력을 전달할 수 없습니다.')
+    if service_command_name == 'expression-lora' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('표정 LoRA 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'prop-generator' and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
@@ -481,7 +483,6 @@ def execute_management_command(service_command_name, operation_command_name, com
             return send_management_json_response(gateway_request_handler, 200, {'ready': current_models_ready, 'generation_ready': current_models_ready and TRANSLATION_PYTHON_PATH.is_file(), 'message': current_status_message, 'preparation_status': current_preparation_status})
         if service_command_name == 'model-downloads':
             from workflow.common.management_transport import send_management_json_response
-            if operation_command_name == 'download-inventory':
             if operation_command_name == 'backup-models':
                 from workflow.common.model_backup_service import list_backup_models
                 return send_management_json_response(gateway_request_handler, 200, list_backup_models())
@@ -502,6 +503,7 @@ def execute_management_command(service_command_name, operation_command_name, com
                 else:
                     result = {'records': list_verifications()}
                 return send_management_json_response(gateway_request_handler, 200, result)
+            if operation_command_name == 'download-inventory':
                 from workflow.common.model_file_inventory import list_model_inventory_files
                 return send_management_json_response(gateway_request_handler, 200, {'models': list_model_inventory_files()})
             if operation_command_name == 'download-observe':
@@ -662,9 +664,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     command_subparser_group=command_argument_parser.add_subparsers(dest='command',required=True)
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
-        if operation_command_name == 'preview':
         if service_command_name == 'model-downloads' and operation_command_name in ('backup-compare', 'backup-metadata', 'backup-sync', 'backup-verify', 'backup-verify-status'):
             operation_argument_parser.add_argument('--payload-file', type=Path, required=True, help='모델 이름 또는 작업 ID를 담은 JSON 파일')
+        if operation_command_name == 'preview':
             operation_argument_parser.add_argument('--payload-file', type=Path, required=True, help='생성 입력 JSON')
         if operation_command_name == 'resume-reviewed':
             operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='검토한 작업 ID와 두 확인값 JSON')
@@ -724,8 +726,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     current_duration_group.add_argument('--max-new-tokens',type=int,help='MiniMax 오디오 프레임 상한 125~3000; 25개≈1초, 조기 종료 가능')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
-            elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','minimax-h3-i2v','wan21-t2v','wan21-i2v','kimodo','wan22-animate2','dwpose'):
-                operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='action=generate, images=[PNG base64], pose_include_hands/pose_include_face bool JSON' if service_command_name=='dwpose' else 'Kimodo 텍스트·프레임·샘플링·키프레임 배치 JSON 요청' if service_command_name=='kimodo' else 'images PNG base64와 driving_video MP4 base64, prompt, frames, steps, seed, width, height JSON 요청' if service_command_name=='wan22-animate2' else 'images PNG base64와 frame_entries를 포함한 JSON 요청')
+            elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','minimax-h3-i2v','minimax-h3-ref2va','wan21-t2v','wan21-i2v','kimodo','wan22-animate2','dwpose'):
+                operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='action=generate, images=[], edit_video=MP4 base64, prompt, width, height, frames, steps, seed JSON 요청' if service_command_name=='minimax-h3-ref2va' else 'action=generate, images=[PNG base64], pose_include_hands/pose_include_face bool JSON' if service_command_name=='dwpose' else 'Kimodo 텍스트·프레임·샘플링·키프레임 배치 JSON 요청' if service_command_name=='kimodo' else 'images PNG base64와 driving_video MP4 base64, prompt, frames, steps, seed, width, height JSON 요청' if service_command_name=='wan22-animate2' else 'images PNG base64와 frame_entries를 포함한 JSON 요청')
             elif service_command_name=='character-animation':
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=None,help='4: Lightning, 30: 표준 생성 (기본 4)')
                 operation_argument_parser.add_argument('--resolution',type=int,choices=(512,768,1024,1280),default=512)
@@ -828,7 +830,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if getattr(command_argument_values,'max_new_tokens',None) is not None:
                 command_payload_value.pop('duration_seconds')
                 command_payload_value['max_new_tokens'] = command_argument_values.max_new_tokens
-        elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','minimax-h3-i2v','wan21-t2v','wan21-i2v','kimodo','wan22-animate2','dwpose'):
+        elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','minimax-h3-i2v','minimax-h3-ref2va','wan21-t2v','wan21-i2v','kimodo','wan22-animate2','dwpose'):
             command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
         elif service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}

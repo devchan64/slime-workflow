@@ -405,7 +405,7 @@ def list_hermes_capability_catalog():
         if current_command_name in ('hermes-city-preview','hermes-city-save'):
             current_payload_schema['properties']['draft'] = {'type':'object','validation':'map-assets city-edit-preview'}
         if 'service' in current_field_names and current_command_name not in ('hermes-video-resume-preview','hermes-video-resume-submit') and (current_command_name.startswith('hermes-video-') or current_command_name == 'hermes-delegate-video'):
-            current_payload_schema['properties']['service'] = {'type':'string','enum':['dwpose','wan22-animate2','wan22-fun-control','wan22-vace','wan22-i2v','minimax-h3-i2v']}
+            current_payload_schema['properties']['service'] = {'type':'string','enum':['dwpose','wan22-animate2','wan22-fun-control','wan22-vace','wan22-i2v','minimax-h3-i2v','minimax-h3-ref2va']}
         if current_command_name == 'hermes-delegate-video':
             current_payload_schema['properties']['request'] = {'type':'object','validation':'해당 동작·영상 생성기의 validate_generation_request'}
         if 'service' in current_field_names and (current_command_name.startswith('hermes-audio-') or current_command_name == 'hermes-delegate-audio'):
@@ -647,6 +647,8 @@ def list_management_service_registration():
             current_limit_records.append({'command':'generate','note':current_reference_note+current_step_note})
         if current_service_name=='flux-expression' and 'generate' in current_command_names:
             current_limit_records.append({'command':'generate','note':'등록된 표정과 얼굴 참조 이미지 1장이 필요하며 16스텝만 허용한다.'})
+        if current_service_name == 'minimax-h3-ref2va':
+            current_limit_records.append({'command':'generate','note':'832×480, 124프레임, 24fps MP4와 편집 지시가 필요하다. 원본 오디오는 참조하지 않는다.'})
         current_hermes_links=[]
         if current_service_name in HERMES_AUDIO_SERVICES:
             current_hermes_links=['hermes-audio-proposal','hermes-delegate-audio','hermes-audio-status','hermes-audio-history','hermes-audio-source-status','hermes-audio-source-history','hermes-audio-cancel']

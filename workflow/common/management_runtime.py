@@ -108,6 +108,7 @@ def create_management_runtime(writer_workspace_config=None):
     from workflow.domains.kimodo.generation import KimodoGenerationManager
     from workflow.domains.wan_vace.generation import VaceVideoGenerationManager
     from workflow.domains.minimax_h3.generation import MiniMaxH3GenerationManager
+    from workflow.domains.minimax_h3_ref2va.generation import MiniMaxH3Ref2VAManager
     from workflow.domains.wan_i2v.generation import I2VGenerationManager
     from workflow.domains.wan21_t2v.generation import Wan21T2VGenerationManager
     from workflow.domains.wan21_i2v.generation import Wan21I2VGenerationManager
@@ -126,6 +127,7 @@ def create_management_runtime(writer_workspace_config=None):
         kimodo_generation_service = KimodoGenerationManager()
         vace_generation_service = VaceVideoGenerationManager()
         minimax_h3_generation_service = MiniMaxH3GenerationManager()
+        minimax_h3_ref2va_service = MiniMaxH3Ref2VAManager()
         minimax_h3_image_service = MiniMaxH3ImageManager()
         i2v_generation_service = I2VGenerationManager()
         wan21_t2v_generation_service = Wan21T2VGenerationManager()
@@ -171,6 +173,7 @@ def create_management_runtime(writer_workspace_config=None):
             'wan22-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
             'wan22-i2v': bind_stored_management_service(i2v_generation_service.handle_image_request,i2v_generation_service.job_storage_root),
             'minimax-h3-i2v': bind_stored_management_service(minimax_h3_generation_service.handle_image_request,minimax_h3_generation_service.job_storage_root),
+            'minimax-h3-ref2va': bind_stored_management_service(minimax_h3_ref2va_service.handle_image_request,minimax_h3_ref2va_service.job_storage_root),
             'minimax-h3-image': bind_stored_management_service(minimax_h3_image_service.handle_image_request,minimax_h3_image_service.job_storage_root),
             'wan21-t2v': bind_stored_management_service(wan21_t2v_generation_service.handle_image_request,wan21_t2v_generation_service.job_storage_root),
             'wan21-i2v': bind_stored_management_service(wan21_i2v_generation_service.handle_image_request,wan21_i2v_generation_service.job_storage_root),

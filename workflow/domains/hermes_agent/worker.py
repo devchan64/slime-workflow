@@ -302,6 +302,7 @@ def execute_hermes_gpu_job(worker_job_directory, *, resident_directory=None):
     if 'minimax_preferred' in worker_request_record:
         worker_video_guidance += '\n영상 제안 JSON에 explicit_service 불리언을 반드시 추가하세요. 사용자가 생성기 이름을 명시했을 때만 true, 그렇지 않으면 false입니다. 불명확하면 제안하지 말고 질문하세요.'
     worker_video_guidance += '\nMiniMax H3 I2V는 service=minimax-h3-i2v, mode=first_frame이며 첫 이미지를 생성기에서 첨부합니다.'
+    worker_video_guidance += '\nMiniMax H3 영상 편집은 service=minimax-h3-ref2va, mode=video_edit이며 원본 MP4를 생성기에서 첨부합니다. 원본 오디오는 사용하지 않습니다.'
     worker_video_guidance += '\nWan 2.2 I2V는 service=wan22-i2v, mode=first_frame을 사용합니다. 영상 제안의 프롬프트만 작성하고, 도구에서 첫 이미지와 설정을 직접 확인하게 안내합니다. I2V 생성·결과 상태와 접수 여부는 각각 확인하며 검토 기반 재개나 GPU 양도는 지원한다고 가정하지 마세요.'
     worker_video_guidance += '\nWan 2.1 T2V는 service=wan21-t2v, mode=text, Wan 2.1 I2V는 service=wan21-i2v, mode=first_frame을 사용합니다. I2V 첫 이미지는 사용자가 생성기에서 첨부합니다. KXSR 파일 가용성과 공격 LoRA의 무기 동작 품질은 확인 전입니다. 프롬프트만 제안하고 설정 확인과 GPU 접수는 생성 폼에서 하도록 안내하세요.'
     worker_video_guidance += '\n기존 Wan Fun Control 작업을 다른 시드로 다시 생성해 달라는 요청은 생성하거나 접수했다고 말하지 마세요. 대화의 시드 변경 생성 제안에서 원본 입력과 시드를 확인하도록 안내하세요. 원본이 불명확하면 작업 ID를 질문하고, 존재하지 않는 도구나 입력을 추측하지 마세요. 사용자가 폼을 검토하고 별도로 확인해야 접수됩니다.'

@@ -95,3 +95,10 @@ test('상위 중단은 대화 제안 조회와 후속 요청을 멈춘다',async
   finish({id:scope.session,offset:0,snapshot:scope.snapshot,messages:[]});await Promise.resolve();assert.deepEqual(calls,['hermes-session-view']);
   await assert.rejects(readGenerationProposal(command,scope,{signal:controller.signal}),{name:'AbortError'});assert.equal(calls.length,1);
 });
+test('Ref2VA video editing proposals are read from the selected session',async()=>{
+  const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
+  const proposal={service:'minimax-h3-ref2va',mode:'video_edit',prompt:'Remove the blue trail'};
+  const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_VIDEO_PROPOSAL'}}]};
+  const command=async(_service,name)=>name==='hermes-session-view'?page:{job_id:job,proposal};
+  assert.deepEqual(await readGenerationProposal(command,{session,job,snapshot,offset:0,kind:'video'}),proposal);
+});
