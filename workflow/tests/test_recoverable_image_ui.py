@@ -13,12 +13,15 @@ class RecoverableImageUiTests(unittest.TestCase):
             bundle = Path(directory) / 'image.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'RecoverableImage.jsx', '--bundle', '--platform=node', '--format=cjs', '--external:react', '--outfile='+str(bundle)], cwd=gui, check=True, capture_output=True)
             script = """const React=require('react'),server=require('react-dom/server'),Image=require(process.argv[1]).default,e=React.createElement;
-              process.stdout.write(server.renderToStaticMarkup(e(React.Fragment,null,e(Image,{src:'/building/a.png',name:'건물'}),e(Image,{src:'/billboard/b.png?r=2',name:'빌보드'}))));"""
+              process.stdout.write(server.renderToStaticMarkup(e(React.Fragment,null,e(Image,{src:'/building/a.png',name:'건물'}),e(Image,{src:'/billboard/b.png?r=2',name:'빌보드'}),e(Image,{src:'/management/map-assets/thumbnails/map.png?v=abc',name:'마을 특징',kind:'썸네일'}))));"""
             markup = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True, env={**os.environ, 'NODE_PATH':str(gui/'node_modules')})
         self.assertIn('src="/building/a.png?retry=0"', markup)
         self.assertIn('src="/billboard/b.png?r=2&amp;retry=0"', markup)
         self.assertIn('alt="건물 원본"', markup)
         self.assertIn('alt="빌보드 원본"', markup)
+        self.assertIn('src="/management/map-assets/thumbnails/map.png?v=abc&amp;retry=0"', markup)
+        self.assertIn('alt="마을 특징 썸네일"', markup)
+        self.assertIn('썸네일 이미지를 불러오는 중입니다.', markup)
 
 
 if __name__ == '__main__':

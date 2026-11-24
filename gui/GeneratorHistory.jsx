@@ -30,7 +30,7 @@ function HistoryThumbnail({src}) {
   return <img className="history-card-image" loading="lazy" decoding="async" src={src} alt="생성 결과 미리보기" onError={()=>setFailed(true)}/>;
 }
 
-export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, allowPriority=false, onSelectedDeleted, card=false, resultId='', externalResultId='', onCloseResult, footer, directApply=true, toggleResult=false, emptyMessage='조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.'}) {
+export default function GeneratorHistory({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, readJobWithSignal, allowPriority=false, onSelectedDeleted, card=false, resultId='', externalResultId='', onCloseResult, footer, directApply=true, toggleResult=false, emptyMessage='조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.'}) {
   const resultPanelId=useId(),searchErrorId=useId();
   const detailsRef=useRef(null),selectedRef=useRef(null),resultPanelRef=useRef(null),focusOpenedResult=useRef(false);
   const [expanded,setExpanded]=useState(null);
@@ -173,7 +173,7 @@ export default function GeneratorHistory({service, statusCommand, restore, inspe
     const request={controller,superseded:false,scope:inputScope.current};inputRequest.current=request;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try {
-      const result=await untilAborted(readJob ? readJob(id) : managementCommand(service,statusCommand,{id},{signal:controller.signal}),controller.signal);
+      const result=await untilAborted(readJobWithSignal ? readJobWithSignal(id,{signal:controller.signal}) : readJob ? readJob(id) : managementCommand(service,statusCommand,{id},{signal:controller.signal}),controller.signal);
       const scope=inputScope.current;
       if(request.superseded || scope.service!==request.scope.service || scope.resultId!==request.scope.resultId || scope.externalResultId!==request.scope.externalResultId)return null;
       if(result?.id!==id || !result.request)throw new Error("작업 입력을 확인할 수 없습니다.");

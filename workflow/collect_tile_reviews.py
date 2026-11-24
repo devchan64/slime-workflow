@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from gui.ui_assets import resolve_review_ui_asset
+from gui.ui_assets import resolve_review_ui_asset, read_review_shared_styles
 
 import hashlib
 import json
@@ -65,7 +65,8 @@ def load_map_preview_record(record_root_path: Path, map_preview_record: dict | N
 def build_tile_review_page(review_data):
     """반복 이음새와 지정 셀 적용 상태를 한 페이지에서 표시한다."""
     template_path = resolve_review_ui_asset('tile-review.html')
-    return template_path.read_text(encoding='utf-8').replace('__TILE_REVIEW_DATA__', json.dumps(review_data, ensure_ascii=False).replace('<', '\\u003c'))
+    template = template_path.read_text(encoding='utf-8').replace('</style>', '</style><style>'+read_review_shared_styles()+'</style>', 1)
+    return template.replace('__TILE_REVIEW_DATA__', json.dumps(review_data, ensure_ascii=False).replace('<', '\\u003c'))
 
 
 def collect_tile_reviews(workflow_repository_root: Path, output_review_directory: Path, emit_review_trace):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from gui.ui_assets import resolve_review_ui_asset
+from gui.ui_assets import resolve_review_ui_asset, read_review_shared_styles
 
 import argparse
 import hashlib
@@ -64,6 +64,7 @@ def build_pose_transfer_review(report_root_path: Path, output_directory_path: Pa
             frame_records.append({'frame': frame_number, 'files': copied_file_records, 'size': result_record['size'], 'modelRevision': result_record.get('revision', '')})
         direction_records.append({'direction': direction_name, 'frames': frame_records})
     template_text = (resolve_review_ui_asset('pose-transfer-review.html')).read_text(encoding='utf-8')
+    template_text = template_text.replace('</style>', '</style><style>'+read_review_shared_styles()+'</style>', 1)
     page_data = {'report': report_root_path.name, 'directions': direction_records}
     (output_directory_path / 'preview.html').write_text(template_text.replace('__POSE_TRANSFER_DATA__', json.dumps(page_data, ensure_ascii=False).replace('<', '\\u003c')), encoding='utf-8')
     return output_directory_path

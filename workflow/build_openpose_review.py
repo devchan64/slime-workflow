@@ -2,7 +2,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from gui.ui_assets import resolve_review_ui_asset
+from gui.ui_assets import resolve_review_ui_asset, read_review_shared_styles
 import argparse, json, shutil
 from build_pose_transfer_review import FRAME_NUMBERS, SUPPORTED_DIRECTIONS, sha256_file
 
@@ -25,6 +25,7 @@ def build_openpose_review(report_path: Path, output_path: Path) -> Path:
             frames.append({'frame':number,'files':files,'size':json.loads((frame/'result.json').read_text())['size']})
         records.append({'direction':direction,'frames':frames})
     template=(resolve_review_ui_asset('pose-transfer-review.html')).read_text()
+    template=template.replace('</style>','</style><style>'+read_review_shared_styles()+'</style>',1)
     template=template.replace('3참조 포즈 전이 비교','OpenPose 맵 생성 비교').replace('결과·리그·OpenPose 기준 비교','OpenPose 생성 결과·입력 맵 비교').replace('Qwen 결과 캐릭터','OpenPose 맵 생성 결과').replace('리그 참조','OpenPose 입력 맵').replace('OpenPose 참조','OpenPose 입력 맵')
     data={'report':report_path.name,'directions':records}
     (output_path/'preview.html').write_text(template.replace('__POSE_TRANSFER_DATA__',json.dumps(data,ensure_ascii=False).replace('<','\\u003c')))

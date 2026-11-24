@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from gui.ui_assets import resolve_review_ui_asset
+from gui.ui_assets import resolve_review_ui_asset, read_review_shared_styles
 
 import argparse
 import json
@@ -50,6 +50,7 @@ def build_two_reference_review(rig_report_path: Path, openpose_report_path: Path
             frame_records.append({'frame': frame_number, 'files': files, 'size': rig_metadata['size'], 'modelRevision': rig_metadata.get('revision', ''), 'openposeRevision': openpose_metadata.get('revision', '')})
         direction_records.append({'direction': direction_name, 'frames': frame_records})
     template = (resolve_review_ui_asset('pose-transfer-review.html')).read_text(encoding='utf-8')
+    template = template.replace('</style>', '</style><style>'+read_review_shared_styles()+'</style>', 1)
     template = template.replace('3참조 포즈 전이 비교', '리그 생성·OpenPose 맵 생성 비교').replace('결과·리그·OpenPose 기준 비교', '리그 생성 결과·리그 참조·OpenPose 맵 생성 결과 비교').replace('Qwen 결과 캐릭터', '리그용 생성 결과').replace('OpenPose 참조', 'OpenPose 맵용 생성 결과')
     page_data = {'report': f'{rig_report_path.name} + {openpose_report_path.name}', 'directions': direction_records}
     (output_path / 'preview.html').write_text(template.replace('__POSE_TRANSFER_DATA__', json.dumps(page_data, ensure_ascii=False).replace('<', '\\u003c')), encoding='utf-8')

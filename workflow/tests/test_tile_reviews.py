@@ -44,6 +44,7 @@ class TileReviewCollectionTests(unittest.TestCase):
             self.assertEqual(page_records[0]['category'], 'tile-generation')
             page_path = output_directory_path/page_records[0]['path']
             self.assertIn('지정 타일', page_path.read_text())
+            self.assertIn('검수·관리 셸 배치', page_path.read_text())
             self.assertTrue((page_path.parent/'ground.png').is_file())
 
     def test_rejects_changed_tile_after_recording_hash(self):

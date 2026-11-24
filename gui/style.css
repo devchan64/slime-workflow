@@ -430,6 +430,12 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .sprite-frame-table {max-width:100%;min-width:0}
 .sprite-frame-table input {min-width:5rem;width:6rem}
 .world-map-connections {max-width:100%;min-width:0}
+.world-map-review {padding:1rem;min-width:0;overflow-wrap:anywhere}
+.world-map-review img {max-width:100%;height:auto}
+.world-map-thumbnail {max-width:256px}
+.world-map-select {display:block;max-width:100%}.world-map-select select {max-width:100%}
+.world-map-viewport {overflow:auto;max-height:65vh;max-width:100%}
+.world-map-viewport:focus-visible {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
 .sprite-editor-page > .sprite-search {width:100%;max-width:none;margin:0;padding:0;display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
 .sprite-search label {display:grid;gap:.35rem;min-width:0;flex:1 1 12rem}
 .sprite-search :is(input,select) {width:100%;min-width:0;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
@@ -492,6 +498,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .single-generator-shell {display:block;height:auto;min-height:100dvh;padding:1.5rem 1rem}
 .single-generator-page {width:min(100%,56rem);margin:0 auto;gap:.8rem}
 .qwen-archive-result {min-width:0}
+.qwen-archive-result:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
 .qwen-archive-result pre {max-width:100%;max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .single-generator-page > h1 {flex:none;font-size:1.5rem}
 .kimodo-standalone-form form {display:block;width:100%;max-width:none;margin:0;padding:0}
