@@ -13,7 +13,7 @@ test('보관 로그 형식 오류는 마지막 정상 로그를 유지한다',as
     managementCommand:async()=>response,untilAborted:promise=>promise,requestErrorMessage:problem=>problem.message});
   vm.runInContext(method,context);
   await context.readLog();assert.equal(log,'정상 로그');assert.equal(error,'');assert.equal(loading,false);
-  response={log:{invalid:true}};await context.readLog();assert.equal(log,'정상 로그');assert.match(error,/형식/);assert.equal(loading,false);
+  for(const invalid of [{log:{invalid:true}},{log:null},{}]){response=invalid;await context.readLog();assert.equal(log,'정상 로그');assert.match(error,/형식/);assert.equal(loading,false);}
   response={log:''};await context.readLog();assert.equal(log,'기록된 로그가 없습니다.');assert.equal(error,'');
 });
 

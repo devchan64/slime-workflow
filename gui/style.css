@@ -662,7 +662,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 /* 관리 도구의 입력과 작업 상세를 패널 안에서 일관되게 표시합니다. */
 .fun-drawer select { font: inherit; padding: .55rem .7rem; }
 .operations-jobs { min-width: 0; }
-.operations-focus:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
+.operations-focus:focus,.ui-focus-target:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
 .download-progress {margin-top:.9rem;padding-top:.9rem;border-top:1px solid var(--line,#484d50)}
 .download-progress h2 {font-size:1rem;line-height:1.35;margin:0 0 .5rem}
 .download-progress :is(p,li) {font-size:.85rem;line-height:1.5}
