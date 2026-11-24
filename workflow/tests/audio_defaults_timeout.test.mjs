@@ -9,12 +9,12 @@ test('오디오 대화 제안 조회가 지연되면 기본 입력으로 복구�
  const source=readFileSync(new URL('../../gui/SoundEffectPage.jsx',import.meta.url),'utf8');
  const start=source.indexOf('  useEffect(()=>{\n    const controller=new AbortController();');
  const end=source.indexOf('  },[inputRevision]);',start)+'  },[inputRevision]);'.length;
- let run,timer,resolveProposal,form=null,notice='',error='';const defaults={prompt:'p',seed:1,loop_request:false,tag:'',lyrics:'l',duration_seconds:30},inputPending={current:true};
+ let run,timer,resolveProposal,proposalSignal,form=null,notice='',error='';const defaults={prompt:'p',seed:1,loop_request:false,tag:'',lyrics:'l',duration_seconds:30},inputPending={current:true};
  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,formPath:'/input',music:true,embedded:false,query:new URLSearchParams('proposal_job=j&proposal_offset=0'),session:'s',service:'music',inputRevision:0,inputPending,
   useEffect:fn=>run=fn,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},setInputError:value=>error=value,setForm:fn=>form=fn(form),setNotice:value=>notice=value,
-  fetch:async()=>({ok:true,json:async()=>defaults}),readGenerationProposal:()=>new Promise(resolve=>resolveProposal=resolve),managementCommand:()=>{},audioProposalInputs:()=>({prompt:'late'})});
+  fetch:async()=>({ok:true,json:async()=>defaults}),readGenerationProposal:(_command,_scope,{signal})=>(proposalSignal=signal,new Promise(resolve=>resolveProposal=resolve)),managementCommand:()=>{},audioProposalInputs:()=>({prompt:'late'})});
  vm.runInContext(source.slice(start,end),context);const cleanup=run();await new Promise(resolve=>setImmediate(resolve));timer();await new Promise(resolve=>setImmediate(resolve));
- assert.equal(form,defaults);assert.match(notice,/기본 입력/);assert.equal(error,'');assert.equal(inputPending.current,false);
+ assert.equal(proposalSignal.aborted,true);assert.equal(form,defaults);assert.match(notice,/기본 입력/);assert.equal(error,'');assert.equal(inputPending.current,false);
  resolveProposal({});await new Promise(resolve=>setImmediate(resolve));assert.equal(form,defaults);assert.match(notice,/기본 입력/);cleanup();
 });
 

@@ -9,13 +9,13 @@ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    let active=true
 test('공통 저장 입력 조회는 별도 조회 함수와 기본 조회 모두 지연되면 복구한다',async()=>{
  for(const custom of [false,true]){
   let timer,close,finish,state;const delayed=new Promise(done=>finish=done);
-  const context=vm.createContext({AbortController,untilAborted,useEffect:fn=>close=fn(),reader:{current:custom?()=>delayed:null},managementCommand:()=>delayed,service:'service',statusCommand:'status',id:'job',revision:0,setState:value=>state=value,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},requestErrorMessage:e=>e.message});
+  const context=vm.createContext({AbortController,untilAborted,useEffect:fn=>close=fn(),signalReader:{current:null},reader:{current:custom?()=>delayed:null},managementCommand:()=>delayed,service:'service',statusCommand:'status',id:'job',revision:0,setState:value=>state=value,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},requestErrorMessage:e=>e.message});
   vm.runInContext(effect,context);timer();await new Promise(done=>setImmediate(done));
   assert.match(state.error,/시간이 초과/);finish({id:'job',request:{prompt:'늦은 결과'}});await new Promise(done=>setImmediate(done));assert.match(state.error,/시간이 초과/);close();
  }
 });
 test('저장 입력 조회는 배열 형태의 손상된 요청을 거부한다',async()=>{
- let state;const context=vm.createContext({AbortController,untilAborted,useEffect:fn=>fn(),reader:{current:async()=>({id:'job',request:[]})},service:'service',statusCommand:'status',id:'job',revision:0,setState:value=>state=value,setTimeout:()=>1,clearTimeout:()=>{},requestErrorMessage:e=>e.message});
+ let state;const context=vm.createContext({AbortController,untilAborted,useEffect:fn=>fn(),signalReader:{current:null},reader:{current:async()=>({id:'job',request:[]})},service:'service',statusCommand:'status',id:'job',revision:0,setState:value=>state=value,setTimeout:()=>1,clearTimeout:()=>{},requestErrorMessage:e=>e.message});
  vm.runInContext(effect,context);await new Promise(done=>setImmediate(done));assert.match(state.error,/일치하지/);
 });
 test('저장 입력 재조회 초점은 대상 서비스가 바뀌면 복구하지 않는다',()=>{
@@ -30,7 +30,7 @@ test('저장 입력 재조회 초점은 대상 서비스가 바뀌면 복구하�
 });
 test('저장 입력 시간 초과 후 재조회 성공은 늦은 이전 응답을 무시한다',async()=>{
  let timer,stop,finish,state,calls=0;const delayed=new Promise(done=>finish=done);
- const context=vm.createContext({AbortController,untilAborted,useEffect:fn=>stop=fn(),reader:{current:()=>++calls===1?delayed:Promise.resolve({id:'job',request:{prompt:'새 결과'}})},service:'service',statusCommand:'status',id:'job',revision:0,setState:value=>state=value,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},requestErrorMessage:e=>e.message});
+ const context=vm.createContext({AbortController,untilAborted,useEffect:fn=>stop=fn(),signalReader:{current:null},reader:{current:()=>++calls===1?delayed:Promise.resolve({id:'job',request:{prompt:'새 결과'}})},service:'service',statusCommand:'status',id:'job',revision:0,setState:value=>state=value,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},requestErrorMessage:e=>e.message});
  vm.runInContext(effect,context);timer();await new Promise(done=>setImmediate(done));assert.match(state.error,/시간이 초과/);
  stop();context.revision=1;vm.runInContext(effect,context);await new Promise(done=>setImmediate(done));assert.equal(state.request.prompt,'새 결과');
  finish({id:'job',request:{prompt:'이전 결과'}});await new Promise(done=>setImmediate(done));assert.equal(state.request.prompt,'새 결과');stop();
@@ -40,4 +40,9 @@ test('저장 입력 초점 예약 후 화면 전환은 예약을 취소한다',(
  let stop,cancelled=null;const body={};
  const context=vm.createContext({useEffect:fn=>stop=fn(),restoreFocus:{current:true},state:{id:'job',service:'old',statusCommand:'status',loading:false},id:'job',service:'old',statusCommand:'status',document:{body,activeElement:body},requestAnimationFrame:()=>7,cancelAnimationFrame:id=>cancelled=id,resultRef:{current:{isConnected:true,focus:()=>{}}}});
  vm.runInContext(focus,context);stop();assert.equal(cancelled,7);
+});
+test('사용자 정의 저장 입력 조회에도 화면 종료 신호를 전달한다',async()=>{
+ let stop,signal,finish,state;const delayed=new Promise(done=>finish=done);
+ const context=vm.createContext({AbortController,untilAborted,useEffect:fn=>stop=fn(),signalReader:{current:(_id,options)=>(signal=options.signal,delayed)},reader:{current:null},service:'service',statusCommand:'status',id:'job',revision:0,setState:value=>state=value,setTimeout:()=>1,clearTimeout:()=>{},requestErrorMessage:e=>e.message});
+ vm.runInContext(effect,context);stop();assert.equal(signal.aborted,true);const before=state;finish({id:'job',request:{prompt:'늦음'}});await new Promise(done=>setImmediate(done));assert.equal(state,before);
 });

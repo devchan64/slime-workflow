@@ -6,9 +6,9 @@ import ActionButton from "./ActionButton.jsx";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import {validMapDraftPreview,mapDraftSaveReason,isMapCellDirty,readMapCell} from "./mapDraftPreview.mjs";
 
-export function MapDraftFileInput({cellDirty,error,onFile}){
-  return <><label>초안 JSON 불러오기<input type="file" accept=".json,application/json" disabled={cellDirty} aria-invalid={error ? true : undefined} aria-describedby={[cellDirty && "map-cell-pending-reason",error && "map-import-error"].filter(Boolean).join(" ") || undefined} onChange={event=>{
-    const file=event.target.files[0];event.target.value="";onFile(file);
+export function MapDraftFileInput({cellDirty,error,onFile,inputRef}){
+  return <><label>초안 JSON 불러오기<input ref={inputRef} type="file" accept=".json,application/json" disabled={cellDirty} aria-invalid={error ? true : undefined} aria-describedby={[cellDirty && "map-cell-pending-reason",error && "map-import-error"].filter(Boolean).join(" ") || undefined} onChange={event=>{
+    const file=event.target.files[0],focused=event.currentTarget===document.activeElement;event.target.value="";onFile(file,focused);
   }}/></label>{error && <p id="map-import-error" role="alert">{error}</p>}</>;
 }
 
@@ -36,7 +36,7 @@ export default function MapReview(){
   const [storageFailed,setStorageFailed]=useState(false);
   const [importError,setImportError]=useState("");
   const [recovery,setRecovery]=useState(null);
-  const readRequest=useRef(null),importRequest=useRef(null),savingRef=useRef(false),cellFormRef=useRef(null),feedbackRef=useRef(null),restorePreviewFocus=useRef(false),discardedRecovery=useRef(new Set());
+  const readRequest=useRef(null),importRequest=useRef(null),savingRef=useRef(false),cellFormRef=useRef(null),feedbackRef=useRef(null),restorePreviewFocus=useRef(false),importInputRef=useRef(null),restoreImportFocus=useRef(false),discardedRecovery=useRef(new Set());
   useEffect(()=>()=>{readRequest.current?.abort();importRequest.current?.abort();},[]);
   async function readMap(command,payload){
     const controller=new AbortController();readRequest.current=controller;let timedOut=false;
@@ -57,8 +57,9 @@ export default function MapReview(){
     const link=document.createElement("a");link.href=url;link.download=map+"-draft.json";
     link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
-  async function importDraft(file){
-    if(!file)return;
+  async function importDraft(file,focused=false){
+    if(!file || importRequest.current || readRequest.current || savingRef.current)return;
+    restoreImportFocus.current=focused;
     const controller=new AbortController();importRequest.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setImportError("");setReading(true);
@@ -236,6 +237,7 @@ export default function MapReview(){
   }
   const [ready,setReady]=useState(false),[feedback,setFeedback]=useState("");
   useEffect(()=>{if(!reading && feedback && restorePreviewFocus.current){restorePreviewFocus.current=false;restoreLostFocus(document,feedbackRef.current);}},[reading,feedback]);
+  useEffect(()=>{if(reading || !restoreImportFocus.current)return;restoreImportFocus.current=false;const target=importInputRef.current;if(target?.isConnected && !target.matches(':disabled'))restoreLostFocus(document,target);},[reading,importError]);
   const [loadError,setLoadError]=useState("");
   const recoveryParams=new URLSearchParams({mapKind:field?"field":"town"});
   const recoveryMap=new URLSearchParams(location.search).get("map");
@@ -264,6 +266,7 @@ export default function MapReview(){
     window.mapReviewBrushTool=draft && !cellDirty ? brush : "pan";
     window.mapReviewBrushTexture=texture;window.mapReviewBrushTile=floor;window.mapReviewBrushWall=wall;
   },[field,ready,brush,draft,floor,wall,texture,cellDirty]);
+  useEffect(()=>{if(!field || !ready)return;window.mapReviewBrushReadOnly=reading;return()=>{window.mapReviewBrushReadOnly=false;};},[field,ready,reading]);
   useEffect(()=>{
     const queue=window.mapReviewBrushQueue;
     if(reading || !draft || !queue?.length)return;
@@ -340,8 +343,8 @@ export default function MapReview(){
     <p role="status" id="status">{loadError ? "지도 검수 화면을 불러오지 못했습니다." : "지도를 불러오는 중입니다."}</p>
     {loadError && <div role="alert"><p>{loadError} 새 탭에서 지도 검수를 다시 열 수 있습니다.</p><a href={"/management/frame/map-review/?"+recoveryParams} target="_blank" rel="noopener noreferrer">새 탭에서 지도 검수 열기</a></div>}
     {feedback && <p ref={feedbackRef} className="map-review-feedback" role="status" tabIndex={-1}>{feedback}</p>}
-    {field && reading && <p id={saving ? "map-saving-status" : undefined} role="status">{saving ? "지도 저장 결과를 확인하고 있습니다." : "지도 조회 또는 초안 처리를 진행하고 있습니다."}</p>}
-    {field && <fieldset disabled={!ready || reading}><legend>셀 검수</legend>
+    {field && reading && <p id={saving ? "map-saving-status" : "map-reading-status"} role="status">{saving ? "지도 저장 결과를 확인하고 있습니다." : "지도 조회 또는 초안 처리를 진행하고 있습니다."}</p>}
+    {field && <fieldset disabled={!ready || reading} aria-describedby={reading ? (saving ? "map-saving-status" : "map-reading-status") : undefined}><legend>셀 검수</legend>
       {saveUncertain && <section aria-label="저장 결과 확인"><p>이전 저장 결과가 불확실합니다. 초안은 유지됩니다. 새로 검증하거나 원본 리비전을 조회해도 이전 저장의 완료 여부가 확인되는 것은 아닙니다.</p><button type="button" onClick={inspectSaveRevision}>현재 원본 리비전 확인</button></section>}
       <label><input type="checkbox" checked={editing} aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined} onChange={event=>{if(cellDirty){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}window.mapReviewEditingEnabled=event.target.checked;setEditing(event.target.checked);setBrush("pan");window.mapReviewSelectedCell=null;setCell(null);setCellOriginal(null);}}/>캐릭터 이동 대신 셀 선택</label>
       <button aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined} onClick={()=>inspectCell()}>선택 셀 속성 조회</button>
@@ -367,7 +370,7 @@ export default function MapReview(){
       </section>}
       {draft && <details><summary>초안 보관 및 복원</summary>
         <button onClick={()=>downloadDraft(draft.map,JSON.stringify(draft,null,2))}>초안 JSON 다운로드</button>
-        <MapDraftFileInput cellDirty={cellDirty} error={importError} onFile={importDraft}/>
+        <MapDraftFileInput inputRef={importInputRef} cellDirty={cellDirty} error={importError} onFile={importDraft}/>
         <button onClick={discardDraft}>초안 버리고 원본 다시 읽기</button>
       </details>}
       {storageNotice && <p role="status">{storageNotice}</p>}

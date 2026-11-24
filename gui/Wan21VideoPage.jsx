@@ -52,14 +52,15 @@ function Wan21VideoPage({mode,embedded=false,session:embeddedSession=""}) {
   },[pending]);
   useEffect(()=>{
     let active=true;
+    const controller=new AbortController();
     (async()=>{try{
       const scope=generationProposalScope(location.search,session,'video');
       if(!scope)return;
-      const proposal=await readGenerationProposal(managementCommand,scope);
+      const proposal=await readGenerationProposal(managementCommand,scope,{signal:controller.signal});
       const inputs=wan21ProposalInputs({},proposal,service);
       if(active)setSettings(old=>promptEdited.current || old.prompt ? old : {...old,prompt:inputs.prompt});
     }catch(e){if(active)setError(e.message || '대화 제안을 확인할 수 없습니다.');}})();
-    return ()=>{active=false;};
+    return ()=>{active=false;controller.abort();};
   },[service,session]);
   function field(name,value){if(name==='prompt')promptEdited.current=true;setSettings(old=>({...old,[name]:value}));}
   async function readSavedInput(id,forRestore=true){

@@ -18,7 +18,7 @@ import TranslationEvidence from "./TranslationEvidence.jsx";
 import TranslationResult from "./TranslationResult.jsx";
 import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
-import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionNavigation,{openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {parseTranslationGlossary} from "./translationGlossary.mjs";
@@ -27,12 +27,17 @@ import {generationReady} from "./generationReady.mjs";
 const service="prompt-translation";
 const callHermes=(command,payload,options)=>managementCommand("hermes-agent","hermes-"+command,payload,options);
 
+export function TranslationNotice({message,error=false}) {
+  return <p role={error ? "alert" : "status"}>{message}</p>;
+}
+
 export default function TranslationPage({embedded=false,session:embeddedSession=""}={}) {
   const query=new URLSearchParams(location.search);
   const [text,setText]=useState(""),[language,setLanguage]=useState("en"),[terms,setTerms]=useState("");
   const inputRef=useRef({text,language,terms});
   inputRef.current={text,language,terms};
-  const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null);
+  const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[notice,setNoticeState]=useState(""),[noticeError,setNoticeError]=useState(false),[model,setModel]=useState(null);
+  function setNotice(message,{error=false}={}){setNoticeState(message);setNoticeError(error);}
   const reviewEpoch=useRef(0),reviewRefState=useRef(pending);
   reviewRefState.current=pending;
   const [modelError,setModelError]=useState("");
@@ -44,10 +49,10 @@ export default function TranslationPage({embedded=false,session:embeddedSession=
   const [statusCheckedAt,setStatusCheckedAt]=useState(null),[statusFailedAt,setStatusFailedAt]=useState(null);
   const [revision,setRevision]=useState(0);
   const [historyRevision,setHistoryRevision]=useState(0);
-  const sending=useRef(false);
+  const sending=useRef(false),submitRequest=useRef(null);
   const live=useLiveRefresh(()=>setRevision(value=>value+1),Boolean(job) && (!record || ["queued","running"].includes(record.status?.status)));
   useEffect(()=>{if(!embedded)document.title="프롬프트 번역";},[embedded]);
-  useEffect(()=>()=>{if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);},[]);
+  useEffect(()=>()=>{if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);const current=submitRequest.current;submitRequest.current=null;current?.controller.abort();},[]);
   useEffect(()=>{setStatusError("");setStatusCheckedAt(null);setStatusFailedAt(null);},[job]);
   useEffect(()=>{if(!pending)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===origin) && reviewRef.current?.isConnected)reviewRef.current.focus();});return ()=>cancelAnimationFrame(frame);},[pending]);
   useEffect(()=>{if(focusResult.current && job && record?.id===job && resultRef.current){focusResult.current=false;if(document.activeElement===document.body){resultRef.current.focus({preventScroll:true});resultRef.current.scrollIntoView({block:"start",inline:"nearest"});}}},[job,record]);
@@ -72,22 +77,31 @@ export default function TranslationPage({embedded=false,session:embeddedSession=
   function review(){
     reviewEpoch.current++;
     const current=inputRef.current;
-    if(!current.text.trim()){setNotice("번역할 한국어 원문을 입력하세요.");textRef.current?.focus();return;}
+    if(!current.text.trim()){setNotice("번역할 한국어 원문을 입력하세요.",{error:true});textRef.current?.focus();return;}
     try{
       const glossary=parseTranslationGlossary(current.terms);
       reviewOrigin.current=document.activeElement;
       setPending({text:current.text,target_language:current.language,glossary});setTermsError("");setNotice("");
     }catch(error){setTermsError(error.message);termsRef.current?.focus();}
   }
+  function cancelReview(){
+    const restore=reviewRef.current?.contains(document.activeElement),epoch=reviewEpoch.current;
+    setPending(null);
+    if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);
+    if(restore)restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(epoch===reviewEpoch.current)restoreLostFocus(document,textRef.current);});
+  }
   async function submit(){
     if(!pending || sending.current || !generationReady(model))return;
+    const request={controller:new AbortController(),timedOut:false};submitRequest.current=request;
     sending.current=true;setBusy(true);
+    const timeout=setTimeout(()=>{request.timedOut=true;request.controller.abort();},30000);
     try{
-      const result=await managementCommand(service,"translation-submit",pending);
+      const result=await untilAborted(managementCommand(service,"translation-submit",pending,{signal:request.controller.signal}),request.controller.signal);
+      if(submitRequest.current!==request)return;
       if(typeof result?.id!=="string" || !result.id.trim())throw new Error("접수 ID를 확인할 수 없습니다.");
       setRecord(null);setJob(result.id);setNotice("번역 대기열에 등록했습니다.");
-    }catch(error){setNotice(requestErrorMessage(error)+" · 이력을 조회해 접수 여부를 확인하세요."+(job ? " 아래 작업은 이전에 선택한 작업입니다." : ""));}
-    finally{setPending(null);sending.current=false;setBusy(false);}
+    }catch(error){if(submitRequest.current===request)setNotice((request.timedOut ? "접수 응답 시간이 초과됐습니다." : requestErrorMessage(error))+" · 다시 요청하기 전에 이력을 조회해 접수 여부를 확인하세요."+(job ? " 아래 작업은 이전에 선택한 작업입니다." : ""),{error:true});}
+    finally{clearTimeout(timeout);if(submitRequest.current===request){submitRequest.current=null;setPending(null);sending.current=false;setBusy(false);}}
   }
   async function readJob(id,{signal}={}){
     const inputAtStart=inputRef.current,reviewAtStart=reviewEpoch.current,focusAtStart=document.activeElement;
@@ -124,7 +138,7 @@ export default function TranslationPage({embedded=false,session:embeddedSession=
     {embedded ? <GeneratorSectionCard title="모델 준비 상태" summary={modelError ? "조회 실패" : !model ? "확인 중" : generationReady(model) ? "준비됨" : "준비 필요"}><ModelReadiness session={embeddedSession || query.get("session") || ""} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard> : <ModelReadiness session={embeddedSession || query.get("session") || ""} service={service} onStatus={setModel}/>}
     <GeneratorChangelog generator={service}/>
     {pending && <p id={lockedId}>아래 번역 요청을 확인하거나 입력 수정을 선택하세요.</p>}
-    <fieldset disabled={Boolean(pending)} aria-describedby={pending ? lockedId : undefined}><legend className="generator-visually-hidden">번역 입력과 이력</legend><div ref={inputRegion} tabIndex={-1} aria-label="번역 입력"><label>한국어 원문 <textarea ref={textRef} value={text} onChange={e=>{const value=e.target.value;inputRef.current={...inputRef.current,text:value};setText(value);}}/></label>
+    <fieldset disabled={Boolean(pending)} aria-describedby={pending ? lockedId : undefined}><legend className="generator-visually-hidden">번역 입력과 이력</legend><div ref={inputRegion} className="translation-input" tabIndex={-1} aria-label="번역 입력"><label>한국어 원문 <textarea ref={textRef} value={text} onChange={e=>{const value=e.target.value;inputRef.current={...inputRef.current,text:value};setText(value);}}/></label>
       <label>목표 언어 <select value={language} onChange={e=>{const value=e.target.value;inputRef.current={...inputRef.current,language:value};setLanguage(value);}}><option value="en">영어</option><option value="zh-CN">중국어 간체</option></select></label>
       <label>확인할 용어 <textarea ref={termsRef} placeholder="원문 => 번역어" aria-describedby={termsError?`${termsHelp} ${termsErrorId}`:termsHelp} aria-invalid={Boolean(termsError)} value={terms} onChange={e=>{const value=e.target.value;inputRef.current={...inputRef.current,terms:value};setTerms(value);setTermsError("");}}/></label>
       <small id={termsHelp}>선택 사항 · 한 줄에 하나씩 입력하세요. 예: 로봇 =&gt; robot</small>
@@ -143,8 +157,9 @@ export default function TranslationPage({embedded=false,session:embeddedSession=
     {pending && <section ref={reviewRef} tabIndex={-1} className="translation-request-review" aria-label="번역 요청 확인"><h2>번역 요청 확인</h2><GpuQueueSummary/>
       <p>목표 언어 · {pending.target_language==="en"?"영어":"중국어 간체"}</p><h3>한국어 원문</h3><p className="translation-review-text">{pending.text}</p>
       <h3>확인할 용어</h3>{pending.glossary.length ? <ul>{pending.glossary.map((term,index)=><li key={index}>{term.source} → {term.target}</li>)}</ul> : <p>지정한 용어 없음</p>}
-      <GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setPending(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,textRef.current));}} onConfirm={submit} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/>
+      <GenerationReviewActions busy={busy} onCancel={cancelReview} onConfirm={submit} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/>
     </section>}
-    <p role="status">{notice}</p>
+    <TranslationNotice message={notice} error={noticeError}/>
+    {job && !pending && <button type="button" onClick={()=>openGeneratorHistory(historyRegion,job,()=>{})}>선택한 번역 작업 이력 보기</button>}
   </section>;
 }

@@ -18,6 +18,10 @@ export function BattlefieldControls({state,controlsRef,selectRef,cameraReasonId,
     </fieldset><p role={failed ? "alert" : "status"}>{state.status}</p></div>;
 }
 
+export function BattlefieldError({error,cleanupFailed,retryRef,onRetry,href}){
+  return <div><p role="alert">{error}{!cleanupFailed && " 재시도가 계속 실패하면 페이지를 다시 열어 주세요."}</p>{cleanupFailed ? <a ref={retryRef} href={href}>전장 검수 페이지 다시 열기</a> : <button ref={retryRef} type="button" onClick={onRetry}>전장 검수 다시 불러오기</button>}</div>;
+}
+
 export default function BattlefieldReview(){
   const host=useRef(null),controller=useRef(null),pollTimer=useRef(null),controls=useRef(null),selectRef=useRef(null),retryRef=useRef(null),restoreFocus=useRef(false);
   const [state,setState]=useState(null),[error,setError]=useState(""),[revision,retry]=useState(0);
@@ -50,9 +54,9 @@ export default function BattlefieldReview(){
     const timeout=setTimeout(()=>{timedOut=true;abort.abort();},30000);
     setState(null);setError("");setCleanupFailed(false);
     async function read(url){
-      const response=await fetch(url,{signal:abort.signal,cache:"no-store"});
+      const response=await untilAborted(fetch(url,{signal:abort.signal,cache:"no-store"}),abort.signal);
       if(!response.ok)throw new Error("전장 검수 번들을 불러올 수 없습니다.");
-      return response.json();
+      return untilAborted(response.json(),abort.signal);
     }
     async function mount(){
       const catalog=await read("/manager-source.json");
@@ -86,7 +90,7 @@ export default function BattlefieldReview(){
   }
   const back=new URL(location.href);back.pathname="/management/frame/map-review/";back.searchParams.set("mapKind","field");back.searchParams.delete("field");
   return <article><a href={back.href}>지도 검수로 돌아가기</a><h1>전투필드 검수</h1>
-    {error && <div role="alert"><p>{error}{!cleanupFailed && " 재시도가 계속 실패하면 페이지를 다시 열어 주세요."}</p>{cleanupFailed ? <a ref={retryRef} href={location.href}>전장 검수 페이지 다시 열기</a> : <button ref={retryRef} type="button" onClick={event=>{restoreFocus.current=document.activeElement===event.currentTarget;retry(value=>value+1);}}>전장 검수 다시 불러오기</button>}</div>}
+    {error && <BattlefieldError error={error} cleanupFailed={cleanupFailed} retryRef={retryRef} href={location.href} onRetry={event=>{restoreFocus.current=document.activeElement===event.currentTarget;retry(value=>value+1);}}/>}
     {!state && !error && <p role="status">전장 검수 화면을 불러오는 중입니다.</p>}
     {state && <BattlefieldControls state={state} controlsRef={controls} selectRef={selectRef} cameraReasonId={cameraReasonId} onSelect={select}
       onRetry={event=>{const restore=document.activeElement===event.currentTarget;select(state.field);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,selectRef.current));}}

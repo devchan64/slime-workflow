@@ -101,7 +101,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
         if(!embedded){
           try{
             const scope=generationProposalScope(location.search,session,'video');
-            if(scope){initial=vaceProposalInputs(initial,await readGenerationProposal(managementCommand,scope));if(active)setNotice('대화 제안 입력을 불러왔습니다. 필요한 첨부와 설정을 확인하세요.');}
+            if(scope){initial=vaceProposalInputs(initial,await readGenerationProposal(managementCommand,scope,{signal:controller.signal}));if(active)setNotice('대화 제안 입력을 불러왔습니다. 필요한 첨부와 설정을 확인하세요.');}
           }catch(problem){if(active)setError('대화 제안을 불러오지 못했습니다 · '+requestErrorMessage(problem));}
         }
         if(active){setTemplate(spec);setValues(old=>old ?? initial);}

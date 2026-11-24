@@ -12,6 +12,7 @@ import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import MusicExamples from "./MusicExamples.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
+import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 import React,{useEffect,useId,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
@@ -54,7 +55,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   const handoff=useGpuHandoff(session,service,setJob,setNotice);
   const submitting=useRef(false),confirmation=useRef(null);
   if(!confirmation.current)confirmation.current=createConfirmationGate();
-  const reviewRef=useRef(null),reviewOrigin=useRef(null),reviewRequest=useRef(null),restoreFrame=useRef(null),promptRef=useRef(null),prepareRef=useRef(null),prepareDetails=useRef(null),prepareSummary=useRef(null);
+  const reviewRef=useRef(null),reviewOrigin=useRef(null),reviewRequest=useRef(null),restoreFrame=useRef(null),promptRef=useRef(null),inputRegion=useRef(null),historyRegion=useRef(null),resultRegion=useRef(null),prepareRef=useRef(null),prepareDetails=useRef(null),prepareSummary=useRef(null);
   useEffect(()=>()=>{const request=reviewRequest.current;reviewRequest.current=null;request?.abort();if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);},[]);
   const prepareReasonId=useId();
   const prepareReason=busy ? "다른 요청을 처리하고 있습니다. 완료될 때까지 기다리세요." : review ? "현재 요청의 확인을 마치거나 취소하세요." : handoff.id ? "진행 중인 GPU 양도 요청을 확인하세요." : "";
@@ -128,7 +129,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       try{
         const offset=query.get('proposal_offset');
         if(!/^\d+$/.test(offset || ''))throw new Error('대화 이력 정보를 확인할 수 없습니다.');
-        const proposal=await untilAborted(readGenerationProposal(managementCommand,{session,job:id,snapshot:query.get('proposal_snapshot'),offset:Number(offset),kind:'audio'}),controller.signal);
+        const proposal=await untilAborted(readGenerationProposal(managementCommand,{session,job:id,snapshot:query.get('proposal_snapshot'),offset:Number(offset),kind:'audio'},{signal:controller.signal}),controller.signal);
         const inputs=audioProposalInputs(defaults,proposal,service);
         if(!controller.signal.aborted){setForm(current=>current ?? inputs);setNotice('대화 제안 입력을 불러왔습니다. 내용을 검토한 뒤 접수하세요.');}
       }catch(error){if(active && (timedOut || !controller.signal.aborted)){setForm(current=>current ?? defaults);setNotice(timedOut ? '대화 제안 조회 시간이 초과되어 기본 입력을 표시합니다.' : '대화 제안을 불러오지 못했습니다 · '+requestErrorMessage(error));}}
@@ -193,6 +194,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   return <article className={"audio-generator-page"+(embedded ? "" : " audio-standalone")}>{!embedded && <nav aria-label="워크플로우 탐색"><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a></nav>}
     <h1 className={embedded ? "embedded-page-title" : undefined}>{music?"HeartMuLa 음악 생성":"Dasheng 효과음 생성"}</h1>
     {music ? <p>태그는 쉼표로 구분합니다. 원곡을 생성한 뒤 Demucs가 MR과 보컬을 분리합니다.</p> : <p>16kHz WAV · 길이 자동 예측 · <a href="https://huggingface.co/mispeech/Dasheng-AudioGen">Dasheng-AudioGen 모델과 Apache-2.0 라이선스</a></p>}
+    <GeneratorSectionNavigation inputRef={inputRegion} historyRef={historyRegion} resultRef={resultRegion} inputReady={Boolean(form)} resultReady={Boolean(job)} openOnNavigate/>
     <details ref={prepareDetails}><summary ref={prepareSummary}>모델 다운로드·준비</summary>
       <DownloadProgress service={service}/>
       <button ref={prepareRef} disabled={Boolean(prepareReason)} aria-describedby={prepareReason ? prepareReasonId : undefined} onClick={reviewPreparation}>모델 준비 요청 검토</button>
@@ -202,7 +204,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
     {music && <fieldset disabled={busy || Boolean(review) || Boolean(handoff.id) || !form}><legend className="generator-visually-hidden">음악 예제</legend><MusicExamples apply={request=>setForm(current=>({...current,...request}))}/></fieldset>}
     <AudioReviewPending busy={busy} review={review}/>
-    {form && <form onSubmit={preview}><fieldset disabled={busy || Boolean(review) || Boolean(handoff.id)}>
+    {form && <form ref={inputRegion} tabIndex={-1} aria-label={music ? "음악 생성 입력" : "효과음 생성 입력"} onSubmit={preview}><fieldset disabled={busy || Boolean(review) || Boolean(handoff.id)}>
       <legend className="generator-visually-hidden">{music?"음악 생성 입력":"효과음 생성 입력"}</legend>
       <label>{music?"음악 태그":"효과음 설명"} <textarea ref={promptRef} required maxLength={4000} value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/>{music ? <small>태그 {tagCount}개</small> : <PromptWordCount text={form.prompt}/>}</label>
       <SeedInput value={form.seed} max={4294967295} onChange={value=>edit("seed",value)}/>
@@ -222,13 +224,13 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       <GpuQueueSummary/>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {music?"음악":"효과음"}을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={closeReview} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={review.payload.action==="generate" && !generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
-    <fieldset className="audio-history-controls" disabled={busy || Boolean(review) || !form}>
+    <fieldset ref={historyRegion} className="audio-history-controls" disabled={busy || Boolean(review) || !form}>
       <legend className="generator-visually-hidden">생성 이력</legend>
       <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={(input,record)=>{
         if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.review)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
         if(record.formAtStart!==formRef.current)throw new Error("입력 조회 중 작성 내용이 변경되어 적용하지 않았습니다.");
         setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.review && (document.activeElement===record.focusAtStart || document.activeElement===document.body) && promptRef.current?.isConnected && !promptRef.current.disabled)promptRef.current.focus();});
-      }} renderResult={(id,close)=><section aria-label="선택한 오디오 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service={service} kind="audio" readJob={readJob} onDeleted={cleaned}/></section>}/>
+      }} renderResult={(id,close)=><section ref={resultRegion} tabIndex={-1} aria-label="선택한 오디오 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service={service} kind="audio" readJob={readJob} onDeleted={cleaned}/></section>}/>
     </fieldset>
     <AudioNotice notice={notice} error={noticeError}/>
     <AudioActiveStatus statusRef={activeErrorRef} retryRef={activeRetryRef} loading={activeLoading} notice={activeNotice} error={activeError} activeId={activeId} job={job} onOpen={event=>{activeOpenFocus.current=document.activeElement===event.currentTarget;setJob(activeId);}} onRetry={()=>{if(activePending.current)return;activePending.current=true;activeRetryFocus.current=document.activeElement===activeRetryRef.current;setActiveLoading(true);setActiveError("");retryActive(value=>value+1);}}/>

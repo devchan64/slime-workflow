@@ -17,11 +17,11 @@ export function openGeneratorHistory(historyRef,id,select){
 }
 
 /** 현재 페이지의 작업 흐름으로 이동한다. 이동은 생성이나 작업 선택을 실행하지 않는다. */
-export default function GeneratorSectionNavigation({inputRef,historyRef,resultRef,inputReady=true,resultReady=false,openOnNavigate=false}){
+export default function GeneratorSectionNavigation({inputRef,historyRef,resultRef,inputReady=true,historyReady=true,resultReady=false,resultReason='이력에서 작업 결과를 먼저 선택하세요.',openOnNavigate=false}){
   const targets=[
     {label:'생성 입력',ref:inputRef,ready:inputReady,reason:'생성 입력을 불러오는 중입니다.'},
-    {label:'생성 이력',ref:historyRef,ready:true},
-    {label:'작업 결과',ref:resultRef,ready:resultReady,reason:'이력에서 작업 결과를 먼저 선택하세요.'},
+    {label:'생성 이력',ref:historyRef,ready:historyReady,reason:'생성기 설정을 확인해야 이력을 볼 수 있습니다.'},
+    {label:'작업 결과',ref:resultRef,ready:resultReady,reason:resultReason},
   ];
   function move(target){
     // 결과가 이력 조회 중이면 조회 상태가 표시되는 이력으로 이동한다.
@@ -39,6 +39,7 @@ export default function GeneratorSectionNavigation({inputRef,historyRef,resultRe
     <span>바로 이동</span>
     {targets.map(target=><button key={target.label} type="button" disabled={!target.ready} aria-label={!target.ready ? target.label+' · '+target.reason : undefined} title={!target.ready ? target.reason : undefined} onClick={()=>move(target)}>{target.label}</button>)}
     {!inputReady && <small>생성 입력을 불러오는 중입니다.</small>}
-    {!resultReady && <small>결과는 이력에서 작업을 선택하면 볼 수 있습니다.</small>}
+    {!historyReady && <small>생성기 설정을 확인해야 이력을 볼 수 있습니다.</small>}
+    {!resultReady && <small>{resultReason==='이력에서 작업 결과를 먼저 선택하세요.' ? '결과는 이력에서 작업을 선택하면 볼 수 있습니다.' : resultReason}</small>}
   </nav>;
 }

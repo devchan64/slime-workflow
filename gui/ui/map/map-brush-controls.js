@@ -22,7 +22,7 @@ export function installMapBrushControls(currentMapCanvas,currentResolveTarget){
  }
  return {
   beginBrushStroke(currentPointerEvent){
-   if(!window.mapReviewEditingEnabled||!window.mapReviewBrushTool||window.mapReviewBrushTool==='pan')return false;
+   if(window.mapReviewBrushReadOnly||!window.mapReviewEditingEnabled||!window.mapReviewBrushTool||window.mapReviewBrushTool==='pan')return false;
    if(window.mapReviewBrushTool==='place'&&!window.mapReviewBrushTexture){document.querySelector('#status').textContent='빌보드 선택기에서 배치할 에셋을 먼저 선택하세요.';return true;}
    currentStrokeEvents=[];currentStrokeVisited=new Set();
    currentMapCanvas.setPointerCapture(currentPointerEvent.pointerId);

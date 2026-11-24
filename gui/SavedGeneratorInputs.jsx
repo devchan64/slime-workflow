@@ -10,8 +10,9 @@ export function SavedInputDetails({request,details}) {
 }
 
 /** 결과에 저장된 요청을 표시한다. 입력 적용은 별도 사용자 동작이다. */
-export default function SavedGeneratorInputs({id,readJob,service,statusCommand}){
+export default function SavedGeneratorInputs({id,readJob,readJobWithSignal,service,statusCommand}){
   const reader=useRef(readJob);reader.current=readJob;
+  const signalReader=useRef(readJobWithSignal);signalReader.current=readJobWithSignal;
   const resultRef=useRef(null),restoreFocus=useRef(false);
   const [state,setState]=useState({id,service,statusCommand,loading:true}),[revision,retry]=useState(0);
   useEffect(()=>()=>{restoreFocus.current=false;},[id,service,statusCommand]);
@@ -26,7 +27,7 @@ export default function SavedGeneratorInputs({id,readJob,service,statusCommand})
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setState({id,service,statusCommand,loading:true});
     (async()=>{try{
-      const result=await untilAborted(reader.current ? reader.current(id) : managementCommand(service,statusCommand,{id},{signal:controller.signal}),controller.signal);
+      const result=await untilAborted(signalReader.current ? signalReader.current(id,{signal:controller.signal}) : reader.current ? reader.current(id) : managementCommand(service,statusCommand,{id},{signal:controller.signal}),controller.signal);
       if(result?.id!==id || !result.request || typeof result.request!=='object' || Array.isArray(result.request))throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
       if(active)setState({id,service,statusCommand,request:result.request});
     }catch(error){if(active)setState({id,service,statusCommand,error:timedOut?'조회 시간이 초과됐습니다.':requestErrorMessage(error)});}finally{clearTimeout(timeout);}})();

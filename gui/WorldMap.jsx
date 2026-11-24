@@ -5,6 +5,20 @@ import ResultTable from "./ResultTable.jsx";
 import RecoverableImage from "./RecoverableImage.jsx";
 import {validWorldMap,worldMapLinks} from "./worldMapValidation.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {imageRetryUrl} from "./imageRetryUrl.mjs";
+
+export function WorldMapThumbnail({src,x,y,failed,onError}) {
+  return failed ? <g><rect x={x-64} y={y-92} width="128" height="128" fill="none" stroke="currentColor"/><text x={x} y={y-24} textAnchor="middle" fill="currentColor">미리보기 없음</text></g> : <image href={src} x={x-64} y={y-92} width="128" height="128" onError={onError}/>;
+}
+
+function WorldMapMarker({node,x,y,selected,href,onSelect,revision}) {
+  const [failed,setFailed]=useState(false);
+  return <a href={href} aria-label={node.name+" 선택"+(failed ? " · 미리보기 없음" : "")} aria-current={selected ? "true" : undefined} onClick={onSelect}>
+    <title>{node.name} 선택</title><WorldMapThumbnail src={imageRetryUrl(node.thumbnail.url,revision)} x={x} y={y} failed={failed} onError={()=>setFailed(true)}/>
+    <text x={x} y={y+56} textAnchor="middle" fill="currentColor">{node.name}</text>
+    <text x={x} y={y+78} textAnchor="middle" fill="currentColor">{node.safeTown?"도시":"필드"} {selected && "· 선택"}</text>
+  </a>;
+}
 
 export function WorldMapStatus({checkedAt,error,loading,loaded,mapCount}) {
   return <>
@@ -23,9 +37,10 @@ export default function WorldMap() {
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true),[loaded,setLoaded]=useState(false),[checkedAt,setCheckedAt]=useState(null);
   const [revision,setRevision]=useState(0);
+  const [imageRevision,setImageRevision]=useState(0);
   const [zoom,setZoom]=useState(1);
   const viewportHelpId=useId(),selectionHelpId=useId();
-  const viewport=useRef(null),selectRef=useRef(null),reloadRef=useRef(null),restoreReloadFocus=useRef(false),restoreMapFocus=useRef(false);
+  const viewport=useRef(null),selectRef=useRef(null),reloadRef=useRef(null),reloadPending=useRef(true),restoreReloadFocus=useRef(false),restoreMapFocus=useRef(false);
   useEffect(()=>{
     if(!loading && restoreReloadFocus.current){
       restoreReloadFocus.current=false;
@@ -42,17 +57,17 @@ export default function WorldMap() {
     document.title="월드맵 검수";
     const controller=new AbortController();let active=true,timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-    setLoading(true);setError("");
+    reloadPending.current=true;setLoading(true);setError("");
     untilAborted((async()=>{
-        const response=await fetch("/management/map-assets/world",{signal:controller.signal,cache:"no-store"});
+        const response=await untilAborted(fetch("/management/map-assets/world",{signal:controller.signal,cache:"no-store"}),controller.signal);
         if(!response.ok) throw new Error("맵 원본 조회 실패 · HTTP "+response.status);
-        const data=await response.json();
+        const data=await untilAborted(response.json(),controller.signal);
         if(!validWorldMap(data))throw new Error("월드맵 응답 형식을 확인할 수 없습니다.");
         return data;
-      })(),controller.signal).then(data=>{if(active){restoreMapFocus.current=Boolean(viewport.current?.contains(document.activeElement));if(restoreMapFocus.current)restoreReloadFocus.current=false;setMaps(data.maps);setLoaded(true);setCheckedAt(new Date());}})
+      })(),controller.signal).then(data=>{if(active){restoreMapFocus.current=Boolean(viewport.current?.contains(document.activeElement));if(restoreMapFocus.current)restoreReloadFocus.current=false;setMaps(data.maps);setId(current=>current || data.maps[0]?.id || null);setImageRevision(value=>value+1);setLoaded(true);setCheckedAt(new Date());}})
       .catch(problem=>{if(active)setError(timedOut ? "맵 원본 조회 시간이 초과됐습니다." : requestErrorMessage(problem));})
-      .finally(()=>{clearTimeout(timeout);if(active)setLoading(false);});
-    return ()=>{active=false;clearTimeout(timeout);controller.abort();};
+      .finally(()=>{clearTimeout(timeout);if(active){reloadPending.current=false;setLoading(false);}});
+    return ()=>{active=false;reloadPending.current=false;clearTimeout(timeout);controller.abort();};
   },[revision]);
   const nodes=new Map(maps.map(node=>[node.id,node]));
   const links=worldMapLinks(maps);
@@ -70,7 +85,7 @@ export default function WorldMap() {
   }
   return <section className="world-map-review">
     <a href={conversation}>헤르메스 대화</a><h1>월드맵 검수</h1>
-    <button ref={reloadRef} type="button" disabled={loading} onClick={event=>{restoreReloadFocus.current=document.activeElement===event.currentTarget;setRevision(v=>v+1);}}>{loading ? "원본 조회 중…" : "원본 다시 불러오기"}</button>
+    <button ref={reloadRef} type="button" disabled={loading} onClick={event=>{if(reloadPending.current)return;reloadPending.current=true;restoreReloadFocus.current=document.activeElement===event.currentTarget;setLoading(true);setRevision(v=>v+1);}}>{loading ? "원본 조회 중…" : "원본 다시 불러오기"}</button>
     <WorldMapStatus checkedAt={checkedAt} error={error} loading={loading} loaded={loaded} mapCount={maps.length}/>
     {maps.length>0 && <>
       <p>검증 통과 · 맵 {maps.length}개 · 지도 간 연결 {links.length}개</p>
@@ -84,16 +99,12 @@ export default function WorldMap() {
         <button type="button" onClick={()=>setZoom(Math.max(.1,Math.min(1,viewport.current.clientWidth/width,innerHeight*.65/height)))}>전체 보기</button>
         <output aria-live="polite">확대 {Math.round(zoom*100)}%{zoom<=.1 ? " · 최소 배율" : zoom>=2 ? " · 최대 배율" : ""}</output>
       </div>
-      <p id={viewportHelpId}>지도 영역에 초점을 두고 방향키로 스크롤할 수 있습니다. 맵은 목록이나 지도에서 선택하세요.</p>
+      <p id={viewportHelpId}>지도 영역에 초점을 두고 방향키로 스크롤할 수 있습니다. 맵은 목록이나 지도에서 선택하세요. 미리보기가 없으면 원본을 다시 불러와 재시도하세요.</p>
       <div ref={viewport} className="world-map-viewport" role="region" tabIndex={0} aria-label="월드맵 스크롤" aria-describedby={viewportHelpId}>
         <svg aria-label="전체 맵과 이동 연결" width={width*zoom} height={height*zoom} viewBox={`0 0 ${width} ${height}`}>
           {links.map(([from,to])=>
             <line key={JSON.stringify([from,to])} x1={x(nodes.get(from))} y1={y(nodes.get(from))} x2={x(nodes.get(to))} y2={y(nodes.get(to))} stroke="currentColor"/>)}
-          {maps.map(node=><a href={mapUrl(node.id)} key={node.id} aria-label={node.name+" 선택"} aria-current={selected?.id===node.id ? "true" : undefined} onClick={e=>{if(e.button!==0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)return;e.preventDefault();select(node.id);}}>
-            <title>{node.name} 선택</title><image href={node.thumbnail.url} x={x(node)-64} y={y(node)-92} width="128" height="128"/>
-            <text x={x(node)} y={y(node)+56} textAnchor="middle" fill="currentColor">{node.name}</text>
-            <text x={x(node)} y={y(node)+78} textAnchor="middle" fill="currentColor">{node.safeTown?"도시":"필드"} {selected?.id===node.id && "· 선택"}</text>
-          </a>)}
+          {maps.map(node=><WorldMapMarker key={JSON.stringify([node.id,node.thumbnail.url,imageRevision])} node={node} x={x(node)} y={y(node)} selected={selected?.id===node.id} href={mapUrl(node.id)} revision={imageRevision} onSelect={e=>{if(e.button!==0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)return;e.preventDefault();select(node.id);}}/>)}
         </svg>
       </div>
       {selected && <><h2>{selected.name}</h2><div className="world-map-thumbnail"><RecoverableImage src={selected.thumbnail.url} name={selected.name+" 특징"} kind="썸네일"/></div>

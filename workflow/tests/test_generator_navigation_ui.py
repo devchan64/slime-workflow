@@ -12,10 +12,11 @@ class GeneratorNavigationUiTests(unittest.TestCase):
             bundle=Path(directory)/'navigation.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'GeneratorSectionNavigation.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server'),Navigation=require(process.argv[1]).default;
-              const ref={current:null};process.stdout.write(server.renderToStaticMarkup(React.createElement(Navigation,{inputRef:ref,historyRef:ref,resultRef:ref,inputReady:false,resultReady:false})));"""
+              const ref={current:null};process.stdout.write(server.renderToStaticMarkup(React.createElement(Navigation,{inputRef:ref,historyRef:ref,resultRef:ref,inputReady:false,historyReady:false,resultReady:false})));"""
             import os
             markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         self.assertIn('aria-label="생성 입력 · 생성 입력을 불러오는 중입니다."',markup)
+        self.assertIn('aria-label="생성 이력 · 생성기 설정을 확인해야 이력을 볼 수 있습니다."',markup)
         self.assertIn('aria-label="작업 결과 · 이력에서 작업 결과를 먼저 선택하세요."',markup)
 
     def test_progress_result_reopens_history_even_for_same_job(self):

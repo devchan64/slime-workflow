@@ -7,6 +7,17 @@ import unittest
 
 
 class WorldMapStatusTests(unittest.TestCase):
+    def test_map_thumbnail_has_visible_failure_placeholder(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'world.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'WorldMap.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+const Thumbnail=require(process.argv[1]).WorldMapThumbnail;
+const render=failed=>server.renderToStaticMarkup(React.createElement('svg',null,React.createElement(Thumbnail,{src:'/image?retry=2',x:100,y:100,failed})));
+assert.match(render(false),/<image href="\\/image\\?retry=2"/);const failed=render(true);assert.match(failed,/미리보기 없음/);assert.doesNotMatch(failed,/<image/);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_empty_result_remains_visible_during_retry_and_error(self):
         gui = Path(__file__).resolve().parents[2] / 'gui'
         with tempfile.TemporaryDirectory() as directory:

@@ -5,14 +5,17 @@ import KimodoFrames from "./KimodoFrames.jsx";
 import WriterActions from "./WriterActions.jsx";
 import WriterResult from "./WriterResult.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
-import React, {useEffect, useRef, useState} from "react";
+import React, {useEffect, useId, useRef, useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {latestRequest} from "./latestRequest.mjs";
 import {validSourceHistoryPage} from "./sourceHistoryPage.mjs";
 import {orderHistorySources} from "./historySourceOrder.mjs";
+import {focusGeneratorRegion} from "./GeneratorSectionNavigation.jsx";
 
 export function HistoryPage({source, choose, session, initialJob="", label=source.service}) {
-  const [selectedJob,selectJob]=useState(initialJob);
+  const [selectedJob,setSelectedJob]=useState(initialJob);
+  const selectionEpoch=useRef(0);
+  function selectJob(id){selectionEpoch.current++;setSelectedJob(id);}
   const [query,setQuery]=useState("");
   const [filter,setFilter]=useState("");
   const [page,setPage]=useState(null);
@@ -20,22 +23,24 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
+  const busyId=useId();
   const request=useRef(null),controllerRef=useRef(null);
-  const resultRef=useRef(null),resultTrigger=useRef(null);
+  const resultRef=useRef(null),resultTrigger=useRef(null),resultFocusFrame=useRef(null);
   const listRef=useRef(null),focusList=useRef(false),failedPageTrigger=useRef(null),searchRef=useRef(null);
   if(!request.current)request.current=latestRequest();
-  useEffect(()=>()=>{request.current.invalidate();controllerRef.current?.abort();},[]);
+  useEffect(()=>()=>{request.current.invalidate();controllerRef.current?.abort();if(resultFocusFrame.current!==null)cancelAnimationFrame(resultFocusFrame.current);},[]);
   const mediaKind=source.result_kind;
   const writer=source.service==="writer-agent";
   const kimodo=source.service==="kimodo";
   const hasResult=source.result_path || mediaKind || writer || kimodo;
   function focusResult(){resultRef.current?.focus({preventScroll:true});resultRef.current?.scrollIntoView({block:"start",inline:"nearest"});}
-  useEffect(()=>{if(selectedJob && (mediaKind || writer || kimodo) && resultTrigger.current)focusResult();},[selectedJob,mediaKind,writer,kimodo]);
+  useEffect(()=>{if(selectedJob && (mediaKind || writer || kimodo) && resultTrigger.current && (document.activeElement===document.body || document.activeElement===resultTrigger.current))focusResult();},[selectedJob,mediaKind,writer,kimodo]);
   useEffect(()=>{if(focusList.current && page && listRef.current){focusList.current=false;if(document.activeElement===document.body){listRef.current.focus({preventScroll:true});listRef.current.scrollIntoView({block:"start",inline:"nearest"});}}},[page]);
   useEffect(()=>{if(!busy && error && failedPageTrigger.current){const target=failedPageTrigger.current;failedPageTrigger.current=null;if(document.activeElement===document.body && target.isConnected)target.focus();}},[busy,error]);
-  function closeResult(){selectJob("");requestAnimationFrame(()=>resultTrigger.current?.isConnected && resultTrigger.current.focus());}
+  function closeResult(){const restore=resultRef.current?.contains(document.activeElement),origin=resultTrigger.current;selectJob("");const epoch=selectionEpoch.current;if(resultFocusFrame.current!==null)cancelAnimationFrame(resultFocusFrame.current);if(restore)resultFocusFrame.current=requestAnimationFrame(()=>{resultFocusFrame.current=null;const target=origin?.isConnected && !origin.matches(':disabled') ? origin : searchRef.current;if(epoch===selectionEpoch.current && document.activeElement===document.body && target?.isConnected && !target.matches(':disabled'))target.focus();});}
   function openResult(id,event){resultTrigger.current=event.currentTarget;if(selectedJob===id)focusResult();else selectJob(id);}
   async function load(offset,snapshot,navigate=false,trigger=null,search=query.trim()) {
+    const selectionAtStart=selectionEpoch.current;
     const token=request.current.start();
     controllerRef.current?.abort();
     const controller=new AbortController();controllerRef.current=controller;
@@ -48,13 +53,14 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
       if(snapshot) payload.snapshot=snapshot;
       const result=await untilAborted(managementCommand("hermes-agent",source.command,payload,{signal:controller.signal}),controller.signal);
       if(!validSourceHistoryPage(result,source.service,offset,snapshot))throw new Error("이력 페이지를 확인할 수 없습니다. 다시 조회하세요.");
-      if(request.current.isCurrent(token)){focusList.current=navigate;setPage(result);setReceivedAt(new Date());setFilter(payload.query);selectJob("");}
+      if(request.current.isCurrent(token)){const unchanged=selectionEpoch.current===selectionAtStart;focusList.current=navigate && unchanged;setPage(result);setReceivedAt(new Date());setFilter(payload.query);}
     } catch(problem) {if(request.current.isCurrent(token)){failedPageTrigger.current=navigate ? trigger : null;setError((timedOut ? "이력 조회 시간이 초과됐습니다. 다시 조회하세요." : problem instanceof TypeError ? "이력 서버에 연결하지 못했습니다. 연결 상태를 확인한 후 다시 조회하세요." : problem.message)+(page ? " · 이전 조회 결과를 유지합니다." : ""));}}
     finally {clearTimeout(timeout);if(controllerRef.current===controller)controllerRef.current=null;if(request.current.isCurrent(token))setBusy(false);}
   }
   function cleaned(message){setNotice(message);selectJob("");load(0,undefined,false,null,filter);}
-  return <fieldset disabled={busy}>
-    {writer && <WriterActions onAccepted={id=>{resultTrigger.current=null;selectJob(id);setNotice(id+" 작가 작업을 접수했습니다.");}}/>}
+  return <>{busy && <p id={busyId} role="status">이력을 조회하고 있습니다. 조회가 끝나면 작업을 계속할 수 있습니다.</p>}<fieldset disabled={busy} aria-describedby={busy ? busyId : undefined}>
+    <legend className="generator-visually-hidden">{label} 이력과 작업</legend>
+    {writer && <WriterActions onHistory={()=>{if(searchRef.current?.isConnected && !searchRef.current.matches(':disabled'))focusGeneratorRegion(searchRef.current);}} onAccepted={id=>{resultTrigger.current=null;selectJob(id);setNotice(id+" 작가 작업을 접수했습니다.");}}/>}
       {selectedJob && writer && <div ref={resultRef} tabIndex={-1} aria-label="선택한 이력 결과"><button type="button" onClick={closeResult}>결과 닫기</button><WriterResult key={selectedJob} id={selectedJob} onDeleted={id=>{setNotice(id+" 실행 기록을 휴지통으로 옮겼습니다.");selectJob("");load(0,undefined,false,null,filter);}}/><button type="button" onClick={closeResult}>결과 닫기</button></div>}
     <label>작업 ID 검색 <input ref={searchRef} maxLength={80} value={query} onChange={event=>{request.current.invalidate();controllerRef.current?.abort();setBusy(false);setQuery(event.target.value);setError("");}} onKeyDown={event=>{if(event.key==="Enter" && !event.nativeEvent.isComposing && event.nativeEvent.keyCode!==229){event.preventDefault();load(0,undefined,true,event.currentTarget);}}}/></label>
     <button onClick={event=>load(0,undefined,true,event.currentTarget)}>{busy?"조회 중…":"이력 조회"}</button>
@@ -92,7 +98,7 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
     </>}
     {kimodo && (selectedJob ? <div ref={resultRef} tabIndex={-1} aria-label="선택한 이력 결과"><button type="button" onClick={closeResult}>결과 닫기</button><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned}/><button type="button" onClick={closeResult}>결과 닫기</button></div> :
       <HistoryCleanup service="kimodo" onDeleted={cleaned}/>)}
-  </fieldset>;
+  </fieldset></>;
 }
 
 export default function SourceHistory({choose, session, tools=[]}) {
@@ -108,7 +114,7 @@ export default function SourceHistory({choose, session, tools=[]}) {
     setLoading(true);setError("");
     untilAborted(fetch("/management/assistant/history-services",{signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error("생성기 목록을 조회할 수 없습니다.");return response.json();}),controller.signal)
-      .then(rows=>{if(!Array.isArray(rows) || rows.some(row=>!row || typeof row.service!=="string" || typeof row.command!=="string"))throw new Error("생성기 목록 형식을 확인할 수 없습니다.");if(!controller.signal.aborted){const ordered=orderHistorySources(rows);setSources(ordered);select(ordered[0]?.service || "");}})
+      .then(rows=>{if(!Array.isArray(rows) || rows.some(row=>!row || typeof row.service!=="string" || typeof row.command!=="string"))throw new Error("생성기 목록 형식을 확인할 수 없습니다.");if(!controller.signal.aborted){const ordered=orderHistorySources(rows);setSources(ordered);select(current=>ordered.some(row=>row.service===current) ? current : ordered[0]?.service || "");}})
       .catch(problem=>{if(active)setError(timedOut ? "이력 서비스 조회 시간이 초과됐습니다. 다시 시도하세요." : problem instanceof TypeError ? "이력 서비스에 연결하지 못했습니다. 연결 상태를 확인하세요." : problem.message);})
       .finally(()=>{clearTimeout(timeout);if(active)setLoading(false);});
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
@@ -124,8 +130,8 @@ export default function SourceHistory({choose, session, tools=[]}) {
     return tool && tool.label!==row.service ? tool.label+" · "+row.service : row.service;
   }
   return <section ref={sectionRef} tabIndex={-1} aria-label="생성 이력">
-    {loading && <p role="status">이력 서비스를 조회하고 있습니다.</p>}
-    {error && <div role="alert"><p>{error}</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=true;setAttempt(value=>value+1);}}>다시 시도</button></div>}
+    {loading && <p role="status">이력 서비스를 조회하고 있습니다.{sources.length>0 && " 아래 목록은 마지막 조회 결과입니다."}</p>}
+    {error && <div><p role="alert">{error}{sources.length>0 && " 아래 목록은 마지막 조회 결과입니다."}</p><button ref={retryRef} type="button" onClick={()=>{restoreFocus.current=true;setAttempt(value=>value+1);}}>다시 시도</button></div>}
     {!loading && !error && sources.length===0 && <p>조회할 수 있는 이력 서비스가 없습니다.</p>}
     {sources.length>0 && <label>이력 서비스 <select ref={serviceRef} value={selected} onChange={event=>select(event.target.value)}>
       {sources.map(row=><option key={row.service} value={row.service}>{sourceLabel(row)}{row.archived === true ? " · 이전 이력" : ""}</option>)}

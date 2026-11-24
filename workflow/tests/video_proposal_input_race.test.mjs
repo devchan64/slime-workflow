@@ -14,14 +14,26 @@ test('영상 작업 ID는 서버 이력 형식과 정확히 일치해야 한다'
 test('Wan 영상 화면은 사용자가 수정 후 비운 프롬프트를 늦은 제안으로 채우지 않는다',async()=>{
  for(const name of ['I2VPage.jsx','Wan21VideoPage.jsx'])for(const edited of [false,true]){
   const source=readFileSync(new URL('../../gui/'+name,import.meta.url),'utf8');
-  const start=source.indexOf('  useEffect(()=>{\n    let active=true;\n    (async()=>{try{\n      const scope=generationProposalScope');
+  const start=source.indexOf('  useEffect(()=>{\n    let active=true;\n    const controller=new AbortController();\n    (async()=>{try{\n      const scope=generationProposalScope');
   const end=source.indexOf('  async function readSavedInput(',start),code=source.slice(start,end);
-  let resolve,settings={prompt:''};
-  const context=vm.createContext({useEffect:fn=>fn(),location:{search:''},session:'session',service:'wan22-i2v',promptEdited:{current:false},generationProposalScope:()=>({}),readGenerationProposal:()=>new Promise(done=>resolve=done),managementCommand:()=>{},wan21ProposalInputs:(_defaults,p)=>p,setSettings:fn=>settings=fn(settings),setError:()=>{}});
+  let resolve,cleanup,signal,settings={prompt:''};
+  const context=vm.createContext({AbortController,useEffect:fn=>cleanup=fn(),location:{search:''},session:'session',service:'wan22-i2v',promptEdited:{current:false},generationProposalScope:()=>({}),readGenerationProposal:(_command,_scope,options)=>(signal=options.signal,new Promise(done=>resolve=done)),managementCommand:()=>{},wan21ProposalInputs:(_defaults,p)=>p,setSettings:fn=>settings=fn(settings),setError:()=>{}});
   vm.runInContext(code,context);
   if(edited){context.field('prompt','직접 입력');context.field('prompt','');}
   resolve({service:'wan22-i2v',mode:'first_frame',prompt:'제안'});await new Promise(done=>setImmediate(done));
   assert.equal(settings.prompt,edited?'':'제안',name);
+  cleanup();assert.equal(signal.aborted,true);
+ }
+});
+
+test('Wan 제안 조회 중 화면 종료는 신호를 중단하고 늦은 입력을 무시한다',async()=>{
+ for(const name of ['I2VPage.jsx','Wan21VideoPage.jsx']){
+  const source=readFileSync(new URL('../../gui/'+name,import.meta.url),'utf8');
+  const start=source.indexOf('  useEffect(()=>{\n    let active=true;\n    const controller=new AbortController();\n    (async()=>{try{\n      const scope=generationProposalScope');
+  const end=source.indexOf('  async function readSavedInput(',start);let cleanup,signal,resolve,updates=0;
+  const context=vm.createContext({AbortController,useEffect:fn=>cleanup=fn(),location:{search:''},session:'s',service:'wan22-i2v',promptEdited:{current:false},generationProposalScope:()=>({}),readGenerationProposal:(_command,_scope,options)=>(signal=options.signal,new Promise(done=>resolve=done)),managementCommand:()=>{},wan21ProposalInputs:(_defaults,p)=>p,setSettings:()=>updates++,setError:()=>updates++});
+  vm.runInContext(source.slice(start,end),context);cleanup();resolve({service:'wan22-i2v',mode:'first_frame',prompt:'제안'});await new Promise(done=>setImmediate(done));
+  assert.equal(signal.aborted,true,name);assert.equal(updates,0,name);
  }
 });
 

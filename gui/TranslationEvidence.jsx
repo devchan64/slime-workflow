@@ -12,13 +12,13 @@ export default function TranslationEvidence({source,call}) {
   const [result,setResult]=useState(null);
   const [error,setError]=useState("");
   const request=useRef(null);
-  const searchButton=useRef(null),restoreFocus=useRef(false);
+  const searchButton=useRef(null),detailsRef=useRef(null),restoreFocus=useRef(false);
   const sourceRef=useRef(source);sourceRef.current=source;
   useEffect(()=>()=>{request.current?.abort();},[]);
   useEffect(()=>{request.current?.abort();request.current=null;setBusy(false);setResult(null);setError("");},[source]);
-  useEffect(()=>{if(!busy && restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body && searchButton.current && !searchButton.current.disabled)searchButton.current.focus();}},[busy]);
+  useEffect(()=>{if(!busy && restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body && detailsRef.current?.open && searchButton.current?.isConnected && !searchButton.current.matches(":disabled"))searchButton.current.focus();}},[busy]);
   async function search() {
-    if(request.current)return;
+    if(request.current || !source.trim())return;
     const controller=new AbortController();request.current=controller;let timedOut=false;
     restoreFocus.current=document.activeElement===searchButton.current;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
@@ -30,12 +30,12 @@ export default function TranslationEvidence({source,call}) {
     } catch(problem){if(request.current===controller && sourceRef.current===source && (!controller.signal.aborted || timedOut))setError(timedOut ? "문서 검색 시간이 초과됐습니다. 다시 검색하세요." : requestErrorMessage(problem));}
     finally{clearTimeout(timeout);if(request.current===controller){request.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}}
   }
-  return <details><summary>작가 AI 문서에서 용어 후보 찾기</summary>
+  return <details ref={detailsRef} className="translation-evidence"><summary>작가 AI 문서에서 용어 후보 찾기</summary>
     <ActionButton buttonRef={searchButton} reasons={[busy && "문서를 검색하고 있습니다.",!source.trim() && "검색할 한국어 원문을 입력하세요."]} onClick={search}>원문으로 문서 검색</ActionButton>
     {busy && <p role="status">문서를 검색하고 있습니다.</p>}
     {error && <p role="alert">{error}</p>}
     {result?.source===source && <><p role="status">{result.value.candidates.length ? `${result.value.candidates.length}건` : "검색된 문서 후보가 없습니다."} · {result.value.note}</p>
-      {result.value.candidates.map((item,index)=><section key={index}><strong>{item.heading}</strong>
+      {result.value.candidates.map((item,index)=><section key={index}><h3>{item.heading}</h3>
         <p>{item.path} · {item.matched_terms.join(", ")}</p><p>{item.text}</p></section>)}</>}
   </details>;
 }

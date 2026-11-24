@@ -25,7 +25,8 @@ test('proposal lookup times out during session or proposal retrieval',async(t)=>
       return page;
     };
     const result=readGenerationProposal(command,scope);
-    await Promise.resolve();
+    for(let i=0;i<10 && !calls.includes(blocked);i++)await Promise.resolve();
+    assert.equal(calls.at(-1),blocked);
     t.mock.timers.tick(30000);
     await assert.rejects(result,/대화 제안 조회 시간이 초과/);
     assert.equal(calls.at(-1),blocked);
@@ -84,4 +85,13 @@ test('writer proposal uses a stable session and job receipt across tabs',async()
   assert.equal(id,await writerProposalId(session,job));
   assert.notEqual(id,await writerProposalId('b'.repeat(32),job));
   await assert.rejects(writerProposalId(session,'invalid'));
+});
+test('상위 중단은 대화 제안 조회와 후속 요청을 멈춘다',async()=>{
+  const scope={session:'a'.repeat(32),job:'2026-11-18_00-00-00-12345678',snapshot:'b'.repeat(64),offset:0,kind:'writer'};
+  const controller=new AbortController(),calls=[];let finish,requestSignal;
+  const command=(_service,name,_payload,{signal})=>{calls.push(name);requestSignal=signal;return new Promise(resolve=>finish=resolve);};
+  const pending=readGenerationProposal(command,scope,{signal:controller.signal});controller.abort();
+  await assert.rejects(pending,{name:'AbortError'});assert.equal(requestSignal.aborted,true);
+  finish({id:scope.session,offset:0,snapshot:scope.snapshot,messages:[]});await Promise.resolve();assert.deepEqual(calls,['hermes-session-view']);
+  await assert.rejects(readGenerationProposal(command,scope,{signal:controller.signal}),{name:'AbortError'});assert.equal(calls.length,1);
 });

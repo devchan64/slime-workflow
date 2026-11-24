@@ -117,11 +117,11 @@ await assert.rejects(window.mapReviewApplyDraft({id:'different',name:'wrong'}),/
     def test_import_accepts_matching_draft_and_cancels_on_exit(self):
         root=Path(__file__).resolve().parents[2]
         source=(root/'gui/MapReview.jsx').read_text()
-        importer='async function importDraft(file){'+source.split('async function importDraft(file){',1)[1].split('\n  async function discardDraft()',1)[0]
+        importer='async function importDraft(file,focused=false){'+source.split('async function importDraft(file,focused=false){',1)[1].split('\n  async function discardDraft()',1)[0]
         until=(root/'gui/managementCommand.js').read_text().split('\nexport async function managementCommand',1)[0].replace('export async function','async function')
         script=r"""
 const assert=require('node:assert/strict');let resolve,applied=[],feedback='',reading=false;
-const draft={map:'test',revision:'r'},importRequest={current:null};
+const draft={map:'test',revision:'r'},importRequest={current:null},readRequest={current:null},savingRef={current:false},restoreImportFocus={current:false};
 const setReading=value=>reading=value,setImportError=value=>feedback=value,requestErrorMessage=e=>e.message,applyDraft=async(value,action)=>applied.push([value,action]);
 UNTIL
 SOURCE
@@ -140,10 +140,10 @@ SOURCE
 
     def test_import_timeout_does_not_apply_late_file(self):
         source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
-        importer='async function importDraft(file){'+source.split('async function importDraft(file){',1)[1].split('\n  async function discardDraft()',1)[0]
+        importer='async function importDraft(file,focused=false){'+source.split('async function importDraft(file,focused=false){',1)[1].split('\n  async function discardDraft()',1)[0]
         script=r"""
 const assert=require('node:assert/strict');let timer,resolve,applied=0,reading=false,feedback='';
-const draft={map:'test',revision:'r'},importRequest={current:null};
+const draft={map:'test',revision:'r'},importRequest={current:null},readRequest={current:null},savingRef={current:false},restoreImportFocus={current:false};
 const file={text:()=>new Promise(done=>resolve=done)},setTimeout=fn=>{timer=fn;return 1},clearTimeout=()=>{};
 const setReading=value=>reading=value,setImportError=value=>feedback=value,requestErrorMessage=e=>e.message,applyDraft=async()=>applied++;
 const untilAborted=(promise,signal)=>Promise.race([promise,new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')),{once:true}))]);

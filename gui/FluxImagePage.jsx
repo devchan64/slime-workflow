@@ -9,6 +9,7 @@ import SeedInput from "./SeedInput.jsx";
 import React,{useEffect,useId,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
+import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import GeneratorJobResult from "./GeneratorJobResult.jsx";
@@ -81,7 +82,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [guideQuery,setGuideQuery]=useState(""),[guidePage,setGuidePage]=useState(0),[pageSize,setPageSize]=useState(8);
   const [guideThumbnailRevision,retryGuideThumbnails]=useState(0);
-  const guideSearchRef=useRef(null),guidePagesRef=useRef(null),guidePageFrame=useRef(null),inputFormRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null);
+  const guideSearchRef=useRef(null),guidePagesRef=useRef(null),guidePageFrame=useRef(null),inputFormRef=useRef(null),historyRef=useRef(null),resultRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null);
   const previewRequest=useRef(null),previewCancelled=useRef(false);
   const [previewing,setPreviewing]=useState(false);
   useEffect(()=>{
@@ -318,6 +319,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
   }
   return <article className={"flux-page"+(embedded ? "" : " flux-standalone")}><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a>
     <h1 className={embedded ? "embedded-page-title" : undefined}>FLUX 이미지 생성 · {profile?.label}</h1><GeneratorChangelog generator={service+"-generator"}/>{embedded ? <details><summary>모델 상태 · {model ? (fluxModelReady(model) ? "준비 완료" : "준비 필요") : "확인 필요"}</summary><ModelReadiness service={service} session={session} onStatus={setModel}/></details> : <ModelReadiness service={service} session={session} onStatus={setModel}/>}
+    <GeneratorSectionNavigation inputRef={inputFormRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(profile)} historyReady={Boolean(profile)} resultReady={Boolean(profile && job)} resultReason={job && !profile ? "생성기 설정을 확인해야 작업 결과를 볼 수 있습니다." : undefined} openOnNavigate/>
     {profile && <p>{profile.description}</p>}
     {!profile && (profileError ? <div role="alert">{profileError} <button ref={profileRetryRef} type="button" onClick={retryProfile}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
@@ -380,7 +382,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
       <GpuQueueSummary/>{handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {profile?.label || "FLUX"} 생성을 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setReview(null);setHandoffReview(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,inputFormRef.current));}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"} disabledReason={!fluxModelReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""}/></section>}
     {previewing && <p role="status">입력과 GPU 양도 여부를 확인하고 있습니다.</p>}
     {notice && <p role="status">{notice}</p>}
-    {profile && <fieldset className="flux-history-controls" disabled={busy || Boolean(review)}><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={(id,close)=><section aria-label="선택한 FLUX 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} kind="flux" service={service} readJob={readJob} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/></section>}/></fieldset>}
+    {profile && <fieldset ref={historyRef} className="flux-history-controls" disabled={busy || Boolean(review)}><legend className="generator-visually-hidden">생성 이력</legend><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={(id,close)=><section ref={resultRef} tabIndex={-1} aria-label="선택한 FLUX 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} kind="flux" service={service} readJob={readJob} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/></section>}/></fieldset>}
     <GeneratorJobResult selectionControls job="" kind="flux" service={service} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
   </article>;
 }

@@ -7,6 +7,17 @@ import unittest
 
 
 class BattlefieldLifecycleTests(unittest.TestCase):
+    def test_error_message_and_recovery_action_are_separate(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'battle.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BattlefieldReview.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+const ErrorView=require(process.argv[1]).BattlefieldError;
+for(const cleanupFailed of [false,true]){const html=server.renderToStaticMarkup(React.createElement(ErrorView,{error:'조회 실패',cleanupFailed,href:'/battle'}));
+assert.match(html,/<p role="alert">조회 실패[^<]*<\\/p>/);assert.match(html,cleanupFailed?/<a href="\\/battle">전장 검수 페이지 다시 열기<\\/a>/:/<button type="button">전장 검수 다시 불러오기<\\/button>/);}"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,text=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_selected_field_must_match_before_url_changes(self):
         source=(Path(__file__).resolve().parents[2]/'gui/BattlefieldReview.jsx').read_text()
         refresh='function refresh(expectedField){'+source.split('function refresh(expectedField){',1)[1].split('\n  useEffect(',1)[0]

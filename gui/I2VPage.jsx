@@ -45,14 +45,15 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
   useEffect(()=>{if(pending){if(document.activeElement===document.body || document.activeElement===reviewOrigin.current)reviewRef.current?.focus();reviewOrigin.current=null;}},[pending]);
   useEffect(()=>{
     let active=true;
+    const controller=new AbortController();
     (async()=>{try{
       const scope=generationProposalScope(location.search,session,'video');
       if(!scope)return;
-      const proposal=await readGenerationProposal(managementCommand,scope);
+      const proposal=await readGenerationProposal(managementCommand,scope,{signal:controller.signal});
       if(proposal.service!==service || proposal.mode!=='first_frame' || !proposal.prompt.trim())throw new Error('I2V 영상 제안을 확인할 수 없습니다.');
       if(active)setSettings(old=>promptEdited.current || old.prompt ? old : {...old,prompt:proposal.prompt});
     }catch(e){if(active)setError(e.message || '대화 제안을 확인할 수 없습니다.');}})();
-    return ()=>{active=false;};
+    return ()=>{active=false;controller.abort();};
   },[session]);
   function field(name,value){if(name==='prompt')promptEdited.current=true;setSettings(old=>({...old,[name]:value}));}
   async function readSavedInput(id,forRestore=true){

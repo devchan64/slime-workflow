@@ -17,14 +17,16 @@ export default function TranslationResult({job, text}) {
   const [draft,setDraft] = useState(text);
   const [checks,setChecks] = useState(null);
   const [busy,setBusy] = useState(false);
-  const [notice,setNotice] = useState("");
+  const [notice,setNoticeState] = useState(""),[noticeError,setNoticeError]=useState(false);
+  function setNotice(message,{error=false}={}){setNoticeState(message);setNoticeError(error);}
   const [stale,setStale] = useState(false);
-  const textRef=useRef(null),copyRef=useRef(null),inspectRef=useRef(null),inspectRequest=useRef(null);
+  const textRef=useRef(null),copyRef=useRef(null),inspectRef=useRef(null),inspectRequest=useRef(null),focusFrame=useRef(null);
   const copySequence=useRef(0);
-  useEffect(()=>()=>{copySequence.current++;inspectRequest.current?.abort();},[]);
+  useEffect(()=>()=>{copySequence.current++;inspectRequest.current?.abort();if(focusFrame.current!==null)cancelAnimationFrame(focusFrame.current);},[]);
   const draftRef=useRef(draft);draftRef.current=draft;
   async function inspect() {
     if(inspectRequest.current)return;
+    if(focusFrame.current!==null){cancelAnimationFrame(focusFrame.current);focusFrame.current=null;}
     const controller=new AbortController();inspectRequest.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     const restoreFocus=document.activeElement===inspectRef.current;
@@ -34,18 +36,20 @@ export default function TranslationResult({job, text}) {
       if (record.id!==job || !record.result) throw new Error("해당 작업의 번역 결과를 확인할 수 없습니다.");
       setChecks(translationCheckTable(record.result));
       setStale(false);
-    } catch(problem) {if(!controller.signal.aborted || timedOut){setStale(Boolean(checks));setNotice("번역 점검을 조회하지 못했습니다 · "+(timedOut ? "조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem)));}}
-    finally {clearTimeout(timeout);if(inspectRequest.current===controller)inspectRequest.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body && inspectRef.current?.isConnected)inspectRef.current.focus();});}}
+    } catch(problem) {if(!controller.signal.aborted || timedOut){setStale(Boolean(checks));setNotice("번역 점검을 조회하지 못했습니다 · "+(timedOut ? "조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem)),{error:true});}}
+    finally {clearTimeout(timeout);if(inspectRequest.current===controller)inspectRequest.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);if(restoreFocus)focusFrame.current=requestAnimationFrame(()=>{focusFrame.current=null;if(document.activeElement===document.body && inspectRef.current?.isConnected && !inspectRef.current.matches(":disabled"))inspectRef.current.focus();});}}
   }
   async function copy() {
-    const sequence=++copySequence.current;
-    try {await writeClipboardText(draft);if(sequence===copySequence.current)setNotice(draftRef.current===draft ? "번역문을 복사했습니다." : "이전 번역문을 복사했습니다. 변경한 내용을 복사하려면 다시 누르세요.");}
-    catch {if(sequence!==copySequence.current)return;if(draftRef.current===draft && (document.activeElement===document.body || document.activeElement===copyRef.current)){textRef.current?.focus();textRef.current?.select();}setNotice(draftRef.current===draft ? "복사 여부를 확인하지 못했습니다. 번역문을 선택해 복사 단축키를 사용하세요." : "이전 번역문의 복사 여부를 확인하지 못했습니다. 현재 내용을 복사하려면 다시 누르세요.");}
+    const sequence=++copySequence.current,value=draftRef.current;
+    try {await writeClipboardText(value);if(sequence===copySequence.current)setNotice(draftRef.current===value ? "번역문을 복사했습니다." : "이전 번역문을 복사했습니다. 변경한 내용을 복사하려면 다시 누르세요.");}
+    catch {if(sequence!==copySequence.current)return;if(draftRef.current===value && (document.activeElement===document.body || document.activeElement===copyRef.current) && textRef.current?.isConnected && !textRef.current.matches(":disabled")){textRef.current.focus();textRef.current.select();}setNotice(draftRef.current===value ? "복사 여부를 확인하지 못했습니다. 번역문을 선택해 복사 단축키를 사용하세요." : "이전 번역문의 복사 여부를 확인하지 못했습니다. 현재 내용을 복사하려면 다시 누르세요.",{error:true});}
   }
-  return <section><label>복사용 번역문 <textarea ref={textRef} value={draft} onChange={e=>{setDraft(e.target.value);setNotice("");}}/></label>
+  return <section className="translation-result"><label>복사용 번역문 <textarea ref={textRef} value={draft} onChange={e=>{draftRef.current=e.target.value;setDraft(e.target.value);setNotice("");}}/></label>
+    <div className="choice-buttons">
     <ClipboardCopyButton ref={copyRef} onClick={copy} label="번역문 복사"/>
     <button ref={inspectRef} disabled={busy} onClick={inspect}>{busy ? "번역 점검 조회 중…" : "원본 번역 점검 조회"}</button>
+    </div>
     {checks && <>{stale && <p role="status">아래 점검 표는 마지막으로 조회한 결과입니다.</p>}<div className="translation-check-table"><ResultTable table={checks}/></div></>}
-    <p role="status">{notice}</p>
+    <p role={noticeError ? "alert" : "status"}>{notice}</p>
   </section>;
 }

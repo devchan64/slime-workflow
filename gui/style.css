@@ -158,7 +158,7 @@ article {position:relative;}
 .kimodo-request-review dl div {min-width:0}.kimodo-request-review dt {color:var(--muted,#afbabd);font-size:.8rem}.kimodo-request-review dd {margin:.2rem 0 0}
 .kimodo-request-review .kimodo-review-prompt {white-space:pre-wrap}.kimodo-request-review details {margin:.8rem 0}.kimodo-request-review summary {cursor:pointer}.kimodo-request-review pre {max-height:18rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .translation-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}
-.translation-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.translation-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.translation-request-review p {margin:.4rem 0}.translation-request-review ul {padding-left:1.3rem}.translation-review-text {white-space:pre-wrap}
+.translation-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.translation-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.translation-request-review p {margin:.4rem 0}.translation-request-review ul {padding-left:1.3rem}.translation-request-review :is(p,li) {overflow-wrap:anywhere}.translation-review-text {white-space:pre-wrap}
 .fun-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}.fun-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.fun-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.fun-request-review p {margin:.4rem 0;line-height:1.5}.fun-review-prompt {white-space:pre-wrap}
 .review-prompt {min-width:0;max-width:100%;overflow-wrap:anywhere}.review-prompt .fun-review-prompt {white-space:pre-wrap;overflow-wrap:anywhere}
 .generation-review-text {max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -390,11 +390,14 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .embedded-page-title {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .translation-standalone {width:min(100% - 2rem,56rem);margin:1.5rem auto;display:grid;gap:.8rem}
 .translation-standalone > h1 {font-size:1.5rem}
+.translation-page > fieldset {min-width:0}
 .translation-standalone > fieldset {min-width:0;padding:1rem;border:1px solid var(--line);border-radius:.75rem}
-.translation-standalone > fieldset > label {display:grid;gap:.35rem;margin:.75rem 0}
-.translation-standalone > fieldset > label :is(textarea,select) {width:100%;min-width:0}
-.translation-standalone > fieldset > label textarea {min-height:5rem;resize:vertical}
-.translation-standalone > fieldset > label select {font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.translation-page .translation-input {min-width:0}
+.translation-page .translation-input > label {display:grid;gap:.35rem;margin:.75rem 0;min-width:0}
+.translation-page .translation-input > label :is(textarea,select) {box-sizing:border-box;width:100%;min-width:0;max-width:100%}
+.translation-page .translation-input > label textarea {min-height:5rem;resize:vertical}
+.translation-page .translation-input > label select {font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.translation-evidence :is(h3,p) {overflow-wrap:anywhere}
 .effect-editor-page {width:min(100% - 2rem,90rem);margin:1.5rem auto;gap:.8rem}
 .effect-editor-page > h1 {flex:none;font-size:1.5rem}
 .effect-editor-picker {min-width:0;padding:1rem;border:1px solid var(--line);border-radius:.75rem}
@@ -563,6 +566,9 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .writer-result pre {max-width:100%;max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 .writer-result pre:focus-visible {outline:2px solid var(--accent,#a8a5f4);outline-offset:2px}
 .translation-check-table {max-width:100%;min-width:0}
+.translation-result {min-width:0}
+.translation-result > label {display:grid;gap:.35rem;margin:.75rem 0;min-width:0}
+.translation-result textarea {box-sizing:border-box;width:100%;min-width:0;max-width:100%;min-height:6rem;resize:vertical}
 .translation-check-table table {min-width:34rem}
 .source-history-list .session-job-heading > .job-identifier {flex:1 1 auto;min-width:0;padding:0;border:0}
 .source-history-recorded-status {display:grid;gap:.15rem;flex:none;text-align:right}
