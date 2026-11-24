@@ -401,6 +401,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .effect-editor-picker select {width:min(100%,24rem);font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem;margin:.2rem .4rem .2rem 0}
 .effect-editor-picker button {margin:.2rem .4rem .2rem 0}
 .effect-editor-page :where([tabindex="-1"]):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+:is([aria-label="이펙트 변경 검토"],.effect-proposal-feedback):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .effect-alignment-form {display:block;width:100%;max-width:none;margin:.8rem 0;padding:0}
 .effect-alignment-form > fieldset {display:grid;gap:.8rem;min-width:0;padding:.8rem}
 .effect-rectangle {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));gap:.65rem;min-width:0;padding:.8rem}
@@ -566,6 +567,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .source-history-recorded-status {display:grid;gap:.15rem;flex:none;text-align:right}
 .source-history-recorded-status small {font-size:.72rem}
 .audio-generator-page form > fieldset {width:100%;min-width:0}
+.audio-generator-page :where([tabindex="-1"]):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .audio-generator-page > .audio-history-controls {min-width:0;margin:0;padding:0;border:0}
 .audio-standalone {width:min(100% - 2rem,56rem);margin:1.5rem auto;gap:.8rem}
 .audio-standalone > h1 {flex:none;font-size:1.5rem}

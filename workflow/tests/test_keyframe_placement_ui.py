@@ -8,6 +8,35 @@ import unittest
 
 
 class KeyframePlacementUiTests(unittest.TestCase):
+    def test_loading_and_placement_reasons_are_connected_to_actions(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'keyframe.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'KeyframeCatalog.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),Actions=require(process.argv[1]).KeyframeActions;
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Actions,{row:{id:'key',tag:'pose'},selected:'',loading:true,loadingReasonId:'loading',disabled:true,disabledReasonId:'limit',choose:()=>{},add:()=>{},onPreview:()=>{}})));"""
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertEqual(markup.count('disabled=""'),3)
+        self.assertEqual(markup.count('aria-describedby="loading"'),2)
+        self.assertIn('aria-describedby="limit loading"',markup)
+
+    def test_pagination_describes_loading_and_error_on_displayed_page(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'keyframe.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'KeyframeCatalog.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),Pagination=require(process.argv[1]).KeyframePagination;
+              const page={offset:0,next_offset:20,snapshot:'s'};
+              for(const props of [{loading:true,error:''},{loading:false,error:'failed'}]) console.log(server.renderToStaticMarkup(React.createElement(Pagination,{page,reasonId:'hint',...props})));"""
+            lines=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')}).splitlines()
+        self.assertIn('목록 조회가 끝나면',lines[0])
+        self.assertIn('목록을 다시 조회한 뒤',lines[1])
+        for markup in lines:
+            self.assertIn('aria-describedby="hint"',markup)
+            self.assertIn('disabled=""',markup)
+            self.assertNotIn('이전 키프레임',markup)
+            self.assertIn('다음 키프레임',markup)
+
     def test_maximum_placement_reason_is_visible(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:

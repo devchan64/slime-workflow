@@ -11,7 +11,7 @@ export default function CapabilitySearch({search, choose}) {
   const [loading,setLoading] = useState(true), [receivedAt,setReceivedAt] = useState(null);
   const [revision, refresh] = useState(0);
   const [pagination,setPagination] = useState({query:"",page:0});
-  const headingRef=useRef(null),focusPage=useRef(false),refreshRef=useRef(null),restoreFocus=useRef(false);
+  const headingRef=useRef(null),focusPage=useRef(null),refreshRef=useRef(null),restoreFocus=useRef(false),refreshPending=useRef(true);
   useEffect(()=>{if(!loading && restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body)refreshRef.current?.focus();}},[loading]);
   useEffect(() => {
     const controller = new AbortController();
@@ -28,8 +28,8 @@ export default function CapabilitySearch({search, choose}) {
         if (!validCapabilityCatalog(record)) throw new Error("관리 기능 목록 형식을 확인할 수 없습니다.");
         if (!controller.signal.aborted) {setCatalog(record);setReceivedAt(new Date());}
       } catch (problem) {
-        if (active && (timedOut || !controller.signal.aborted)) setError(timedOut ? "관리 기능 조회 시간이 초과됐습니다. 다시 시도하세요." : problem instanceof TypeError ? "관리 기능에 연결하지 못했습니다. 다시 시도하세요." : problem.message);
-      } finally {clearTimeout(timer);if (active) setLoading(false);}
+        if (active && (timedOut || !controller.signal.aborted)) setError(timedOut ? "관리 기능 조회 시간이 초과됐습니다. 다시 시도하세요." : problem instanceof TypeError ? "관리 기능에 연결하지 못했습니다. 다시 시도하세요." : problem?.message || "관리 기능을 조회하지 못했습니다. 다시 시도하세요.");
+      } finally {clearTimeout(timer);if (active) {refreshPending.current=false;setLoading(false);}}
     }
     load();
     return () => {active=false;clearTimeout(timer);controller.abort();};
@@ -41,10 +41,14 @@ export default function CapabilitySearch({search, choose}) {
   const pageCount=Math.max(1,Math.ceil(rows.length/20));
   const safePage=Math.min(currentPage,pageCount-1);
   const visibleRows=rows.slice(safePage*20,(safePage+1)*20);
-  useEffect(()=>{if(focusPage.current){focusPage.current=false;headingRef.current?.focus({preventScroll:true});headingRef.current?.scrollIntoView({block:"start",inline:"nearest"});}},[safePage]);
-  function changePage(next){focusPage.current=true;setPagination({query,page:next});}
+  useEffect(()=>{const origin=focusPage.current;focusPage.current=null;if(origin && (document.activeElement===document.body || document.activeElement===origin)){headingRef.current?.focus({preventScroll:true});headingRef.current?.scrollIntoView({block:"start",inline:"nearest"});}},[safePage]);
+  function changePage(event,next){focusPage.current=document.activeElement===event.currentTarget ? event.currentTarget : null;setPagination({query,page:next});}
+  function refreshCatalog(event){
+    if(refreshPending.current)return;
+    refreshPending.current=true;restoreFocus.current=document.activeElement===event.currentTarget;setLoading(true);refresh(value=>value+1);
+  }
   return <section aria-label="관리 기능 검색 결과">
-    <button ref={refreshRef} disabled={loading} onClick={() => {restoreFocus.current=true;setLoading(true);refresh(value => value + 1);}}>{loading?"조회 중…":"관리 기능 새로고침"}</button>
+    <button ref={refreshRef} type="button" disabled={loading} onClick={refreshCatalog}>{loading?"조회 중…":"관리 기능 새로고침"}</button>
     {error && <p role="alert">{error}{catalog && " · 이전 조회 결과를 유지합니다."}</p>}
     {loading && catalog && <p role="status">관리 기능을 다시 조회하고 있습니다.</p>}
     {catalog ? <>
@@ -60,8 +64,8 @@ export default function CapabilitySearch({search, choose}) {
           )}
         </dl></details>
       </li>)}</ul>
-      {safePage>0 && <button type="button" onClick={()=>changePage(safePage-1)}>이전 기능</button>}
-      {safePage+1<pageCount && <button type="button" onClick={()=>changePage(safePage+1)}>다음 기능</button>}
+      {safePage>0 && <button type="button" onClick={event=>changePage(event,safePage-1)}>이전 기능</button>}
+      {safePage+1<pageCount && <button type="button" onClick={event=>changePage(event,safePage+1)}>다음 기능</button>}
     </> : !error && <p role="status">관리 기능 조회 중…</p>}
   </section>;
 }

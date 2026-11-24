@@ -12,6 +12,11 @@ import {validEffectSaveResponse,effectSaveNotice,effectSaveFailure} from "./effe
 
 import {drawAlignment} from "./drawAlignment.js";
 
+export function PreviewError({error,retryButton,onRetry}){
+  if(!error)return null;
+  return <div><p role="alert">{error} 문제가 계속되면 편집을 저장하거나 취소한 뒤 이펙트 상세를 다시 불러오세요.</p><button ref={retryButton} type="button" onClick={onRetry}>미리보기 다시 불러오기</button></div>;
+}
+
 export function AlignmentPreview({detail,values}){
   const canvas=useRef(null),retryButton=useRef(null),restoreFocus=useRef(false);
   const frameHelpId=useId();
@@ -26,7 +31,7 @@ export function AlignmentPreview({detail,values}){
     setError("");setLoading(true);setStatus("정렬 미리보기를 불러오는 중입니다.");
     untilAborted(drawAlignment(element,detail,values,play,frame,host,guides),controller.signal)
       .then(message=>{if(active)setStatus(message);})
-      .catch(problem=>{if(active){setStatus("");setError(timedOut ? "정렬 미리보기 조회 시간이 초과됐습니다." : problem.message || "정렬 미리보기를 불러오지 못했습니다.");}})
+      .catch(problem=>{if(active){setStatus("");setError(timedOut ? "정렬 미리보기 조회 시간이 초과됐습니다." : problem?.message || "정렬 미리보기를 불러오지 못했습니다.");}})
       .finally(()=>{clearTimeout(timeout);if(active)setLoading(false);});
     return ()=>{active=false;clearTimeout(timeout);controller.abort();element.effectPreviewRevision++;};
   },[detail,values,play,frame,host,guides,revision]);
@@ -39,7 +44,7 @@ export function AlignmentPreview({detail,values}){
     <label><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>영역 가이드</label>
     <canvas ref={canvas} tabIndex={-1} width="640" height="640" style={{width:"100%",maxWidth:640}} aria-label="정렬 미리보기"/>
     <p role="status">{status}</p>
-    {error && <div role="alert"><p>{error}</p><button ref={retryButton} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryButton.current;retry(value=>value+1);}}>미리보기 다시 불러오기</button></div>}
+    <PreviewError error={error} retryButton={retryButton} onRetry={()=>{restoreFocus.current=document.activeElement===retryButton.current;retry(value=>value+1);}}/>
   </fieldset>;
 }
 
@@ -101,7 +106,7 @@ export function WaypointPreview({detail}){
     <label><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>영역과 앵커 표시</label>
     <canvas ref={canvas} tabIndex={-1} width="640" height="640" style={{width:"100%",maxWidth:640}} aria-label="웨이포인트 애니메이션"/>
     {loading && <p role="status">웨이포인트 시트를 불러오는 중입니다.</p>}
-    {error && <div role="alert"><p>{error}</p><button ref={retryButton} type="button" onClick={()=>{restoreFocus.current=document.activeElement===retryButton.current;retry(value=>value+1);}}>미리보기 다시 불러오기</button></div>}
+    <PreviewError error={error} retryButton={retryButton} onRetry={()=>{restoreFocus.current=document.activeElement===retryButton.current;retry(value=>value+1);}}/>
   </fieldset>;
 }
 
@@ -109,8 +114,8 @@ export function WaypointReplacement({detail,onSaved,onDirtyChange,onBusyChange})
   const [source,setSource]=useState(JSON.stringify(detail.document,null,2));
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const [jsonError,setJsonError]=useState(false),helpId=useId(),errorId=useId();
-  const previewRequest=useRef(null),submitting=useRef(false),details=useRef(null),reviewButton=useRef(null),confirmButton=useRef(null),reviewHeading=useRef(null),errorRef=useRef(null),restoreFocus=useRef(false);
-  useEffect(()=>()=>previewRequest.current?.abort(),[]);
+  const previewRequest=useRef(null),sourceRevision=useRef(0),submitting=useRef(false),details=useRef(null),reviewButton=useRef(null),confirmButton=useRef(null),reviewHeading=useRef(null),errorRef=useRef(null),restoreFocus=useRef(false);
+  useEffect(()=>()=>{const request=previewRequest.current;previewRequest.current=null;request?.abort();},[]);
   useEffect(()=>{onDirtyChange(source!==JSON.stringify(detail.document,null,2));},[source,detail,onDirtyChange]);
   useEffect(()=>{onBusyChange(busy);},[busy,onBusyChange]);
   useEffect(()=>{
@@ -121,17 +126,19 @@ export function WaypointReplacement({detail,onSaved,onDirtyChange,onBusyChange})
   async function review(){
     if(busy || previewRequest.current)return;
     restoreFocus.current=document.activeElement===reviewButton.current;
-    const controller=new AbortController();previewRequest.current=controller;let timedOut=false,parsed=false;
+    const controller=new AbortController(),revisionAtStart=sourceRevision.current;previewRequest.current=controller;let timedOut=false,parsed=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setError("");setJsonError(false);setBusy(true);setPending(null);
     try{
       const draft={id:detail.document.id,revision:detail.revision,effect:JSON.parse(source)};
       parsed=true;
       const result=await untilAborted(managementCommand("hermes-agent","hermes-waypoint-preview",{draft},{signal:controller.signal}),controller.signal);
+      if(previewRequest.current!==controller)return;
+      if(sourceRevision.current!==revisionAtStart)throw new Error("검토 중 입력이 변경되었습니다. 다시 확인하세요.");
       if(!/^[a-f0-9]{64}$/.test(result?.review_sha256 || "") || result.after?.id!==draft.effect.id || [result.after?.image,result.after?.animation,result.note].some(value=>typeof value!=="string"))throw new Error("교체 검토 결과를 확인할 수 없습니다.");
       setPending({draft,result,requestId:crypto.randomUUID()});
-    }catch(problem){if(!controller.signal.aborted || timedOut){const invalidJson=!timedOut && !parsed && problem instanceof SyntaxError;setJsonError(invalidJson);setError(timedOut ? "교체 검토 시간이 초과됐습니다. 다시 시도하세요." : invalidJson?"새 이펙트 JSON 형식을 확인하세요.":requestErrorMessage(problem));}}
-    finally{clearTimeout(timeout);if(previewRequest.current===controller)previewRequest.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
+    }catch(problem){if(previewRequest.current===controller && (!controller.signal.aborted || timedOut)){const invalidJson=!timedOut && !parsed && problem instanceof SyntaxError;setJsonError(invalidJson);setError(timedOut ? "교체 검토 시간이 초과됐습니다. 다시 시도하세요." : invalidJson?"새 이펙트 JSON 형식을 확인하세요.":requestErrorMessage(problem));}}
+    finally{clearTimeout(timeout);if(previewRequest.current===controller){previewRequest.current=null;setBusy(false);}}
   }
   async function confirm(){
     if(submitting.current || busy || !pending)return;
@@ -148,13 +155,13 @@ export function WaypointReplacement({detail,onSaved,onDirtyChange,onBusyChange})
     finally{submitting.current=false;setBusy(false);}
   }
   return <details ref={details} className="effect-waypoint-replacement" onToggle={event=>{if(!event.currentTarget.open)restoreFocus.current=false;}}><summary>웨이포인트 이펙트 교체</summary><fieldset disabled={busy}>
-    <label>새 이펙트 JSON<textarea rows={10} value={source} aria-invalid={jsonError || undefined} aria-describedby={[helpId,jsonError ? errorId : null].filter(Boolean).join(" ")} onChange={e=>{setSource(e.target.value);setPending(null);setError("");setJsonError(false);}}/></label>
+    <label>새 이펙트 JSON<textarea rows={10} value={source} aria-invalid={jsonError || undefined} aria-describedby={[helpId,jsonError ? errorId : null].filter(Boolean).join(" ")} onChange={e=>{sourceRevision.current++;setSource(e.target.value);setPending(null);setError("");setJsonError(false);}}/></label>
     <p id={helpId}>JSON 형식으로 편집한 뒤 교체 내용을 확인하세요.</p>
     <button ref={reviewButton} type="button" onClick={review}>교체 내용 확인</button>
     {pending && <section><h3 ref={reviewHeading} tabIndex={-1}>{detail.document.id} → {pending.result.after.id}</h3>
       <p>이미지 · {pending.result.after.image}</p><p>애니메이션 · {pending.result.after.animation}</p>
       <p>{pending.result.note}</p><button ref={confirmButton} type="button" onClick={confirm}>확인 후 교체</button>
-      <button type="button" onClick={event=>{const focused=event.currentTarget;setPending(null);requestAnimationFrame(()=>{if(details.current?.open && (document.activeElement===document.body || document.activeElement===focused))reviewButton.current?.focus();});}}>취소</button></section>}
+      <button type="button" onClick={event=>{const restore=document.activeElement===event.currentTarget;setPending(null);if(restore)requestAnimationFrame(()=>{if(details.current?.open)restoreLostFocus(document,reviewButton.current);});}}>취소</button></section>}
     {error && <p ref={errorRef} tabIndex={-1} id={jsonError ? errorId : undefined} role="alert">{error}</p>}
   </fieldset>{busy && <p role="status">웨이포인트 요청을 처리하고 있습니다.</p>}</details>;
 }
@@ -203,12 +210,13 @@ export function Alignment({detail,onDirtyChange,onBusyChange}){
 }
 
 export default function EffectEditor(){
+  const dirtyHelpId=useId(),selectionHelpId=useId();
   const [notice,setNotice]=useState("");
   const [effects,setEffects]=useState([]),[selected,select]=useState(""),[detail,setDetail]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[revision,reload]=useState(0);
   const [detailLoading,setDetailLoading]=useState(false);
   const [dirty,setDirty]=useState(false),[editorBusy,setEditorBusy]=useState(false),[editorVersion,setEditorVersion]=useState(0);
-  const detailRequest=useRef(null),selectRef=useRef(null),reloadRef=useRef(null),loadRef=useRef(null),detailHeading=useRef(null),errorRef=useRef(null),restorePickerFocus=useRef("");
+  const detailRequest=useRef(null),listPending=useRef(true),selectRef=useRef(null),reloadRef=useRef(null),loadRef=useRef(null),detailHeading=useRef(null),errorRef=useRef(null),restorePickerFocus=useRef("");
   useEffect(()=>{
     if(busy || !restorePickerFocus.current)return;
     const target=restorePickerFocus.current;restorePickerFocus.current="";
@@ -218,15 +226,15 @@ export default function EffectEditor(){
   useEffect(()=>()=>{const request=detailRequest.current;detailRequest.current=null;request?.abort();},[]);
   useEffect(()=>{
     let active=true;const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
-    setBusy(true);setError("");
+    listPending.current=true;setBusy(true);setError("");
     untilAborted(managementCommand("map-assets","effect-list",{},{signal:controller.signal}),controller.signal).then(result=>{
       if(!validEffectList(result))throw new Error("이펙트 목록 응답을 확인할 수 없습니다.");
       if(active){setEffects(result.effects);select(old=>old || result.effects[0]?.id || "");}
-    }).catch(problem=>{if(active)setError(problem?.name==="AbortError" ? "이펙트 목록 조회 시간이 초과됐습니다. 목록을 새로고침하세요." : problem instanceof TypeError ? "이펙트 목록 서버에 연결하지 못했습니다. 목록을 새로고침하세요." : problem.message);}).finally(()=>{clearTimeout(timeout);if(active)setBusy(false);});
+    }).catch(problem=>{if(active)setError(problem?.name==="AbortError" ? "이펙트 목록 조회 시간이 초과됐습니다. 목록을 새로고침하세요." : problem instanceof TypeError ? "이펙트 목록 서버에 연결하지 못했습니다. 목록을 새로고침하세요." : problem?.message || "이펙트 목록을 불러오지 못했습니다. 목록을 새로고침하세요.");}).finally(()=>{clearTimeout(timeout);if(active){listPending.current=false;setBusy(false);}});
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[revision]);
   async function load(){
-    if(busy || editorBusy || dirty || detailRequest.current || !effects.some(item=>item.id===selected))return;
+    if(busy || listPending.current || editorBusy || dirty || detailRequest.current || !effects.some(item=>item.id===selected))return;
     if(document.activeElement===loadRef.current)restorePickerFocus.current="detail";
     setBusy(true);setDetailLoading(true);setError("");
     const controller=new AbortController();detailRequest.current=controller;
@@ -235,22 +243,22 @@ export default function EffectEditor(){
       const result=await untilAborted(managementCommand("map-assets","effect-load",{id:selected},{signal:controller.signal}),controller.signal);
       if(!validEffectDetail(result,selected))throw new Error("선택한 이펙트의 상세 응답을 확인할 수 없습니다.");
       if(detailRequest.current===controller){setDetail(result);setEditorVersion(value=>value+1);}
-    }catch(problem){if(detailRequest.current===controller)setError(problem?.name==="AbortError" ? "이펙트 조회 시간이 초과됐습니다. 다시 불러오세요." : problem instanceof TypeError ? "이펙트 서버에 연결하지 못했습니다. 다시 불러오세요." : problem.message);}
+    }catch(problem){if(detailRequest.current===controller)setError(problem?.name==="AbortError" ? "이펙트 조회 시간이 초과됐습니다. 다시 불러오세요." : problem instanceof TypeError ? "이펙트 서버에 연결하지 못했습니다. 다시 불러오세요." : problem?.message || "이펙트 상세를 불러오지 못했습니다. 다시 불러오세요.");}
     finally{clearTimeout(timeout);if(detailRequest.current===controller){detailRequest.current=null;setDetailLoading(false);setBusy(false);}}
   }
   return <article className="effect-editor-page"><h1>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy || editorBusy}><legend>이펙트 선택</legend>
-    <select ref={selectRef} aria-label="이펙트" disabled={dirty} value={selected} onChange={e=>{select(e.target.value);setDetail(null);}}>
+    <select ref={selectRef} aria-label="이펙트" aria-describedby={dirty ? dirtyHelpId : undefined} disabled={dirty} value={selected} onChange={e=>{select(e.target.value);setDetail(null);}}>
       {selected && !effects.some(item=>item.id===selected) && <option value={selected}>{selected} · 현재 목록에 없음</option>}
       {!effects.length && <option value="">{busy ? "목록 조회 중…" : error ? "이펙트 목록 조회 실패" : "선택할 이펙트가 없습니다"}</option>}
       {effects.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select>
-    <button ref={reloadRef} type="button" onClick={()=>{if(document.activeElement===reloadRef.current)restorePickerFocus.current="list";reload(n=>n+1);}}>목록 새로고침</button><button ref={loadRef} type="button" disabled={dirty || !effects.some(item=>item.id===selected)} onClick={load}>선택 이펙트 불러오기</button></fieldset>
+    <button ref={reloadRef} type="button" onClick={()=>{if(listPending.current || detailRequest.current || busy || editorBusy)return;listPending.current=true;setBusy(true);if(document.activeElement===reloadRef.current)restorePickerFocus.current="list";reload(n=>n+1);}}>목록 새로고침</button><button ref={loadRef} type="button" disabled={dirty || !effects.some(item=>item.id===selected)} aria-describedby={dirty ? dirtyHelpId : !effects.some(item=>item.id===selected) ? selectionHelpId : undefined} onClick={load}>선택 이펙트 불러오기</button>{!dirty && !effects.some(item=>item.id===selected) && <p id={selectionHelpId}>목록을 불러온 뒤 이펙트를 선택하세요.</p>}</fieldset>
     {busy && <p role="status">{detailLoading ? "이펙트 상세를 불러오는 중입니다." : "이펙트 목록을 불러오는 중입니다."}</p>}
     {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
     {error && effects.length>0 && <p role="status">이전 조회의 목록{detail ? "과 열려 있는 상세를" : "을"} 유지합니다.</p>}
     {selected && !busy && !error && !effects.some(item=>item.id===selected) && <p role="status">선택한 이펙트가 현재 목록에 없습니다. 다른 이펙트를 선택할 수 있습니다.</p>}
     {notice && <p role="status">{notice}</p>}
     {detailLoading && detail && <p role="status">상세를 다시 읽는 중입니다. 아래는 마지막 조회 결과입니다.</p>}
-    {dirty && <p role="status">저장하지 않은 편집이 있습니다. 다른 이펙트를 선택하려면 저장하거나 편집을 취소하세요. <button type="button" disabled={editorBusy} onClick={()=>{setDirty(false);setEditorVersion(n=>n+1);}}>편집 취소</button></p>}
+    {dirty && <p id={dirtyHelpId} role="status">저장하지 않은 편집이 있습니다. 다른 이펙트를 선택하려면 저장하거나 편집을 취소하세요. <button type="button" disabled={editorBusy} onClick={event=>{if(document.activeElement===event.currentTarget)restorePickerFocus.current="list";setDirty(false);setEditorVersion(n=>n+1);}}>편집 취소</button></p>}
     {detail && <section><h2 ref={detailHeading} tabIndex={-1}>{detail.document.name}</h2><p>{detail.document.renderer} · {detail.document.frames}프레임</p><fieldset disabled={detailLoading} style={{border:0,padding:0,margin:0}} aria-label="이펙트 상세와 편집">
       <RecoverableImage src={detail.sheetImage} name="이펙트 시트" maxHeight="none"/>
       {detail.hostImage && <RecoverableImage src={detail.hostImage} name="빌보드" maxHeight="none"/>}
