@@ -1027,4 +1027,4 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .assistant-markdown .chat-result-thumbnail { display: block; width: auto; max-width: min(100%, 240px); max-height: 180px; margin: 0.4rem 0; object-fit: contain; }
 
 /* 아이콘 크기와 별개로 복사 버튼의 터치 영역을 유지한다. */
-.clipboard-copy-button { min-width: 44px; min-height: 44px; }
+.clipboard-copy-button { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
