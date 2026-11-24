@@ -120,7 +120,7 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
       <div className="generator-input-group"><h2>입력 자료</h2><p className="generator-group-help">움직일 캐릭터와 동작의 원본 영상을 선택하세요.</p>
       {saved && <div className="generator-source-job"><span>불러온 원본 작업</span> <JobIdentifier id={saved.id} compact/></div>}
       <div className="generator-attachments">
-      <ReferenceImageInput label="캐릭터 참조 PNG · 필수 · 832×480" source={reference} onSelectionStart={onSelectionStart} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);checkingCallback.current?.(value || videoChecking.current);}} onChange={value=>{onSelectionStart?.();setReference(value);}} accept="image/png" maxBytes={8*1024*1024}/>
+      <ReferenceImageInput label="캐릭터 참조 PNG · 필수 · 832×480" source={reference} disabled={busy || Boolean(pending)} onSelectionStart={onSelectionStart} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);checkingCallback.current?.(value || videoChecking.current);}} onChange={value=>{onSelectionStart?.();setReference(value);}} accept="image/png" maxBytes={8*1024*1024}/>
       <div className="generator-video-input"><span>동작 영상 · 필수</span><small id={videoHelpId}>MP4 · 최대 32MiB · 16fps로 샘플링</small>
         {saved && !motionFile && <div><video key={saved.motion} aria-label="저장된 동작 영상" controls preload="metadata" hidden={motionError} src={saved.motion} onError={()=>setMotionError(true)}/>
           {motionError && <p role="status">이 브라우저에서 저장된 동작 영상을 재생할 수 없습니다. 원본 파일을 열어 확인하세요.</p>}

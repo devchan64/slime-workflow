@@ -125,7 +125,8 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
   const [revision,refresh]=useState(0),[mediaRevision,retryMedia]=useState(0),[loading,setLoading]=useState(true);
   const [imageError,setImageError]=useState(false);
   const [videoError,setVideoError]=useState(false);
-  const videoRef=useRef(null),videoRetryRef=useRef(null);
+  const videoRef=useRef(null),videoRetryRef=useRef(null),restoreVideoFocus=useRef(false);
+  useEffect(()=>{if(restoreVideoFocus.current){restoreVideoFocus.current=false;if(document.activeElement===document.body)(videoError ? videoRetryRef : videoRef).current?.focus();}},[videoError,mediaRevision]);
   const imageRef=useRef(null),imageRetryRef=useRef(null),restoreImageFocus=useRef(false);
   useEffect(()=>{if(restoreImageFocus.current){restoreImageFocus.current=false;if(document.activeElement===document.body)(imageError ? imageRetryRef : imageRef).current?.focus();}},[imageError,mediaRevision]);
   useEffect(()=>setImageError(false),[service,id,kind,mediaRevision,job?.image]);
@@ -199,8 +200,7 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
       {kind==="video" && job.result_status==="available" && <>
         {service==="dwpose" ? renderResultImage("DWPose 추출 결과","media-result-image") :
           <>
-            <video ref={videoRef} key={mediaRevision} aria-label="생성 결과 영상" controls loop playsInline preload="metadata" src={imageRetryUrl(job.video,mediaRevision)} poster={job.image} style={{maxWidth:"100%"}} onError={event=>{if(event.currentTarget===videoRef.current)setVideoError(true);}}/>
-            {videoError && <div><p role="alert">결과 영상을 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={videoRetryRef} type="button" onClick={()=>{const focused=document.activeElement===videoRetryRef.current;setVideoError(false);retryMedia(value=>value+1);if(focused)requestAnimationFrame(()=>{if(document.activeElement===document.body)videoRef.current?.focus();});}}>영상 다시 불러오기</button></div>}
+            {videoError ? <div><p role="alert">결과 영상을 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={videoRetryRef} type="button" onClick={()=>{restoreVideoFocus.current=document.activeElement===videoRetryRef.current;setVideoError(false);retryMedia(value=>value+1);}}>영상 다시 불러오기</button></div> : <video ref={videoRef} key={mediaRevision} aria-label="생성 결과 영상" controls loop playsInline preload="metadata" src={imageRetryUrl(job.video,mediaRevision)} poster={job.image} style={{maxWidth:"100%"}} onError={event=>{if(event.currentTarget!==videoRef.current)return;restoreVideoFocus.current=document.activeElement===videoRef.current;setVideoError(true);}}/>}
             <a className="media-result-link" href={job.video} target="_blank" rel="noopener noreferrer">MP4 열기</a>
             {directFolder && <RecordFolder key={service+"/"+id} service={service} id={id} direct/>}
           </>}

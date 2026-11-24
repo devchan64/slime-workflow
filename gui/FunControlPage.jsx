@@ -268,7 +268,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
         {template?.examples.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         <button type="button" disabled={!selected} onClick={()=>load()}>선택한 예제로 입력 교체</button></details>
     </fieldset>
-      <FunControlFields request={request} setRequest={setRequest} attach={attach} onImageSelectionStart={()=>{attachmentRevision.current++;}} onImageCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} removePose={()=>{setRequest(current=>({...current,pose_video:""}));setVideoInfo(null);setError(current=>current===poseError?"":current);setPoseError("");}} videoInfo={videoInfo} frameLimit={frameLimit} template={template} sourceSeed={sourceSeed} busy={busy || !!pending}/>
+      <FunControlFields request={request} setRequest={setRequest} attach={attach} onImageSelectionStart={()=>{attachmentRevision.current++;}} onImageCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} removePose={()=>{setRequest(current=>({...current,pose_video:""}));setVideoInfo(null);setError(current=>current===poseError?"":current);setPoseError("");}} videoInfo={videoInfo} frameLimit={frameLimit} template={template} sourceSeed={sourceSeed} busy={busy || !!pending || Boolean(handoffId)}/>
       {embedded && <button type="button" onClick={saveDraft}>폼을 대화에 저장</button>}
       <ActionButton type="submit" reasons={[
         imageCheckPending && "선택한 이미지 확인이 끝날 때까지 기다리세요.",

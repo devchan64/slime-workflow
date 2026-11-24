@@ -6,7 +6,10 @@ export function observeTableOverflow(container,table,onChange,{window,Observer})
   observer?.observe(container);
   if(table)observer?.observe(table);
   window.addEventListener("resize",update);
-  return ()=>{active=false;observer?.disconnect();window.removeEventListener("resize",update);};
+  container.addEventListener("load",update,true);
+  const fonts=container.ownerDocument?.fonts;
+  fonts?.addEventListener?.("loadingdone",update);
+  return ()=>{active=false;observer?.disconnect();window.removeEventListener("resize",update);container.removeEventListener("load",update,true);fonts?.removeEventListener?.("loadingdone",update);};
 }
 
 export function scrollTableOnArrow(event) {

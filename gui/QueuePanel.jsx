@@ -119,7 +119,7 @@ export default function QueuePanel({session, call, editNextStep, openMessage, ch
     </section>}
     {(selectedRun || selectedDirect) && <div ref={detail} tabIndex={-1} aria-label="선택한 작업 결과">
       {selectedRun && <WorkflowResults editNextStep={editNextStep} key={selectedRun} session={session} run={selectedRun} openRun={setSelectedRun} call={call} close={closeResult}/>}
-      {selectedDirect && <section aria-label="직접 접수 결과"><button type="button" onClick={closeResult}>결과 닫기</button>{selectedDirect.kind==='writer' ? <WriterResult key={selectedDirect.id} id={selectedDirect.id} onDeleted={()=>{setSelectedDirect("");refresh(value=>value+1);}}/> : <MediaJobResult key={selectedDirect.service+selectedDirect.id} service={selectedDirect.service} id={selectedDirect.id} kind={selectedDirect.kind} folderLink/>}</section>}
+      {selectedDirect && <section aria-label="직접 접수 결과"><button type="button" onClick={closeResult}>결과 닫기</button>{selectedDirect.kind==='writer' ? <WriterResult key={selectedDirect.id} id={selectedDirect.id} onDeleted={(_id,{restoreFocus}={})=>{setSelectedDirect("");refresh(value=>value+1);if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body)listHeading.current?.focus();});}}/> : <MediaJobResult key={selectedDirect.service+selectedDirect.id} service={selectedDirect.service} id={selectedDirect.id} kind={selectedDirect.kind} folderLink/>}</section>}
     </div>}
     <RecentGeneratorJobs session={session} filters={filters} filterSummary={filterSummary} revision={revision} choose={choose}/>
   </section>;
