@@ -504,6 +504,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .history-action-result {order:1}.history-action-input {order:2}.history-action-resume {order:3}.history-action-priority {order:4}.history-action-stop {order:5}.history-action-delete {order:6}
 .generator-history-selection .history-action-detail {grid-column:1/-1;order:10;min-width:0}
 .generator-history-selection .history-action-detail:empty {display:none}
+.queue-priority-notice {overflow-wrap:anywhere}
+.queue-priority-notice:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
 .saved-generator-inputs,.saved-generator-inputs details {min-width:0;max-width:100%;overflow-wrap:anywhere;color:inherit;font-size:1rem;line-height:1.5}
 .saved-generator-inputs pre {max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.9rem;line-height:1.5}
 .saved-generator-inputs:focus,.saved-generator-inputs-error:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
@@ -660,6 +662,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 /* 관리 도구의 입력과 작업 상세를 패널 안에서 일관되게 표시합니다. */
 .fun-drawer select { font: inherit; padding: .55rem .7rem; }
 .operations-jobs { min-width: 0; }
+.operations-focus:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
 .download-progress {margin-top:.9rem;padding-top:.9rem;border-top:1px solid var(--line,#484d50)}
 .download-progress h2 {font-size:1rem;line-height:1.35;margin:0 0 .5rem}
 .download-progress :is(p,li) {font-size:.85rem;line-height:1.5}

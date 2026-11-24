@@ -7,7 +7,7 @@ if(!globalThis.crypto)globalThis.crypto=webcrypto;
 const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
 const proposal={map:'town',generation:5,revision:2,changes:[{path:['data','buildings',0,'name'],before:'old',after:'new'}]};
 const source={map:'town',generation:5,revision:2,document:{data:{buildings:[{name:'old'}]}}};
-const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_CITY_PROPOSAL'}}]};
+const page={id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_CITY_PROPOSAL'}}]};
 test('city review checks old values and preserves the loaded document',()=>{
  assert.equal(applyCityChanges(source,proposal).document.data.buildings[0].name,'new');assert.equal(source.document.data.buildings[0].name,'old');
  assert.throws(()=>applyCityChanges({...source,revision:3},proposal),/변경/);

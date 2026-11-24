@@ -23,7 +23,7 @@ test('building history does not attribute a receipt to a different target',()=>{
 test('session history checks the target and revalidates the snapshot',async()=>{
   const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='a'.repeat(64);
   const id=await buildingProposalRequestId(session,job);
-  const view={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BUILDING_PROPOSAL'}}]};
+  const view={id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BUILDING_PROPOSAL'}}]};
   let returned={request_id:id,state:'completed',saved:true,texture:'town-test-v1'},views=0;
   const command=async(_service,name)=>{
     if(name==='hermes-session-view'){views++;return view;}
@@ -41,6 +41,15 @@ test('session history checks the target and revalidates the snapshot',async()=>{
     return command(service,name,payload);
   },session));
 });
+test('session receipt pages reject malformed or changed next positions',async()=>{
+  const session='a'.repeat(32),snapshot='b'.repeat(64),page={id:session,offset:0,snapshot,messages:[{}],next_offset:1};
+  for(const invalid of [{...page,next_offset:0},{...page,next_offset:2},{...page,next_offset:'1'},{...page,next_offset:undefined},{...page,messages:Array(7).fill({}),next_offset:7},{...page,messages:[null]}]){
+    await assert.rejects(readBuildingSessionReceipts(async()=>invalid,session),/페이지를 확인/);
+  }
+  let calls=0;await assert.rejects(readBuildingSessionReceipts(async()=>++calls===1?page:{...page,next_offset:null},session),/이력이 변경/);
+  await assert.rejects(readBuildingSessionReceipts(async()=>page,session,-1),/페이지를 확인/);
+  const result=await readBuildingSessionReceipts(async()=>page,session);assert.equal(result.page.next_offset,1);
+});
 
 test('building review rechecks the current source and never saves during preview',async()=>{
   const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
@@ -48,7 +57,7 @@ test('building review rechecks the current source and never saves during preview
   let changed=false;
   const command=async(_service,name)=>{
     calls.push(name);
-    if(name==='hermes-session-view')return {id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BUILDING_PROPOSAL'}}]};
+    if(name==='hermes-session-view')return {id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BUILDING_PROPOSAL'}}]};
     if(name==='hermes-building-proposal')return {job_id:job,proposal:draft};
     if(name==='hermes-building-receipt')return {state:'not_found'};
     if(name==='hermes-building-preview'){if(changed)throw Error('건물 원본 변경');return preview;}

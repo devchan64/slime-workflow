@@ -4,8 +4,21 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
+import {startImageLoadDeadline} from '../../gui/imageLoadDeadline.mjs';
 const source=readFileSync(new URL('../../gui/WorldMap.jsx',import.meta.url),'utf8');
 const start=source.indexOf('  useEffect(()=>{\n    document.title="월드맵 검수";'),end=source.indexOf('  },[revision]);',start)+'  },[revision]);'.length,effect=source.slice(start,end);
+test('월드맵 썸네일 지연은 대체 표시로 전환하고 로드와 종료는 제한 시간을 정리한다',()=>{
+ const begin=source.indexOf('  useEffect(()=>{\n    if(loaded || failed)return;'),end=source.indexOf('  },[loaded,failed]);',begin)+'  },[loaded,failed]);'.length;
+ assert.ok(begin>=0 && end>begin);const markerEffect=source.slice(begin,end);
+ let timeout,failed=false,cleanup,cleared=0;
+ const timers={setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>cleared++};
+ const c=vm.createContext({loaded:false,failed:false,cancelDeadline:{current:null},setFailed:value=>failed=value,useEffect:fn=>cleanup=fn(),startImageLoadDeadline:fn=>startImageLoadDeadline(fn,timers)});
+ vm.runInContext(markerEffect,c);timeout();assert.equal(failed,true);cleanup();assert.equal(c.cancelDeadline.current,null);
+ failed=false;vm.runInContext(markerEffect,c);c.cancelDeadline.current();timeout();assert.equal(failed,false);cleanup();assert.ok(cleared>=2);
+ c.loaded=true;cleanup='unset';vm.runInContext(markerEffect,c);assert.equal(cleanup,undefined);
+ assert.match(source,/onLoad=\{\(\)=>\{cancelDeadline\.current\?\.\(\);setLoaded\(true\);\}\}/);
+ assert.match(source,/onError=\{\(\)=>\{cancelDeadline\.current\?\.\(\);setFailed\(true\);\}\}/);
+});
 test('월드맵 요청과 본문 지연은 시간 초과 뒤 늦은 응답을 적용하지 않는다',async()=>{
  for(const stage of ['fetch','json']){
   let stop,timer,finish,error='',loading=false,updates=0,jsonCalls=0;

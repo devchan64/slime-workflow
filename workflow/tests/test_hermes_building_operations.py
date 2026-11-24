@@ -8,6 +8,30 @@ from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
 
 
 class HermesBuildingOperationsTests(unittest.TestCase):
+    def test_real_session_pages_match_receipt_pagination_contract(self):
+        import json
+        import subprocess
+        from workflow.domains.hermes_agent.service import HermesServiceManager
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        session='a'*32
+        with TemporaryDirectory() as directory:
+            root=Path(directory);sessions=HermesSessionStore(root/'sessions');sessions.create_session_record(session)
+            for index in range(8):
+                sessions.append_session_request(session,f'request_{index:08d}',f'조회용 메시지 {index}')
+            manager=HermesServiceManager(hermes_storage_root=root/'jobs',hermes_session_root=root/'sessions')
+            first=manager.execute_hermes_command('hermes-session-view',{'session_id':session,'offset':0,'limit':6})
+            second=manager.execute_hermes_command('hermes-session-view',{'session_id':session,'offset':first['next_offset'],'limit':6,'snapshot':first['snapshot']})
+            self.assertEqual(first['next_offset'],6)
+            self.assertIsNone(second['next_offset'])
+            script="""import {readBuildingSessionReceipts} from './gui/buildingProposalProtocol.mjs';
+const [first,second]=JSON.parse(process.argv[1]);
+const command=async(_,name,payload)=>{if(name!=='hermes-session-view')throw Error('unexpected command');return payload.offset===0?first:second;};
+const page1=await readBuildingSessionReceipts(command,first.id);
+const page2=await readBuildingSessionReceipts(command,first.id,page1.page.next_offset,page1.page.snapshot);
+if(page1.page.next_offset!==6 || page2.page.next_offset!==null || page1.rows.length || page2.rows.length)throw Error('pagination mismatch');"""
+            result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([first,second],ensure_ascii=False)],cwd=Path(__file__).resolve().parents[2],capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
+
     def test_real_session_and_receipt_reach_current_history_protocol(self):
         import hashlib
         import json

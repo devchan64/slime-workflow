@@ -22,13 +22,17 @@ export function JobPriority({service,id,call,verifyTarget,inline=false,disabled=
   const [review, setReview] = useState(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const previewRequest=useRef(null);
-  const triggerRef=useRef(null),reviewRef=useRef(null),restoreFocus=useRef(false);
-  useEffect(()=>()=>previewRequest.current?.abort(),[]);
+  const [uncertain,setUncertain]=useState(null);
+  const previewRequest=useRef(null),interactionPending=useRef(false);
+  const mounted=useRef(true);
+  const triggerRef=useRef(null),reviewRef=useRef(null),noticeRef=useRef(null),restoreFocus=useRef(false);
+  useEffect(()=>{mounted.current=true;return ()=>{mounted.current=false;previewRequest.current?.abort();};},[]);
   useEffect(()=>{onInteractionChange?.(busy || Boolean(review));return ()=>onInteractionChange?.(false);},[busy,review,onInteractionChange]);
-  useEffect(()=>{if(!busy && restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body || document.activeElement===triggerRef.current)(review ? reviewRef : triggerRef).current?.focus();}},[busy,review]);
-  function startPreview(){restoreFocus.current=document.activeElement===triggerRef.current;run(preview);}
-  function cancelReview(){restoreFocus.current=Boolean(reviewRef.current?.contains(document.activeElement));setReview(null);}
+  useEffect(()=>{if(!busy && restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body || document.activeElement===triggerRef.current)(review ? reviewRef : uncertain ? noticeRef : triggerRef).current?.focus();}},[busy,review,uncertain]);
+  function startPreview(){if(interactionPending.current || uncertain)return;restoreFocus.current=document.activeElement===triggerRef.current;run(preview);}
+  function cancelReview(){if(interactionPending.current)return;restoreFocus.current=Boolean(reviewRef.current?.contains(document.activeElement));setReview(null);}
+  function startSubmit(){if(interactionPending.current)return;restoreFocus.current=Boolean(reviewRef.current?.contains(document.activeElement));run(submit);}
+  function startReceiptCheck(event){if(interactionPending.current)return;restoreFocus.current=document.activeElement===event.currentTarget;run(checkReceipt);}
   async function preview() {
     const controller=new AbortController();previewRequest.current=controller;let timedOut=false;
     const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
@@ -48,7 +52,8 @@ export function JobPriority({service,id,call,verifyTarget,inline=false,disabled=
       if (!["completed","unknown"].includes(receipt.state) || receipt.request_id!==request_id ||
           receipt.service!==service || receipt.job_id!==id || receipt.ticket_revision!==ticket.ticket_revision)
         throw new Error("기존 접수 기록이 검토 대상과 일치하지 않습니다.");
-      setNotice("기존 접수 상태 " + receipt.state + " · " + request_id);
+      setUncertain({service,id,request_id,ticket_revision:ticket.ticket_revision});
+      setNotice((receipt.state==="completed" ? "기존 순서 변경 접수 완료" : "기존 접수 결과 확인 중 · 재접수하지 마세요")+" · "+request_id);
       return;
     }
     setReview({ticket, payload:{service,id,request_id,ticket_revision:ticket.ticket_revision}});
@@ -61,41 +66,58 @@ export function JobPriority({service,id,call,verifyTarget,inline=false,disabled=
     const controller=new AbortController();previewRequest.current=controller;
     try {
       await verifyPriorityTarget(verifyTarget,controller);
-    } finally {if(previewRequest.current===controller)previewRequest.current=null;}
+    } catch(error){if(previewRequest.current===controller)previewRequest.current=null;throw error;}
     setReview(null);
+    const timer=setTimeout(()=>controller.abort(),30000);
     try {
-      const receipt = await call("priority-submit",payload);
+      const receipt = await untilAborted(call("priority-submit",payload),controller.signal);
       if (receipt.state !== "completed" || receipt.service !== service || receipt.job_id !== id ||
           receipt.request_id !== payload.request_id || receipt.ticket_revision !== payload.ticket_revision) {
         throw new Error();
       }
-      setNotice("순서 변경 접수 완료 · " + payload.request_id);
+      if(mounted.current)setNotice("순서 변경 접수 완료 · " + payload.request_id);
     } catch {
-      setNotice("접수 결과 확인 필요 · " + payload.request_id);
-    }
+      if(mounted.current){setUncertain(payload);setNotice("접수 결과를 확인할 수 없습니다. 접수 기록과 대기열을 확인하세요 · " + payload.request_id);}
+    } finally {clearTimeout(timer);if(previewRequest.current===controller)previewRequest.current=null;}
+  }
+
+  async function checkReceipt(){
+    const controller=new AbortController();previewRequest.current=controller;
+    const timer=setTimeout(()=>controller.abort(),30000);
+    try{
+      const receipt=await untilAborted(call("priority-receipt",{request_id:uncertain.request_id}),controller.signal);
+      if(receipt?.state==='not_found')setNotice("아직 접수 기록이 없습니다. 재접수하지 말고 기록과 대기열을 다시 확인하세요 · "+uncertain.request_id);
+      else if(!['completed','unknown'].includes(receipt?.state) || receipt.request_id!==uncertain.request_id || receipt.service!==service || receipt.job_id!==id || receipt.ticket_revision!==uncertain.ticket_revision)throw new Error("접수 기록이 검토 대상과 일치하지 않습니다.");
+      else setNotice((receipt.state==='completed' ? "순서 변경 접수 완료" : "접수 결과 확인 중 · 재접수하지 마세요")+" · "+uncertain.request_id);
+    }catch(error){if(mounted.current)setNotice("접수 기록을 확인하지 못했습니다. 다시 조회하세요 · "+uncertain.request_id);}
+    finally{clearTimeout(timer);if(previewRequest.current===controller)previewRequest.current=null;}
   }
 
   async function run(action) {
+    if(interactionPending.current)return;
+    interactionPending.current=true;
     setBusy(true);
     setNotice("");
     try { await action(); }
-    catch (error) { setNotice(error.message); }
-    finally { setBusy(false); }
+    catch (error) { if(mounted.current)setNotice(error.message); }
+    finally { interactionPending.current=false;if(mounted.current)setBusy(false); }
   }
 
   if(inline) return <>
-    <button ref={triggerRef} className="history-action-priority" type="button" disabled={disabled || busy || Boolean(review)} onClick={startPreview}>우선 실행 검토</button>
+    <button ref={triggerRef} className="history-action-priority" type="button" disabled={disabled || busy || uncertain || Boolean(review)} onClick={startPreview}>우선 실행 검토</button>
     {review && <section ref={reviewRef} tabIndex={-1} aria-label="우선 실행 검토" className="history-action-detail"><p>{id} · 관측 순번 {review.ticket.queue_position} / {review.ticket.queue_count} · 실행기 신원 {review.ticket.executor_identity === "verified" ? "확인" : "미확인"}</p>
-      <button type="button" disabled={disabled || busy} onClick={()=>run(submit)}>대기열 맨 앞으로 이동</button>
+      <button type="button" disabled={disabled || busy} onClick={startSubmit}>대기열 맨 앞으로 이동</button>
       <button type="button" disabled={disabled || busy} onClick={cancelReview}>취소</button></section>}
-    {(busy || notice) && <p className="history-action-detail" role="status">{busy ? "우선 실행 요청을 확인하고 있습니다." : notice}</p>}
+    {(busy || notice) && <p ref={noticeRef} tabIndex={-1} className="history-action-detail queue-priority-notice" role="status">{busy ? "우선 실행 요청을 확인하고 있습니다." : notice}</p>}
+    {uncertain && <div className="history-action-detail"><button type="button" disabled={busy} onClick={startReceiptCheck}>접수 기록 다시 확인</button></div>}
   </>;
 
   return <>{review ? <section ref={reviewRef} tabIndex={-1} aria-label="우선 실행 검토">
     <p>{id} · 관측 순번 {review.ticket.queue_position} / {review.ticket.queue_count} · 실행기 신원 {review.ticket.executor_identity === "verified" ? "확인" : "미확인"}</p>
-    <button type="button" disabled={busy} onClick={() => run(submit)}>대기열 맨 앞으로 이동</button>
+    <button type="button" disabled={busy} onClick={startSubmit}>대기열 맨 앞으로 이동</button>
     <button type="button" disabled={busy} onClick={cancelReview}>취소</button>
-  </section> : <button ref={triggerRef} type="button" disabled={busy} onClick={startPreview}>우선 실행 검토</button>}
-    <p role="status">{busy ? "우선 실행 요청을 확인하고 있습니다." : notice}</p>
+  </section> : <button ref={triggerRef} type="button" disabled={busy || uncertain} onClick={startPreview}>우선 실행 검토</button>}
+    <p ref={noticeRef} tabIndex={-1} className="queue-priority-notice" role="status">{busy ? "우선 실행 요청을 확인하고 있습니다." : notice}</p>
+    {uncertain && <button type="button" disabled={busy} onClick={startReceiptCheck}>접수 기록 다시 확인</button>}
   </>;
 }

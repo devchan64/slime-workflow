@@ -6,15 +6,23 @@ import RecoverableImage from "./RecoverableImage.jsx";
 import {validWorldMap,worldMapLinks} from "./worldMapValidation.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import {imageRetryUrl} from "./imageRetryUrl.mjs";
+import {startImageLoadDeadline} from "./imageLoadDeadline.mjs";
 
-export function WorldMapThumbnail({src,x,y,failed,onError}) {
-  return failed ? <g><rect x={x-64} y={y-92} width="128" height="128" fill="none" stroke="currentColor"/><text x={x} y={y-24} textAnchor="middle" fill="currentColor">미리보기 없음</text></g> : <image href={src} x={x-64} y={y-92} width="128" height="128" onError={onError}/>;
+export function WorldMapThumbnail({src,x,y,failed,onError,onLoad}) {
+  return failed ? <g><rect x={x-64} y={y-92} width="128" height="128" fill="none" stroke="currentColor"/><text x={x} y={y-24} textAnchor="middle" fill="currentColor">미리보기 없음</text></g> : <image href={src} x={x-64} y={y-92} width="128" height="128" onError={onError} onLoad={onLoad}/>;
 }
 
 function WorldMapMarker({node,x,y,selected,href,onSelect,revision}) {
-  const [failed,setFailed]=useState(false);
+  const [failed,setFailed]=useState(false),[loaded,setLoaded]=useState(false);
+  const cancelDeadline=useRef(null);
+  useEffect(()=>{
+    if(loaded || failed)return;
+    const cancel=startImageLoadDeadline(()=>setFailed(true));
+    cancelDeadline.current=cancel;
+    return ()=>{cancel();if(cancelDeadline.current===cancel)cancelDeadline.current=null;};
+  },[loaded,failed]);
   return <a href={href} aria-label={node.name+" 선택"+(failed ? " · 미리보기 없음" : "")} aria-current={selected ? "true" : undefined} onClick={onSelect}>
-    <title>{node.name} 선택</title><WorldMapThumbnail src={imageRetryUrl(node.thumbnail.url,revision)} x={x} y={y} failed={failed} onError={()=>setFailed(true)}/>
+    <title>{node.name} 선택</title><WorldMapThumbnail src={imageRetryUrl(node.thumbnail.url,revision)} x={x} y={y} failed={failed} onError={()=>{cancelDeadline.current?.();setFailed(true);}} onLoad={()=>{cancelDeadline.current?.();setLoaded(true);}}/>
     <text x={x} y={y+56} textAnchor="middle" fill="currentColor">{node.name}</text>
     <text x={x} y={y+78} textAnchor="middle" fill="currentColor">{node.safeTown?"도시":"필드"} {selected && "· 선택"}</text>
   </a>;

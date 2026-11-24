@@ -18,7 +18,7 @@ test('billboard receipt targets must match the complete proposal',()=>{
 });
 test('billboard proposal must remain in the same completed session page',async()=>{
   const snapshot='a'.repeat(64),session='session',job='job';
-  const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BILLBOARD_PROPOSAL'}}]};
+  const page={id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BILLBOARD_PROPOSAL'}}]};
   await verifyBillboardMembership(async()=>page,session,job,snapshot,0);
   await assert.rejects(verifyBillboardMembership(async()=>({...page,messages:[{...page.messages[0],session_job_unique:false}]}),session,job,snapshot,0));
 });
@@ -26,7 +26,7 @@ test('billboard proposal must remain in the same completed session page',async()
 test('session history attributes billboard receipts only to matching targets',async()=>{
   const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='a'.repeat(64);
   const id=await billboardProposalRequestId(session,job);
-  const view={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BILLBOARD_PROPOSAL'}}]};
+  const view={id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BILLBOARD_PROPOSAL'}}]};
   let textures=['tree-a'];
   const command=async(_,name)=>name==='hermes-session-view'?view:name==='hermes-billboard-proposal'?
     {job_id:job,proposal:{texture:'tree-a'}}:{request_id:id,state:'completed',saved:true,textures};
@@ -38,7 +38,7 @@ test('session history attributes billboard receipts only to matching targets',as
 test('session history retains sprite identity and handles legacy or mismatched receipts',async()=>{
   const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='a'.repeat(64);
   const id='chat_'+createHash('sha256').update(`${session}:${job}:sprite`).digest('hex');
-  const view={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_SPRITE_PROPOSAL'}}]};
+  const view={id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_SPRITE_PROPOSAL'}}]};
   let receipt={request_id:id,state:'completed',saved:true};
   const command=async(_,name)=>name==='hermes-session-view'?view:name==='hermes-sprite-proposal'?{job_id:job,proposal:{path:'assets/sprites/test.png'}}:receipt;
   assert.match((await readBuildingSessionReceipts(command,session)).rows[0][1],/대상 미확인/);
@@ -51,7 +51,7 @@ test('session history retains sprite identity and handles legacy or mismatched r
 test('preview never saves and a changed proposal cannot be approved',async()=>{
   const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
   const proposal={texture:'tree-a',expected:{displayHeight:5},values:{displayHeight:10}};
-  const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BILLBOARD_PROPOSAL'}}]};
+  const page={id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BILLBOARD_PROPOSAL'}}]};
   const preview={changes:[{texture:'tree-a',before:{displayHeight:5},after:{displayHeight:10}}],maps:[],map_warnings:[],token:'c'.repeat(64),review_sha256:'d'.repeat(64)};
   const calls=[];let latest=proposal,source={texture:'tree-a',revision:'rev',properties:{displayHeight:5}};
   const command=async(_,name)=>{calls.push(name);if(name==='hermes-session-view')return page;if(name==='hermes-billboard-proposal')return {job_id:job,proposal:latest};if(name==='hermes-billboard-receipt')return {state:'not_found'};if(name==='hermes-billboard-load')return source;if(name==='hermes-billboard-preview')return preview;throw Error(name);};
@@ -67,7 +67,7 @@ test('preview never saves and a changed proposal cannot be approved',async()=>{
 test('initial billboard settings preserve default fields in the reviewed draft',async()=>{
   const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
   const proposal={texture:'tree-a',expected:{displayHeight:128},values:{displayHeight:130}};
-  const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BILLBOARD_PROPOSAL'}}]};
+  const page={id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_BILLBOARD_PROPOSAL'}}]};
   const preview={changes:[{texture:'tree-a',before:{displayHeight:128},after:{displayHeight:130}}],maps:[],map_warnings:[],token:'c'.repeat(64),review_sha256:'d'.repeat(64)};
   const command=async(_,name,payload)=>{
     if(name==='hermes-session-view')return page;

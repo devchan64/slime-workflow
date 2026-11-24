@@ -23,7 +23,7 @@ export function BattlefieldError({error,cleanupFailed,retryRef,onRetry,href}){
 }
 
 export default function BattlefieldReview(){
-  const host=useRef(null),controller=useRef(null),pollTimer=useRef(null),controls=useRef(null),selectRef=useRef(null),retryRef=useRef(null),restoreFocus=useRef(false);
+  const host=useRef(null),controller=useRef(null),pollTimer=useRef(null),controls=useRef(null),selectRef=useRef(null),retryRef=useRef(null),restoreFocus=useRef(false),retryPending=useRef(false);
   const [state,setState]=useState(null),[error,setError]=useState(""),[revision,retry]=useState(0);
   const [cleanupFailed,setCleanupFailed]=useState(false);
   const cameraReasonId=useId();
@@ -81,7 +81,7 @@ export default function BattlefieldReview(){
       mountIncomplete=false;
       refresh();pollTimer.current=setInterval(()=>{try{refresh();}catch(problem){fail(problem);}},1000);
     }
-    untilAborted(mount(),abort.signal).catch(problem=>{if(active)fail(timedOut ? new Error("전장 검수 조회 시간이 초과됐습니다.") : problem,mountIncomplete);}).finally(()=>clearTimeout(timeout));
+    untilAborted(mount(),abort.signal).catch(problem=>{if(active)fail(timedOut ? new Error("전장 검수 조회 시간이 초과됐습니다.") : problem,mountIncomplete);}).finally(()=>{clearTimeout(timeout);if(active)retryPending.current=false;});
     return ()=>{active=false;abort.abort();clearTimeout(timeout);clearInterval(pollTimer.current);pollTimer.current=null;dispose();};
   },[revision]);
   function select(field){
@@ -90,7 +90,7 @@ export default function BattlefieldReview(){
   }
   const back=new URL(location.href);back.pathname="/management/frame/map-review/";back.searchParams.set("mapKind","field");back.searchParams.delete("field");
   return <article><a href={back.href}>지도 검수로 돌아가기</a><h1>전투필드 검수</h1>
-    {error && <BattlefieldError error={error} cleanupFailed={cleanupFailed} retryRef={retryRef} href={location.href} onRetry={event=>{restoreFocus.current=document.activeElement===event.currentTarget;retry(value=>value+1);}}/>}
+    {error && <BattlefieldError error={error} cleanupFailed={cleanupFailed} retryRef={retryRef} href={location.href} onRetry={event=>{if(retryPending.current)return;retryPending.current=true;restoreFocus.current=document.activeElement===event.currentTarget;setError("");retry(value=>value+1);}}/>}
     {!state && !error && <p role="status">전장 검수 화면을 불러오는 중입니다.</p>}
     {state && <BattlefieldControls state={state} controlsRef={controls} selectRef={selectRef} cameraReasonId={cameraReasonId} onSelect={select}
       onRetry={event=>{const restore=document.activeElement===event.currentTarget;select(state.field);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,selectRef.current));}}

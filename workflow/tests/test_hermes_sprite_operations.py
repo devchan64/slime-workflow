@@ -25,7 +25,7 @@ class HermesSpriteOperationsTests(unittest.TestCase):
         receipt=sprite_operations.inspect_hermes_sprite_receipt({'version':9,'id':request_id,'state':'completed','saved':True,'job_id':'sprite-job','path':self.current_path_value},request_id)
         script="""import {readBuildingSessionReceipts} from './gui/buildingProposalProtocol.mjs';
           const [proposal,receipt]=JSON.parse(process.argv[1]),session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
-          const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_SPRITE_PROPOSAL'}}]};
+          const page={id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_SPRITE_PROPOSAL'}}]};
           const command=async(_,name)=>name==='hermes-session-view'?page:name==='hermes-sprite-proposal'?{job_id:job,proposal}:receipt;
           const result=await readBuildingSessionReceipts(command,session);
           if(result.rows.length!==1 || !result.rows[0][1].includes(proposal.path))throw Error(JSON.stringify(result.rows));"""

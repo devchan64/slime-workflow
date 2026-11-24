@@ -7,7 +7,7 @@ if(!globalThis.crypto)globalThis.crypto=webcrypto;
 const session='a'.repeat(32),job='2026-11-18_00-00-00-12345678',snapshot='b'.repeat(64);
 const proposal={map:'sample',revision:'revision',cells:[{column:0,row:0,tile:'a',height:1,blocked:false}]};
 const source={map:'sample',revision:'revision',tiles:{rows:['b']},terrain:{elevations:[[2]],blocked:[[1]]}};
-const page={id:session,offset:0,snapshot,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_FIELD_PROPOSAL'}}]};
+const page={id:session,offset:0,snapshot,next_offset:null,messages:[{job_id:job,session_job_unique:true,job:{status:{status:'completed'},final_response:'HERMES_FIELD_PROPOSAL'}}]};
 test('field review checks current revision and never saves during preview',async()=>{
  let changed=false;const calls=[];
  const command=async(_,name)=>{calls.push(name);if(name==='hermes-session-view')return page;if(name==='hermes-field-proposal')return {job_id:job,proposal:changed?{...proposal,revision:'new'}:proposal};if(name==='hermes-field-receipt')return {state:'not_found'};if(name==='hermes-field-load')return source;if(name==='hermes-field-preview')return {token:'c'.repeat(64),save_available:false,save_block_reason:'database'};throw Error(name);};

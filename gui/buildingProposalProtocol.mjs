@@ -52,9 +52,11 @@ export function buildingReceiptStatus(receipt,id,texture){
 }
 
 export async function readBuildingSessionReceipts(command,session,offset=0,snapshot){
+  if(!Number.isSafeInteger(offset) || offset<0)throw new Error('대화 이력 페이지를 확인할 수 없습니다.');
   const payload={session_id:session,offset,limit:6,...(snapshot ? {snapshot}:{})};
   const view=await command('hermes-agent','hermes-session-view',payload);
-  if(view.id!==session || view.offset!==offset || !Array.isArray(view.messages) || !/^[a-f0-9]{64}$/.test(view.snapshot || '') || (snapshot && view.snapshot!==snapshot))throw new Error('대화 이력 페이지를 확인할 수 없습니다.');
+  const validPage=page=>page?.id===session && page.offset===offset && Array.isArray(page.messages) && page.messages.length<=6 && page.messages.every(message=>message && typeof message==='object' && !Array.isArray(message)) && (page.next_offset===null || Number.isSafeInteger(page.next_offset) && page.messages.length>0 && page.next_offset===offset+page.messages.length) && /^[a-f0-9]{64}$/.test(page.snapshot || '');
+  if(!validPage(view) || (snapshot && view.snapshot!==snapshot))throw new Error('대화 이력 페이지를 확인할 수 없습니다.');
   const rows=[];
   for(const message of view.messages){
     const answer=message.job?.final_response || '';
@@ -141,6 +143,6 @@ export async function readBuildingSessionReceipts(command,session,offset=0,snaps
     }catch{rows.push([message.job_id,'제안 또는 접수 조회 불가','GPU 작업 아님']);}
   }
   const verified=await command('hermes-agent','hermes-session-view',{session_id:session,offset,limit:6,snapshot:view.snapshot});
-  if(verified.id!==session || verified.offset!==offset || verified.snapshot!==view.snapshot)throw new Error('조회 중 대화 이력이 변경되었습니다. 다시 조회하세요.');
+  if(!validPage(verified) || verified.snapshot!==view.snapshot || verified.next_offset!==view.next_offset || verified.messages.length!==view.messages.length)throw new Error('조회 중 대화 이력이 변경되었습니다. 다시 조회하세요.');
   return {page:view,rows};
 }
