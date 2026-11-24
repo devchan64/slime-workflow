@@ -8,6 +8,7 @@ import re
 
 from workflow.common.model_backup_inventory import inventory_model_tree, compare_inventories, _identity
 from workflow.common.model_backup_service import read_backup_roots, latest_model_snapshot
+from workflow.common.model_backup_targets import target_path
 
 
 def sync_snapshot(model, job_id, *, roots=None, progress=None, model_info=None, phase=None):
@@ -17,7 +18,7 @@ def sync_snapshot(model, job_id, *, roots=None, progress=None, model_info=None, 
         raise ValueError('백업 작업 ID가 올바르지 않습니다.')
     source_root, backup_root, _ = roots if roots is not None else read_backup_roots()
     source_root, backup_root = Path(source_root).resolve(strict=True), Path(backup_root).resolve(strict=True)
-    model_root = source_root / model
+    model_root = target_path(source_root, model)
     if model_root.is_symlink() or not model_root.is_dir():
         raise ValueError('모델 디렉터리를 찾을 수 없습니다.')
     inventory = inventory_model_tree(model_root, containment_root=source_root)
@@ -95,6 +96,8 @@ def sync_snapshot(model, job_id, *, roots=None, progress=None, model_info=None, 
         raise ValueError('백업 중 모델 파일 목록 또는 파일 상태가 변경됐습니다.')
     manifest = {'version': 1, 'model': model, 'job_id': job_id,
                 'created_at': datetime.now(timezone.utc).isoformat(), 'files': files,
+                'link_policy': 'follow_within_model_root_as_files',
+                'link_policy_note': '모델 루트 내부 링크의 대상 파일을 복사하며 링크 관계는 복원하지 않습니다.',
                 'model_metadata': model_info if model_info is not None else {'state': 'unavailable'},
                 'model_metadata_note': '작업 시작 시 로컬에서 조회한 선언값이며 파일 해시와 별도입니다.'}
     with (staging / '.snapshot.json').open('x', encoding='utf-8') as output:

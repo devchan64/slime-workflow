@@ -13,6 +13,26 @@ from workflow.common.management_gateway import resolve_management_command, execu
 
 
 class HermesModelDownloadTest(unittest.TestCase):
+    def test_long_lived_readiness_resolves_after_directory_rename(self):
+        from generators.writer_agent import prepare
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old = root / '.model/hermes-agent'
+            old.mkdir(parents=True)
+            weight = old / hermes_model_download.HERMES_MODEL_FILENAME
+            weight.write_bytes(b'model')
+            digest = hashlib.sha256(b'model').hexdigest()
+            (old / 'ready.sha256').write_text(json.dumps({'sha256': digest, 'size': 5, 'mtime_ns': weight.stat().st_mtime_ns}))
+            with patch.object(hermes_model_download, 'WORKFLOW_ROOT_DIRECTORY', root), patch.object(hermes_model_download, 'HERMES_MODEL_SHA256', digest):
+                self.assertTrue(hermes_model_download.inspect_hermes_model_files())
+                new = root / '.model/models/hermes-coding'
+                new.parent.mkdir()
+                old.rename(new)
+                self.assertEqual(hermes_model_download.current_hermes_model_directory(), new)
+                self.assertTrue(hermes_model_download.inspect_hermes_model_files())
+                hermes_model_download.verify_hermes_model_integrity()
+                self.assertEqual(prepare.generation_model_path(), new / hermes_model_download.HERMES_MODEL_FILENAME)
+
     def test_verified_model_and_changed_bytes(self):
         with tempfile.TemporaryDirectory() as current_temp_directory:
             current_model_root = Path(current_temp_directory)

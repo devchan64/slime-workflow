@@ -22,11 +22,15 @@ class MusicGenerationManager:
     def __init__(self,current_service_name):
         self.current_service_name = current_service_name
         self.current_profile_record = resolve_music_profile(current_service_name)
-        self.job_storage_root,self.model_storage_root,self.runtime_python_path = resolve_music_paths(current_service_name)
+        self.job_storage_root,_,self.runtime_python_path = resolve_music_paths(current_service_name)
         self.route_prefix_value = '/'+current_service_name
         self.audio_output_filename = 'sound.wav' if current_service_name=='sfx-dasheng-audiogen' else 'music.wav'
         self.history_storage_root = WORKFLOW_ROOT_DIRECTORY/'.tmp/manager-current'/current_service_name
         self.current_request_lock = threading.RLock()
+
+    @property
+    def model_storage_root(self):
+        return resolve_music_paths(self.current_service_name)[1]
 
     @contextmanager
     def hold_music_lock(self):

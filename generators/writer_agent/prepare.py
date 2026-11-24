@@ -27,13 +27,28 @@ RUNTIME_INSTALL_ROOT = WORKFLOW_REPOSITORY_ROOT / '.local/writer-agent'
 RUNTIME_PYTHON_PATH = RUNTIME_INSTALL_ROOT / 'venv/bin/python'
 MODEL_DOWNLOAD_ROOT = WORKFLOW_REPOSITORY_ROOT / '.model/writer-agent'
 from workflow.common.hermes_model_download import (HERMES_MODEL_DIRECTORY, HERMES_MODEL_FILENAME,
-    HERMES_MODEL_REVISION, HERMES_MODEL_SHA256, HERMES_MODEL_DOWNLOAD_URL)
+    HERMES_MODEL_REVISION, HERMES_MODEL_SHA256, HERMES_MODEL_DOWNLOAD_URL, current_hermes_model_directory)
+from workflow.common.model_storage_layout import resolve_writer_embedding_directory
+_INITIAL_MODEL_DOWNLOAD_ROOT = MODEL_DOWNLOAD_ROOT
+
+
+def embedding_model_directory():
+    if MODEL_DOWNLOAD_ROOT != _INITIAL_MODEL_DOWNLOAD_ROOT:
+        return MODEL_DOWNLOAD_ROOT
+    return resolve_writer_embedding_directory(WORKFLOW_REPOSITORY_ROOT / '.model')
 MODEL_UPSTREAM_NAME = 'Qwen/Qwen3.8-27B'
 MODEL_DOWNLOAD_NAME = HERMES_MODEL_FILENAME
 MODEL_DOWNLOAD_REVISION = HERMES_MODEL_REVISION
 MODEL_DOWNLOAD_SHA256 = HERMES_MODEL_SHA256
 MODEL_DOWNLOAD_URL = HERMES_MODEL_DOWNLOAD_URL
 GENERATION_MODEL_PATH = HERMES_MODEL_DIRECTORY / HERMES_MODEL_FILENAME
+_INITIAL_GENERATION_MODEL_PATH = GENERATION_MODEL_PATH
+
+
+def generation_model_path():
+    if GENERATION_MODEL_PATH != _INITIAL_GENERATION_MODEL_PATH:
+        return GENERATION_MODEL_PATH
+    return current_hermes_model_directory() / HERMES_MODEL_FILENAME
 EMBEDDING_MODEL_NAME = 'Qwen/Qwen3-Embedding-0.6B-GGUF'
 EMBEDDING_DOWNLOAD_NAME = 'Qwen3-Embedding-0.6B-f16.gguf'
 EMBEDDING_DOWNLOAD_REVISION = '370f27d7550e0def9b39c1f16d3fbaa13aa67728'
@@ -171,17 +186,17 @@ def prepare_runtime_environment():
     current_build_directory = source_directory_path/'build-rocm'
     execute_logged_command([str(RUNTIME_PYTHON_PATH.parent/'cmake'), '-S', str(source_directory_path), '-B', str(current_build_directory), '-G', 'Ninja', '-DGGML_HIP=ON', '-DGGML_CUDA=OFF', '-DGGML_NATIVE=OFF', '-DLLAMA_CURL=OFF', '-DLLAMA_BUILD_TESTS=OFF', '-DLLAMA_BUILD_EXAMPLES=OFF', '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_HIP_COMPILER={current_rocm_root}/llvm/bin/clang++', f'-DAMDGPU_TARGETS={current_gpu_architecture}'], current_build_environment)
     execute_logged_command([str(RUNTIME_PYTHON_PATH.parent/'cmake'), '--build', str(current_build_directory), '--target', 'llama-server', '-j', '4'], current_build_environment)
-    download_verified_file(MODEL_DOWNLOAD_URL, GENERATION_MODEL_PATH, MODEL_DOWNLOAD_SHA256)
+    download_verified_file(MODEL_DOWNLOAD_URL, generation_model_path(), MODEL_DOWNLOAD_SHA256)
     prepare_embedding_model()
     prepared_manifest_data = {'backend': 'rocm', 'gpu_architecture': current_gpu_architecture, 'model_upstream_name': MODEL_UPSTREAM_NAME, 'model_download_revision': MODEL_DOWNLOAD_REVISION, 'model_file_sha256': MODEL_DOWNLOAD_SHA256, 'embedding_file_sha256': EMBEDDING_DOWNLOAD_SHA256, 'server_release_name': SOURCE_RELEASE_NAME, 'server_binary_sha256': calculate_file_digest(RUNTIME_SERVER_PATH), 'runtime_library_paths': [str(current_rocm_root/'lib')], 'requirements_file_sha256': calculate_file_digest(WORKFLOW_MODULE_ROOT/'requirements.lock')}
     (RUNTIME_INSTALL_ROOT/'prepared.json').write_text(json.dumps(prepared_manifest_data, indent=2)+'\n')
-    emit_runtime_trace('prepared', f'model_id={MODEL_UPSTREAM_NAME} model_path={GENERATION_MODEL_PATH} binary_path={RUNTIME_SERVER_PATH}')
+    emit_runtime_trace('prepared', f'model_id={MODEL_UPSTREAM_NAME} model_path={generation_model_path()} binary_path={RUNTIME_SERVER_PATH}')
 
 
 def prepare_embedding_model():
     inspect_gpu_environment(1024)
-    download_verified_file(EMBEDDING_DOWNLOAD_URL,MODEL_DOWNLOAD_ROOT/EMBEDDING_DOWNLOAD_NAME,EMBEDDING_DOWNLOAD_SHA256)
-    emit_runtime_trace('prepared',f'embedding_model={EMBEDDING_MODEL_NAME} model_path={MODEL_DOWNLOAD_ROOT/EMBEDDING_DOWNLOAD_NAME}')
+    download_verified_file(EMBEDDING_DOWNLOAD_URL,embedding_model_directory()/EMBEDDING_DOWNLOAD_NAME,EMBEDDING_DOWNLOAD_SHA256)
+    emit_runtime_trace('prepared',f'embedding_model={EMBEDDING_MODEL_NAME} model_path={embedding_model_directory()/EMBEDDING_DOWNLOAD_NAME}')
 
 
 def inspect_writer_model_files():
@@ -190,7 +205,7 @@ def inspect_writer_model_files():
     try:
         current_receipt_record = json.loads(current_receipt_path.read_text())
         for current_file_name, current_expected_hash in ((MODEL_DOWNLOAD_NAME, MODEL_DOWNLOAD_SHA256), (EMBEDDING_DOWNLOAD_NAME, EMBEDDING_DOWNLOAD_SHA256)):
-            current_file_path = GENERATION_MODEL_PATH if current_file_name == MODEL_DOWNLOAD_NAME else MODEL_DOWNLOAD_ROOT/current_file_name
+            current_file_path = generation_model_path() if current_file_name == MODEL_DOWNLOAD_NAME else embedding_model_directory()/current_file_name
             current_file_stat = current_file_path.stat()
             current_file_record = current_receipt_record[current_file_name]
             if (not current_file_path.is_file() or current_file_path.is_symlink() or current_file_record !=
@@ -210,7 +225,7 @@ def prepare_writer_model_files():
                               (EMBEDDING_DOWNLOAD_URL, EMBEDDING_DOWNLOAD_NAME, EMBEDDING_DOWNLOAD_SHA256))
         current_receipt_record = {}
         for current_file_url, current_file_name, current_expected_hash in current_file_specs:
-            current_file_path = GENERATION_MODEL_PATH if current_file_name == MODEL_DOWNLOAD_NAME else MODEL_DOWNLOAD_ROOT/current_file_name
+            current_file_path = generation_model_path() if current_file_name == MODEL_DOWNLOAD_NAME else embedding_model_directory()/current_file_name
             download_verified_file(current_file_url, current_file_path, current_expected_hash)
             current_file_stat = current_file_path.stat()
             current_receipt_record[current_file_name] = {'sha256': current_expected_hash, 'size': current_file_stat.st_size,

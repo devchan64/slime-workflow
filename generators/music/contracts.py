@@ -100,9 +100,10 @@ def resolve_music_profile(current_service_name):
 
 
 def resolve_music_paths(current_service_name):
+    from workflow.common.model_storage_layout import resolve_audio_model_directory
     current_profile_record = resolve_music_profile(current_service_name)
     return (WORKFLOW_ROOT_DIRECTORY/'.tmp/test'/current_service_name,
-            WORKFLOW_ROOT_DIRECTORY/'.model/music'/current_service_name,
+            resolve_audio_model_directory(WORKFLOW_ROOT_DIRECTORY/'.model', current_service_name),
             WORKFLOW_ROOT_DIRECTORY/current_profile_record['runtime_directory']/'bin/python')
 
 

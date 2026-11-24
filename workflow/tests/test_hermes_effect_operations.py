@@ -44,10 +44,11 @@ class HermesEffectOperationTests(unittest.TestCase):
             script="""const React=require('react'),server=require('react-dom/server');
               const {EffectProposalReview}=require(process.argv[1]);
               const preview={id:'firefly-v1',before:{alpha:0.5,target:[0,0,1,1],frames:[[0,0,1,1],[1,1,2,2]]},after:{alpha:0.7,target:[1,0,1,1],frames:[[0,0,1,1],[2,1,2,2]]},note:'모든 맵에 적용'};
-              process.stdout.write(server.renderToStaticMarkup(React.createElement(EffectProposalReview,{preview,busy:true})));"""
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(EffectProposalReview,{preview,busy:true,busyId:'busy-hint'})));"""
             markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         for value in ('불투명도','0.5','0.7','프레임 1','[1,1,2,2]','[2,1,2,2]','모든 맵에 적용','이펙트 도구','확인 후 저장','취소','disabled'):
             self.assertIn(value,markup)
+        self.assertEqual(markup.count('aria-describedby="busy-hint"'),2)
 
     def setUp(self):
         self.current_temp_root=tempfile.TemporaryDirectory()

@@ -14,6 +14,14 @@ def _resolve(root, old, new, *, default_new=False):
         return legacy
     if modern.is_dir() and not any(path.is_symlink() for path in (modern, modern.parent)):
         return modern
+    # During flattening, prefer the existing nested installation until it has
+    # actually been moved. Do not follow a link at any new path component.
+    if new.startswith('models/'):
+        flattened = root / new.removeprefix('models/')
+        parts = flattened.relative_to(root).parts
+        ancestors = [root.joinpath(*parts[:index]) for index in range(1, len(parts) + 1)]
+        if flattened.is_dir() and not any(path.is_symlink() for path in ancestors):
+            return flattened
     if default_new and not modern.exists() and not modern.is_symlink() and not modern.parent.is_symlink():
         return modern
     return legacy

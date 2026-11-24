@@ -7,6 +7,28 @@ import tempfile
 
 
 CONFIG_PATH = Path(__file__).resolve().parents[2] / '.local/hermes/model-backup.json'
+# Existing backup data predates the reorganized installation. This is a
+# one-way lookup alias only; content still has to match the caller's hash.
+LEGACY_BACKUP_PREFIXES = {('models', 'flux-report-vision'): ('flux-report-vision',),
+                          ('models', 'trellis-dinov2'): ('trellis-dinov2',),
+                          ('models', 'trellis-image-large'): ('trellis-image-large',),
+                          ('models', 'hermes-coding'): ('hermes-agent',),
+                          ('models', 'qwen3-embedding-0.6b'): ('writer-agent',),
+                          ('models', 'translategemma-4b'): ('prompt-translation',),
+                          ('models', 'audio', 'heartmula'): ('music', 'music-heartmula'),
+                          ('models', 'audio', 'dasheng-audiogen'): ('music', 'sfx-dasheng-audiogen'),
+                          ('cache', 'huggingface'): ('huggingface',)}
+
+# The flattened paths may need files from either earlier layout. These aliases
+# only select candidates; the caller's trusted digest still verifies all bytes.
+FLATTENED_BACKUP_PREFIXES = {
+    ('hermes-coding',): (('models', 'hermes-coding'), ('hermes-agent',)),
+    ('qwen3-embedding-0.6b',): (('models', 'qwen3-embedding-0.6b'), ('writer-agent',)),
+    ('translategemma-4b',): (('models', 'translategemma-4b'), ('prompt-translation',)),
+    ('audio', 'heartmula'): (('models', 'audio', 'heartmula'), ('music', 'music-heartmula')),
+    ('audio', 'dasheng-audiogen'): (('models', 'audio', 'dasheng-audiogen'), ('music', 'sfx-dasheng-audiogen')),
+    ('flux-report-vision',): (('models', 'flux-report-vision'),),
+}
 
 
 def _default_file_mode():
@@ -19,6 +41,26 @@ def _default_file_mode():
     except (OSError, UnicodeError, ValueError, IndexError):
         pass
     return 0o600
+
+
+def _completed_snapshots(directory):
+    """Find usable snapshot directories without following invalid entries."""
+    try:
+        if directory.is_symlink() or not directory.is_dir():
+            return []
+        entries = []
+        for entry in directory.iterdir():
+            try:
+                if (entry.is_symlink() or not entry.is_dir() or len(entry.name) != 32
+                        or any(char not in '0123456789abcdef' for char in entry.name)
+                        or not (entry / '.snapshot.json').is_file()):
+                    continue
+                entries.append((entry.stat().st_mtime_ns, entry))
+            except OSError:
+                continue
+        return [entry for _, entry in sorted(entries, key=lambda item: item[0], reverse=True)]
+    except OSError:
+        return []
 
 
 def restore_verified_backup(target, expected_sha256, expected_size=None, report=None, outcome=None, backup_source_target=None, hash_type='sha256'):
@@ -42,18 +84,31 @@ def restore_verified_backup(target, expected_sha256, expected_size=None, report=
                 return False
         from workflow.common.model_backup_mount import verify_smb_mount
         verify_smb_mount(backup_root, config.get('samba_uri'))
+        resolved_backup_root = backup_root.resolve(strict=True)
         Path(target).resolve().relative_to(source_root)
         relative = Path(backup_source_target or target).resolve().relative_to(source_root)
-        candidates = [backup_root / relative]
-        if len(relative.parts) > 1:
-            snapshots = backup_root / '.model-backup-snapshots' / relative.parts[0]
-            if snapshots.is_dir() and not snapshots.is_symlink():
-                for snapshot in sorted(snapshots.iterdir(), key=lambda item: item.stat().st_mtime_ns, reverse=True):
-                    if snapshot.is_symlink() or not snapshot.is_dir() or len(snapshot.name) != 32 or any(char not in '0123456789abcdef' for char in snapshot.name):
-                        continue
-                    if not (snapshot / '.snapshot.json').is_file():
-                        continue
-                    candidates.append(snapshot.joinpath(*relative.parts[1:]))
+        relatives = [relative]
+        for new_prefix, old_prefix in LEGACY_BACKUP_PREFIXES.items():
+            if relative.parts[:len(new_prefix)] == new_prefix and len(relative.parts) > len(new_prefix):
+                relatives.append(Path(*old_prefix, *relative.parts[len(new_prefix):]))
+        for new_prefix, old_prefixes in FLATTENED_BACKUP_PREFIXES.items():
+            if relative.parts[:len(new_prefix)] == new_prefix and len(relative.parts) > len(new_prefix):
+                relatives.extend(Path(*old_prefix, *relative.parts[len(new_prefix):]) for old_prefix in old_prefixes)
+        candidates = []
+        for lookup in relatives:
+            candidates.append(backup_root / lookup)
+            if len(lookup.parts) > 1:
+                snapshots = backup_root / '.model-backup-snapshots' / lookup.parts[0]
+                for snapshot in _completed_snapshots(snapshots):
+                    candidates.append(snapshot.joinpath(*lookup.parts[1:]))
+        from workflow.common.model_backup_targets import CATALOG_TARGETS
+        for name, parts in CATALOG_TARGETS.items():
+            for lookup in relatives:
+                if lookup.parts[:len(parts)] != parts or len(lookup.parts) <= len(parts):
+                    continue
+                snapshots = backup_root / '.model-backup-snapshots' / name
+                for snapshot in _completed_snapshots(snapshots):
+                    candidates.append(snapshot.joinpath(*lookup.parts[len(parts):]))
     except FileNotFoundError:
         return False
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
@@ -64,6 +119,12 @@ def restore_verified_backup(target, expected_sha256, expected_size=None, report=
     for candidate in candidates:
         temporary = None
         try:
+            try:
+                candidate.resolve(strict=True).relative_to(resolved_backup_root)
+            except (OSError, ValueError):
+                if outcome:
+                    outcome('백업 경로 밖의 파일 또는 접근할 수 없는 파일을 건너뜀')
+                continue
             if not candidate.is_file():
                 continue
             if expected_size is not None and candidate.stat().st_size != expected_size:

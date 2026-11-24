@@ -7,7 +7,7 @@ export function readPendingBackupRequest(storage) {
         !/^[0-9a-f]{32}$/.test(payload.request_id)) return null;
     const allowed = request.command === 'backup-sync' ? ['model', 'request_id'] : ['model', 'request_id', 'target'];
     if (Object.keys(payload).some(key => !allowed.includes(key))) return null;
-    if (request.command === 'backup-verify' && !['canonical', 'latest_snapshot', 'snapshot_manifest'].includes(payload.target)) return null;
+    if (request.command === 'backup-verify' && !['canonical', 'latest_snapshot', 'snapshot_manifest', 'legacy'].includes(payload.target)) return null;
     return request;
   } catch {
     return null;

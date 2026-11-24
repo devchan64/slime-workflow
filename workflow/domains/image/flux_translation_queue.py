@@ -7,8 +7,8 @@ from workflow.domains.image.image_generation import WORKFLOW_ROOT_PATH
 
 def validate_flux_translation_runtime(current_request_record):
     if current_request_record and (current_request_record.get('translation_source_ko') or current_request_record.get('building_design_ko')) and not current_request_record.get('translated_design'):
-        from workflow.domains.translation.service import TRANSLATION_MODEL_ROOT, TRANSLATION_PYTHON_PATH
-        if not TRANSLATION_PYTHON_PATH.is_file() or not (TRANSLATION_MODEL_ROOT / 'manifest.json').is_file():
+        from workflow.domains.translation.service import current_translation_model_root, TRANSLATION_PYTHON_PATH
+        if not TRANSLATION_PYTHON_PATH.is_file() or not (current_translation_model_root() / 'manifest.json').is_file():
             raise ValueError('한국어 프롬프트 번역을 위해 TranslateGemma 모델과 ROCm 환경을 먼저 준비하세요.')
 
 

@@ -21,6 +21,22 @@ from workflow.common.model_backup_verification import read_verification, list_ve
 
 
 class ModelBackupInventoryTest(unittest.TestCase):
+    def test_snapshot_records_that_internal_links_are_copied_as_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root / 'source', root / 'backup'
+            model = source / 'model'
+            model.mkdir(parents=True); backup.mkdir()
+            (source / 'shared').mkdir()
+            (source / 'shared' / 'weights').write_bytes(b'weights')
+            (model / 'weights').symlink_to('../shared/weights')
+            result = sync_snapshot('model', 'a' * 32, roots=(source, backup, None))
+            snapshot = Path(result['path'])
+            manifest = json.loads((snapshot / '.snapshot.json').read_text())
+            self.assertEqual(manifest['link_policy'], 'follow_within_model_root_as_files')
+            self.assertFalse((snapshot / 'weights').is_symlink())
+            self.assertEqual((snapshot / 'weights').read_bytes(), b'weights')
+
     def test_hash_comparison_identifies_content_and_backup_only(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -80,7 +96,7 @@ class ModelBackupInventoryTest(unittest.TestCase):
             (source / 'model' / 'weight').write_bytes(b'weights')
             config = root / 'config.json'
             config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
-            self.assertEqual(list_backup_models(config)['models'], [{'name': 'model', 'local_present': True, 'backup_present': False, 'snapshot_present': None}])
+            self.assertEqual(list_backup_models(config)['models'], [{'name': 'model', 'local_present': True, 'backup_present': False, 'snapshot_present': False}])
             result = compare_backup_model('model', config)
             self.assertEqual(result['files'][0]['status'], 'missing')
             for name in ('../backup', '.', 'model/weight'):

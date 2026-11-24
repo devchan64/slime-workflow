@@ -9,6 +9,7 @@ import stat
 from workflow.common.model_backup_inventory import compare_inventories, inventory_model_tree, _identity
 from workflow.common.model_backup_restore import CONFIG_PATH
 from workflow.common.model_backup_mount import verify_smb_mount
+from workflow.common.model_backup_targets import CATALOG_TARGETS, LEGACY_TARGETS, target_path, target_parts
 
 
 def read_model_source(config_path=None):
@@ -39,6 +40,14 @@ def read_backup_roots(config_path=None):
         raise ValueError('모델 백업 설정을 읽을 수 없습니다.') from error
 
 
+def _directory_presence(root, name, *, layout_root=None):
+    """Treat access errors as unknown, not as a missing directory."""
+    try:
+        return stat.S_ISDIR(target_path(root, name, layout_root=layout_root).lstat().st_mode)
+    except FileNotFoundError:
+        return False
+
+
 def list_backup_models(config_path=None):
     source, config = read_model_source(config_path)
     try:
@@ -48,6 +57,7 @@ def list_backup_models(config_path=None):
         backup = None
         backup_error = '백업 경로에 접근할 수 없습니다.'
     models = {}
+    snapshot_names = None
     for item in sorted(source.iterdir(), key=lambda value: value.name):
         if item.is_dir() and not item.is_symlink():
             present = None
@@ -65,10 +75,16 @@ def list_backup_models(config_path=None):
                 if not item.name.startswith('.') and item.is_dir() and not item.is_symlink():
                     models.setdefault(item.name, {'name': item.name, 'local_present': False, 'backup_present': True, 'snapshot_present': None})
             snapshots = backup / '.model-backup-snapshots'
-            if snapshots.is_symlink():
-                raise ValueError('스냅샷 경로에 심볼릭 링크를 사용할 수 없습니다.')
-            if snapshots.is_dir():
-                for item in snapshots.iterdir():
+            try:
+                snapshot_mode = snapshots.lstat().st_mode
+            except FileNotFoundError:
+                snapshot_names = set()
+            else:
+                if not stat.S_ISDIR(snapshot_mode):
+                    raise ValueError('스냅샷 경로가 일반 디렉터리가 아닙니다.')
+                snapshot_entries = list(snapshots.iterdir())
+                snapshot_names = {item.name for item in snapshot_entries}
+                for item in snapshot_entries:
                     if item.is_dir() and not item.is_symlink():
                         record = models.setdefault(item.name, {'name': item.name, 'local_present': False,
                                                                'backup_present': (backup / item.name).is_dir(), 'snapshot_present': None})
@@ -77,7 +93,52 @@ def list_backup_models(config_path=None):
                         except (OSError, ValueError):
                             record['snapshot_present'] = None
         except (OSError, ValueError):
+            snapshot_names = None
             backup_error = '백업 목록 일부를 확인할 수 없습니다.'
+    for name in CATALOG_TARGETS:
+        try:
+            local = _directory_presence(source, name)
+        except (OSError, ValueError):
+            local = None
+        remote = None
+        if backup is not None:
+            try:
+                remote = _directory_presence(backup, name, layout_root=source)
+            except (OSError, ValueError):
+                backup_error = '백업 목록 일부를 확인할 수 없습니다.'
+        try:
+            if local or remote or name in models:
+                record = models.setdefault(name, {'name': name, 'local_present': local,
+                                                   'backup_present': remote, 'snapshot_present': None})
+                record.update(local_present=local, backup_present=remote)
+                parts = target_parts(source, name)
+                record['relative_path'] = '/'.join(parts)
+                if len(parts) > 1:
+                    record['parent_target'] = parts[0]
+                else:
+                    record['equivalent_target'] = parts[0]
+                if name in LEGACY_TARGETS:
+                    record['legacy_backup_present'] = None
+                    if backup is not None:
+                        try:
+                            record['legacy_backup_present'] = _directory_presence(backup, LEGACY_TARGETS[name])
+                        except (OSError, ValueError):
+                            backup_error = '이관 전 백업 경로 일부를 확인할 수 없습니다.'
+        except (OSError, ValueError):
+            backup_error = '백업 목록 일부를 확인할 수 없습니다.'
+    for name in CATALOG_TARGETS:
+        try:
+            parts = target_parts(source, name)
+        except (OSError, ValueError):
+            continue
+        parent = models.get(parts[0])
+        child = models.get(name)
+        if len(parts) > 1 and parent is not None and child is not None and child.get('local_present') is True:
+            parent.setdefault('included_targets', []).append(name)
+    if snapshot_names is not None:
+        for name, record in models.items():
+            if name not in snapshot_names and record['snapshot_present'] is None:
+                record['snapshot_present'] = False
     return {'models': sorted(models.values(), key=lambda item: item['name']), 'samba_uri': config.get('samba_uri'), 'backup_error': backup_error}
 
 
@@ -124,12 +185,16 @@ def compare_backup_model(model, config_path=None, *, hash_content=False, target=
     if not isinstance(model, str) or not model or model in ('.', '..') or '/' in model or '\\' in model or '\x00' in model:
         raise ValueError('모델 이름이 올바르지 않습니다.')
     source, backup, uri = read_backup_roots(config_path)
-    source_model = source / model
+    source_model = target_path(source, model)
     if source_model.is_symlink() or not source_model.is_dir():
         raise ValueError('모델 디렉터리를 찾을 수 없습니다.')
-    if target not in ('canonical', 'latest_snapshot'):
+    if target not in ('canonical', 'latest_snapshot', 'legacy'):
         raise ValueError('백업 비교 대상이 올바르지 않습니다.')
-    backup_model = backup / model
+    backup_model = target_path(backup, model, layout_root=source)
+    if target == 'legacy':
+        if model not in LEGACY_TARGETS:
+            raise ValueError('이 모델에는 이전 공유 경로가 등록되지 않았습니다.')
+        backup_model = target_path(backup, LEGACY_TARGETS[model])
     snapshot_id = None
     if target == 'latest_snapshot':
         backup_model = latest_model_snapshot(backup, model)

@@ -46,7 +46,7 @@ def start_managed_server(current_run_root,current_runtime_kind='generation'):
     if (current_manifest_data.get('backend') != 'rocm' or current_manifest_data.get('model_file_sha256') != prepare.MODEL_DOWNLOAD_SHA256 or current_manifest_data.get('embedding_file_sha256') != prepare.EMBEDDING_DOWNLOAD_SHA256):
         raise RuntimeError('ROCm 실행 환경을 다시 준비하세요.')
     with prepare.trace_runtime_progress('verify'):
-        current_model_path = prepare.MODEL_DOWNLOAD_ROOT/current_model_name if embedding_runtime_flag else prepare.GENERATION_MODEL_PATH
+        current_model_path = prepare.embedding_model_directory()/current_model_name if embedding_runtime_flag else prepare.generation_model_path()
         if prepare.calculate_file_digest(current_model_path)!=current_model_digest:
             raise ValueError('모델 체크섬 불일치')
         if prepare.calculate_file_digest(prepare.RUNTIME_SERVER_PATH)!=current_manifest_data['server_binary_sha256']:
@@ -58,9 +58,9 @@ def start_managed_server(current_run_root,current_runtime_kind='generation'):
     server_environment_values=os.environ.copy()
     server_environment_values['LD_LIBRARY_PATH']=':'.join([str(prepare.RUNTIME_SERVER_PATH.parent), *current_manifest_data['runtime_library_paths']])
     server_environment_values['HIP_VISIBLE_DEVICES']='0'
-    server_command_parts=[str(prepare.RUNTIME_SERVER_PATH),'-m',str(prepare.GENERATION_MODEL_PATH),'--alias',MODEL_SERVER_ALIAS,'--host','127.0.0.1','--port',str(MODEL_SERVER_PORT),'-ngl','all','--fit','off','-c',str(MODEL_CONTEXT_LIMIT),'-np','1','-b','256','-ub','128','--jinja','--reasoning','off','--no-context-shift','--verbosity','4','--cors-origins','http://127.0.0.1:8773']
+    server_command_parts=[str(prepare.RUNTIME_SERVER_PATH),'-m',str(prepare.generation_model_path()),'--alias',MODEL_SERVER_ALIAS,'--host','127.0.0.1','--port',str(MODEL_SERVER_PORT),'-ngl','all','--fit','off','-c',str(MODEL_CONTEXT_LIMIT),'-np','1','-b','256','-ub','128','--jinja','--reasoning','off','--no-context-shift','--verbosity','4','--cors-origins','http://127.0.0.1:8773']
     if embedding_runtime_flag:
-        server_command_parts=[str(prepare.RUNTIME_SERVER_PATH),'-m',str(prepare.MODEL_DOWNLOAD_ROOT/current_model_name),'--alias','slime-writer-embedding','--host','127.0.0.1','--port',str(current_server_port),'-ngl','all','--fit','off','-c','4096','-b','4096','-ub','4096','-np','1','--embedding','--pooling','last','--verbosity','4']
+        server_command_parts=[str(prepare.RUNTIME_SERVER_PATH),'-m',str(prepare.embedding_model_directory()/current_model_name),'--alias','slime-writer-embedding','--host','127.0.0.1','--port',str(current_server_port),'-ngl','all','--fit','off','-c','4096','-b','4096','-ub','4096','-np','1','--embedding','--pooling','last','--verbosity','4']
     prepare.emit_runtime_trace('server',f'ROCm 서버 시작: {current_runtime_kind}')
     server_log_offset=server_log_path.stat().st_size if server_log_path.exists() else 0
     with server_log_path.open('a') as server_log_stream:

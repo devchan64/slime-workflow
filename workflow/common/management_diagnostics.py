@@ -272,13 +272,13 @@ def inspect_management_port_identity(current_port_number, current_health_path):
 def inspect_management_environment(include_model_inventory=False, include_dependency_check=False):
     """기본 의존성과 선택 기능의 파일 존재를 보고하며 변경하지 않는다."""
     from generators.writer_agent.prepare import RUNTIME_SERVER_PATH
-    from workflow.common.hermes_model_download import HERMES_MODEL_DIRECTORY, HERMES_MODEL_FILENAME, inspect_hermes_model_files
+    from workflow.common.hermes_model_download import current_hermes_model_directory, HERMES_MODEL_FILENAME, inspect_hermes_model_files
     from workflow.domains.hermes_agent.runtime_integrity import verify_hermes_runtime_integrity
     current_runtime_path = resolve_management_environment('VIRTUAL_ENVIRONMENT_PATH', '.venv')
     current_ui_path = resolve_management_ui_environment()
     current_frontend_path = Path(os.environ.get('FRONTEND_REPOSITORY_PATH', WORKFLOW_ROOT_DIRECTORY.parent / 'slime-frontend')).expanduser()
     current_hermes_path = WORKFLOW_ROOT_DIRECTORY / '.local/hermes-agent-runtime'
-    current_model_path = HERMES_MODEL_DIRECTORY / HERMES_MODEL_FILENAME
+    current_model_path = current_hermes_model_directory() / HERMES_MODEL_FILENAME
     if not current_hermes_path.exists() and not current_hermes_path.is_symlink():
         hermes_source_record = {'status': 'missing'}
     else:

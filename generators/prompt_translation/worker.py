@@ -14,7 +14,7 @@ from generators.prompt_translation.terms import compare_translation_terms
 from generators.prompt_translation.quality_checks import inspect_translation_quality
 from generators.prompt_translation.semantic_review import find_negated_source_clauses
 from workflow.common.generation_records import write_record_atomically
-from workflow.domains.translation.service import TRANSLATION_JOB_ROOT, TRANSLATION_MODEL_ROOT, TRANSLATION_JOB_PATTERN
+from workflow.domains.translation.service import TRANSLATION_JOB_ROOT, current_translation_model_root, TRANSLATION_JOB_PATTERN
 
 
 def resolve_translation_target_code(translation_target_language):
@@ -26,10 +26,11 @@ def execute_translation_worker(translation_job_path):
         raise ValueError('번역 작업 경로 오류')
     try:
         translation_request_record = json.loads((translation_job_path / 'request.json').read_text(encoding='utf-8'))
-        translation_manifest_record = json.loads((TRANSLATION_MODEL_ROOT / 'manifest.json').read_text(encoding='utf-8'))
+        translation_model_root = current_translation_model_root()
+        translation_manifest_record = json.loads((translation_model_root / 'manifest.json').read_text(encoding='utf-8'))
         if translation_manifest_record['model_id'] != 'google/translategemma-4b-it':
             raise ValueError('번역 모델 ID 오류')
-        translation_snapshot_path = resolve_translation_snapshot(TRANSLATION_MODEL_ROOT, translation_manifest_record)
+        translation_snapshot_path = resolve_translation_snapshot(translation_model_root, translation_manifest_record)
         for translation_relative_path, translation_expected_hash in translation_manifest_record['files'].items():
             translation_file_path = translation_snapshot_path / translation_relative_path
             if Path(translation_relative_path).is_absolute() or '..' in Path(translation_relative_path).parts or calculate_file_sha256(translation_file_path) != translation_expected_hash:
@@ -76,7 +77,7 @@ def execute_translation_worker(translation_job_path):
                 translation_quality_values.extend(json.loads(translation_review_output))
             except Exception as translation_review_error:
                 translation_quality_values.append({'source': '부정 표현 의미 검토', 'target': '검토 미완료: ' + str(translation_review_error), 'status': 'review', 'source_ref': '작가 AI 의미 검토'})
-        write_record_atomically(translation_job_path / 'result.json', {'text': translation_result_text, 'model_id': translation_manifest_record['model_id'], 'revision': translation_manifest_record['revision'], 'files': translation_manifest_record['files'], 'dtype': 'bfloat16', 'term_checks': translation_check_values, 'quality_checks': translation_quality_values})
+        write_record_atomically(translation_job_path / 'result.json', {'text': translation_result_text, 'model_id': translation_manifest_record['model_id'], 'revision': translation_manifest_record['revision'], 'model_root_at_start': str(translation_model_root), 'snapshot_path_at_start': str(translation_snapshot_path), 'files': translation_manifest_record['files'], 'dtype': 'bfloat16', 'term_checks': translation_check_values, 'quality_checks': translation_quality_values})
         write_record_atomically(translation_job_path / 'status.json', {'status': 'completed'})
     except Exception as translation_worker_error:
         traceback.print_exc()

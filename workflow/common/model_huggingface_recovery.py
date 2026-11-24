@@ -67,8 +67,9 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
     current_file_url = hf_hub_url(current_repo_name, current_file_name, revision=current_revision_value, endpoint=current_endpoint_value)
     current_file_metadata = get_hf_file_metadata(current_file_url, token=False, endpoint=current_endpoint_value)
     current_file_etag = current_file_metadata.etag or ''
-    if not re.fullmatch(r'[0-9a-f]{64}', current_file_etag) or current_file_metadata.size != current_file_size:
+    if not re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', current_file_etag) or current_file_metadata.size != current_file_size:
         return False
+    hash_type = 'sha256' if len(current_file_etag) == 64 else 'git-sha1'
     current_local_paths = get_local_download_paths(Path(current_local_root), current_file_name)
     current_expected_path = Path(current_file_record.local_path)
     if current_local_paths.file_path.resolve() != current_expected_path.resolve():
@@ -80,15 +81,26 @@ def recover_huggingface_partial(current_repo_name, current_revision_value, curre
         if resume_report_callback is not None:
             resume_report_callback(current_partial_path.stat().st_size)
     try:
+        restored_from_backup = False
         with WeakFileLock(current_local_paths.lock_path, timeout=0.25):
             if current_target_path.exists():
                 return False
             if not current_partial_path.exists() and not current_legacy_path.exists():
                 from workflow.common.model_backup_restore import restore_verified_backup
                 backup_source_target = Path(backup_local_root) / current_file_name if backup_local_root else None
-                if restore_verified_backup(current_target_path, current_file_etag, current_file_size, report=resume_report_callback, backup_source_target=backup_source_target):
-                    write_download_metadata(Path(current_local_root), current_file_name, current_revision_value, current_file_etag)
-                    return True
+                restored_from_backup = restore_verified_backup(current_target_path, current_file_etag, current_file_size, report=resume_report_callback, backup_source_target=backup_source_target, hash_type=hash_type)
+        if restored_from_backup:
+            # The Hub helper acquires this same lock internally; calling it
+            # while holding WeakFileLock can wait forever on a second lock.
+            write_download_metadata(Path(current_local_root), current_file_name, current_revision_value, current_file_etag)
+            return True
+        # Partial HTTP verification uses SHA-256; a Git blob ID can verify a
+        # complete backup but cannot authenticate a partial download here.
+        if hash_type == 'git-sha1':
+            return False
+        with WeakFileLock(current_local_paths.lock_path, timeout=0.25):
+            if current_target_path.exists():
+                return False
             if current_partial_path.exists():
                 current_previous_target = current_partial_path.with_name(current_partial_path.name + '.verified')
                 if read_completed_verification(current_partial_path, current_partial_path, current_file_etag, current_file_size):

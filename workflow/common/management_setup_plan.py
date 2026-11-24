@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 from workflow.common.management_environment import WORKFLOW_ROOT_DIRECTORY, resolve_management_environment, resolve_management_ui_environment
+from workflow.common.model_storage_layout import resolve_writer_embedding_directory
 
 
 def describe_management_setup(selected_setup_scope):
@@ -19,7 +20,7 @@ def describe_management_setup(selected_setup_scope):
         'sfx-runtime': (['.venv-sfx-dasheng'], 'AMD ROCm 및 효과음 Python 패키지', '없음'),
         'kimodo-runtime': (['.local/venvs/kimodo-rocm', '.local/kimodo/upstream', '.tmp/kimodo-source-build-*'], 'AMD ROCm 및 Kimodo Python 패키지, 부재 시 공식 고정 소스', '없음'),
         'heartmula-runtime': (['.venv-music-heartmula'], 'AMD ROCm 및 고정 HeartLib 소스와 Python 패키지', '없음'),
-        'writer-runtime': (['.local/writer-agent', '.model/writer-agent', '.local/model-preparation/writer-model'], 'llama.cpp 고정 소스와 작가 Python 패키지', '작가 생성 모델과 임베딩 모델 두 개 (기존 파일 검증 후 재사용)'),
+        'writer-runtime': (['.local/writer-agent', str(resolve_writer_embedding_directory(WORKFLOW_ROOT_DIRECTORY / '.model').relative_to(WORKFLOW_ROOT_DIRECTORY)), '.local/model-preparation/writer-model'], 'llama.cpp 고정 소스와 작가 Python 패키지', '작가 생성 모델과 임베딩 모델 두 개 (기존 파일 검증 후 재사용)'),
         'hermes-runtime': (['.local/hermes-agent-runtime'], '고정 Hermes 소스와 잠금 Python 패키지', '없음'),
         'hermes-mcp': (['.local/hermes-mcp'], 'MCP 잠금 Python 패키지', '없음'),
         'legacy': ([str(current_management_path), str(current_ui_path), '.venv', *current_renderer_paths], '관리 및 이미지 Python 패키지와 고정 소스', '없음'),

@@ -15,7 +15,7 @@
 
 모델·라이브러리 리비전은 [runtime.py](heartmula/runtime.py), 분리 체크포인트와 SHA-256은 [separation.py](heartmula/separation.py)에 고정한다. 빈 전용 환경은 `./scripts/workflow.sh setup --scope heartmula-runtime`으로 준비한다. 경로는 `.venv-music-heartmula`, 실제 사용 의존성은 [requirements-rocm.txt](heartmula/requirements-rocm.txt)이며 고정 HeartLib는 의존성 자동 설치 없이 별도로 설치한다. 기존 환경은 자동 변경하지 않고 중간 실패로 남은 경로도 보존한다. 공용 GPU 대기열의 활성 예약이 있으면 시작하지 않으며 설치 중 새 작업의 시작을 막는다. 대기열 밖 작업은 보호하지 못한다. 비양자화 모델 생성·분리는 AMD GPU 실측 검증이 필요하다. 모델 연산은 ROCm GPU에서 순차 실행하며 CPU 추론으로 대체하지 않는다. MP3 인코딩·파일 입출력은 모델 추론이 아니다.
 
-캐시는 `.model/music/music-heartmula/`만 사용한다. 모델 준비는 로컬 파일·인덱스와 해시를 검사한다. 모델 파일 준비와 실제 GPU 생성 검증은 다르며 누락·실패 시 원인을 고쳐야 한다. Demucs는 준비 단계에서 공식 체크포인트 다운로드와 해시 검증을 수행한다.
+모델과 필요한 부속 파일은 `.model/models/audio/heartmula/`에 두며 이전 `.model/music/music-heartmula/` 설치도 인식한다. 모델 준비는 로컬 파일·인덱스와 해시를 검사한다. 모델 파일 준비와 실제 GPU 생성 검증은 다르며 누락·실패 시 원인을 고쳐야 한다. Demucs는 준비 단계에서 공식 체크포인트 다운로드와 해시 검증을 수행한다.
 
 2026-11-15 AMD ROCm 검증에서는 기존 공용 ROCm PyTorch `2.13.0+rocm10.0.0`를 전용 환경에서 참조하고 AMD 저장소의 `torchaudio 2.11.0.2+rocm10.0.0`을 사용했다. HeartLib의 의존성 메타데이터는 이 PyTorch 버전 범위를 허용하지 않으므로 자동 의존성 설치로 공용 PyTorch를 교체하지 않는다. 전용 환경의 Transformers `4.57.0`, tokenizers `0.22.1`, huggingface-hub `0.36.0`, datasets `4.4.1` 조합으로 5초 GPU 생성과 Demucs 분리를 검증했다. 새 격리 ROCm 환경에서는 공식 HeartLib 메타데이터의 10개 요구와 실제 설치가 다르며, 공통 설치 명령이 이를 경고로 출력하고 그 밖의 충돌은 실패로 처리한다. 설치된 Transformers 4.57.0은 배포처에서 철회(yanked)한 버전이지만 해당 모델과의 기존 검증 조합을 유지한다. Transformers 5에서는 코덱 가중치 누락이 관측됐다. 새 격리 환경에서도 5초 생성·Demucs 분리·MP3 저장을 확인했다. 이 검증은 긴 곡의 완성도나 모든 GPU 환경을 보장하지 않는다.
 

@@ -1,5 +1,6 @@
 import DownloadProgress from "./DownloadProgress.jsx";
 import ModelBackupCompare from "./ModelBackupCompare.jsx";
+import ModelCatalog from "./ModelCatalog.jsx";
 import React, {useEffect, useId, useRef, useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import ModelReadiness from "./ModelReadiness.jsx";
@@ -120,9 +121,11 @@ function KimodoBuild() {
 }
 
 export default function ModelPage() {
+  const [backupSelection, setBackupSelection] = useState(null);
   const session=new URLSearchParams(location.search).get("session");
   const [models, setModels] = useState([]);
   const [service, select] = useState("");
+  const [modelQuery,setModelQuery] = useState("");
   const selectedRef=useRef(""),missingRef=useRef("");
   const [error, setError] = useState("");
   const [missingModel,setMissingModel]=useState("");
@@ -149,6 +152,13 @@ export default function ModelPage() {
     load();
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   }, [revision]);
+  const searchTerms=modelQuery.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const matchingModels=models.filter(model=>searchTerms.every(term=>`${model.label} ${model.id}`.toLocaleLowerCase().includes(term)));
+  const selectedModel=models.find(model=>model.id===service);
+  function chooseModel(value){
+    selectedRef.current=value;missingRef.current="";select(value);setMissingModel("");
+    const url=new URL(location.href);url.searchParams.set("model",value);history.replaceState(null,"",url);
+  }
   return <article className="model-management-page"><h1>모델 상태와 파일</h1>
     <a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 이동</a>
     <button type="button" aria-disabled={loading} onClick={()=>{if(!loading)setRevision(value=>value+1);}}>{loading ? "모델 목록 조회 중…" : "모델 목록 새로고침"}</button>
@@ -157,16 +167,27 @@ export default function ModelPage() {
     {error && <p role="alert">{error}{models.length>0 && " · 이전 목록을 유지합니다."}</p>}
     {!loading && !error && !models.length && <p>등록된 모델이 없습니다.</p>}
     {missingModel && <p id={missingModelId} role="status">요청한 모델 ‘{missingModel}’을 목록에서 찾지 못했습니다. 모델을 선택해 주세요.</p>}
-    {models.length>0 && <ModelSelect models={models} service={service} descriptionId={missingModel ? missingModelId : undefined} onChange={event => {const value=event.target.value;selectedRef.current=value;missingRef.current="";select(value);setMissingModel("");const url=new URL(location.href);url.searchParams.set("model",value);history.replaceState(null,"",url);}}/>}
+    {models.length>0 && <section className="model-finder" aria-labelledby="model-list-heading"><h2 id="model-list-heading">모델 찾기</h2>
+      <p>목록에서 모델을 선택하면 아래에 준비 상태와 다운로드 기록이 표시됩니다. 이름이나 서비스 ID로 검색할 수도 있습니다.</p>
+      <label>모델 검색 <input type="search" value={modelQuery} onChange={event=>setModelQuery(event.target.value)} placeholder="예: FLUX, 번역, wan22"/></label>
+      {modelQuery && <button type="button" onClick={()=>setModelQuery("")}>검색 지우기</button>}
+      {selectedModel && <p>선택한 모델 · <strong>{selectedModel.label}</strong> <small>({selectedModel.id})</small></p>}
+      <p role="status">{modelQuery.trim() ? `검색 결과 ${matchingModels.length}개 / 전체 ${models.length}개` : `등록 모델 ${models.length}개`}{service && searchTerms.length>0 && !matchingModels.some(model=>model.id===service) ? " · 현재 선택은 유지됩니다." : ""}</p>
+      <div role="group" aria-label="모델 목록" className="model-choice-list">
+        {matchingModels.map(model=><button key={model.id} type="button" className="generator-history-select" aria-pressed={service===model.id} onClick={()=>chooseModel(model.id)}><span className="history-card-content"><span className="history-card-heading"><strong>{model.label}</strong>{service===model.id && <span>선택됨</span>}</span><small className="history-card-id">{model.id}</small></span></button>)}
+      </div>
+      {modelQuery.trim() && matchingModels.length===0 && <p>일치하는 모델이 없습니다. 다른 이름이나 서비스 ID로 검색하세요.</p>}
+    </section>}
     {service === "flux-image" && <p>약 20.32GB · <a href="https://huggingface.co/black-forest-labs/flux-3-image-klein">FLUX 접근 조건</a>을 확인하고 Hugging Face에 로그인하세요.</p>}
     {service === "hermes-model" && <p>아래는 모델 파일과 실행 구성의 준비 상태입니다. 세션별 GPU 로딩 여부는 대화 입력창의 Qwen 3.8 상태에서 확인하세요.</p>}
     {service === "prompt-translation" && <p><a href="https://huggingface.co/google/translategemma-4b-it">Gemma 접근 조건</a>에 동의하고 Hugging Face에 로그인하세요.</p>}
     {service === "animationgpt" && <p>제3자 FP16 변환본과 토크나이저·정규화 파일 약 770MB · <a href="https://huggingface.co/Kijai/AnimationGPT_pruned">출처와 라이선스</a> · 생성기 연결과 무기 출력은 별도입니다.</p>}
     {service === "wan22-fighting-lora" && <p>High Noise LoRA 약 38MB · <a href="https://www.runninghub.ai/model/public/1984976690503958530">모델 정보</a> · <a href="https://huggingface.co/r4tn4/Bubble/blob/338e12cb179abf0573b61c310db6163018effdde/wan2.2fighting_high_noise.safetensors">다운로드 사본</a> · VACE 생성기 연결과 실제 동작은 별도 검증이 필요합니다.</p>}
     {service === "wan21-fun-1.3b" && <p>공용 텍스트 인코더와 VAE는 14B 준비 환경을 사용합니다.</p>}
-    <ModelBackupCompare/>
     {service && <ModelReadiness key={service} service={service} manage/>}
     {service && <DownloadProgress key={"progress-" + service} service={service}/>}
+    <ModelCatalog onCompare={(name, jobId) => setBackupSelection({name, jobId, request: Symbol()})}/>
+    <ModelBackupCompare requestedSelection={backupSelection}/>
     {service === "kimodo" && <KimodoBuild/>}
   </article>;
 }

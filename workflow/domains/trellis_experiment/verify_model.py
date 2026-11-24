@@ -2,21 +2,24 @@
 import hashlib
 import json
 from pathlib import Path
+import sys
 from urllib.request import urlopen
 
 REVISION = "25e0d31ffbebe4b5a97464dd851910efc3002d96"
 ROOT = Path(__file__).resolve().parents[3]
-MODEL_DIR = ROOT / ".model/trellis-image-large"
+sys.path.insert(0, str(ROOT))
+from workflow.domains.trellis_experiment.offline_loader import resolve_trellis_model
 
 
 def main():
+    model_dir = resolve_trellis_model()
     with urlopen(f"https://huggingface.co/api/models/microsoft/TRELLIS-image-large/revision/{REVISION}?blobs=true", timeout=30) as response:
         meta = json.load(response)
     if meta["sha"] != REVISION:
         raise RuntimeError("모델 리비전 불일치")
     records = []
     for entry in meta["siblings"]:
-        path = MODEL_DIR / entry["rfilename"]
+        path = model_dir / entry["rfilename"]
         if path.is_symlink() or not path.is_file():
             raise RuntimeError(f"파일 누락 또는 심볼릭 링크: {path}")
         if path.stat().st_size != entry["size"]:
@@ -32,7 +35,7 @@ def main():
                 raise RuntimeError(f"Git blob 불일치: {path}")
         records.append({"path": entry["rfilename"], "size": entry["size"], "sha256": digest})
     report = {"repository": "microsoft/TRELLIS-image-large", "revision": REVISION, "files": records}
-    output = MODEL_DIR / "verified-manifest.json"
+    output = model_dir / "verified-manifest.json"
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"검증 완료: {len(records)}개 파일, {output}")
 

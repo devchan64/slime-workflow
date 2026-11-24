@@ -2,10 +2,11 @@
 from pathlib import Path
 from generators.minimax_h3.assets import FILES
 from workflow.generators.minimax_h3_ref2va.contracts import ROOT, PYTHON
+from workflow.common.model_storage_layout import resolve_minimax_snapshot
 
 REF = ROOT / '.model/minimax-h3-ref2va'
 PIPELINE = ROOT / '.local/minimax-h3-ref2va/pipeline-config'
-SNAPSHOT = ROOT / '.model/huggingface/hub/models--MiniMaxAI--MiniMax-H3/snapshots/1cc7549f2cf0af8ff2f09b24f3c57303c8aa6317'
+SNAPSHOT = resolve_minimax_snapshot(ROOT / '.model')
 REF_FILES = [
     (REF / 'diffusion_models/minimax_h3_ref2va_pruned_fp8_scaled.safetensors', 20958205608, 'f86f2f79ebd2d76eb8eeb46091e83982e6ff51d255747e7b16e92834b392b8e9'),
     (REF / 'minimax_h3_ref2v_turbo_8step_v1.0_768p_bf16.safetensors', 1383677808, '9bac880b1a5d7ac052171cf6cce769f0cceaaa42ffa51de4b8e41143a2bdd2d2'),

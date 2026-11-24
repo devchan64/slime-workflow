@@ -1,8 +1,10 @@
 # TRELLIS 1 다중 참조 실험 준비
 
+> 2026-11-25 사용자 요청에 따라 TRELLIS 1의 활성 모델 두 경로와 생성·GPU 시험 진입점을 제거했다. 아래는 과거 실험 기록이다. 별도 TRELLIS.2 실행기, 과거 결과, 백업과 이관 시 보존한 원본은 유지한다.
+
 > UniRig 실험은 폐기되었다. 관련 내용은 과거 기록이며 신규 리깅 작업은 지원하지 않는다. UniRig 전용 모델·실행 환경·작업 결과와 소스 사본은 삭제했다. 아래 관련 경로와 검증 도구는 과거 기록이다.
 
-실험 준비 단계다. 생성기 서비스·GUI·게이트웨이·GPU 대기열·모델 설치·추론·메시 출력·리깅은 연결하거나 검증하지 않았다. 상업적 사용 가능 판정도 아니다. 세부 라이선스는 [설계 문서](../../../docs/hermes-3d-combat-animation-design.md#trellis-1-상업적-이용-조사)를 따른다.
+제거한 활성 경로는 `.model/models/trellis-image-large`, `.model/models/trellis-dinov2`다. 기존 원본은 `.local/model-catalog/retained`에 보존되어 있으며, 이관 기록은 [모델 카탈로그 계획](../../../docs/model-catalog-plan.md)을 따른다. 아래 날짜가 적힌 내용은 당시의 준비 기록이다. 세부 라이선스는 [설계 문서](../../../docs/hermes-3d-combat-animation-design.md#trellis-1-상업적-이용-조사)를 따른다.
 
 2026-11-22 모델 파일 준비: 공식 `microsoft/TRELLIS-image-large` 리비전 `25e0d31ffbebe4b5a97464dd851910efc3002d96`의 19개 파일을 `.model/trellis-image-large`에 받았다. `verify_model.py`는 해당 리비전의 Hub 메타데이터와 파일 크기, LFS SHA-256 또는 Git blob 해시를 대조하고 `verified-manifest.json`에 로컬 SHA-256을 기록한다. 모델 로드나 추론을 확인한 것은 아니다.
 

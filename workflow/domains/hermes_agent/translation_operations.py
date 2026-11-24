@@ -7,11 +7,11 @@ from workflow.domains.hermes_agent.failure_observer import observe_hermes_failur
 
 
 def validate_hermes_translation_request(current_request_record):
-    from workflow.domains.translation.service import validate_translation_submission, TRANSLATION_PYTHON_PATH, TRANSLATION_MODEL_ROOT
+    from workflow.domains.translation.service import validate_translation_submission, TRANSLATION_PYTHON_PATH, current_translation_model_root
     if not isinstance(current_request_record,dict):
         raise ValueError('번역 요청은 객체여야 합니다.')
     validate_translation_submission(current_request_record)
-    if not TRANSLATION_PYTHON_PATH.is_file() or not (TRANSLATION_MODEL_ROOT/'manifest.json').is_file():
+    if not TRANSLATION_PYTHON_PATH.is_file() or not (current_translation_model_root()/'manifest.json').is_file():
         raise ValueError('TranslateGemma 모델과 ROCm 환경을 먼저 준비하세요.')
 
 

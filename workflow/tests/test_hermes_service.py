@@ -2299,6 +2299,10 @@ class HermesServiceTests(unittest.TestCase):
         self.assertTrue(request['context']['force'])
         self.assertTrue(request['context']['only'])
         self.assertEqual(request['model_profile'], 'qwen3.8-27b')
+        observation = {'executor':'verified', 'model':{'state':'ready'}, 'last_event_at':None}
+        with patch('workflow.domains.hermes_agent.conversation_observation.conversation_observation', return_value=observation):
+            view = self.hermes_service_manager.execute_hermes_command('hermes-session-view', {'session_id':session})
+        self.assertEqual(view['context']['operation']['observation'], observation)
         snapshot = self.hermes_service_manager.execute_hermes_command('hermes-session-read', {'session_id': session})
         with self.assertRaisesRegex(ValueError, '정리'):
             self.hermes_service_manager.execute_hermes_command('hermes-session-archive',

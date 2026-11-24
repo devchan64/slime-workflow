@@ -13,6 +13,12 @@ test('snapshot integrity verification keeps its target when restored', () => {
   assert.deepEqual(readPendingBackupRequest({getItem: () => JSON.stringify(request)}), request);
 });
 
+test('legacy verification keeps its target after reload', () => {
+  const request = {command: 'backup-verify', payload: {model: 'catalog-flux-report-vision', target: 'legacy', request_id: 'c'.repeat(32)}};
+  assert.deepEqual(readPendingBackupRequest({getItem: () => JSON.stringify(request)}), request);
+  assert.equal(validateBackupReceipt(request, {job_id: 'c'.repeat(32), model: request.payload.model, operation: 'verify', status: 'running', target: 'legacy'}).target, 'legacy');
+});
+
 test('receipts must match the original job, model, operation and target', () => {
   const request = {command: 'backup-verify', payload: {model: 'sample', target: 'latest_snapshot', request_id: 'a'.repeat(32)}};
   const receipt = {job_id: 'a'.repeat(32), model: 'sample', operation: 'verify', status: 'running', target: 'latest_snapshot'};

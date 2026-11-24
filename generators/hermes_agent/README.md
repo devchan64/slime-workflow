@@ -80,7 +80,7 @@ Codex MCP에는 `preview_hermes_video_resume`, `submit_hermes_video_resume`, `re
 
 ## 구성과 준비
 
-- **모델:** Qwen3.8-27B IQ4_XS. 모델 관리의 Hermes 코딩 모델에서 다운로드하며 파일 SHA-256은 실행 직전에 다시 확인한다. 고정 출처와 해시는 [모델 준비 구현](../../workflow/common/hermes_model_download.py)을 따른다.
+- **모델:** Qwen3.8-27B IQ4_XS. 모델 관리에서 다운로드하며 파일 SHA-256은 실행 직전에 다시 확인한다. 작가 AI도 같은 생성 모델을 사용한다. 고정 출처와 해시는 [모델 준비 구현](../../workflow/common/hermes_model_download.py)을 따른다.
 - **Hermes:** 공식 `v0.23.1`, Git 리비전 `3b421578588243f920886e6fe79a6faa87ea026e`. Git 제외 경로 `.local/hermes-agent-runtime/`에 준비한다. `prepared-local.json`, Git HEAD, 추적 파일 변경과 무시되지 않은 신규 파일을 실행 직전에 검사한다. 이 검사는 `.venv/`의 모든 패키지 파일 해시를 검증하는 기능은 아니다.
 - **추론 서버:** 작가 AI가 준비한 ROCm `llama-server` 바이너리와 준비 manifest를 읽고 바이너리 SHA-256을 확인한다. 모델 프로세스는 Hermes 전용이며 작가 AI 서버의 실행 상태를 변경하지 않는다.
 - **GPU 프로세스 정리:** PID 재사용에 안전한 프로세스 그룹 종료를 위해 Linux 6.9 이상의 `pidfd_send_signal` 그룹 신호 지원이 필요하다. 지원되지 않으면 GPU 사용 전에 작업을 실패 처리한다.

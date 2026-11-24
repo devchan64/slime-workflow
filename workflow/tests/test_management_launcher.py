@@ -37,12 +37,21 @@ class ManagementLauncherTests(unittest.TestCase):
                     contextlib.redirect_stdout(current_output_stream):
                 self.assertEqual(management_launcher.run_management_launcher(['setup', '--scope', 'writer-runtime', '--plan']), 0)
             current_plan_record = json.loads(current_output_stream.getvalue())
-            self.assertIn('.model/writer-agent', current_plan_record['targets'])
+            self.assertIn('.model/models/qwen3-embedding-0.6b', current_plan_record['targets'])
             self.assertIn('모델 두 개', current_plan_record['models'])
             self.assertTrue(current_plan_record['missing_requirements'])
             self.assertFalse(current_missing_path.exists())
             current_logger_mock.assert_not_called()
             current_prepare_mock.assert_not_called()
+
+    def test_writer_setup_plan_reports_flattened_embedding_location(self):
+        from workflow.common import management_setup_plan
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / '.model/qwen3-embedding-0.6b').mkdir(parents=True)
+            with patch.object(management_setup_plan, 'WORKFLOW_ROOT_DIRECTORY', root):
+                plan = management_setup_plan.describe_management_setup('writer-runtime')
+            self.assertIn('.model/qwen3-embedding-0.6b', plan['targets'])
 
     def test_setup_plan_reports_workspace_disk_without_mutating(self):
         from workflow.common import management_setup_plan

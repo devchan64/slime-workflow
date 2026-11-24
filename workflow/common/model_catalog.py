@@ -117,7 +117,11 @@ def read_survey_report(path=None, root=DEFAULT_MODEL_ROOT):
             if (target.startswith('/') or resolved == '..' or resolved.startswith('../')) and status == 'present':
                 status = 'unknown'
             links.append({'path': link_path, 'target': target, 'resolved': resolved, 'status': status})
+        surveyed_roots = report.get('surveyed_roots', [])
+        if not isinstance(surveyed_roots, list):
+            surveyed_roots = []
         return {'finished_at': report.get('finished_at'), 'entries': entries, 'links': links,
+                'surveyed_roots': [path for path in surveyed_roots if isinstance(path, str)],
                 'changed': bool(report.get('changed_paths')), 'errors': bool(report.get('errors'))}
     except (OSError, ValueError, TypeError, AttributeError):
         return None
@@ -196,9 +200,9 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
         if target_name in CATALOG_TARGETS:
             target_state = observed.get(target_name)
             if target_state is not None:
-                path = '/'.join(CATALOG_TARGETS[target_name])
+                path = target_state.get('relative_path') or '/'.join(CATALOG_TARGETS[target_name])
                 if target_state.get('local_present') is True:
-                    partial_roots.add(CATALOG_TARGETS[target_name][0])
+                    partial_roots.add(path.split('/')[0])
                 alternate_metadata = None
                 if include_manifests and target_state.get('local_present') is True:
                     try:
@@ -270,13 +274,17 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
             activity = {'queue': read_hermes_queue_snapshot(), 'reservations': read_hermes_gpu_reservation_snapshot()}
         except (OSError, ValueError, TypeError, RuntimeError):
             activity = {'queue': {'status': 'unavailable'}, 'reservations': {'status': 'unavailable'}}
+    installed_top_level = {state.get('relative_path') for name, state in observed.items()
+                           if name in CATALOG_TARGETS and state.get('local_present') is True
+                           and isinstance(state.get('relative_path'), str) and '/' not in state['relative_path']}
     return {'schema_version': 1,
             'components': components,
             'unclassified': [{**item, 'partially_classified': name in partial_roots}
                              for name, item in observed.items()
-                             if name not in declared_paths and name not in CATALOG_TARGETS],
+                             if name not in declared_paths and name not in CATALOG_TARGETS and name not in installed_top_level],
             'unclassified_nested': nested_unclassified,
-            'nested_survey_available': bool(survey and any(path.startswith('models/') for path in survey['entries'])),
+            'nested_survey_available': bool(survey and ('models' in survey.get('surveyed_roots', [])
+                                                       or any(path.startswith('models/') for path in survey['entries']))),
             'backup_error': listing.get('backup_error'),
             'activity': activity,
             'storage_survey': {key: survey[key] for key in ('finished_at', 'changed', 'errors')} if survey else None,

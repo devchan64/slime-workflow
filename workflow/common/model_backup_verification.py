@@ -23,8 +23,12 @@ def start_backup_job(model, operation='verify', *, target='canonical', request_i
         raise ValueError('모델 이름이 올바르지 않습니다.')
     if operation not in ('verify', 'sync'):
         raise ValueError('백업 작업 종류가 올바르지 않습니다.')
-    if target not in ('canonical', 'latest_snapshot', 'snapshot_manifest') or (operation == 'sync' and target != 'canonical'):
+    if target not in ('canonical', 'latest_snapshot', 'snapshot_manifest', 'legacy') or (operation == 'sync' and target != 'canonical'):
         raise ValueError('백업 작업 대상이 올바르지 않습니다.')
+    if target == 'legacy':
+        from workflow.common.model_backup_targets import LEGACY_TARGETS
+        if model not in LEGACY_TARGETS:
+            raise ValueError('이 모델에는 이전 공유 경로가 등록되지 않았습니다.')
     job_id = request_id if request_id is not None else uuid.uuid4().hex
     if not isinstance(job_id, str) or len(job_id) != 32 or any(char not in '0123456789abcdef' for char in job_id):
         raise ValueError('백업 요청 ID가 올바르지 않습니다.')
@@ -70,7 +74,7 @@ def start_backup_job(model, operation='verify', *, target='canonical', request_i
             record['error'] = '검증 작업을 시작하지 못했습니다.'
             write_record_atomically(jobs / (job_id + '.json'), record)
             raise
-    return {'job_id': job_id, 'status': 'running', 'model': model, 'operation': operation}
+    return {'job_id': job_id, 'status': 'running', 'model': model, 'operation': operation, 'target': target}
 
 
 def start_verification(model, *, target='canonical', request_id=None, state_root=STATE_ROOT):
@@ -129,7 +133,7 @@ def run_worker():
     parser.add_argument('--status-path', type=Path, required=True)
     parser.add_argument('--lock-fd', type=int, required=True)
     parser.add_argument('--operation', choices=('verify', 'sync'), default='verify')
-    parser.add_argument('--target', choices=('canonical', 'latest_snapshot', 'snapshot_manifest'), default='canonical')
+    parser.add_argument('--target', choices=('canonical', 'latest_snapshot', 'snapshot_manifest', 'legacy'), default='canonical')
     args = parser.parse_args()
     job_path = args.state_root / 'jobs' / (args.job_id + '.json')
     job_path.parent.mkdir(parents=True, exist_ok=True)

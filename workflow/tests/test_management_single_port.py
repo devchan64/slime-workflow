@@ -77,6 +77,7 @@ class ManagementSinglePortTests(unittest.TestCase):
                     self.assertIn('/management/assistant/app.js', client.get(route + '/').text)
                     self.assertEqual(client.get(route + '/config').status_code, 404)
                     self.assertEqual(client.post(route + '/gradio_api/call/echo', json={}).status_code, 404)
+                self.assertIn('/management/assistant/app.js', client.get('/management/frame/minimax-h3-image-generator/').text)
                 location = client.get('/management/?tool=kimodo-generator&job=example', follow_redirects=False).headers['location']
                 self.assertEqual(location, '/management/frame/kimodo-generator/?job=example')
 

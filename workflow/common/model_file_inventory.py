@@ -26,10 +26,13 @@ def resolve_model_inventory_paths():
     from generators.wan21_t2v.assets import DIRECTORY as T2V21_DIRECTORY, FILES as T2V21_FILES
     from generators.wan21_i2v.assets import DIRECTORY as I2V21_DIRECTORY, FILES as I2V21_FILES
     from generators.wan21_i2v.attack_lora import FILES as I2V21_ATTACK_FILES
-    from generators.writer_agent.prepare import MODEL_DOWNLOAD_ROOT
-    from workflow.domains.translation.service import TRANSLATION_MODEL_ROOT
-    from workflow.common.hermes_model_download import HERMES_MODEL_DIRECTORY
+    from generators.writer_agent.prepare import embedding_model_directory
+    from workflow.domains.translation.service import current_translation_model_root
+    from workflow.common.hermes_model_download import current_hermes_model_directory
     from workflow.common.animationgpt_model_download import ANIMATIONGPT_MODEL_DIRECTORY
+    from workflow.generators.minimax_h3_ref2va.assets import REF as REF2VA_MODEL_ROOT, FILES as MINIMAX_SHARED_FILES
+    from generators.minimax_h3.assets import ASSETS as MINIMAX_I2V_CONFIG
+    from generators.minimax_h3_image.contracts import BASE as MINIMAX_IMAGE_CONFIG, FILES as MINIMAX_IMAGE_FILES
     return {
         'animationgpt': [ANIMATIONGPT_MODEL_DIRECTORY],
         'flux-image': [FLUX_MODEL_ROOT_DIRECTORY],
@@ -51,9 +54,12 @@ def resolve_model_inventory_paths():
         'wan21-i2v-attack-lora': [I2V21_DIRECTORY / entry[0] for entry in I2V21_ATTACK_FILES],
         'music-heartmula': [resolve_music_paths('music-heartmula')[1]],
         'sfx-dasheng-audiogen': [resolve_music_paths('sfx-dasheng-audiogen')[1]],
-        'writer-agent': [MODEL_DOWNLOAD_ROOT],
-        'prompt-translation': [TRANSLATION_MODEL_ROOT],
-        'hermes-model': [HERMES_MODEL_DIRECTORY],
+        'writer-agent': [embedding_model_directory(), current_hermes_model_directory()],
+        'prompt-translation': [current_translation_model_root()],
+        'hermes-model': [current_hermes_model_directory()],
+        'minimax-h3-ref2va': [REF2VA_MODEL_ROOT, *(entry[0] for entry in MINIMAX_SHARED_FILES[1:6])],
+        'minimax-h3-i2v': [MINIMAX_I2V_CONFIG, *(entry[0] for entry in MINIMAX_SHARED_FILES)],
+        'minimax-h3-image': [MINIMAX_IMAGE_CONFIG, *(entry[0] for entry in MINIMAX_IMAGE_FILES)],
     }
 
 

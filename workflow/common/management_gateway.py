@@ -387,7 +387,7 @@ class ManagementCommandGateway:
 MANAGEMENT_COMMAND_DESCRIPTIONS = {'flux-expression': 'FLUX 3 표정 생성 · 얼굴 참조 1장', 'expression-lora': 'Qwen 2.1 표정 LoRA 사용·다운로드 중단 · 기존 모델 상태 조회', 'qwen-21-circular': 'Qwen 2.1 순환 VAE 생성기 아카이브 · 기존 이력 조회', 'qwen-21': 'Qwen Image 2.1 생성기 아카이브 · 기존 이력 조회', 'seamless-tile': 'Qwen 심리스 패턴 생성기 아카이브 · 기존 이력 조회', 'expression': 'Qwen 2.1 표정 생성기 아카이브 · 기존 이력 조회', 'floor-tile': '바닥 타일 생성기 폐기 · 기존 이력 조회·삭제 가능 · 생성·재개 불가', 'character-animation': '생성기 폐기 · 기존 이력·결과 조회·스프라이트 편집 (generate/resume 거절)', 'momask': '폐기된 MoMask 도구 · 모든 명령 거절 · Kimodo 사용', 'qwen-2511': 'Qwen Image Edit 2511 생성기 폐기 · 모든 관리 명령 거부 · 사용 가능한 FLUX 생성기 확인'}
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['model-downloads']='공유 모델 다운로드와 Samba 백업 조회·비교·스냅샷 백업·검증 · JSON 입력은 --payload-file'
-MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-model']='Hermes 코딩 모델 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-model']='Qwen3.8 27B IQ4_XS 모델 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['animationgpt']='AnimationGPT 제3자 FP16 모델 파일 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace-q8']='Wan VACE Q8_0 High/Low 파일 다운로드 및 SHA-256 검증 · Q8 생성 경로 실험'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fighting-lora']='Wan 2.2 Videogame Fighting High LoRA 다운로드와 SHA-256 검증 · VACE 추론 미검증'

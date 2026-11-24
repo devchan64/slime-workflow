@@ -18,6 +18,14 @@ from generators.prompt_translation.terms import validate_translation_glossary, l
 WORKFLOW_ROOT_DIRECTORY = Path(__file__).resolve().parents[3]
 TRANSLATION_JOB_ROOT = WORKFLOW_ROOT_DIRECTORY / '.tmp/test/prompt-translation'
 TRANSLATION_MODEL_ROOT = WORKFLOW_ROOT_DIRECTORY / '.model/prompt-translation'
+_INITIAL_TRANSLATION_MODEL_ROOT = TRANSLATION_MODEL_ROOT
+
+
+def current_translation_model_root():
+    if TRANSLATION_MODEL_ROOT != _INITIAL_TRANSLATION_MODEL_ROOT:
+        return TRANSLATION_MODEL_ROOT
+    from workflow.common.model_storage_layout import resolve_translation_model_directory
+    return resolve_translation_model_directory(WORKFLOW_ROOT_DIRECTORY / '.model')
 TRANSLATION_PYTHON_PATH = WORKFLOW_ROOT_DIRECTORY / '.local/venvs/kimodo-rocm/bin/python'
 TRANSLATION_JOB_PATTERN = re.compile(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}')
 
@@ -97,7 +105,7 @@ class TranslationServiceManager:
             raise ValueError('입력은 객체여야 합니다.')
         if translation_command_name == 'translation-submit':
             translation_validated_record = validate_translation_submission(translation_payload_record)
-            if not TRANSLATION_PYTHON_PATH.is_file() or not (TRANSLATION_MODEL_ROOT / 'manifest.json').is_file():
+            if not TRANSLATION_PYTHON_PATH.is_file() or not (current_translation_model_root() / 'manifest.json').is_file():
                 raise ValueError('TranslateGemma 모델과 ROCm 환경을 먼저 준비하세요.')
             translation_created_time = datetime.now(ZoneInfo('Asia/Seoul'))
             translation_job_identifier = translation_created_time.strftime('%Y-%m-%d_%H-%M-%S') + '-' + uuid.uuid4().hex[:8]
