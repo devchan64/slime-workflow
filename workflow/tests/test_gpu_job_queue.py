@@ -7,6 +7,18 @@ from unittest.mock import patch, Mock
 from workflow.common import gpu_job_queue as queue_module
 
 class GpuJobQueueTests(unittest.TestCase):
+    def test_minimax_h3_experiment_has_exclusive_reservation_and_confined_source(self):
+        service = 'minimax-h3-experiment'
+        self.assertIn(service, queue_module.GPU_EXCLUSIVE_SERVICES)
+        self.assertEqual(queue_module.GPU_MEMORY_REQUIREMENTS[service], 81920)
+        self.assertTrue(queue_module.is_dedicated_gpu_source_verifiable(service))
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            job = root / '.tmp/test/minimax-h3-experiment/example'
+            job.mkdir(parents=True)
+            self.assertEqual(queue_module.identify_dedicated_gpu_reservation_source(str(job), service, root), service)
+            self.assertIsNone(queue_module.identify_dedicated_gpu_reservation_source(str(job.parent.parent / 'other' / job.name), service, root))
+
     def test_release_selection_respects_earlier_chat_admission(self):
         import os
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -664,6 +676,14 @@ class GpuJobQueueTests(unittest.TestCase):
             self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),-9)
         current_guard_mock.assert_called_once_with(current_worker_mock,current_include_group=True)
         self.assertEqual(json.loads((self.current_job_path/'status.json').read_text())['status'],'failed')
+
+    def test_minimax_h3_experiment_uses_group_host_memory_guard(self):
+        (self.current_job_path/'gpu-command.json').write_text(json.dumps({'command':['python','h3-worker'],'service':'minimax-h3-experiment'}))
+        current_worker_mock=Mock(returncode=0)
+        current_worker_mock.poll.return_value=0
+        with patch.object(queue_module,'read_gpu_memory',return_value=(98304,98304)), patch.object(queue_module.subprocess,'Popen',return_value=current_worker_mock), patch.object(queue_module,'start_animate_memory_guard',return_value=(Mock(),Mock(),{})) as guard:
+            self.assertEqual(queue_module.execute_queued_generation(self.current_job_path),0)
+            guard.assert_called_once_with(current_worker_mock,current_include_group=True,current_swap_aware=True)
 
     def test_wan_fun_uses_host_memory_guard(self):
         current_worker_path=queue_module.WORKFLOW_ROOT_DIRECTORY/'generators/wan_fun/worker.py'

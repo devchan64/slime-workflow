@@ -56,7 +56,7 @@ def wait_management_stack_endpoint(stack_process_handle, endpoint_url_value, exp
     raise TimeoutError(f'시작 응답 시간 초과: {endpoint_url_value}. 프로세스는 자동 종료하지 않습니다. 로그={stack_log_path}')
 
 
-def start_management_stack():
+def start_management_stack(minimax_preferred=False):
     """사용 중인 포트는 인계하지 않고 두 서비스를 독립 실행한다."""
     gateway_port_value = int(os.environ.get('MANAGEMENT_GATEWAY_PORT', '8771'))
     gui_port_value = int(os.environ.get('REVIEW_SERVER_PORT', '8770'))
@@ -80,6 +80,8 @@ def start_management_stack():
             stack_launch_token = secrets.token_hex(16)
             if stack_mode_name == 'gui':
                 stack_arguments_list.append('--no-takeover')
+            elif minimax_preferred:
+                stack_arguments_list.append('--minimax')
             with stack_log_path.open('xb') as stack_output_stream:
                 stack_process_handle = subprocess.Popen(stack_arguments_list, cwd=WORKFLOW_ROOT_DIRECTORY, stdin=subprocess.DEVNULL, stdout=stack_output_stream, stderr=subprocess.STDOUT, start_new_session=True, env={**os.environ, 'SLIME_MANAGEMENT_STACK_TOKEN': stack_launch_token})
             print(f'{stack_mode_name} 시작 요청 · PID={stack_process_handle.pid} · 로그={stack_log_path}', flush=True)

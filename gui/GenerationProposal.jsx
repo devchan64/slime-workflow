@@ -3,12 +3,13 @@ import {readProposalPreview} from './readProposalPreview.mjs';
 import {readGenerationProposal} from './generationProposal.mjs';
 
 const names={audio:'오디오',video:'영상',writer:'작가'};
-const routes={'music-heartmula':'music-heartmula','sfx-dasheng-audiogen':'sfx-dasheng-audiogen',dwpose:'dwpose-generator','wan22-animate2':'wan22-animate2-generator','wan22-fun-control':'wan22-fun-control-generator','wan22-vace':'wan22-vace-generator','wan22-i2v':'wan22-i2v-generator','wan21-t2v':'wan21-t2v-generator','wan21-i2v':'wan21-i2v-generator','writer-agent':'writer-agent'};
+const routes={'music-heartmula':'music-heartmula','sfx-dasheng-audiogen':'sfx-dasheng-audiogen',dwpose:'dwpose-generator','wan22-animate2':'wan22-animate2-generator','wan22-fun-control':'wan22-fun-control-generator','wan22-vace':'wan22-vace-generator','wan22-i2v':'wan22-i2v-generator','minimax-h3-i2v':'minimax-h3-i2v-generator','wan21-t2v':'wan21-t2v-generator','wan21-i2v':'wan21-i2v-generator','writer-agent':'writer-agent'};
 export function GenerationProposalReview({kind,proposal,session,job,snapshot,offset}){
   const service=kind==='writer'?'writer-agent':proposal.service,request=kind==='audio'?proposal.request:proposal;
   const route=routes[service];
-  const transfer=kind==='audio' || kind==='writer' || (kind==='video' && (service==='wan22-vace' || (service==='wan22-i2v' && proposal.mode==='first_frame') || (service==='wan21-t2v' && proposal.mode==='text') || (service==='wan21-i2v' && proposal.mode==='first_frame') || (service==='wan22-fun-control' && proposal.mode==='pose_video')));
+  const transfer=kind==='audio' || kind==='writer' || (kind==='video' && (service==='wan22-vace' || (['wan22-i2v','minimax-h3-i2v'].includes(service) && proposal.mode==='first_frame') || (service==='wan21-t2v' && proposal.mode==='text') || (service==='wan21-i2v' && proposal.mode==='first_frame') || (service==='wan22-fun-control' && proposal.mode==='pose_video')));
   return <><p>{service}{kind==='video' && ' · 입력 방식 '+proposal.mode}{kind==='writer' && ' · 요청 방식 '+proposal.mode}</p>
+    {proposal.selection_reason && <p>선택 이유: {proposal.selection_reason}</p>}
     {request.prompt && <><strong>요청 내용</strong><p style={{whiteSpace:'pre-wrap'}}>{request.prompt}</p></>}
     {kind==='audio' && <><p>시드 {request.seed}{request.duration_seconds!=null && ' · 최대 '+request.duration_seconds+'초'} · 반복 요청 {request.loop_request?'켜짐':'꺼짐'}</p>{request.lyrics && <><strong>가사</strong><p style={{whiteSpace:'pre-wrap'}}>{request.lyrics}</p></>}</>}
     <p>아직 접수되지 않았습니다. {service==='wan22-animate2' ? '현재 생성 가능 상태를 확인하세요.' : '도구에서 입력과 필요한 첨부를 확인한 뒤 접수하세요.'}</p>

@@ -12,7 +12,7 @@ function recordedTime(id) {
   return match ? `ID 시각 · ${match[1]} ${match[2]}:${match[3]}:${match[4]} (한국 시간)` : "";
 }
 const fluxServices=new Set(["flux-image","flux-character","flux-mannequin","flux-billboard","flux-prop","flux-vegetation","flux-building","flux-seamless","flux-expression"]);
-const videoServices=new Set(["wan22-fun-control","wan22-vace","wan22-i2v","wan21-t2v","wan21-i2v","wan22-animate2","dwpose","kimodo"]);
+const videoServices=new Set(["wan22-fun-control","wan22-vace","wan22-i2v","minimax-h3-i2v","wan21-t2v","wan21-i2v","wan22-animate2","dwpose","kimodo"]);
 function HistoryImage({service,record,summary,unavailable}) {
 
   const flux=fluxServices.has(service), video=videoServices.has(service);

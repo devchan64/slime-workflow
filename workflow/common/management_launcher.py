@@ -81,10 +81,11 @@ def run_management_launcher(command_argument_values=None):
     launcher_argument_values = launcher_argument_parser.parse_args(command_argument_values)
     if launcher_argument_values.mode == 'start':
         start_argument_parser = argparse.ArgumentParser(prog='workflow start', description='비어 있는 포트에서 게이트웨이와 GUI를 독립 실행합니다.')
-        start_argument_parser.parse_args(launcher_argument_values.arguments)
+        start_argument_parser.add_argument('--minimax', action='store_true', help='헤르메스가 MiniMax를 우선 선택')
+        start_options = start_argument_parser.parse_args(launcher_argument_values.arguments)
         from workflow.common.management_stack import start_management_stack
         try:
-            return start_management_stack()
+            return start_management_stack(minimax_preferred=True) if start_options.minimax else start_management_stack()
         except (OSError, ValueError, RuntimeError) as stack_start_error:
             print(f'통합 시작 실패: {stack_start_error}', file=sys.stderr)
             return 1

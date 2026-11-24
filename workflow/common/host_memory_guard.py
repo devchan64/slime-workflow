@@ -10,6 +10,26 @@ HOST_WORKER_MINIMUM_RSS_KIB = 8 * 1024 * 1024
 HOST_MEMORY_POLL_SECONDS = 0.2
 
 
+def report_process_memory_breakdown(current_pid):
+    """Best-effort diagnostic; unavailable detail must not affect protection."""
+    try:
+        current_status = Path(f'/proc/{current_pid}/status').read_text().splitlines()
+        current_values = {line.split(':', 1)[0]: line.split(':', 1)[1].strip()
+            for line in current_status if line.startswith(('RssAnon:', 'RssFile:', 'RssShmem:', 'VmSwap:'))}
+        current_mappings = {}
+        current_name = None
+        for current_line in Path(f'/proc/{current_pid}/smaps').read_text().splitlines():
+            if '-' in current_line.split()[0] and len(current_line.split()) >= 6:
+                current_path = current_line.split(maxsplit=5)[-1]
+                current_name = Path(current_path).name if '.safetensors' in current_path else None
+            elif current_name and current_line.startswith('Rss:'):
+                current_mappings[current_name] = current_mappings.get(current_name, 0) + int(current_line.split()[1])
+        current_files = ', '.join(f'{name}={size // 1024}MiB' for name, size in sorted(current_mappings.items()) if size >= 1024)
+        return f'분류 {current_values}; 모델 파일 RSS [{current_files}]'
+    except (OSError, ValueError, IndexError):
+        return '메모리 분류 측정 불가'
+
+
 def read_memory_field_kib(current_file_path, current_field_name):
     """Linux 메모리 정보를 KiB 단위로 읽고 누락을 명시적으로 거절한다."""
     for current_line_text in Path(current_file_path).read_text().splitlines():
@@ -58,12 +78,19 @@ def read_worker_group_rss_kib(current_worker_identifier):
     return current_total_rss
 
 
-def monitor_animate_host_memory(current_worker_process, current_stop_event, current_guard_result, current_include_group=False, current_terminate_callback=None):
+def monitor_animate_host_memory(current_worker_process, current_stop_event, current_guard_result, current_include_group=False, current_terminate_callback=None, current_swap_aware=False):
     """시스템 RAM 부족 시 해당 작업 프로세스 그룹만 종료한다."""
+    current_next_report = 0.0
     while not current_stop_event.is_set() and current_worker_process.poll() is None:
         current_host_read_complete = False
         try:
             current_available_kib = read_memory_field_kib('/proc/meminfo', 'MemAvailable')
+            current_reserve_kib = HOST_MEMORY_RESERVE_KIB
+            current_swap_free_kib = None
+            if current_swap_aware:
+                current_swap_free_kib = read_memory_field_kib('/proc/meminfo', 'SwapFree')
+                if current_swap_free_kib >= 2 * 1024 * 1024:
+                    current_reserve_kib = 3 * 1024 * 1024
             current_host_read_complete = True
             if current_include_group:
                 try:
@@ -96,11 +123,20 @@ def monitor_animate_host_memory(current_worker_process, current_stop_event, curr
                     return
             current_guard_result['error'] = f'시스템 RAM 감시 실패: {current_read_error}'
         else:
-            if current_available_kib >= HOST_MEMORY_RESERVE_KIB or current_worker_rss_kib < HOST_WORKER_MINIMUM_RSS_KIB:
+            if current_swap_aware and time.monotonic() >= current_next_report:
+                print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/host-memory-guard/observe '
+                    f'사용 가능 {current_available_kib // 1024} MiB, 작업 RSS {current_worker_rss_kib // 1024} MiB, '
+                    f'스왑 여유 {current_swap_free_kib // 1024} MiB, 기준 {current_reserve_kib // 1024} MiB', flush=True)
+                print(f'{time.strftime("%Y-%m-%dT%H:%M:%S")}/host-memory-guard/detail '
+                    f'{report_process_memory_breakdown(current_worker_process.pid)}', flush=True)
+                current_next_report = time.monotonic() + 10
+            if current_available_kib >= current_reserve_kib or current_worker_rss_kib < HOST_WORKER_MINIMUM_RSS_KIB:
                 current_stop_event.wait(HOST_MEMORY_POLL_SECONDS)
                 continue
             current_guard_result['error'] = (f'시스템 RAM 보호: 사용 가능 {current_available_kib // 1024} MiB, '
-                f'작업 RSS {current_worker_rss_kib // 1024} MiB; 여유 {HOST_MEMORY_RESERVE_KIB // 1024} MiB 미만')
+                f'작업 RSS {current_worker_rss_kib // 1024} MiB; 여유 {current_reserve_kib // 1024} MiB 미만')
+            if current_swap_free_kib is not None:
+                current_guard_result['error'] += f'; 스왑 여유 {current_swap_free_kib // 1024} MiB'
         if current_worker_process.poll() is not None:
             current_guard_result.pop('error',None)
             return
@@ -115,11 +151,11 @@ def monitor_animate_host_memory(current_worker_process, current_stop_event, curr
         return
 
 
-def start_animate_memory_guard(current_worker_process, current_include_group=False, current_terminate_callback=None):
+def start_animate_memory_guard(current_worker_process, current_include_group=False, current_terminate_callback=None, current_swap_aware=False):
     """GPU 조회가 지연되어도 RAM 감시가 독립적으로 진행되게 한다."""
     current_stop_event = threading.Event()
     current_guard_result = {}
     current_guard_thread = threading.Thread(target=monitor_animate_host_memory,
-        args=(current_worker_process, current_stop_event, current_guard_result, current_include_group, current_terminate_callback), daemon=True)
+        args=(current_worker_process, current_stop_event, current_guard_result, current_include_group, current_terminate_callback, current_swap_aware), daemon=True)
     current_guard_thread.start()
     return current_stop_event, current_guard_thread, current_guard_result

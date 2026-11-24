@@ -41,6 +41,8 @@ for _wan21_assets_service in ('wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v
     MANAGEMENT_SERVICE_COMMANDS[_wan21_assets_service] = ('model-status', 'prepare')
 MANAGEMENT_SERVICE_ROUTES['wan22-i2v'] = '/wan22-i2v'
 MANAGEMENT_SERVICE_COMMANDS['wan22-i2v'] = ('history-delete', 'generate', 'status', 'logs', 'history', 'active', 'model-status', 'cancel', 'history-reset')
+MANAGEMENT_SERVICE_ROUTES['minimax-h3-i2v'] = '/minimax-h3-i2v'
+MANAGEMENT_SERVICE_COMMANDS['minimax-h3-i2v'] = MANAGEMENT_SERVICE_COMMANDS['wan22-i2v']
 for _wan21_service in ('wan21-t2v', 'wan21-i2v'):
     MANAGEMENT_SERVICE_ROUTES[_wan21_service] = '/' + _wan21_service
     MANAGEMENT_SERVICE_COMMANDS[_wan21_service] = MANAGEMENT_SERVICE_COMMANDS['wan22-i2v']
@@ -181,6 +183,7 @@ ARCHIVED_QWEN_IMAGE_SERVICES = frozenset(SOURCE_HISTORY_ARCHIVED_IMAGE_SERVICES)
 for current_service_name in SOURCE_HISTORY_GENERATOR_SERVICES:
     if current_service_name != 'writer-agent':
         MANAGEMENT_SERVICE_COMMANDS[current_service_name] += ('history-observe',)
+MANAGEMENT_SERVICE_COMMANDS['minimax-h3-i2v'] += ('prioritize',)
 
 
 def inspect_management_policy_rejection(service_command_name, operation_command_name):
@@ -360,6 +363,7 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v-assets']='Wan 2.2 I2V FP16 및 Lightn
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v-assets']='Wan 2.1 T2V 1.3B 및 가속 LoRA 파일 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-assets']='Wan 2.1 I2V 480p 및 LoRA 파일 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-attack-lora']='Wan 2.1 I2V 공격 동작 LoRA 실험 파일 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['minimax-h3-i2v']='MiniMax H3 Diffusers I2V · 참조 1장 · 8스텝 Turbo'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v']='Wan 2.2 I2V 실험 · 참조 1장 · --payload-file · GPU 품질 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v']='Wan 2.1 T2V 실험 · --payload-file · GPU 품질 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v']='Wan 2.1 I2V 실험 · 참조 1장 · --payload-file · GPU 품질 미검증'
@@ -667,7 +671,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     current_duration_group.add_argument('--max-new-tokens',type=int,help='MiniMax 오디오 프레임 상한 125~3000; 25개≈1초, 조기 종료 가능')
                 operation_argument_parser.add_argument('--seed',type=int,default=current_music_defaults['seed'])
                 operation_argument_parser.add_argument('--loop-request',action=argparse.BooleanOptionalAction,default=current_music_defaults['loop_request'],help='반복 구조 요청; 심리스 연결 보장 없음')
-            elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','wan21-t2v','wan21-i2v','kimodo','wan22-animate2','dwpose'):
+            elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','minimax-h3-i2v','wan21-t2v','wan21-i2v','kimodo','wan22-animate2','dwpose'):
                 operation_argument_parser.add_argument('--payload-file',type=Path,required=True,help='action=generate, images=[PNG base64], pose_include_hands/pose_include_face bool JSON' if service_command_name=='dwpose' else 'Kimodo 텍스트·프레임·샘플링·키프레임 배치 JSON 요청' if service_command_name=='kimodo' else 'images PNG base64와 driving_video MP4 base64, prompt, frames, steps, seed, width, height JSON 요청' if service_command_name=='wan22-animate2' else 'images PNG base64와 frame_entries를 포함한 JSON 요청')
             elif service_command_name=='character-animation':
                 operation_argument_parser.add_argument('--steps',type=int,choices=(4,30),default=None,help='4: Lightning, 30: 표준 생성 (기본 4)')
@@ -768,7 +772,7 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             if getattr(command_argument_values,'max_new_tokens',None) is not None:
                 command_payload_value.pop('duration_seconds')
                 command_payload_value['max_new_tokens'] = command_argument_values.max_new_tokens
-        elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','wan21-t2v','wan21-i2v','kimodo','wan22-animate2','dwpose'):
+        elif service_command_name in ('wan22-fun-control','wan22-vace','wan22-i2v','minimax-h3-i2v','wan21-t2v','wan21-i2v','kimodo','wan22-animate2','dwpose'):
             command_payload_value=parse_management_request_json(command_argument_values.payload_file.read_text())
         elif service_command_name=='character-animation':
             command_payload_value={'motion':command_argument_values.motion,'character':command_argument_values.character,'source':command_argument_values.source,'directions':command_argument_values.directions}

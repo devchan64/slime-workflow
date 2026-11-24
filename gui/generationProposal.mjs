@@ -23,7 +23,7 @@ export async function readGenerationProposal(command,{session,job,snapshot,offse
   if(response.job_id!==job || !response.proposal || typeof response.proposal!=='object')throw new Error('제안을 확인할 수 없습니다.');
   const p=response.proposal;
   if(kind==='audio' && (!['music-heartmula','sfx-dasheng-audiogen'].includes(p.service) || !p.request || typeof p.request.prompt!=='string'))throw new Error('오디오 제안을 확인할 수 없습니다.');
-  if(kind==='video' && (!['dwpose','wan22-animate2','wan22-fun-control','wan22-vace','wan22-i2v','wan21-t2v','wan21-i2v'].includes(p.service) || typeof p.mode!=='string' || typeof p.prompt!=='string'))throw new Error('영상 제안을 확인할 수 없습니다.');
+  if(kind==='video' && (!['dwpose','wan22-animate2','wan22-fun-control','wan22-vace','wan22-i2v','minimax-h3-i2v','wan21-t2v','wan21-i2v'].includes(p.service) || typeof p.mode!=='string' || typeof p.prompt!=='string'))throw new Error('영상 제안을 확인할 수 없습니다.');
   if(kind==='writer' && (typeof p.mode!=='string' || typeof p.prompt!=='string'))throw new Error('작가 제안을 확인할 수 없습니다.');
   return p;
   }catch(error){if(timedOut)throw new Error('대화 제안 조회 시간이 초과됐습니다.');throw error;}

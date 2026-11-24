@@ -85,6 +85,11 @@ def build_management_application(current_handler_class, current_root_path, curre
     os.environ['SLIME_MANAGEMENT_MENU_SOURCE'] = str(current_source_path)
     current_root_application = FastAPI()
 
+    @current_root_application.get('/management/minimax-policy')
+    def minimax_policy():
+        from workflow.common.minimax_policy import read_minimax_preference
+        return JSONResponse({'minimax_preferred': read_minimax_preference()}, headers={'Cache-Control': 'no-store'})
+
     async def dispatch_management_request(current_request_scope, current_receive_call, current_send_call):
         current_request_path = current_request_scope['path']
         if current_request_scope['type'] == 'http' and current_request_scope.get('method') == 'GET' and current_request_path == '/management/gui-health':
@@ -882,6 +887,15 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         return FileResponse(path, media_type='video/mp4', headers={'Cache-Control':'no-store'})
 
+    @current_root_application.get('/management/assistant/minimax-h3-i2v-input/{job}')
+    def minimax_h3_i2v_input(job: str):
+        from generators.minimax_h3.contracts import JOB_STORAGE
+        from workflow.domains.minimax_h3.input_restore import load_saved_input
+        try:
+            return JSONResponse(load_saved_input(JOB_STORAGE, job), headers={'Cache-Control':'no-store'})
+        except (ValueError, OSError, KeyError, TypeError):
+            return JSONResponse({'detail':'저장된 입력 또는 참조 이미지를 확인할 수 없습니다.'}, status_code=422)
+
     @current_root_application.get('/management/assistant/wan22-i2v-input/{job}')
     def wan22_i2v_input(job: str):
         from generators.wan_i2v.contracts import JOB_STORAGE
@@ -1096,6 +1110,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/sound-effect/')
     @current_root_application.get('/management/frame/wan22-vace-generator')
     @current_root_application.get('/management/frame/wan22-vace-generator/')
+    @current_root_application.get('/management/frame/minimax-h3-i2v-generator')
+    @current_root_application.get('/management/frame/minimax-h3-i2v-generator/')
     @current_root_application.get('/management/frame/wan22-i2v-generator')
     @current_root_application.get('/management/frame/wan22-i2v-generator/')
     @current_root_application.get('/management/frame/wan21-t2v-generator')

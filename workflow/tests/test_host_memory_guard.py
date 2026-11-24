@@ -174,6 +174,23 @@ class HostMemoryGuardTests(unittest.TestCase):
             guard_module.monitor_animate_host_memory(current_worker_mock, threading.Event(), {})
         current_kill_mock.assert_not_called()
 
+    def test_swap_aware_policy_preserves_ram_and_swap_safety_floors(self):
+        gib = 1024 * 1024
+        for available, swap_free, should_stop in ((5, 4, False), (2, 4, True), (5, 1, True)):
+            with self.subTest(available=available, swap_free=swap_free):
+                worker = Mock(pid=1234)
+                worker.poll.side_effect = [None, None] if should_stop else [None, 0]
+                result = {}
+                def read_memory(path, field):
+                    return {'MemAvailable': available * gib, 'SwapFree': swap_free * gib, 'VmRSS': 9 * gib}[field]
+                with patch.object(guard_module, 'read_memory_field_kib', side_effect=read_memory), \
+                     patch.object(guard_module.os, 'killpg') as kill, \
+                     patch.object(guard_module, 'HOST_MEMORY_POLL_SECONDS', 0):
+                    guard_module.monitor_animate_host_memory(worker, threading.Event(), result, current_swap_aware=True)
+                self.assertEqual(kill.called, should_stop)
+                if should_stop:
+                    self.assertIn('스왑 여유', result['error'])
+
     def test_exiting_zombie_without_rss_is_not_reported_as_failure(self):
         current_worker_mock = Mock(pid=1234)
         current_worker_mock.poll.return_value = None

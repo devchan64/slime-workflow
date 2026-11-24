@@ -106,6 +106,7 @@ def create_management_runtime(writer_workspace_config=None):
     from workflow.domains.wan_fun.generation import FunControlGenerationManager
     from workflow.domains.kimodo.generation import KimodoGenerationManager
     from workflow.domains.wan_vace.generation import VaceVideoGenerationManager
+    from workflow.domains.minimax_h3.generation import MiniMaxH3GenerationManager
     from workflow.domains.wan_i2v.generation import I2VGenerationManager
     from workflow.domains.wan21_t2v.generation import Wan21T2VGenerationManager
     from workflow.domains.wan21_i2v.generation import Wan21I2VGenerationManager
@@ -123,6 +124,7 @@ def create_management_runtime(writer_workspace_config=None):
         fun_generation_service = FunControlGenerationManager()
         kimodo_generation_service = KimodoGenerationManager()
         vace_generation_service = VaceVideoGenerationManager()
+        minimax_h3_generation_service = MiniMaxH3GenerationManager()
         i2v_generation_service = I2VGenerationManager()
         wan21_t2v_generation_service = Wan21T2VGenerationManager()
         wan21_i2v_generation_service = Wan21I2VGenerationManager()
@@ -166,6 +168,7 @@ def create_management_runtime(writer_workspace_config=None):
             'kimodo': bind_stored_management_service(kimodo_generation_service.handle_image_request,kimodo_generation_service.job_storage_root),
             'wan22-vace': bind_stored_management_service(vace_generation_service.handle_image_request,vace_generation_service.job_storage_root),
             'wan22-i2v': bind_stored_management_service(i2v_generation_service.handle_image_request,i2v_generation_service.job_storage_root),
+            'minimax-h3-i2v': bind_stored_management_service(minimax_h3_generation_service.handle_image_request,minimax_h3_generation_service.job_storage_root),
             'wan21-t2v': bind_stored_management_service(wan21_t2v_generation_service.handle_image_request,wan21_t2v_generation_service.job_storage_root),
             'wan21-i2v': bind_stored_management_service(wan21_i2v_generation_service.handle_image_request,wan21_i2v_generation_service.job_storage_root),
             'map-assets': bind_stored_management_service(handle_map_resize_request,RESIZE_STORAGE_DIRECTORY),

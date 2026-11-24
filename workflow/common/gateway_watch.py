@@ -50,8 +50,10 @@ def snapshot_gateway_watch_paths(watched_source_paths):
     return tuple(sorted(source_snapshot_records))
 
 
-def run_gateway_watch_mode(server_port_number, writer_workspace_config=None):
+def run_gateway_watch_mode(server_port_number, writer_workspace_config=None, minimax_preferred=False):
     gateway_command_values = [sys.executable, str(WORKFLOW_ROOT_DIRECTORY/'gateway/server.py'), '--port', str(server_port_number)]
+    if minimax_preferred:
+        gateway_command_values.append('--minimax')
     if writer_workspace_config is not None:
         gateway_command_values.extend(['--writer-agent-config', str(Path(writer_workspace_config).absolute())])
     watched_source_paths = collect_gateway_watch_paths(writer_workspace_config)

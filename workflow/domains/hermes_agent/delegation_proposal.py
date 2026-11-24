@@ -226,6 +226,7 @@ HERMES_VIDEO_PROPOSAL_MODES = {
     'wan22-fun-control':('frames','pose_video','driving_video'),
     'wan22-vace':('text','reference','first_frame','video_edit','video_condition','pose'),
     'wan22-i2v':('first_frame',),
+    'minimax-h3-i2v':('first_frame',),
     'wan21-t2v':('text',),
     'wan21-i2v':('first_frame',),
 }
@@ -242,8 +243,10 @@ def parse_hermes_video_proposal(current_answer_text):
     if current_block_match is None or len(current_block_match.group(1))>7000:
         raise ValueError('동작·영상 제안 형식 또는 크기 오류')
     current_proposal_value=parse_management_request_json(current_block_match.group(1))
-    if not isinstance(current_proposal_value,dict) or set(current_proposal_value)!={'service','mode','prompt'}:
+    if not isinstance(current_proposal_value,dict) or set(current_proposal_value) not in ({'service','mode','prompt'}, {'service','mode','prompt','explicit_service'}):
         raise ValueError('동작·영상 제안에는 service·mode·prompt만 허용합니다.')
+    if 'explicit_service' in current_proposal_value and type(current_proposal_value['explicit_service']) is not bool:
+        raise ValueError('생성기 명시 여부 형식 오류')
     current_service_name=current_proposal_value['service']
     current_mode_value=current_proposal_value['mode']
     current_prompt_text=current_proposal_value['prompt']

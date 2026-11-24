@@ -1157,3 +1157,7 @@ GUI와 `map-assets building-save`는 `shadowShape`(`circle`/`rectangle`), `shado
 모델 관리의 **AnimationGPT 전투 모션 FP16 (파일만)**은 Kijai의 제3자 변환본 `AnimationGPT_fp16.safetensors`를 고정 리비전과 SHA-256으로 검증해 `.model/animationgpt/`에 저장한다. GUI와 CLI `tools/manager.py model status animationgpt`, `tools/manager.py model prepare animationgpt`는 같은 게이트웨이를 사용한다. 다운로드는 이어받기를 지원하며 기존 파일의 해시 불일치 시 덮어쓰지 않는다. 파일 준비는 공식 원본과의 동일성, CombatMotion 학습 출처, 생성 환경, 무기 출력 또는 ROCm 추론을 검증하지 않는다. 준비 실패 로그는 `.local/model-preparation/animationgpt/worker.log`에 남는다.
 
 AnimationGPT 모델 관리는 전체 학습 데이터셋 대신 FP16 가중치, FLAN-T5 설정·토크나이저, MotionGPT 웹 UI의 정규화 통계 파일만 고정 해시로 받는다. 공식 데모는 데이터셋을 읽고 원본 체크포인트 및 별도 FLAN-T5 가중치를 기대한다. 파일만으로 실행하려면 별도 어댑터가 필요하며, 파일 준비가 정상 모션 생성이나 무기 포함 출력을 보장하지 않는다.
+
+### 헤르메스 MiniMax 우선 선택
+
+`./scripts/workflow.sh gateway --minimax` 또는 `./scripts/workflow.sh start --minimax`는 헤르메스가 지원되는 요청에서 MiniMax를 우선 제안하도록 지시합니다. 사용자가 생성기를 지정하면 그 지시가 우선합니다. 현재 MiniMax H3는 첫 이미지가 필요한 영상 생성기이며 이미지 생성기는 아직 연결되지 않았습니다. 옵션 없이도 MiniMax 생성기를 직접 사용할 수 있습니다. 헤르메스 작업 접수 시 정책을 기록하며 영상 제안에서 서버가 선택을 검증합니다. 생성기 지정 여부를 확인할 수 없으면 다시 확인해야 합니다. GUI에서 게이트웨이 상태 조회가 실패하면 우선 정책을 확인할 수 없습니다. 모델 준비 및 생성 접수는 별도로 확인합니다.

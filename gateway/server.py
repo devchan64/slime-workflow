@@ -28,7 +28,7 @@ def create_gateway_request_handler(dispatch_runtime_request):
                 return
             request_route_path = urlsplit(self.path).path
             if self.command == 'GET' and request_route_path == '/management/health':
-                current_health_record = {'status': 'ok', 'role': 'management-gateway', 'pid': os.getpid(), 'features': ['hermes-gpu-queue-v1']}
+                current_health_record = {'status': 'ok', 'role': 'management-gateway', 'pid': os.getpid(), 'features': ['hermes-gpu-queue-v1'], 'minimax_preferred': getattr(self.server, 'minimax_preferred', False)}
                 if os.environ.get('SLIME_MANAGEMENT_STACK_TOKEN'):
                     current_health_record['launch_token'] = os.environ['SLIME_MANAGEMENT_STACK_TOKEN']
                 send_management_json_response(self, 200, current_health_record)
@@ -91,7 +91,7 @@ def create_gateway_trace_logger(gateway_log_path):
     return emit_gateway_trace
 
 
-def run_management_gateway(server_port_number, writer_workspace_config=None):
+def run_management_gateway(server_port_number, writer_workspace_config=None, minimax_preferred=False):
     from workflow.common.content_launch_config import apply_content_launch_configuration
     apply_content_launch_configuration()
     from workflow.common.management_runtime import create_management_runtime
@@ -114,10 +114,15 @@ def run_management_gateway(server_port_number, writer_workspace_config=None):
     current_writer_config_path=str(Path(writer_workspace_config or DEFAULT_WORKSPACE_CONFIG).absolute())
     previous_signal_handler = signal.signal(signal.SIGTERM, terminate_gateway_server)
     current_writer_environment=os.environ.get('SLIME_WRITER_WORKSPACE_CONFIG')
+    previous_policy_environment = os.environ.get('SLIME_HERMES_MINIMAX_PREFERRED')
+    previous_gateway_environment = os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL')
+    os.environ['SLIME_HERMES_MINIMAX_PREFERRED'] = '1' if minimax_preferred else '0'
+    os.environ['SLIME_MANAGEMENT_GATEWAY_URL'] = f'http://127.0.0.1:{server_port_number}'
     os.environ['SLIME_WRITER_WORKSPACE_CONFIG']=current_writer_config_path
     try:
         management_service_runtime = create_management_runtime(writer_workspace_config)
         with ThreadingHTTPServer((GATEWAY_SERVER_HOST, server_port_number), create_gateway_request_handler(management_service_runtime.dispatch_runtime_request)) as gateway_http_server:
+            gateway_http_server.minimax_preferred = minimax_preferred
             gateway_http_server.emit_gateway_trace = emit_gateway_trace
             emit_gateway_trace('start', f'http://{GATEWAY_SERVER_HOST}:{server_port_number} pid={os.getpid()} log={gateway_log_path}')
             from workflow.domains.hermes_agent.workflow_scheduler import start_gateway_workflow_scheduler
@@ -144,6 +149,10 @@ def run_management_gateway(server_port_number, writer_workspace_config=None):
         finally:
             try:signal.signal(signal.SIGTERM, previous_signal_handler)
             finally:
+                if previous_policy_environment is None: os.environ.pop('SLIME_HERMES_MINIMAX_PREFERRED', None)
+                else: os.environ['SLIME_HERMES_MINIMAX_PREFERRED'] = previous_policy_environment
+                if previous_gateway_environment is None: os.environ.pop('SLIME_MANAGEMENT_GATEWAY_URL', None)
+                else: os.environ['SLIME_MANAGEMENT_GATEWAY_URL'] = previous_gateway_environment
                 if current_writer_environment is None:os.environ.pop('SLIME_WRITER_WORKSPACE_CONFIG',None)
                 else:os.environ['SLIME_WRITER_WORKSPACE_CONFIG']=current_writer_environment
 
@@ -151,6 +160,7 @@ def run_management_gateway(server_port_number, writer_workspace_config=None):
 def parse_gateway_arguments(command_argument_values=None):
     gateway_argument_parser = argparse.ArgumentParser(description=__doc__)
     gateway_argument_parser.add_argument('--port', type=int, default=GATEWAY_SERVER_PORT)
+    gateway_argument_parser.add_argument('--minimax', action='store_true', help='헤르메스가 지원되는 MiniMax 생성기를 우선 선택')
     gateway_argument_parser.add_argument('--watch', action='store_true', help='게이트웨이·작업 서비스 코드 변경 시 게이트웨이만 재시작')
     gateway_argument_parser.add_argument('--writer-agent-config', type=Path, help='작가 에이전트 로컬 작업 공간 YAML')
     gateway_argument_values = gateway_argument_parser.parse_args(command_argument_values)
@@ -163,6 +173,6 @@ if __name__ == '__main__':
     gateway_argument_values = parse_gateway_arguments()
     if gateway_argument_values.watch:
         from workflow.common.gateway_watch import run_gateway_watch_mode
-        run_gateway_watch_mode(gateway_argument_values.port, gateway_argument_values.writer_agent_config)
+        run_gateway_watch_mode(gateway_argument_values.port, gateway_argument_values.writer_agent_config, gateway_argument_values.minimax)
     else:
-        run_management_gateway(gateway_argument_values.port, gateway_argument_values.writer_agent_config)
+        run_management_gateway(gateway_argument_values.port, gateway_argument_values.writer_agent_config, gateway_argument_values.minimax)

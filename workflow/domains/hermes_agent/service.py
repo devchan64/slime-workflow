@@ -549,6 +549,9 @@ class HermesServiceManager:
         hermes_job_path = self.hermes_storage_root / hermes_job_identifier
         hermes_job_path.mkdir()
         request_record = {**hermes_payload_record, 'model_profile': model_profile}
+        policy = os.environ.get('SLIME_HERMES_MINIMAX_PREFERRED')
+        if policy in ('0', '1'):
+            request_record['minimax_preferred'] = policy == '1'
         if context is not None:
             request_record['context'] = context
         if resident_id is not None:
@@ -1710,7 +1713,10 @@ class HermesServiceManager:
                 if current_job_record.get('final_response_truncated'):
                     raise ValueError('최종 답변이 잘려 제안을 확인할 수 없습니다.')
                 from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_video_proposal
-                return {'job_id':hermes_payload_record['id'],'proposal':parse_hermes_video_proposal(current_job_record.get('final_response'))}
+                from workflow.domains.hermes_agent.video_selection import select_video_proposal
+                proposal = parse_hermes_video_proposal(current_job_record.get('final_response'))
+                proposal = select_video_proposal(proposal, current_job_record['request'])
+                return {'job_id':hermes_payload_record['id'],'proposal':proposal}
             if hermes_command_name == 'hermes-audio-proposal':
                 if set(hermes_payload_record) != {'id'}:
                     raise ValueError('Hermes 작업 ID만 전달하세요.')
