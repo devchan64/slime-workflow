@@ -6,7 +6,7 @@ import ModelReadiness from "./ModelReadiness.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
 import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
 import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
-import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionNavigation,{openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import GeneratorUsage from "./GeneratorUsage.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
@@ -58,7 +58,7 @@ export default function AnimatePage({embedded=false,session:embeddedSession=""}=
     <GeneratorSectionCard title="생성 입력" summary="참조 이미지와 동작 영상 · 16fps" defaultOpen>
       <section ref={inputRef} tabIndex={-1} aria-label="동작 전사 입력" onChangeCapture={()=>{inputRevision.current++;}}><AnimateInputs saved={saved} onSelectionStart={()=>{inputRevision.current++;}} onJob={openResult} session={session} model={model} loraModel={loraModel} onInteractionChange={setInteracting} onAttachmentCheckingChange={value=>{attachmentChecking.current=value;}}/></section>
     </GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={openResult}/>
+    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     <fieldset ref={historyRef} disabled={interacting}><GeneratorHistory card allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} service={service} readJob={readHistory}
       restore={(request,record)=>{if(record.checkingAtStart || attachmentChecking.current || record.revisionAtStart!==inputRevision.current)throw new Error("첨부 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");setSaved(record);requestAnimationFrame(()=>inputRef.current?.focus());}}
       footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}

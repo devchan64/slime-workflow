@@ -21,13 +21,14 @@ import {requestErrorMessage} from "./requestError.mjs";
 import {readGenerationProposal,audioProposalInputs} from "./generationProposal.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import {validGenerationJobId} from "./generationJobId.mjs";
+import {ActiveGeneratorJobStatus} from "./ActiveGeneratorJob.jsx";
 
 export function HeartmulaPage({embedded=false,session=""}={}){return <AudioGeneratorPage music embedded={embedded} session={session}/>;}
 export default function SoundEffectPage({embedded=false,session=""}={}){return <AudioGeneratorPage embedded={embedded} session={session}/>;}
 export function AudioNotice({notice,error}){return notice ? <p role={error ? "alert" : "status"}>{notice}</p> : null;}
 export function AudioReviewPending({busy,review}){return busy && !review ? <p role="status">요청을 검토하고 있습니다. 잠시 기다려 주세요.</p> : null;}
 export function AudioActiveStatus({statusRef,retryRef,loading,notice,error,activeId,job,onOpen,onRetry}){
-  return <div ref={statusRef} tabIndex={-1} aria-label="진행 작업 조회 상태">{loading && <p role="status">진행 작업을 확인하고 있습니다.</p>}{notice && <p role="status">{notice}</p>}{activeId && activeId!==job && !loading && !error && <button type="button" aria-label={activeId+" 진행 작업 결과 보기"} onClick={onOpen}>진행 작업 결과 보기</button>}{error && <><p role="alert">{error}</p><button ref={retryRef} type="button" onClick={onRetry}>진행 작업 다시 확인</button></>}</div>;
+  return <ActiveGeneratorJobStatus statusRef={statusRef} retryRef={retryRef} loading={loading} notice={notice} error={error} activeId={activeId} job={job} onOpen={onOpen} onRetry={onRetry} showRetry={Boolean(error)}/>;
 }
 
 function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=""}){

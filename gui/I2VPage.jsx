@@ -17,7 +17,7 @@ import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import ReviewPrompt from "./ReviewPrompt.jsx";
 import ActionButton from "./ActionButton.jsx";
-import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionNavigation,{openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
 import SeedInput from "./SeedInput.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
 import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
@@ -108,7 +108,7 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
     <GeneratorUsage generator={service}/>
     <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패 · 다시 확인하세요" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service={service} modelManagementService="wan22-i2v-assets" onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={setJob}/>
+    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     <GeneratorSectionCard title="생성 입력" summary="첫 이미지와 동작 지시" defaultOpen cardRef={inputCardRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending}><legend className="generator-visually-hidden">생성 입력</legend>
       <ReferenceImageInput label="첫 프레임 이미지" source={file} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={setFile} disabled={busy || !!pending}/><p>이미지는 흰 여백을 넣어 832×480으로 맞춥니다.</p>

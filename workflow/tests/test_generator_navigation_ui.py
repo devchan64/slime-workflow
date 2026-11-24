@@ -6,6 +6,29 @@ import unittest
 
 
 class GeneratorNavigationUiTests(unittest.TestCase):
+    def test_disabled_navigation_explains_why(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'navigation.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'GeneratorSectionNavigation.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),Navigation=require(process.argv[1]).default;
+              const ref={current:null};process.stdout.write(server.renderToStaticMarkup(React.createElement(Navigation,{inputRef:ref,historyRef:ref,resultRef:ref,inputReady:false,resultReady:false})));"""
+            import os
+            markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+        self.assertIn('aria-label="생성 입력 · 생성 입력을 불러오는 중입니다."',markup)
+        self.assertIn('aria-label="작업 결과 · 이력에서 작업 결과를 먼저 선택하세요."',markup)
+
+    def test_progress_result_reopens_history_even_for_same_job(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'navigation.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'GeneratorSectionNavigation.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const assert=require('node:assert/strict'),{openGeneratorHistory}=require(process.argv[1]);
+              let selected='same',focused=0,scrolled=0;const summary={isConnected:true,matches:()=>true,setAttribute:()=>{},scrollIntoView:()=>scrolled++,focus:()=>focused++};
+              const details={open:false,querySelector:()=>summary};const history={current:{querySelector:()=>details}};
+              openGeneratorHistory(history,'same',id=>selected=id);assert.equal(details.open,true);assert.equal(selected,'same');assert.equal(focused,1);assert.equal(scrolled,1);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True)
+
     def test_input_navigation_opens_nested_cards(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:

@@ -7,6 +7,15 @@ export function focusGeneratorRegion(element){
   element.focus({preventScroll:true});
 }
 
+/** 진행 현황에서 고른 작업의 이력을 열고 이력 제목으로 이동한다. */
+export function openGeneratorHistory(historyRef,id,select){
+  const details=historyRef.current?.querySelector('details.generator-history');
+  if(details)details.open=true;
+  select(id);
+  const summary=details?.querySelector('summary');
+  if(summary?.isConnected)focusGeneratorRegion(summary);
+}
+
 /** 현재 페이지의 작업 흐름으로 이동한다. 이동은 생성이나 작업 선택을 실행하지 않는다. */
 export default function GeneratorSectionNavigation({inputRef,historyRef,resultRef,inputReady=true,resultReady=false,openOnNavigate=false}){
   const targets=[
@@ -28,7 +37,7 @@ export default function GeneratorSectionNavigation({inputRef,historyRef,resultRe
   }
   return <nav className="generator-section-navigation" aria-label="생성기 영역 이동">
     <span>바로 이동</span>
-    {targets.map(target=><button key={target.label} type="button" disabled={!target.ready} title={!target.ready ? target.reason : undefined} onClick={()=>move(target)}>{target.label}</button>)}
+    {targets.map(target=><button key={target.label} type="button" disabled={!target.ready} aria-label={!target.ready ? target.label+' · '+target.reason : undefined} title={!target.ready ? target.reason : undefined} onClick={()=>move(target)}>{target.label}</button>)}
     {!inputReady && <small>생성 입력을 불러오는 중입니다.</small>}
     {!resultReady && <small>결과는 이력에서 작업을 선택하면 볼 수 있습니다.</small>}
   </nav>;

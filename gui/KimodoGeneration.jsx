@@ -21,9 +21,14 @@ import {readKimodoInput,readKimodoJson} from "./readKimodoInput.mjs";
 import {validKimodoExample} from "./kimodoExampleValidation.mjs";
 import {validKimodoReferenceExamples} from "./kimodoReferenceExamples.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {kimodoPromptReason} from "./kimodoPromptReason.mjs";
 
 function decodeReferences(rows){
   return rows.map(({name,data})=>new File([Uint8Array.from(atob(data),c=>c.charCodeAt(0))],name,{type:"image/png"}));
+}
+
+export function KimodoPromptField({value,onChange,reason,reasonId,segmentHelp,segmentMismatch=false}){
+  return <><label>동작 설명 <textarea required maxLength={2000} value={value} aria-describedby={[segmentHelp,reason && reasonId].filter(Boolean).join(' ') || undefined} aria-invalid={Boolean(reason || segmentMismatch) || undefined} onChange={e=>onChange(e.target.value)}/><PromptWordCount text={value}/></label>{reason && <p id={reasonId}>{reason}</p>}</>;
 }
 
 export function KimodoInputSummary({inputs,references,placement,bundle,directions,frameInvalid=false,generationMode="single",segmentCount=0,segmentFrames=[]}){
@@ -49,7 +54,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
   const [placement,setPlacement]=useState(null);
   const [segments,setSegments]=useState("");
   const [generationMode,setGenerationMode]=useState("single");
-  const modeName=useId(),segmentHelp=useId();
+  const modeName=useId(),segmentHelp=useId(),promptHelp=useId();
   const segmentTokens=segments.trim() ? segments.trim().split(/\s+/) : [];
   const segmentCounts=segmentTokens.every(value=>/^\d+$/.test(value)) ? segmentTokens.map(Number) : [];
   const segmentTotal=segmentCounts.length ? segmentCounts.reduce((sum,value)=>sum+value,0) : null;
@@ -57,6 +62,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
   const key="kimodo-generation-receipt-"+session+(receiptScope?"-proposal-"+receiptScope:"");
   const handoffKey="kimodo-gpu-handoff-"+session+(receiptScope?"-proposal-"+receiptScope:"");
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
+  const promptReason=inputs ? kimodoPromptReason(inputs.prompt) : "";
   const [templateRevision,setTemplateRevision]=useState(0),[templateError,setTemplateError]=useState("");
   const [loadingTemplate,setLoadingTemplate]=useState(true);
   const [reviewing,setReviewing]=useState(false);
@@ -219,6 +225,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
   }
   async function inspect(){
     if(checkingSlots.current.size)throw new Error("이미지 확인이 끝난 뒤 생성 요청을 검토하세요.");
+    if(promptReason)throw new Error(promptReason);
     const epoch=reviewEpoch.current;
     setReview(null);setHandoffReview(null);
     if(proposalScope)await verifyKimodoProposal(managementCommand,proposalScope,proposalScope.proposal);
@@ -332,9 +339,9 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
         <KeyframeCatalog query={search} initialFrames={inputs.frames} initialRows={placement?.placements || []}
           apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></>}
     </fieldset>}
-    {inputs && <form onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();const epoch=reviewEpoch.current;perform(async()=>{setReviewing(true);try{await inspect();}catch(error){if(epoch!==reviewEpoch.current)return;setTimeout(()=>{if(document.activeElement===document.body && reviewButtonRef.current?.isConnected && !reviewButtonRef.current.disabled)reviewButtonRef.current.focus();},50);throw error;}finally{setReviewing(false);}});}}><fieldset disabled={busy || loadingTemplate}>
+    {inputs && <form onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (target.matches("textarea") && promptReason && value===promptReason) || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();const epoch=reviewEpoch.current;perform(async()=>{setReviewing(true);try{await inspect();}catch(error){if(epoch!==reviewEpoch.current)return;setTimeout(()=>{if(document.activeElement===document.body && reviewButtonRef.current?.isConnected && !reviewButtonRef.current.disabled)reviewButtonRef.current.focus();},50);throw error;}finally{setReviewing(false);}});}}><fieldset disabled={busy || loadingTemplate}>
       <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions} generationMode={generationMode} segmentCount={segmentTokens.length} segmentFrames={segmentCounts} frameInvalid={generationMode==="sequence" && !segmentsValid}/>
-      <label>동작 설명 <textarea required maxLength={2000} value={inputs.prompt} aria-describedby={generationMode==="sequence" ? segmentHelp : undefined} aria-invalid={generationMode==="sequence" && segmentsValid && promptSegmentCount!==segmentCounts.length ? true : undefined} onChange={e=>edit("prompt",e.target.value)}/><PromptWordCount text={inputs.prompt}/></label>
+      <KimodoPromptField value={inputs.prompt} onChange={value=>edit("prompt",value)} reason={promptReason} reasonId={promptHelp} segmentHelp={generationMode==="sequence" ? segmentHelp : undefined} segmentMismatch={generationMode==="sequence" && segmentsValid && promptSegmentCount!==segmentCounts.length}/>
       <div ref={motionExamplesRef} tabIndex={-1} className="kimodo-motion-examples" aria-label="동작 예시 설정"><KimodoPromptExamples apply={prompt=>edit("prompt",prompt)} applySettings={(id,origin)=>{if(busyRef.current)return;restoreMotionFocus.current=document.activeElement===origin;perform(()=>applyExample(id));}}/>{loadingExample && <p role="status">동작 예시 설정과 참조를 확인하고 있습니다.</p>}</div>
       <fieldset className="kimodo-mode"><legend>생성 방식</legend><div className="kimodo-mode-options">
         <label><input type="radio" name={modeName} value="single" checked={generationMode==="single"} onChange={()=>{setGenerationMode("single");setReview(null);}}/><span>일반 생성 <small>하나의 동작</small></span></label>

@@ -7,7 +7,7 @@ import ReferenceImageInput from "./ReferenceImageInput.jsx";
 import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
 import GeneratorUsage from "./GeneratorUsage.jsx";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
-import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionNavigation,{openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
@@ -133,7 +133,7 @@ function Wan21VideoPage({mode,embedded=false,session:embeddedSession=""}) {
       <ActionButton type="submit" reasons={inputReasons}>생성 요청 검토</ActionButton>
     </fieldset></form></GeneratorSectionCard>
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{isImage && file?.name} · 832×480 · {pending.frames}프레임 · {pending.steps}스텝 · 시드 {pending.seed} · CFG {pending.guidance_scale} · Shift {pending.flow_shift}</p><p>가속 LoRA: {pending.acceleration ? "사용" : "사용 안 함"} · 동작 LoRA: {pending.action_lora ? `${isImage ? pending.action_variant : "KXSR"} (강도 ${pending.action_strength})` : "사용 안 함"}</p><ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><ReviewPrompt label="부정 프롬프트" text={pending.negative_prompt}/><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : !isImage && pending.action_lora && !model?.boss_lora_available ? "KXSR 파일을 준비하거나 입력 수정에서 동작 LoRA를 끄세요." : attackReason} onCancel={cancelReview} onConfirm={submit}/></section>}
-    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={setJob}/>
+    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     <div ref={historyRef} tabIndex={-1}><GeneratorHistory allowPriority toggleResult key={revision} service={service} statusCommand="status" card readJob={isImage?readSavedInput:undefined} restore={isImage?restoreSavedInput:undefined} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(x=>x+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(x=>x+1);}}/>} renderResult={(id,close)=><section ref={resultRef} tabIndex={-1} aria-label="선택한 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} statusCommand="status" readJob={isImage ? currentId=>readSavedInput(currentId,false) : undefined}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>
   </article>;
 }

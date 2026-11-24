@@ -89,6 +89,10 @@ class DwposeGenerationTests(unittest.TestCase):
         self.assertIn('DWPose 이미지 추출',markup)
         self.assertIn('/management/assistant/?session=new',markup)
         self.assertIn('생성 요청 검토',markup)
+        self.assertIn('aria-label="생성기 영역 이동"',markup)
+        self.assertIn('aria-label="DWPose 생성 입력"',markup)
+        self.assertIn('aria-label="DWPose 생성 이력"',markup)
+        self.assertIn('결과는 이력에서 작업을 선택하면 볼 수 있습니다.',markup)
 
 
 if __name__ == '__main__':

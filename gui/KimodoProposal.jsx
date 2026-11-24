@@ -6,6 +6,12 @@ import {verifyKimodoProposal} from "./kimodoProposalMembership.mjs";
 import {requestErrorMessage} from "./requestError.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import PromptWordCount from "./PromptWordCount.jsx";
+import {kimodoPromptReason} from "./kimodoPromptReason.mjs";
+
+export function KimodoProposalNumericFields({proposal,onChange}){
+  return [["frames","프레임 수",30,300],["steps","생성 단계",2,100],["seed","시드",0,2147483647]].map(([key,label,min,max])=>
+    <label key={key}>{label} <small>({min.toLocaleString()}~{max.toLocaleString()} 정수)</small> <input type="number" required min={min} max={max} step="1" value={proposal[key]} onChange={e=>onChange(key,e.target.value)}/></label>);
+}
 
 export default function KimodoProposal({job,session,snapshot,offset,append,openStep}){
   return <KimodoProposalForSelection key={JSON.stringify([session,job])} job={job} session={session} snapshot={snapshot} offset={offset} append={append} openStep={openStep}/>;
@@ -30,7 +36,7 @@ function KimodoProposalForSelection({job,session,snapshot,offset,append,openStep
     try{
       const result=await readProposalPreview(verifyKimodoProposal,[{job,session,snapshot,offset}],controller.signal);
       if(request.current===controller){if(selection.current!==selectionAtStart)setError("대화 이력이 변경됐습니다. 제안을 다시 확인하세요.");else{setOriginal(result);setProposal(result);}}
-    }catch(problem){if(request.current===controller && (!controller.signal.aborted || timedOut))setError(timedOut ? "Kimodo 제안 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem));}
+    }catch(problem){if(request.current===controller && (!controller.signal.aborted || timedOut))setError(selection.current!==selectionAtStart ? "대화 이력이 변경됐습니다. 제안을 다시 확인하세요." : timedOut ? "Kimodo 제안 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem));}
     finally{clearTimeout(timeout);if(request.current===controller){request.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}}
   }
   if(!proposal)return <section><button ref={loadRef} type="button" disabled={busy} aria-describedby={busy ? busyId : undefined} onClick={load}>Kimodo 생성 제안 검토</button>
@@ -41,9 +47,10 @@ function KimodoProposalForSelection({job,session,snapshot,offset,append,openStep
     <button ref={exampleToggleRef} type="button" aria-expanded={exampleOpen} onClick={()=>{const restore=exampleOpen && exampleRef.current?.contains(document.activeElement);setExampleMounted(true);setExampleOpen(value=>!value);if(focusFrame.current!==null)cancelAnimationFrame(focusFrame.current);if(restore)focusFrame.current=requestAnimationFrame(()=>{focusFrame.current=null;restoreLostFocus(document,exampleToggleRef.current);});}}>{exampleOpen?"예제 생성 폼 접기":"예제 생성 폼 검토"}</button>
     {exampleMounted && <div ref={exampleRef} className="conversation-kimodo-form" hidden={!exampleOpen}><KimodoGeneration session={session} receiptScope={job} proposalScope={{job,session,snapshot,offset,proposal:original}} initialInputs={proposal} choose={append}/></div>}
   </section>;
+  const promptReason=kimodoPromptReason(proposal.prompt);
   async function addRequest(event){
     const workflow=event.nativeEvent.submitter?.value==="workflow";
-    event.preventDefault();if(request.current)return;
+    event.preventDefault();if(request.current || promptReason)return;
     focusOnError.current=document.activeElement===event.nativeEvent.submitter;
     const selectionAtStart=selection.current;
     const controller=new AbortController();request.current=controller;let timedOut=false;
@@ -65,17 +72,15 @@ function KimodoProposalForSelection({job,session,snapshot,offset,append,openStep
       if(selection.current!==selectionAtStart){setError("대화 이력이 변경됐습니다. 제안을 다시 확인하세요.");return;}
       if(workflow)openStep(inputs);
       else append("Kimodo 생성 요청",JSON.stringify(checked));
-    }catch(problem){if(request.current===controller && (!controller.signal.aborted || timedOut))setError(timedOut ? "Kimodo 요청 확인 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}
+    }catch(problem){if(request.current===controller && (!controller.signal.aborted || timedOut))setError(selection.current!==selectionAtStart ? "대화 이력이 변경됐습니다. 제안을 다시 확인하세요." : timedOut ? "Kimodo 요청 확인 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}
     finally{clearTimeout(timeout);if(request.current===controller){request.current=null;setBusy(false);}}
   }
   return <form ref={resultRef} tabIndex={-1} className="proposal-feedback" onSubmit={addRequest}>{busy && <p id={busyId} role="status">Kimodo 요청을 확인하고 있습니다. 완료될 때까지 기다리세요.</p>}<fieldset disabled={busy} aria-describedby={busy ? busyId : undefined}><legend>Kimodo 생성 제안</legend>
-    <label>동작 설명 <textarea required maxLength={2000} value={proposal.prompt} onChange={e=>setProposal({...proposal,prompt:e.target.value})}/></label><PromptWordCount text={proposal.prompt} label="동작 설명"/>
-    {[[ "frames","프레임 수",30,300 ],[ "steps","생성 단계",2,100 ],[ "seed","시드",0,2147483647 ]].map(([key,label,min,max])=>
-      <label key={key}>{label} <input type="number" required min={min} max={max} value={proposal[key]}
-        onChange={e=>setProposal({...proposal,[key]:e.target.value})}/></label>)}
-    {!proposal.prompt.trim() && <p id={promptReasonId}>동작 설명을 입력한 뒤 요청을 검토하세요.</p>}
-    <button disabled={!proposal.prompt.trim()} aria-describedby={!proposal.prompt.trim() ? promptReasonId : undefined}>편집한 요청을 대화 입력에 추가</button>
-    <button value="workflow" disabled={!proposal.prompt.trim()} aria-describedby={!proposal.prompt.trim() ? promptReasonId : undefined}>생성 폼에서 검토</button>
+    <label>동작 설명 <textarea required maxLength={2000} aria-invalid={promptReason ? true : undefined} aria-describedby={promptReason ? promptReasonId : undefined} value={proposal.prompt} onChange={e=>setProposal({...proposal,prompt:e.target.value})}/></label><PromptWordCount text={proposal.prompt} label="동작 설명"/>
+    <KimodoProposalNumericFields proposal={proposal} onChange={(key,value)=>setProposal({...proposal,[key]:value})}/>
+    {promptReason && <p id={promptReasonId}>{promptReason}</p>}
+    <button disabled={Boolean(promptReason)} aria-describedby={promptReason ? promptReasonId : undefined}>편집한 요청을 대화 입력에 추가</button>
+    <button value="workflow" disabled={Boolean(promptReason)} aria-describedby={promptReason ? promptReasonId : undefined}>생성 폼에서 검토</button>
     {error && <p ref={errorRef} tabIndex={-1} className="proposal-feedback" role="alert">{error}</p>}
   </fieldset></form>;
 }
