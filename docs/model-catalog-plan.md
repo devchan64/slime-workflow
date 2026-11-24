@@ -127,7 +127,8 @@
 
 ## 정리 후 백업을 위한 현재 확인 사항
 
-- 2026-11-25 사용자는 `.model/models`의 각 하위 항목을 `.model` 바로 아래로 옮기고 빈 `models`를 없애도록 변경했다. 현재 대상은 `hermes-coding`, `qwen3-embedding-0.6b`, `translategemma-4b`, `flux-report-vision`, `audio`다. 상위에 같은 이름은 관측되지 않았다. Qwen3.8은 Hermes 전용이 아니라 작가 AI와 공유한다. 이동 전 서비스·백업·복원 매핑과 작업 사용 여부를 확인해야 하며 기존 경로는 아직 유지 중이다.
+- 2026-11-25 사용자는 `.model/models`의 각 하위 항목을 `.model` 바로 아래로 옮기고 빈 `models`를 없애도록 변경했다. Qwen3.8은 Hermes 전용이 아니라 작가 AI와 공유한다. 작가 임베딩을 먼저 `qwen3-embedding-0.6b`로 이동했으며, `hermes-coding`, `translategemma-4b`, `flux-report-vision`, `audio`의 이동은 아직 남았다.
+- 작가 임베딩은 GPU 예약과 백업 작업 잠금을 확보한 상태에서 기존 `models/qwen3-embedding-0.6b`를 상위로 원자적으로 옮겼고, 전후 파일 1개의 SHA-256 대조와 작가 AI 모델 준비 기록 확인에 통과했다. 되돌리기 기록은 `.local/model-catalog/migrations/flatten-writer-9226509a8020465e8b0f65f1c1cc4e31.json`이다. 새 GPU 예약이 생겨 다음 이동은 시작하지 못했다. 별도 조회에서 Samba 연결을 확인하지 못했으므로 새 경로의 백업 존재 여부는 미확인이다. 실제 임베딩 재추론과 새 백업·복원 시험도 남아 있다.
 
 - 2026-11-25 사용자 요청으로 TRELLIS 1 활성 모델 `models/trellis-image-large`, `models/trellis-dinov2`와 그 생성·GPU 시험 진입점을 제거했다. 별도 TRELLIS.2와 기존 백업, 실험 결과 및 이관 시 보존한 원본은 유지한다. 아래 과거 이관·추론 기록은 삭제 전의 사실이다.
 
@@ -144,7 +145,7 @@
 - 2026-11-25 읽기 전용 프로세스 관측에서 실행 중인 `llama-server` 한 개의 명령 인자가 이관된 `models/hermes-coding/Qwen3.8-27B-IQ4_XS.gguf`를 가리켰고 해당 서버의 `/health`가 `ok`를 반환했다. 이는 서버 시작 인자와 상태 관측이며 실제 추론 요청이나 모델 응답 성공을 증명하지 않는다.
 - 작가 임베딩 모델은 동일한 llama-server 바이너리를 CPU 전용(`-ngl 0`)으로 임시 포트에 실행해 이관된 `models/qwen3-embedding-0.6b/Qwen3-Embedding-0.6B-f16.gguf`를 직접 로드했다. 짧은 입력의 임베딩은 유한하고 0이 아닌 1,024차원 벡터였고 임시 서버는 종료했다. 사용자 문서·색인이나 GPU를 사용하지 않았으며 정식 ROCm 서비스의 추론 검증은 아니다.
 - FLUX 보고서 시각 모델은 CPU에서 이관된 `models/flux-report-vision`을 로드하고 단색 파란색 시험 이미지에 관찰 문장을 생성했다. 문장에는 실제 이미지에 없는 구름과 새 또는 동물이 언급됐으므로, 실행 성공은 관찰의 정확성을 보장하지 않는다. 시험 이미지는 임시 경로에서 생성·제거했다.
-- 이관한 모델의 현재 경로는 `models/hermes-coding`, `models/qwen3-embedding-0.6b`, `models/translategemma-4b`, `models/audio/heartmula`, `models/audio/dasheng-audiogen`, `models/flux-report-vision`, `models/trellis-image-large`, `models/trellis-dinov2`이다. `models` 상위를 백업하면 이 디렉터리들이 포함된다. 같은 내용을 개별 `catalog-*` 대상과 함께 스냅샷으로 백업하면 별도 사본이 생긴다.
+- 이관 중인 현재 경로는 `models/hermes-coding`, `qwen3-embedding-0.6b`, `models/translategemma-4b`, `models/audio/heartmula`, `models/audio/dasheng-audiogen`, `models/flux-report-vision`이다. 삭제된 TRELLIS 1 활성 경로는 포함하지 않는다. `models` 상위를 백업해도 상위로 이동한 작가 임베딩은 포함되지 않는다. 같은 내용을 상위 대상과 개별 `catalog-*` 대상으로 각각 백업하면 별도 사본이 생긴다.
 - `.cache/huggingface`와 `.local/model-catalog/retained`는 `.model`의 백업 범위 밖이다. 전자는 사용자가 분리한 캐시이며, 후자는 세 이관 원본의 되돌리기 보존본이다. 파일의 공유·링크 관계는 스냅샷에서 그대로 재현되지 않는다.
 - 2026-11-24 게이트웨이에서 Hermes, 작가 임베딩, 번역, HeartMuLa, Dasheng의 파일 준비 상태는 확인했다. 2026-11-25 번역 한 건, Dasheng 효과음 한 건, HeartMuLa 음악 한 건, TRELLIS의 특정 8개 이미지 입력 메시 생성을 확인했다. Hermes와 작가 임베딩의 이관 후 실제 GPU 추론과 그 외 입력·출력, 일부 구성요소의 서비스 관계는 미확인이다.
 - 현재 위치를 기준으로 한 새 Samba 백업과 전체 해시·복원 검증은 아직 없다. 기존 Samba 디렉터리의 존재, 과거 검증 이력 또는 이전 백업의 소형 설정 파일 복구 성공은 새 구조 전체가 복원 가능하다는 뜻이 아니다. 사용자가 정리 후 백업을 실행한 다음 해당 작업 결과와 선택한 복원 시험을 확인한다. 그 전에는 보존 원본을 삭제하지 않는다.

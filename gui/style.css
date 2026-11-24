@@ -650,6 +650,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .model-management-page > :is(.model-finder,.model-backup) {display:grid;gap:.65rem;min-width:0;align-content:start;line-height:1.5}
 .model-management-page > :is(.model-finder,.model-backup) > :is(h2,h3,p) {margin:0}
 .model-management-page > :is(.model-finder,.model-backup) h2 {font-size:1.125rem;line-height:1.3}
+.model-management-page > .model-backup > h2:focus {outline:2px solid var(--accent,#a7c8ff);outline-offset:2px}
 .model-management-page > .model-backup > h3 {font-size:1rem;line-height:1.35;margin-top:.25rem;padding-top:.9rem;border-top:1px solid var(--line,#484d50)}
 .model-management-page :is(.model-finder,.model-backup) label {display:grid;gap:.3rem;min-width:0;max-width:32rem;font-size:.9rem;line-height:1.4}
 .model-management-page :is(.model-finder,.model-backup) input[type="search"] {box-sizing:border-box;width:100%;min-width:0;max-width:100%;font:inherit;color:inherit;background:var(--surface,#202326);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
