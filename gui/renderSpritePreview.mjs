@@ -1,6 +1,6 @@
 export default function renderSpriteSheetPreview(currentImageData,currentFrameRows,currentFrameIndex,currentPlayEnabled,currentShadowEnabled,currentEditMode,currentSourceBounds,currentPlaybackRate=6,currentBaselineEnabled=false,currentOnionEnabled=false,currentPreviewClip='',currentSourceRecord={},currentGameSizeEnabled=false,currentReferenceHeight=480,currentGameBodyHeight=80,currentFeetEnabled=false,currentRestoredFeet={},currentHeightGuideEnabled=false,currentCanvasElement=document.getElementById('sprite-sheet-alignment-preview')){
  if(!currentCanvasElement)return '미리보기 캔버스가 없습니다.';
- const currentRows=(Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data)?.map(currentFrameRow=>currentFrameRow.map(Number));
+ const currentRows=(Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data)?.map(currentFrameRow=>currentFrameRow.map(value=>value==null || String(value).trim()==='' ? NaN : Number(value)));
  const currentCanvasContext=currentCanvasElement.getContext('2d');
  const currentPlaybackFps=Number(currentPlaybackRate);
  if(![4,6,8,12,16,24,30].includes(currentPlaybackFps))return '지원하지 않는 검수 FPS입니다.';

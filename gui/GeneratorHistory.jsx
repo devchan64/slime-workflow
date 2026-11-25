@@ -98,8 +98,7 @@ function GeneratorHistoryForService({service, statusCommand, restore, inspectRes
   }
   useEffect(()=>{
     if(!focusOpenedResult.current || !resultId || resultLookup?.id!==resultId || resultLookup.loading)return;
-    focusOpenedResult.current=false;
-    const frame=requestAnimationFrame(()=>{if(document.activeElement===document.body && resultPanelRef.current?.isConnected)resultPanelRef.current.focus();});
+    const frame=requestAnimationFrame(()=>{focusOpenedResult.current=false;if(document.activeElement===document.body && resultPanelRef.current?.isConnected)resultPanelRef.current.focus();});
     return ()=>cancelAnimationFrame(frame);
   },[resultId,resultLookup]);
   useEffect(()=>{

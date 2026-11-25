@@ -74,9 +74,11 @@ class GenerationStatusLookupTests(unittest.TestCase):
               assert.notEqual(key({service:'one',id:'job'}),key({service:'two',id:'job'}));
               assert.notEqual(key({service:'one',id:'job'}),key({service:'one',id:'job',kind:'audio'}));
               const render=(error,stale)=>server.renderToStaticMarkup(React.createElement(MediaResultError,{error,stale}));
-              process.stdout.write(JSON.stringify([render('영상 원본 작업 경로 오류',true),render('접속 오류',true),render('접속 오류',false)]));"""
-            missing,stale,empty=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True))
+              process.stdout.write(JSON.stringify([render('영상 원본 작업 경로 오류',true),render('이미지 원본 작업 경로 오류',false),render('FLUX 원본 작업 경로 오류',false),render('캐릭터 작업 경로 오류',false),render('접속 오류',true),render('접속 오류',false)]));"""
+            missing,image_missing,flux_missing,character_missing,stale,empty=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True))
         self.assertIn('작업을 찾지 못했습니다',missing);self.assertIn('마지막으로 조회한 결과',missing)
+        self.assertIn('작업을 찾지 못했습니다',image_missing)
+        self.assertIn('작업을 찾지 못했습니다',flux_missing);self.assertIn('작업을 찾지 못했습니다',character_missing)
         self.assertIn('마지막으로 조회한 결과',stale);self.assertNotIn('마지막으로 조회한 결과',empty)
 
     def test_current_flux_pages_retain_distinct_services(self):

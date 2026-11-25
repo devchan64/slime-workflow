@@ -99,7 +99,7 @@ function SavedPoseVideo({id,resultVideo,resultPoster}) {
 
 export function MediaResultError({error,stale}) {
   if(!error)return null;
-  const missing=error.includes("영상 원본 작업 경로 오류") || error.includes("음악 작업 경로가 없거나 허용되지 않습니다");
+  const missing=["영상 원본 작업 경로 오류","이미지 원본 작업 경로 오류","FLUX 원본 작업 경로 오류","캐릭터 작업 경로 오류","음악 작업 경로가 없거나 허용되지 않습니다"].some(message=>error.includes(message));
   return <p role="alert">{missing ? "이 생성기에서 해당 작업을 찾지 못했습니다. 작업 ID와 이력을 확인해 주세요." : error.includes("시간이 초과") ? "작업 결과 조회 시간이 초과됐습니다. 다시 조회해 주세요." : error.includes("형식") || error.includes("요청과 일치") ? "작업 결과의 내용을 확인하지 못했습니다. 결과를 다시 조회해 주세요." : "작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요."}{stale && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>;
 }
 

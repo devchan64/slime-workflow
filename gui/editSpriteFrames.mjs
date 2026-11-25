@@ -2,6 +2,7 @@ export default (currentFrameRows,currentTargetMode,currentTargetText,currentEdit
  const currentOriginalRows=Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data;
  try{
   if(!currentOriginalRows?.length)throw Error('시트를 먼저 불러오세요.');
+  if(currentOriginalRows.some(currentFrameRow=>currentFrameRow.some(currentCellValue=>currentCellValue==null || String(currentCellValue).trim()==='')))throw Error('프레임 표의 빈 입력을 먼저 채우세요. 전체 적용을 취소했습니다.');
   const currentEditedRows=currentOriginalRows.map(currentFrameRow=>currentFrameRow.map(Number));
   if(currentEditedRows.some(currentFrameRow=>currentFrameRow.length!==6||currentFrameRow.some(currentCellValue=>!Number.isFinite(currentCellValue))||currentFrameRow.slice(0,4).some(currentCellValue=>!Number.isSafeInteger(currentCellValue))))throw Error('크롭은 정수, 앵커는 유한한 숫자여야 합니다.');
   const currentTargetIndices=new Set();

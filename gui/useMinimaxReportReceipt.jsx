@@ -26,7 +26,7 @@ export function useMinimaxReportReceipt(scope, service) {
         if(receipt?.request_id!==id || receipt?.service!==service)throw new Error('접수 기록이 일치하지 않습니다.');
         if(receipt.state==='not_found')setValue({state:'editing',id,scopeKey});
         else if(receipt.state==='accepted' && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(receipt.job_id || '')){
-          setValue({state:'accepted',id,job:receipt.job_id,report:result.report,scopeKey});
+          setValue({state:'accepted',id,job:receipt.job_id,service,report:result.report,scopeKey});
           if(!['completed','failed'].includes(result.report?.state))timer=setTimeout(check,5000);
         }else {setValue({state:'unknown',id,scopeKey});timer=setTimeout(check,5000);}
       }catch(error){if(!stopped && version===generation.current){setValue({state:'unknown',error:error?.message,scopeKey});timer=setTimeout(check,5000);}}
@@ -64,13 +64,16 @@ export function minimaxReceiptText(receipt){
   const names={waiting:'생성 중 또는 분석 대기',analyzing:'결과 분석 중',report_queued:'보고서 작성 대기',writing:'보고서 작성 중',completed:'대화에 보고 완료',failed:'보고 실패'};
   const report=receipt.report;
   const label=report?.generation_state==='failed' ? '생성 실패' : ['cancelled','canceled'].includes(report?.generation_state) ? '생성 취소' : report?.state==='writing' && report?.writer_status==='queued' ? '보고서 작성 대기' : report?.state==='writing' && report?.writer_status!=='running' ? '보고서 작성 상태 확인 중' : names[report?.state];
-  return `접수된 작업 ${receipt.job} · ${label || '보고 상태 확인 중'}${report?.error || report?.last_error ? ' · '+(report.error || report.last_error) : ''}`;
+  return `생성 대기열에 등록했습니다. 작업 ID ${receipt.job} · ${label || '보고 상태 확인 중'}${report?.error || report?.last_error ? ' · '+(report.error || report.last_error) : ''}`;
 }
 
 
 export function MinimaxReportStatus({receipt}){
   const retryAvailable=receipt?.state==='accepted' && receipt.report?.retry_available===true;
-  return <div><p role="status">{minimaxReceiptText(receipt)}{retryAvailable && ' · 재분석 가능'}{receipt.report?.retry_unavailable_reason && ' · 재분석 불가: '+receipt.report.retry_unavailable_reason}</p>
+  const message=minimaxReceiptText(receipt);
+  const linked=receipt.state==='accepted' && receipt.service==='minimax-h3-image';
+  const offset=linked ? message.indexOf(receipt.job) : -1;
+  return <div><p role="status">{offset>=0 ? <>{message.slice(0,offset)}<a href={'/management/frame/minimax-h3-image-generator/?job='+encodeURIComponent(receipt.job)+'#job-result'}>{receipt.job}</a>{message.slice(offset+receipt.job.length)}</> : message}{retryAvailable && ' · 재분석 가능'}{receipt.report?.retry_unavailable_reason && ' · 재분석 불가: '+receipt.report.retry_unavailable_reason}</p>
     <button type="button" onClick={receipt.refresh} disabled={receipt.retryState?.busy}>접수·보고 상태 새로고침</button>
     {retryAvailable && <button type="button" onClick={receipt.retry} disabled={receipt.retryState?.busy}>{receipt.retryState?.busy ? '재분석 요청 중' : '보고서 재분석'}</button>}
     {receipt.retryState?.error && <p role="alert">{receipt.retryState.error}</p>}</div>;

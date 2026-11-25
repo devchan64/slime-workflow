@@ -6,8 +6,9 @@ from workflow.common.management_gateway import MANAGEMENT_SERVICE_ROUTES
 from workflow.domains.hermes_agent.delegation_store import read_bounded_delegation_record,validate_service_job_identifier
 from workflow.domains.hermes_agent.failure_observer import observe_hermes_generator_failure
 
-IMAGE_SOURCE_SERVICES=(*SOURCE_HISTORY_ARCHIVED_IMAGE_SERVICES,'floor-tile')
+IMAGE_SOURCE_SERVICES=(*SOURCE_HISTORY_ARCHIVED_IMAGE_SERVICES,'floor-tile','minimax-h3-image')
 IMAGE_SOURCE_MANAGER_RECORDS={
+    'minimax-h3-image':('workflow.domains.minimax_h3_image.generation','MiniMaxH3ImageManager'),
     'qwen-21':('workflow.domains.image.qwen_21_generation','QwenPlainGenerationManager'),
     'qwen-21-circular':('workflow.domains.image.qwen_circular_generation','QwenCircularGenerationManager'),
     'mannequin-generator':('workflow.domains.image.mannequin_generation','MannequinGenerationManager'),

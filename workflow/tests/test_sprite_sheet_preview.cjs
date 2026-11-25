@@ -5,6 +5,7 @@ let currentAnchorCalls=[],currentImageCalls=[];
 const currentCanvasContext=new Proxy({arc:(...currentCallArguments)=>currentAnchorCalls.push(currentCallArguments),drawImage:(...currentCallArguments)=>currentImageCalls.push(currentCallArguments)},{get:(currentTargetObject,currentPropertyName)=>currentTargetObject[currentPropertyName]||(()=>{})});
 const currentCanvasElement={getContext:()=>currentCanvasContext,isConnected:true};
 global.document={getElementById:()=>currentCanvasElement};global.Image=class{width=928;height=1695;set src(currentImageSource){this.onload()}};global.requestAnimationFrame=()=>{};
+currentAssertModule.match(renderCurrentPreview('image',[[0,0,232,330,'',327]],1,false,false,'크롭',null),/유효한 프레임 좌표/);
 for(let currentFrameIndex=1;currentFrameIndex<=2;currentFrameIndex++)renderCurrentPreview('image',currentFrameRows,currentFrameIndex,false,false,'크롭',null);
 renderCurrentPreview('image',currentFrameRows,1,true,false,'크롭',null);
 currentAssertModule.deepStrictEqual(currentAnchorCalls[0],currentAnchorCalls[1]);currentAssertModule.deepStrictEqual(currentAnchorCalls[0],currentAnchorCalls[2]);

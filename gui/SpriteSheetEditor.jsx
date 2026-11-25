@@ -1,4 +1,4 @@
-import {invalidSpriteGridCount,invalidSpriteGrid,invalidSpriteFrameRange,spriteFrameIssue,spriteFrameFieldIssues} from "./spriteGridValidation.mjs";
+import {invalidSpriteGridCount,invalidSpriteGrid,invalidSpriteFrameRange,spriteFrameIssue,spriteFrameFieldIssues,spriteOutputSizeIssues} from "./spriteGridValidation.mjs";
 import SpriteAnchorRestore from "./SpriteAnchorRestore.jsx";
 import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
@@ -21,7 +21,7 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReference
   const [gameHeight,setGameHeight]=useState(original?.runtimeDimensions?.gameBodyHeight ?? original?.animation?.gameBodyHeight ?? "");
   const [previewStatus,setPreviewStatus]=useState("");
   const [mode,setMode]=useState("크롭"),[target,setTarget]=useState("현재 프레임"),[selection,setSelection]=useState([]);
-  const [notice,setNotice]=useState(""),[revision,refresh]=useState(0);
+  const [notice,setNotice]=useState(null),[revision,refresh]=useState(0);
   function togglePlayback(){
     if(playing)setFrame((canvas.current?.spriteEditorState?.displayedIndex ?? frame-1)+1);
     setPlaying(!playing);
@@ -37,9 +37,10 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReference
   function apply(operation){
     const data=rows.map(row=>fields.map(field=>row[field]));
     const [updated,message]=applySpriteCanvas(data,target,selection,operation,canvas.current);
-    if(updated.data)onEdit(updated.data.map(row=>Object.fromEntries(fields.map((field,i)=>[field,row[i]]))));
+    const nextRows=updated.data ? updated.data.map(row=>Object.fromEntries(fields.map((field,i)=>[field,row[i]]))) : rows;
+    if(updated.data)onEdit(nextRows);
     if(operation==="discard")refresh(n=>n+1);
-    setNotice(message);
+    setNotice({message,rows:nextRows});
   }
   const [frame,setFrame]=useState(1),[playing,setPlaying]=useState(false),[clip,setClip]=useState("");
   const [shadow,setShadow]=useState(false),[baseline,setBaseline]=useState(true),[onion,setOnion]=useState(false);
@@ -65,7 +66,7 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReference
       <button type="button" onClick={()=>apply("apply")}>캔버스 편집 반영</button>
       <button type="button" onClick={()=>apply("undo")}>직전 반영 되돌리기</button>
       <button type="button" onClick={()=>apply("discard")}>드래그 취소</button>
-      {notice && <p role="status">{notice}</p>}
+      {notice?.rows===rows && <p role="status">{notice.message}</p>}
     </fieldset>
     <label>정지 프레임 {frame}<input type="range" min="1" max={rows.length} disabled={playing} value={frame}
       onChange={e=>setFrame(Number(e.target.value))}/></label>
@@ -86,21 +87,22 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReference
 
 function BulkEdit({rows,onEdit}){
   const [target,setTarget]=useState("전체"),[range,setRange]=useState(""),[mode,setMode]=useState("크롭");
-  const [values,setValues]=useState([0,0,0,0,rows[0].anchorX,rows[0].anchorY]),[notice,setNotice]=useState("");
+  const [values,setValues]=useState([0,0,0,0,rows[0].anchorX,rows[0].anchorY]),[notice,setNotice]=useState(null);
   const names=["왼쪽 여백","위쪽 여백","오른쪽 여백","아래쪽 여백","공통 앵커 X","공통 앵커 Y"];
   function apply(){
     const [result,message]=editSpriteFrames(rows.map(row=>fields.map(field=>row[field])),target,range,mode,
       ...values.map(value=>value===""?NaN:Number(value)));
-    if(result.data)onEdit(result.data.map(row=>Object.fromEntries(fields.map((field,i)=>[field,row[i]]))));
-    setNotice(message);
+    const nextRows=result.data ? result.data.map(row=>Object.fromEntries(fields.map((field,i)=>[field,row[i]]))) : rows;
+    if(result.data)onEdit(nextRows);
+    setNotice({message,rows:nextRows});
   }
   return <details><summary>프레임 일괄 편집</summary>
-    <label>적용 대상<select value={target} onChange={e=>setTarget(e.target.value)}><option>전체</option><option>지정 프레임</option></select></label>
-    {target==="지정 프레임" && <label>프레임 번호<input placeholder="1,3-5" value={range} onChange={e=>setRange(e.target.value)}/></label>}
-    <label>편집 종류<select value={mode} onChange={e=>setMode(e.target.value)}><option>크롭</option><option>앵커</option></select></label>
+    <label>적용 대상<select value={target} onChange={e=>{setTarget(e.target.value);setNotice(null);}}><option>전체</option><option>지정 프레임</option></select></label>
+    {target==="지정 프레임" && <label>프레임 번호<input placeholder="1,3-5" value={range} onChange={e=>{setRange(e.target.value);setNotice(null);}}/></label>}
+    <label>편집 종류<select value={mode} onChange={e=>{setMode(e.target.value);setNotice(null);}}><option>크롭</option><option>앵커</option></select></label>
     {(mode==="크롭"?[0,1,2,3]:[4,5]).map(i=><label key={i}>{names[i]}<input inputMode="decimal" value={values[i]}
-      onChange={e=>setValues(values.map((v,j)=>j===i?e.target.value:v))}/></label>)}
-    <button type="button" onClick={apply}>일괄 적용</button>{notice && <p role="status">{notice}</p>}
+      onChange={e=>{setValues(values.map((v,j)=>j===i?e.target.value:v));setNotice(null);}}/></label>)}
+    <button type="button" onClick={apply}>일괄 적용</button>{notice?.rows===rows && <p role="status">{notice.message}</p>}
   </details>;
 }
 
@@ -109,12 +111,14 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const [columns,setColumns]=useState(initialColumns),[busy,setBusy]=useState(false);
   const [result,setResult]=useState(null),[error,setError]=useState("");
   const [first,setFirst]=useState(1),[last,setLast]=useState(rows.length),[fps,setFps]=useState(6);
-  const rangeErrorId=useId(),outputColumnsErrorId=useId(),frameErrorId=useId();
+  const rangeErrorId=useId(),outputColumnsErrorId=useId(),frameErrorId=useId(),sheetSizeErrorId=useId(),gifSizeErrorId=useId();
   const frameFieldIssues=rows.map(spriteFrameFieldIssues);
   const frameIssues=frameFieldIssues.map(issue=>Object.values(issue).join(" "));
   const hasFrameIssues=frameIssues.some(Boolean);
   const invalidOutputColumns=invalidSpriteGridCount(columns);
   const invalidRange=invalidSpriteFrameRange(first,last,rows.length);
+  const sheetSizeIssues=spriteOutputSizeIssues(rows,columns);
+  const gifSizeIssues=invalidRange ? [] : spriteOutputSizeIssues(rows.slice(Number(first)-1,Number(last)),4,true);
   const [review,setReview]=useState(null),[restoredFeet,setRestoredFeet]=useState({});
   const canvas=useRef(null),frameTableRef=useRef(null),reviewRef=useRef(null),reviewTrigger=useRef(null),saving=useRef(false);
   useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus({preventScroll:true});},[review]);
@@ -137,6 +141,8 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
       if((gif ? rows.slice(Number(first)-1,Number(last)) : rows).some(spriteFrameIssue))throw new Error("프레임 크롭과 앵커 입력을 확인하세요.");
       if(!gif && invalidOutputColumns)throw new Error("출력 열 수는 1~128의 정수여야 합니다.");
       if(gif && invalidSpriteFrameRange(first,last,rows.length))throw new Error("GIF 시작·끝 프레임은 시트 범위 안의 정수여야 합니다.");
+      const sizeIssues=gif ? gifSizeIssues : sheetSizeIssues;
+      if(sizeIssues.length)throw new Error(sizeIssues.join(" "));
       const start=gif?Number(first)-1:0,end=gif?Number(last):rows.length;
       if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end<=start||end>rows.length){
         throw new Error("GIF 시작·끝 프레임은 시트 범위 안의 정수여야 합니다.");
@@ -193,8 +199,9 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     <SpritePreview restoredFeet={restoredFeet} canvas={canvas} onReferenceEdit={()=>setReview(null)} onEdit={editRows} rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
     <label>출력 열 수<input type="number" step="any" aria-invalid={invalidOutputColumns || undefined} aria-describedby={invalidOutputColumns ? outputColumnsErrorId : undefined} value={columns}
       onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/>{invalidOutputColumns && <small id={outputColumnsErrorId}>1~128의 정수를 입력하세요.</small>}</label>
-    <button disabled={invalidOutputColumns || hasFrameIssues} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId].filter(Boolean).join(" ") || undefined}>시트와 좌표맵 내보내기</button>
-    {original?.metadataSha256 && <button value="review" disabled={invalidOutputColumns || hasFrameIssues} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId].filter(Boolean).join(" ") || undefined}>원본 갱신 검토</button>}
+    {sheetSizeIssues.length>0 && <p id={sheetSizeErrorId}>{sheetSizeIssues.join(" ")}</p>}
+    <button disabled={invalidOutputColumns || hasFrameIssues || sheetSizeIssues.length>0} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId,sheetSizeIssues.length>0 && sheetSizeErrorId].filter(Boolean).join(" ") || undefined}>시트와 좌표맵 내보내기</button>
+    {original?.metadataSha256 && <button value="review" disabled={invalidOutputColumns || hasFrameIssues || sheetSizeIssues.length>0} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId,sheetSizeIssues.length>0 && sheetSizeErrorId].filter(Boolean).join(" ") || undefined}>원본 갱신 검토</button>}
     {review && <section ref={reviewRef} tabIndex={-1} aria-label="원본 갱신 검토"><h3>{original.path}</h3><p>좌표 변경 {review.changed} / {rows.length}프레임 · 출력 {columns}열</p>
       {review.bodyReference && <p>머리 기준 · {review.bodyReference.frame}번 프레임 · Y {review.bodyReference.headY}px</p>}
       <p>{original.source==="baseline"?"베이스라인 이미지·좌표맵·YAML":"등록 이미지·좌표맵·등록부와 잠금 해시"}를 갱신합니다.</p>
@@ -205,7 +212,8 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
       <label>끝 프레임<input type="number" step="any" aria-invalid={invalidRange || undefined} aria-describedby={invalidRange ? rangeErrorId : undefined} value={last} onChange={e=>setLast(e.target.value)}/></label>{invalidRange && <p id={rangeErrorId}>1~{rows.length}의 정수로 시작이 끝보다 크지 않게 입력하세요.</p>}
       <label>재생 속도 (FPS)<select value={fps} onChange={e=>setFps(e.target.value)}>
         {[4,6,8,12,16,24,30].map(rate=><option key={rate}>{rate}</option>)}</select></label>
-      <button value="gif" disabled={invalidRange || (!invalidRange && frameIssues.slice(Number(first)-1,Number(last)).some(Boolean))} aria-describedby={[invalidRange && rangeErrorId,!invalidRange && frameIssues.slice(Number(first)-1,Number(last)).some(Boolean) && frameErrorId].filter(Boolean).join(" ") || undefined}>선택 범위 GIF 내보내기</button>
+      {gifSizeIssues.length>0 && <p id={gifSizeErrorId}>{gifSizeIssues.join(" ")}</p>}
+      <button value="gif" disabled={invalidRange || gifSizeIssues.length>0 || (!invalidRange && frameIssues.slice(Number(first)-1,Number(last)).some(Boolean))} aria-describedby={[invalidRange && rangeErrorId,gifSizeIssues.length>0 && gifSizeErrorId,!invalidRange && frameIssues.slice(Number(first)-1,Number(last)).some(Boolean) && frameErrorId].filter(Boolean).join(" ") || undefined}>선택 범위 GIF 내보내기</button>
     </fieldset></fieldset>
     {error && <p role="alert">{error}</p>}
     {result && <section><p role="status">내보내기 완료 · {result.id}</p>

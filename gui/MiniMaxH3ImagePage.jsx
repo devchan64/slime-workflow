@@ -28,7 +28,10 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
   const [prompt,setPrompt]=useState(initialInputs?.prompt || ""), [seed,setSeed]=useState(initialInputs?.seed ?? 42), [model,setModel]=useState(null);
   const [size,setSize]=useState(initialInputs?.width===512 && initialInputs?.height===512 ? 512 : 1024);
   const [pending,setPending]=useState(null), [preview,setPreview]=useState(""), [busy,setBusy]=useState(false), [error,setError]=useState("");
-  const [job,setJob]=useState(""), [revision,setRevision]=useState(0);
+  const [job,setJob]=useState(()=>{
+    const linked=new URLSearchParams(window.location.search).get("job");
+    return !embedded && validGenerationJobId(linked) ? linked : "";
+  }), [revision,setRevision]=useState(0);
   const localReceipt=useMinimaxReportReceipt(reportReceipt ? null : proposalScope,service);
   const receipt=reportReceipt || localReceipt;
   useEffect(()=>{if(receipt.state==="accepted" && receipt.job)setJob(receipt.job);},[receipt.state,receipt.job]);
@@ -96,6 +99,6 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
     <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority openResult={setJob} resultId={job} onCloseResult={()=>setJob("")}
       onSelectedDeleted={(id)=>{if(id===job)setJob("");setRevision(n=>n+1);}}
       footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={()=>{setJob("");setRevision(n=>n+1);}}/>}
-      renderResult={(id,close)=><section ref={resultRef} tabIndex={-1} aria-label="선택한 이미지 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} statusCommand="status"/><MediaJobResult kind="image" service={service} id={id}/></section>}/></div>
+      renderResult={(id,close)=><section id="job-result" ref={resultRef} tabIndex={-1} aria-label="선택한 이미지 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} statusCommand="status"/><MediaJobResult kind="image" service={service} id={id}/></section>}/></div>
   </article>;
 }

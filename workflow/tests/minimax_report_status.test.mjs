@@ -30,7 +30,7 @@ test('생성 실패와 취소를 보고서 작성 실패와 구분한다',()=>{
 
 test('접수된 작업의 보고 기록을 찾지 못하면 접수 ID와 확인 필요 사유를 표시한다',()=>{
  const text=minimaxReceiptText({state:'accepted',job:'2026-11-24_12-00-00-12345678',report:{state:'unknown',last_error:'보고서 기록을 확인할 수 없습니다.'}});
- assert.match(text,/접수된 작업 2026-11-24_12-00-00-12345678/);
+ assert.match(text,/생성 대기열에 등록했습니다\. 작업 ID 2026-11-24_12-00-00-12345678/);
  assert.match(text,/보고 상태 확인 중/);assert.match(text,/보고서 기록을 확인할 수 없습니다/);
 });
 

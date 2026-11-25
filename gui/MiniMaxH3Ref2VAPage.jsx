@@ -48,6 +48,7 @@ export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSess
   const reasons=[!generationReady(model) && '모델 준비 상태를 확인하세요.',needsProposal && (!proposalScope || receipt.state!=='editing') && '대화 제안의 접수 상태를 확인하세요.',!file && '원본 MP4를 선택하세요.',!prompt.trim() && '편집 프롬프트를 입력하세요.',invalidSeed && '시드는 0~2147483647의 정수여야 합니다.'];
   function choose(event){
     const chosen=event.target.files?.[0];event.target.value="";if(!chosen)return;
+    setNotice('');
     if(chosen.size>27*1024*1024 || (chosen.type && chosen.type!=="video/mp4")){setError('27MiB 이하 MP4를 선택하세요.'+(file ? ' 이전에 선택한 영상은 유지됩니다.' : ''));return;}
     editVersion.current++;setFile(chosen);setError("");
   }

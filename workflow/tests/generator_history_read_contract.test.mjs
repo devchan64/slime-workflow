@@ -68,9 +68,11 @@ test('이력 밖 결과 재조회는 초점이 결과 안에 있을 때만 복�
 test('이력 결과 초점 예약은 결과 전환 시 취소한다',()=>{
  const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
  const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(!focusOpenedResult.current'),source.indexOf('  useEffect(()=>{\n    cancelList();'));
- let cleanup,frame,cancelled=0;const body={},document={body,activeElement:body};
- const context=vm.createContext({document,focusOpenedResult:{current:true},resultId:'job',resultLookup:{id:'job',loading:false},resultPanelRef:{current:{isConnected:true,focus:()=>{}}},useEffect:fn=>cleanup=fn(),requestAnimationFrame:fn=>(frame=fn,7),cancelAnimationFrame:id=>{assert.equal(id,7);cancelled++;}});
+ let cleanup,frame,cancelled=0,focused=0;const body={},document={body,activeElement:body};
+ const context=vm.createContext({document,focusOpenedResult:{current:true},resultId:'job',resultLookup:{id:'job',loading:false},resultPanelRef:{current:{isConnected:true,focus:()=>focused++}},useEffect:fn=>cleanup=fn(),requestAnimationFrame:fn=>(frame=fn,7),cancelAnimationFrame:id=>{assert.equal(id,7);cancelled++;}});
  vm.runInContext(effect,context);assert.equal(typeof frame,'function');cleanup();assert.equal(cancelled,1);
+ assert.equal(context.focusOpenedResult.current,true);
+ vm.runInContext(effect,context);frame();assert.equal(focused,1);assert.equal(context.focusOpenedResult.current,false);
 });
 
 test('이력 밖 결과 영역도 결과 초점 이동 대상으로 연결된다',()=>{

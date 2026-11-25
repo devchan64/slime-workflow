@@ -287,8 +287,26 @@ function ChatResultLink({href, children, node}) {
     {children}
   </a>;
 }
+function linkMiniMaxImageJobs() {
+  return tree => {
+    function visit(node) {
+      if (!node.children || ['a','pre','code'].includes(node.tagName)) return;
+      node.children = node.children.flatMap(child => {
+        if (child.type !== 'text') { visit(child); return [child]; }
+        const match = /(작업\s*ID\s*[:：]\s*)(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8})(?=\s*\(minimax-h3-image\))/.exec(child.value);
+        if (!match) return [child];
+        const start = match.index + match[1].length;
+        const id = match[2];
+        return [{type:'text',value:child.value.slice(0,start)},
+          {type:'element',tagName:'a',properties:{href:'/management/frame/minimax-h3-image-generator/?job='+id+'#job-result'},children:[{type:'text',value:id}]},
+          {type:'text',value:child.value.slice(start+id.length)}];
+      });
+    }
+    visit(tree);
+  };
+}
 function AssistantText({text}){
-  return <div className="assistant-markdown"><Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[markChatThumbnails]} skipHtml components={{
+  return <div className="assistant-markdown"><Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[linkMiniMaxImageJobs,markChatThumbnails]} skipHtml components={{
     a:ChatResultLink,
     table:MarkdownTable,
     img:({alt})=><span>{alt || "이미지"}</span>,

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {invalidSpriteGrid,invalidSpriteGridCount,invalidSpriteFrameRange,spriteFrameIssue,spriteFrameFieldIssues} from '../../gui/spriteGridValidation.mjs';
+import {invalidSpriteGrid,invalidSpriteGridCount,invalidSpriteFrameRange,spriteFrameIssue,spriteFrameFieldIssues,spriteOutputSizeIssues} from '../../gui/spriteGridValidation.mjs';
 
 test('분할 행과 열은 양의 정수이며 셀과 전체 프레임 제한을 지킨다',()=>{
  for(const value of ['',null,0,1.5,129])assert.equal(invalidSpriteGridCount(value),true);
@@ -9,6 +9,19 @@ test('분할 행과 열은 양의 정수이며 셀과 전체 프레임 제한을
  assert.equal(invalidSpriteGrid('17','8',{width:17,height:8}),true);
  assert.equal(invalidSpriteGrid('5','2',{width:4,height:2}),true);
  assert.equal(invalidSpriteGrid('4','2',null),true);
+});
+
+test('출력 시트와 GIF는 각각 서버의 픽셀 제한을 따른다',()=>{
+ const frame=(width,height,anchorX=0,anchorY=0)=>({x:0,y:0,width,height,anchorX,anchorY});
+ assert.deepEqual(spriteOutputSizeIssues([frame(4096,4096)],1),[]);
+ assert.equal(spriteOutputSizeIssues([frame(4097,4096)],1).length,1);
+ assert.equal(spriteOutputSizeIssues([frame(3000,1000),frame(1000,3000),frame(1000,1000)],2).length,0);
+ assert.equal(spriteOutputSizeIssues([frame(3000,1000),frame(1000,3000),frame(1000,2000)],2).length,1);
+ const frames=Array.from({length:4},()=>frame(4000,4000,0,0));
+ assert.equal(spriteOutputSizeIssues(frames,4,true).length,1);
+ assert.equal(spriteOutputSizeIssues(frames.slice(0,1),4,true).length,0);
+ const aligned=[frame(4000,4000,0,0),frame(4000,4000,3999,3999)];
+ assert.equal(spriteOutputSizeIssues(aligned,4,true).length,2);
 });
 
 

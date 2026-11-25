@@ -1,7 +1,9 @@
 export default (currentFrameRows,currentTargetMode,currentSelectedFrames,currentOperation,currentCanvasElement=document.getElementById('sprite-sheet-alignment-preview'))=>{
  const currentEditorState=currentCanvasElement?.spriteEditorState;
  try{
-  const currentRows=(Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data)?.map(currentRow=>currentRow.map(Number));
+  const currentSourceRows=Array.isArray(currentFrameRows)?currentFrameRows:currentFrameRows?.data;
+  if(currentSourceRows?.some(currentRow=>currentRow.some(value=>value==null || String(value).trim()==='')))throw Error('프레임 표의 빈 입력을 먼저 채우세요. 아무 프레임도 변경하지 않았습니다.');
+  const currentRows=currentSourceRows?.map(currentRow=>currentRow.map(Number));
   if(!currentEditorState||JSON.stringify(currentRows)!==currentEditorState.signature)throw Error('시트를 불러오고 미리보기를 확인하세요.');
   const formatCurrentRows=currentValues=>({...(!Array.isArray(currentFrameRows)?currentFrameRows:{}),data:currentValues});
   if(currentOperation==='discard'){
