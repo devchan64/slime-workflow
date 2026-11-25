@@ -1,6 +1,6 @@
 # 도구 목록 · 생성기와 관리 기능
 
-2026-11-22 운영 대화의 `/management/assistant/tools` 응답을 기준으로 정리한 목록이다. 등록 이름과 제안 이름을 구분하며 일부 제안 이름을 카탈로그에 적용했으며 나머지는 검토 대상으로 유지한다. 목록은 기준 시점의 스냅샷이고 동적 맵·UI 항목은 실행 환경에 따라 달라진다. 실제 진입 가능 여부와 생성 성공을 보증하지 않는다.
+2026-11-25 운영 대화의 `/management/assistant/tools` 응답 33개를 기준으로 정리한 목록이다. 등록 이름과 제안 이름을 구분하며 일부 제안 이름을 카탈로그에 적용했으며 나머지는 검토 대상으로 유지한다. 목록은 기준 시점의 스냅샷이고 동적 맵·UI 항목은 실행 환경에 따라 달라진다. 실제 진입 가능 여부와 생성 성공을 보증하지 않는다.
 
 ## 이름과 분류 기준
 
@@ -21,7 +21,7 @@
 
 | 현재 이름 | 제안 이름 | 역할 | ID | 현재 경로 |
 | --- | --- | --- | --- | --- |
-| Dasheng-AudioGen · 효과음 | Dasheng-AudioGen 효과음 생성기 | 생성기 | `sfx-dasheng-audiogen` | `/management/frame/sfx-dasheng-audiogen/` |
+| Dasheng-AudioGen 효과음 생성기 | Dasheng-AudioGen 효과음 생성기 | 생성기 | `sfx-dasheng-audiogen` | `/management/frame/sfx-dasheng-audiogen/` |
 | DWPose 이미지 추출 | DWPose 포즈 추출 | 포즈 추출 | `dwpose-generator` | `/management/frame/dwpose-generator/` |
 | FLUX 3 건물 생성기 | FLUX 3 건물 생성기 | 생성기 | `flux-building-generator` | `/management/frame/flux-building-generator/` |
 | FLUX 3 마네킨 생성기 | FLUX 3 마네킨 생성기 | 생성기 | `flux-mannequin-generator` | `/management/frame/flux-mannequin-generator/` |
@@ -32,22 +32,27 @@
 | FLUX 3 일반 이미지 생성기 | FLUX 3 일반 이미지 생성기 | 생성기 | `flux-image-generator` | `/management/frame/flux-image-generator/` |
 | FLUX 3 캐릭터 생성기 | FLUX 3 캐릭터 생성기 | 생성기 | `flux-character-generator` | `/management/frame/flux-character-generator/` |
 | FLUX 3 표정 생성기 | FLUX 3 표정 생성기 | 생성기 | `flux-expression-generator` | `/management/frame/flux-expression-generator/` |
-| HeartMuLa 3B | HeartMuLa 3B 음악 생성기 | 생성기 | `music-heartmula` | `/management/frame/music-heartmula/` |
-| Kimodo 모션 생성기 · ROCm | Kimodo 모션 생성기 | 생성기 | `kimodo-generator` | `/management/frame/kimodo-generator/` |
+| HeartMuLa 3B 음악 생성기 | HeartMuLa 3B 음악 생성기 | 생성기 | `music-heartmula` | `/management/frame/music-heartmula/` |
+| Kimodo 모션 생성기 | Kimodo 모션 생성기 | 생성기 | `kimodo-generator` | `/management/frame/kimodo-generator/` |
+| MiniMax H3 I2V 영상 생성기 | MiniMax H3 I2V 영상 생성기 | 생성기 | `minimax-h3-i2v-generator` | `/management/frame/minimax-h3-i2v-generator/` |
+| MiniMax H3 이미지 생성기 | MiniMax H3 이미지 생성기 | 생성기 | `minimax-h3-image-generator` | `/management/frame/minimax-h3-image-generator/` |
+| Wan 2.1 I2V 영상 생성기 | Wan 2.1 I2V 영상 생성기 | 생성기 | `wan21-i2v-generator` | `/management/frame/wan21-i2v-generator/` |
+| Wan 2.1 T2V 영상 생성기 | Wan 2.1 T2V 영상 생성기 | 생성기 | `wan21-t2v-generator` | `/management/frame/wan21-t2v-generator/` |
 | Wan Animate-2 캐릭터 동작 전사 | Wan Animate-2 동작 전사 생성기 | 생성기 | `wan22-animate2-generator` | `/management/frame/wan22-animate2-generator/` |
 | Wan Fun Control 영상 생성기 | Wan Fun Control 영상 생성기 | 생성기 | `wan22-fun-control-generator` | `/management/frame/wan22-fun-control-generator/` |
+| Wan2.2 I2V 영상 생성기 | Wan2.2 I2V 영상 생성기 | 생성기 | `wan22-i2v-generator` | `/management/frame/wan22-i2v-generator/` |
 | Wan2.2 VACE-Fun 영상 생성기 | Wan2.2 VACE-Fun 영상 생성기 | 생성기 | `wan22-vace-generator` | `/management/frame/wan22-vace-generator/` |
 | MiniMax H3 Ref2VA 영상 편집기 | MiniMax H3 영상 편집 | 생성기 | `minimax-h3-ref2va-generator` | `/management/frame/minimax-h3-ref2va-generator/` |
 | 건물 에셋 관리 | 건물 에셋 관리 | 관리 | `building-editor` | `/management/frame/building-editor/` |
 | 공용 빌보드 에셋 관리 | 공용 빌보드 에셋 관리 | 관리 | `asset-editor` | `/management/frame/asset-editor/` |
-| 디자인 시스템 · 토큰과 기본 컴포넌트 | 디자인 시스템 · 토큰과 기본 컴포넌트 | 검수 | `ui-c76f5eb898082981-design-system` | `/ui-c76f5eb898082981/review/design-system.html` |
+| 디자인 시스템 · 토큰과 기본 컴포넌트 | 디자인 시스템 · 토큰과 기본 컴포넌트 | 검수 | `ui-98e8166f312ea4e7-design-system` | `/ui-98e8166f312ea4e7/review/design-system.html` |
 | 맵 통합 검수 | 맵 통합 검수 | 검수 | `map-review-iseulon` | `/management/frame/map-review/?map=iseulon&townPage=1` |
 | 모델 다운로드·빌드 상태 | 모델 관리 | 관리 | `model-management` | `/management/frame/model-management/` |
 | 발광 이펙트 좌표 검수 | 발광 이펙트 좌표 검수 | 검수 | `effect-editor` | `/management/frame/effect-editor/` |
 | 스프라이트 시트 편집기 | 스프라이트 시트 편집기 | 편집 | `sprite-sheet-editor` | `/management/frame/sprite-sheet-editor/` |
 | 월드맵 검수 | 월드맵 검수 | 검수 | `world-map` | `/management/frame/world-map/` |
 | 작가 AI 에이전트 | 작가 AI 에이전트 | 작가 에이전트 | `writer-agent` | `/management/frame/writer-agent/` |
-| 전투 레이아웃 · 전체 전장 | 전투 레이아웃 · 전체 전장 | 검수 | `ui-c76f5eb898082981-battlefield-layout` | `/ui-c76f5eb898082981/review/battlefield-preview.html` |
+| 전투 레이아웃 · 전체 전장 | 전투 레이아웃 · 전체 전장 | 검수 | `ui-98e8166f312ea4e7-battlefield-layout` | `/ui-98e8166f312ea4e7/review/battlefield-preview.html` |
 | 프롬프트 번역 | 프롬프트 번역 | 번역 | `prompt-translation` | `/management/frame/prompt-translation/` |
 
 ## 별도 확인된 미등록 기능

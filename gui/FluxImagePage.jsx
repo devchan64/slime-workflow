@@ -6,6 +6,7 @@ import ActionButton from "./ActionButton.jsx";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
 import SeedInput from "./SeedInput.jsx";
+import {fluxNumericIssues} from "./fluxNumericIssues.mjs";
 import React,{useEffect,useId,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
@@ -56,7 +57,7 @@ export default function FluxImagePage(props={}){
 }
 
 function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=null,receiptScope=null,session:embeddedSession=""}={}){
-  const referenceOrderHelpId=useId(),guidePageHelpId=useId();
+  const referenceOrderHelpId=useId(),guidePageHelpId=useId(),numericErrorId=useId();
   const service=serviceOverride || location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
   const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
   const [profileError,setProfileError]=useState("");
@@ -73,6 +74,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
   const previewScope=JSON.stringify([service,session,receiptScope?.job || "",receiptScope?.snapshot || "",receiptScope?.offset ?? null]);
   const currentPreviewScope=useRef(previewScope);currentPreviewScope.current=previewScope;
   const [form,setForm]=useState({prompt:"",translation_source_ko:"",width:768,height:768,steps:16,seed:10107,tag:""});
+  const numericIssues=fluxNumericIssues(form,service);
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
   const inputRef=useRef({form,files});inputRef.current={form,files};
   const imageSelectionRevision=useRef(0),checkingSlots=useRef(new Set());
@@ -364,17 +366,18 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
           accept="image/png" maxBytes={3000000} source={files[index]} disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing") || (index>0 && !files[0])} describedBy={index===1 && !files[0] ? referenceOrderHelpId : undefined} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);setImagesChecking(checkingSlots.current.size>0);}}
           onChange={file=>{setGuideNotice("");setFiles(current=>{const next=[...current];if(file)next[index]=file;else next.splice(index,1);return next;});}}/>)}
       </div>{!profile?.expressions && !files[0] && <p id={referenceOrderHelpId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>}
-      {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>)}
-      {service==="flux-character" ? <label>생성 스텝 <input type="number" required min="1" max="50" value={form.steps} onChange={e=>edit("steps",e.target.value)}/></label> : <p>생성 스텝: 16</p>}
+      {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" aria-invalid={Boolean(numericIssues[key]) || undefined} aria-describedby={numericIssues[key] ? `${numericErrorId}-${key}` : undefined} value={form[key]} onChange={e=>edit(key,e.target.value)}/>{numericIssues[key] && <small id={`${numericErrorId}-${key}`}>{numericIssues[key]}</small>}</label>)}
+      {service==="flux-character" ? <label>생성 스텝 <input type="number" required min="1" max="50" aria-invalid={Boolean(numericIssues.steps) || undefined} aria-describedby={numericIssues.steps ? `${numericErrorId}-steps` : undefined} value={form.steps} onChange={e=>edit("steps",e.target.value)}/>{numericIssues.steps && <small id={`${numericErrorId}-steps`}>{numericIssues.steps}</small>}</label> : <p>생성 스텝: 16</p>}
       <p>FLUX.3 Image Klein Distilled의 <a href="https://huggingface.co/black-forest-labs/flux-3-image-klein" target="_blank" rel="noreferrer">모델 카드</a> 권장값은 16스텝입니다.</p>
       <p>모델 카드는 구체적인 장면 설명을 권장합니다. 필요한 피사체, 구도, 배경과 조명을 프롬프트에 적어 주세요. 자동 프롬프트 확장은 사용하지 않습니다.</p>
-      <SeedInput value={form.seed} max={4294967295} onChange={value=>edit("seed",value)}/>
+      <SeedInput value={form.seed} max={4294967295} error={numericIssues.seed} onChange={value=>edit("seed",value)}/>
       <label>이력 태그 <input value={form.tag} onChange={e=>edit("tag",e.target.value)}/></label>
       <ActionButton type="submit" reasons={[
         !profile && "생성기 설정을 확인 중입니다. 잠시 기다리거나 다시 불러오세요.",
         imagesChecking && "선택한 이미지 확인이 끝날 때까지 기다리세요.",
         profile && files.length < profile.minimum && "필수 참조 이미지를 선택하세요.",
-        !form.prompt.trim() && !form.translation_source_ko.trim() && "프롬프트 또는 번역할 설명을 입력하세요."
+        !form.prompt.trim() && !form.translation_source_ko.trim() && "프롬프트 또는 번역할 설명을 입력하세요.",
+        ...Object.values(numericIssues)
       ]}>생성 요청 검토</ActionButton>
     </fieldset></form>
     {review && review.scope===previewScope && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>{profile?.expressions?"표정 프롬프트":"공용 화풍 적용 프롬프트"}</h2><pre className="generation-review-text" tabIndex={0} aria-label="검토할 프롬프트">{review.result.prompt}</pre><p><PromptWordCount text={review.result.prompt} label={review.result.translation ? "번역 전 프롬프트" : "최종 프롬프트"}/>{review.result.translation && " · 번역 후 최종 단어 수는 생성 시 확정됩니다."}</p>

@@ -1,5 +1,5 @@
 import usePageTitle from "./usePageTitle.js";
-import {audioInputIssues} from "./audioInputIssues.mjs";
+import {audioInputIssues,audioSeedValid,audioDurationValid} from "./audioInputIssues.mjs";
 import {createConfirmationGate} from "./confirmationGate.mjs";
 import {generationReady} from "./generationReady.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
@@ -57,7 +57,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   if(!confirmation.current)confirmation.current=createConfirmationGate();
   const reviewRef=useRef(null),reviewOrigin=useRef(null),reviewRequest=useRef(null),restoreFrame=useRef(null),promptRef=useRef(null),inputRegion=useRef(null),historyRegion=useRef(null),resultRegion=useRef(null),prepareRef=useRef(null),prepareDetails=useRef(null),prepareSummary=useRef(null);
   useEffect(()=>()=>{const request=reviewRequest.current;reviewRequest.current=null;request?.abort();if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);},[]);
-  const prepareReasonId=useId();
+  const prepareReasonId=useId(),durationErrorId=useId();
   const prepareReason=busy ? "다른 요청을 처리하고 있습니다. 완료될 때까지 기다리세요." : review ? "현재 요청의 확인을 마치거나 취소하세요." : handoff.id ? "진행 중인 GPU 양도 요청을 확인하세요." : "";
   useEffect(()=>{if(!review)return;const origin=reviewOrigin.current;const frame=requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===origin) && reviewRef.current?.isConnected)reviewRef.current.focus();});return ()=>cancelAnimationFrame(frame);},[review]);
   useEffect(()=>{
@@ -207,10 +207,10 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     {form && <form ref={inputRegion} tabIndex={-1} aria-label={music ? "음악 생성 입력" : "효과음 생성 입력"} onSubmit={preview}><fieldset disabled={busy || Boolean(review) || Boolean(handoff.id)}>
       <legend className="generator-visually-hidden">{music?"음악 생성 입력":"효과음 생성 입력"}</legend>
       <label>{music?"음악 태그":"효과음 설명"} <textarea ref={promptRef} required maxLength={4000} value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/>{music ? <small>태그 {tagCount}개</small> : <PromptWordCount text={form.prompt}/>}</label>
-      <SeedInput value={form.seed} max={4294967295} onChange={value=>edit("seed",value)}/>
+      <SeedInput value={form.seed} max={4294967295} error={audioSeedValid(form.seed) ? "" : "0부터 4,294,967,295까지의 정수로 입력하세요."} onChange={value=>edit("seed",value)}/>
       {music ? <>
         <label>가사·구간 태그 <textarea required maxLength={20000} value={form.lyrics} onChange={e=>edit("lyrics",e.target.value)}/><PromptWordCount text={form.lyrics}/></label>
-        <label>최대 출력 시간(초) <input type="number" min="5" max="300" step="any" required value={form.duration_seconds} onChange={e=>edit("duration_seconds",e.target.value)}/></label>
+        <label>최대 출력 시간(초) <input type="number" min="5" max="300" step="any" required aria-invalid={!audioDurationValid(form.duration_seconds) || undefined} aria-describedby={!audioDurationValid(form.duration_seconds) ? durationErrorId : undefined} value={form.duration_seconds} onChange={e=>edit("duration_seconds",e.target.value)}/>{!audioDurationValid(form.duration_seconds) && <small id={durationErrorId}>5~300초로 입력하세요.</small>}</label>
       </> : <label className="sound-loop"><input type="checkbox" checked={form.loop_request} onChange={e=>edit("loop_request",e.target.checked)}/>반복 구조 요청</label>}
       <label>이력 태그 <input value={form.tag} onChange={e=>edit("tag",e.target.value)}/></label>
       <ActionButton type="submit" reasons={audioInputIssues(form,music,model)}>생성 요청 검토</ActionButton>

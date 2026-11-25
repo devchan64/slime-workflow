@@ -32,6 +32,7 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
   const localReceipt=useMinimaxReportReceipt(reportReceipt ? null : proposalScope,service);
   const receipt=reportReceipt || localReceipt;
   useEffect(()=>{if(receipt.state==="accepted" && receipt.job)setJob(receipt.job);},[receipt.state,receipt.job]);
+  const invalidSeed=!Number.isInteger(seed) || seed<0 || seed>4294967295;
   const reasons=[...minimaxImageReasons({model,prompt,seed}),proposalScope && receipt.state!=="editing" && "대화 접수 상태를 확인하세요."];
   const sending=useRef(false),promptRef=useRef(null),reviewRef=useRef(null),formRef=useRef(null),historyRef=useRef(null),resultRef=useRef(null),previewRequest=useRef(null),submissionRequest=useRef(null),modelStatus=useRef(null);
   const updateModel=useCallback(value=>{modelStatus.current=value;setModel(value);},[]);
@@ -86,7 +87,7 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
     <GeneratorSectionCard title="생성 입력" summary="프롬프트와 시드" defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending}><legend className="generator-visually-hidden">생성 입력</legend>
       <label>프롬프트<textarea ref={promptRef} required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
       <PromptWordCount text={prompt}/>
-      <SeedInput value={seed} max={4294967295} onChange={value=>setSeed(value===""?"":Number(value))}/>
+      <SeedInput value={seed} max={4294967295} error={invalidSeed ? "0부터 4,294,967,295까지의 정수로 입력하세요." : ""} onChange={value=>setSeed(value===""?"":Number(value))}/>
       <label>이미지 크기<select value={size} onChange={event=>setSize(Number(event.target.value))}><option value={512}>512×512</option><option value={1024}>1024×1024</option></select></label>
       <p>직접 생성 · 6스텝 · INT8{size===512 && " · 512×512 실제 생성 미검증"}</p>
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
