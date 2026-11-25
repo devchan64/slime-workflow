@@ -6,6 +6,10 @@ export function isMapCellDirty(cell,original){
   return Boolean(cell && original && ["tile","height","blocked","wall"].some(key=>String(cell[key] ?? "")!==String(original[key] ?? "")));
 }
 
+export function invalidMapCellHeight(value){
+  return value==null || String(value).trim()==="" || !Number.isInteger(Number(value)) || Number(value)<0 || Number(value)>20;
+}
+
 export function readMapCell(snapshot,map,position){
   if(snapshot?.map!==map || typeof snapshot.revision!=="string" || !Array.isArray(snapshot.tiles?.rows) || !Array.isArray(snapshot.tiles?.objects) || !Array.isArray(snapshot.terrain?.elevations) || !Array.isArray(snapshot.terrain?.blocked) || snapshot.terrain.blocked.some(item=>!Array.isArray(item) || item.length!==2 || !item.every(Number.isInteger)) || !snapshot.codes || typeof snapshot.codes!=="object")throw new Error("지도 원본 응답 형식을 확인할 수 없습니다.");
   const column=position?.column,row=position?.row;

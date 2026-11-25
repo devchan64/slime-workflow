@@ -8,6 +8,11 @@ export function validWorldMap(data){
   return data.maps.every(map=>map.connections.every(edge=>edge && ["id","target","direction"].every(key=>typeof edge[key]==="string") && (edge.targetWaypointId==null || typeof edge.targetWaypointId==="string") && ids.has(edge.target)));
 }
 
+export function worldMapDirectionLabel(direction){
+  const labels={north:"북쪽",south:"남쪽",east:"동쪽",west:"서쪽"};
+  return Object.hasOwn(labels,direction) ? labels[direction] : direction;
+}
+
 // 지도 사이의 연결을 한 번만 그린다. 방향별 웨이포인트는 상세 표에 그대로 표시한다.
 export function worldMapLinks(maps){
   const seen=new Set(),links=[];

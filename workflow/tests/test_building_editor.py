@@ -58,7 +58,7 @@ class BuildingEditorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             bundle=Path(directory)/'building.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingEditor.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
-            script="""const assert=require('node:assert/strict'),{validBuildingCatalog:valid,validBuildingChange:change,invalidBuildingSizeMap:invalidSize}=require(process.argv[1]);
+            script="""const assert=require('node:assert/strict'),{validBuildingCatalog:valid,validBuildingChange:change,invalidBuildingSizeMap:invalidSize,buildingPropertiesChanged:changed}=require(process.argv[1]);
               const row={texture:'house',width:100,height:200,properties:{anchorX:.5,anchorY:1},maps:[{map:'town',name:'집',facing:'front',width:1,height:2,contentWidth:1}]};
               assert.equal(valid({generation:1,assets:[row]}),true);
               assert.equal(valid({generation:1,assets:[]}),true);
@@ -66,16 +66,25 @@ class BuildingEditorTest(unittest.TestCase):
               assert.equal(invalidSize(row,{displayWidthAdjustment:0,displayHeightAdjustment:0}),null);
               assert.equal(invalidSize(row,{displayWidthAdjustment:-200,displayHeightAdjustment:0}),'town');
               assert.equal(invalidSize(row,{displayWidthAdjustment:0,displayHeightAdjustment:-300}),'town');
-              const multi={...row,maps:[{...row.maps[0],map:'wide',contentWidth:1},{...row.maps[0],map:'narrow',contentWidth:10}]};
-              assert.equal(invalidSize(multi,{displayWidthAdjustment:-20,displayHeightAdjustment:0}),'narrow');
-              assert.equal(invalidSize(multi,{displayWidthAdjustment:'-20',displayHeightAdjustment:'0'}),'narrow');
+              const multi={...row,maps:[{...row.maps[0],map:'wide',contentWidth:.5},{...row.maps[0],map:'narrow',contentWidth:1}]};
+              assert.equal(invalidSize(multi,{displayWidthAdjustment:-124,displayHeightAdjustment:0}),null);
+              assert.equal(invalidSize(multi,{displayWidthAdjustment:-125,displayHeightAdjustment:0}),'narrow');
+              assert.equal(invalidSize(multi,{displayWidthAdjustment:'-125',displayHeightAdjustment:'0'}),'narrow');
+              assert.equal(invalidSize(multi,{displayWidthAdjustment:0,displayHeightAdjustment:-249}),null);
+              assert.equal(invalidSize(multi,{displayWidthAdjustment:0,displayHeightAdjustment:-250}),'narrow');
               assert.equal(invalidSize(multi,{displayWidthAdjustment:0,displayHeightAdjustment:0}),null);
+              const original={anchorX:.5,displayWidthAdjustment:0,shadowShape:'circle'};
+              assert.equal(changed(original,{...original,anchorX:'0.50',displayWidthAdjustment:'0.0'}),false);
+              assert.equal(changed(original,{...original,displayWidthAdjustment:''}),true);
+              assert.equal(changed(original,{...original,anchorX:'0.5',shadowShape:'rectangle'}),true);
+              assert.equal(changed(original,{...original,anchorX:'0.5',displayWidthAdjustment:'1'}),true);
               const saved={saved:true,asset:'house',generation:2,properties:{anchorX:.5,anchorY:1}};
               assert.equal(change(saved,'house',1,null,{anchorX:.5,anchorY:1}),true);
               for(const result of [null,{...saved,asset:'other'},{...saved,generation:1},{...saved,properties:{anchorX:2}}])assert.equal(change(result,'house',1,null,{anchorX:.5}),false);
               assert.equal(change({...saved,action:'register'},'house',1,'register'),true);
               assert.equal(change({...saved,action:'retire'},'house',1,'register'),false);
               assert.equal(valid({generation:1,assets:[{...row,maps:[{...row.maps[0],contentWidth:0}]}]}),false);
+              assert.equal(valid({generation:1,assets:[{...row,maps:[{...row.maps[0],contentWidth:1.01}]}]}),false);
               assert.equal(valid({generation:1,assets:[{...row,properties:{...row.properties,shadowScaleX:'bad'}}]}),false);"""
             subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True)
 

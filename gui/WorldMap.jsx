@@ -3,7 +3,7 @@ import {untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
 import RecoverableImage from "./RecoverableImage.jsx";
-import {validWorldMap,worldMapLinks} from "./worldMapValidation.mjs";
+import {validWorldMap,worldMapLinks,worldMapDirectionLabel} from "./worldMapValidation.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import {imageRetryUrl} from "./imageRetryUrl.mjs";
 import {startImageLoadDeadline} from "./imageLoadDeadline.mjs";
@@ -106,7 +106,7 @@ export default function WorldMap() {
         <button type="button" aria-disabled={zoom<=.1} title={zoom<=.1 ? "최소 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.max(.1,v*.8))}>축소</button>
         <button type="button" aria-disabled={zoom>=2} title={zoom>=2 ? "최대 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.min(2,v*1.25))}>확대</button>
         <button type="button" onClick={()=>setZoom(Math.max(.1,Math.min(1,viewport.current.clientWidth/width,innerHeight*.65/height)))}>전체 보기</button>
-        <button type="button" disabled={!selected} onClick={()=>{const area=viewport.current;if(!area)return;area.scrollTo({left:x(selected)*zoom-area.clientWidth/2,top:y(selected)*zoom-area.clientHeight/2});area.scrollIntoView({block:"nearest"});area.focus({preventScroll:true});}}>선택 맵 보기</button>
+        <button type="button" disabled={!selected} aria-describedby={!selected ? selectionHelpId : undefined} onClick={()=>{const area=viewport.current;if(!area)return;area.scrollTo({left:x(selected)*zoom-area.clientWidth/2,top:y(selected)*zoom-area.clientHeight/2});area.scrollIntoView({block:"nearest"});area.focus({preventScroll:true});}}>선택 맵 보기</button>
         <output aria-live="polite">확대 {Math.round(zoom*100)}%{zoom<=.1 ? " · 최소 배율" : zoom>=2 ? " · 최대 배율" : ""}</output>
       </div>
       <p id={viewportHelpId}>지도 영역에 초점을 두고 방향키로 스크롤할 수 있습니다. 맵은 목록이나 지도에서 선택하세요. 미리보기가 없으면 원본을 다시 불러와 재시도하세요.</p>
@@ -119,7 +119,7 @@ export default function WorldMap() {
       </div>
       {selected && <><h2>{selected.name}</h2><div className="world-map-thumbnail"><RecoverableImage src={selected.thumbnail.url} name={selected.name+" 특징"} kind="썸네일"/></div>
         <p>{selected.thumbnail.managementId} · {selected.thumbnail.version}</p><p>SHA-256 · {selected.thumbnail.sha256}</p><p>{selected.thumbnail.path}</p>
-        <div className="world-map-connections"><ResultTable table={{title:"선택 맵의 이동 연결",columns:["연결 맵","방향","출발 웨이포인트","도착 웨이포인트"],rows:selected.connections.map(edge=>[nodes.get(edge.target).name,edge.direction,edge.id,edge.targetWaypointId ?? "없음"])}}/></div>
+        <div className="world-map-connections"><ResultTable table={{title:"선택 맵의 이동 연결",columns:["연결 맵","방향","출발 웨이포인트","도착 웨이포인트"],rows:selected.connections.map(edge=>[nodes.get(edge.target).name,worldMapDirectionLabel(edge.direction),edge.id,edge.targetWaypointId ?? "없음"])}}/></div>
       </>}
     </>}
   </section>;

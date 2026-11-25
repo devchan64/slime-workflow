@@ -3,7 +3,7 @@ import BillboardLifecycle from "./BillboardLifecycle.jsx";
 import BillboardRegistration from "./BillboardRegistration.jsx";
 import BillboardProperties from "./BillboardProperties.jsx";
 import RecoverableImage from "./RecoverableImage.jsx";
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
@@ -26,7 +26,9 @@ export default function BillboardCatalog({choose}){
   const [lifecycleActive,setLifecycleActive]=useState(false);
   const [selected,select]=useState(null),[error,setError]=useState("");
   const detailRef=useRef(null),triggerRef=useRef(null),searchRef=useRef(null),resultsRef=useRef(null),errorRef=useRef(null),restoreSearchFocus=useRef(false),focusEpoch=useRef(0);
+  const editingReasonId=useId(),lifecycleReasonId=useId();
   const locked=editingProperties || lifecycleActive;
+  const lockDescription=[editingProperties && editingReasonId,lifecycleActive && lifecycleReasonId].filter(Boolean).join(" ") || undefined;
   useEffect(()=>()=>{focusEpoch.current++;},[]);
   useEffect(()=>{if(selected && triggerRef.current && (document.activeElement===triggerRef.current || document.activeElement===document.body))detailRef.current?.focus();},[selected]);
   useEffect(()=>{
@@ -58,14 +60,15 @@ export default function BillboardCatalog({choose}){
   }
   const resultsStale=!!page && displayedRequest!==request;
   const filtersChanged=query!==(request.query || "") || category!==(request.category || "");
+  const DetailHeading=choose ? "h3" : "h2";
   return <section className={"billboard-catalog"+(!choose ? " billboard-standalone" : "")}>{choose ? <h2>공용 빌보드 에셋</h2> : <h1>공용 빌보드 에셋</h1>}
     <fieldset disabled={locked} style={{border:0,padding:0,margin:0}}><BillboardRegistration onSaved={()=>setRequest({...request,offset:0})}/></fieldset>
-    {editingProperties && <p role="status">공용 속성 편집 중입니다. 다른 에셋을 열거나 검색하려면 편집을 취소하거나 저장하세요.</p>}
-    {lifecycleActive && <p role="status">원본 축소 또는 폐기를 검토 중입니다. 다른 에셋을 열거나 검색하려면 검토를 취소하거나 완료하세요.</p>}
+    {editingProperties && <p id={editingReasonId} role="status">공용 속성 편집 중입니다. 다른 에셋을 열거나 검색하려면 편집을 취소하거나 저장하세요.</p>}
+    {lifecycleActive && <p id={lifecycleReasonId} role="status">원본 축소 또는 폐기를 검토 중입니다. 다른 에셋을 열거나 검색하려면 검토를 취소하거나 완료하세요.</p>}
     <form className="billboard-search" onSubmit={search}><label>분류<select value={category} onChange={e=>setCategory(e.target.value)}>
       <option value="">전체</option>{Object.entries(categories).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
       <label>이름·ID·모델링 설명·사용 맵<input maxLength={100} value={query} onChange={e=>setQuery(e.target.value)}/></label>
-      <button ref={searchRef} disabled={loading || locked}>{loading?"조회 중…":"빌보드 검색"}</button></form>
+      <button ref={searchRef} disabled={loading || locked} aria-describedby={lockDescription}>{loading?"조회 중…":"빌보드 검색"}</button></form>
     {filtersChanged && page && <p role="status">검색 조건이 변경되었습니다. 아래는 이전 조건의 결과입니다. 빌보드 검색을 눌러 적용하세요.</p>}
     {resultsStale && <p role="status">{loading?"새 결과를 조회하고 있습니다. 아래는 이전 조회 결과입니다.":"조회에 실패했습니다. 아래는 이전 조회 결과입니다. 다시 검색해 주세요."}</p>}
     {page?.storage==="database" && <SnapshotStatus/>}
@@ -73,11 +76,11 @@ export default function BillboardCatalog({choose}){
     {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
     {!page && !error && <p role="status">카탈로그 조회 중…</p>}
     {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><ResultTable table={{title:"검색 결과",summary:page.total+"종"+(page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""),columns:["이름","에셋 ID","분류"],
-      rows:page.items.map(asset=>[<button type="button" disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{focusEpoch.current++;triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
+      rows:page.items.map(asset=>[<button type="button" aria-label={asset.name+" · "+asset.id} aria-describedby={locked && selected?.id!==asset.id ? lockDescription : undefined} disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{focusEpoch.current++;triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
           width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,billboardCategoryLabel(categories,asset.category)])}}/></div>
       {page.offset>0 && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} onClick={event=>movePage(Math.max(0,page.offset-page.limit),event)}>이전 페이지</button>}
       {page.next_offset!=null && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} onClick={event=>movePage(page.next_offset,event)}>다음 페이지</button>}</>}
-    {selected && <section ref={detailRef} tabIndex={-1} aria-label="선택한 빌보드 상세"><button type="button" disabled={locked} onClick={closeDetail}>상세 닫기</button><h3>{selected.name}</h3>
+    {selected && <section ref={detailRef} tabIndex={-1} aria-label="선택한 빌보드 상세"><button type="button" disabled={locked} onClick={closeDetail}>상세 닫기</button><DetailHeading>{selected.name}</DetailHeading>
       {page && !page.items.some(item=>item.id===selected.id) && <p role="status">열린 빌보드는 현재 검색 결과에 없습니다. 마지막으로 선택한 상세를 유지합니다.</p>}
       <RecoverableImage key={selected.id+":"+imageRevision} src={imageUrl(selected.id)+"?r="+imageRevision} name={selected.name}/>
       <p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>

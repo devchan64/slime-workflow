@@ -1,11 +1,11 @@
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {progressDeadline} from "./progressDeadline.mjs";
 import ActionButton from "./ActionButton.jsx";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
-import {validMapDraftPreview,mapDraftSaveReason,isMapCellDirty,readMapCell} from "./mapDraftPreview.mjs";
+import {validMapDraftPreview,mapDraftSaveReason,isMapCellDirty,invalidMapCellHeight,readMapCell} from "./mapDraftPreview.mjs";
 
 export function MapDraftFileInput({cellDirty,error,onFile,inputRef}){
   return <><label>초안 JSON 불러오기<input ref={inputRef} type="file" accept=".json,application/json" disabled={cellDirty} aria-invalid={error ? true : undefined} aria-describedby={[cellDirty && "map-cell-pending-reason",error && "map-import-error"].filter(Boolean).join(" ") || undefined} onChange={event=>{
@@ -22,6 +22,7 @@ export default function MapReview(){
   const field=location.pathname.replace(/\/$/,"").endsWith("/field-map");
   const title=field?"야외필드":"도시맵";
   const [cell,setCell]=useState(null),[reading,setReading]=useState(false);
+  const heightErrorId=useId();
   const [cellOriginal,setCellOriginal]=useState(null);
   const [source,setSource]=useState(null),[draft,setDraft]=useState(null),[preview,setPreview]=useState(null);
   const [past,setPast]=useState([]),[future,setFuture]=useState([]);
@@ -141,6 +142,7 @@ export default function MapReview(){
   }
   async function previewCell(event){
     event.preventDefault();
+    if(invalidMapCellHeight(cell.height))return;
     restorePreviewFocus.current=event.currentTarget.contains(document.activeElement);
     const {column,row,tile,height,blocked}=cell;
     const cells=draft.cells.filter(item=>item.column!==column || item.row!==row);
@@ -233,7 +235,7 @@ export default function MapReview(){
       setCell(nextCell);setCellOriginal(nextCell);
       setFeedback("");
       requestAnimationFrame(()=>{if(document.activeElement===focusAtStart || document.activeElement===document.body)cellFormRef.current?.focus({preventScroll:true});});
-    }catch(error){setFeedback(error.message);}
+    }catch(error){setFeedback(error.message);requestAnimationFrame(()=>{if(document.activeElement===focusAtStart || document.activeElement===document.body)feedbackRef.current?.focus();});}
     finally{setReading(false);}
   }
   const [ready,setReady]=useState(false),[feedback,setFeedback]=useState("");
@@ -360,11 +362,11 @@ export default function MapReview(){
         <div className="generator-settings-grid">
         <label>지형<select value={cell.tile} onChange={e=>editCell("tile",e.target.value)}>
           {Object.entries(source.codes).map(([code,name])=><option key={code} value={code}>{name} · {code}</option>)}</select></label>
-        <label>높이<input type="number" required min="0" max="20" step="1" value={cell.height} onChange={e=>editCell("height",e.target.value)}/></label>
+        <div><label>높이<input type="number" required min="0" max="20" step="1" value={cell.height} aria-invalid={invalidMapCellHeight(cell.height) || undefined} aria-describedby={invalidMapCellHeight(cell.height) ? heightErrorId : undefined} onChange={e=>editCell("height",e.target.value)}/></label>{invalidMapCellHeight(cell.height) && <small id={heightErrorId}>0~20의 정수를 입력하세요.</small>}</div>
         </div>
         <label><input type="checkbox" checked={cell.blocked} onChange={e=>editCell("blocked",e.target.checked)}/>이동 금지</label>
         {cellDirty && <p role="status">이 셀 입력은 검증 전이라 초안 자동 보관과 JSON 다운로드에 포함되지 않습니다.</p>}
-        <div className="ui-action-row"><button>초안 검증 및 미리보기</button>{cellDirty && <button type="button" onClick={()=>{setCell(cellOriginal);setFeedback("셀 입력을 이전 값으로 되돌렸습니다.");}}>셀 입력 취소</button>}</div></form>}
+        <div className="ui-action-row"><ActionButton type="submit" reasons={[invalidMapCellHeight(cell.height) && "높이를 0~20의 정수로 수정하세요."]}>초안 검증 및 미리보기</ActionButton>{cellDirty && <button type="button" onClick={event=>{if(document.activeElement===event.currentTarget)cellFormRef.current?.focus({preventScroll:true});setCell(cellOriginal);setFeedback("셀 입력을 이전 값으로 되돌렸습니다.");}}>셀 입력 취소</button>}</div></form>}
       {recovery && <section aria-label="임시본 복구"><p>복원하지 못한 임시본을 파일로 보관하거나 삭제할 수 있습니다.</p>
         <div className="ui-action-row"><button onClick={()=>downloadDraft(recovery.map,recovery.raw)}>임시본 JSON 다운로드</button>
         <button onClick={()=>{if(window.confirm("이 탭에 보관한 "+recovery.map+" 임시본을 삭제할까요?"))discardRecovery();}}>임시본 삭제</button></div>

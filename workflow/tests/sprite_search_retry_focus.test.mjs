@@ -14,3 +14,15 @@ test('스프라이트 검색 재시도는 사라질 버튼의 초점을 검색 �
     assert.equal(moved,focused);assert.equal(error,'');assert.equal(requestValue.query,'rest');
   }
 });
+
+test('명시적 시트 선택은 다른 곳으로 이동한 초점을 빼앗지 않는다',()=>{
+  const source=readFileSync(new URL('../../gui/SpriteSheetEditor.jsx',import.meta.url),'utf8');
+  const start=source.indexOf('  useEffect(()=>{\n    if(focusFrom &&'),end=source.indexOf('\n  useEffect(()=>{',start+1);
+  assert.ok(start>=0 && end>start);
+  for(const state of ['origin','body','other','automatic']){
+    const body={},origin={},document={body,activeElement:state==='body'?body:state==='other'?{}:origin};let focused=false;
+    const context=vm.createContext({document,focusFrom:state==='automatic'?null:origin,region:{current:{focus(){focused=true;}}},useEffect:fn=>fn()});
+    vm.runInContext(source.slice(start,end),context);
+    assert.equal(focused,state==='origin'||state==='body');
+  }
+});

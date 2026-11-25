@@ -15,7 +15,12 @@ class BattlefieldLifecycleTests(unittest.TestCase):
             script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
 const ErrorView=require(process.argv[1]).BattlefieldError;
 for(const cleanupFailed of [false,true]){const html=server.renderToStaticMarkup(React.createElement(ErrorView,{error:'조회 실패',cleanupFailed,href:'/battle'}));
-assert.match(html,/<p role="alert">조회 실패[^<]*<\\/p>/);assert.match(html,cleanupFailed?/<a href="\\/battle">전장 검수 페이지 다시 열기<\\/a>/:/<button type="button">전장 검수 다시 불러오기<\\/button>/);}"""
+assert.match(html,/<p role="alert">조회 실패[^<]*<\\/p>/);assert.match(html,cleanupFailed?/<a href="\\/battle">전장 검수 페이지 다시 열기<\\/a>/:/<button type="button">전장 검수 다시 불러오기<\\/button>/);}
+const fallback=server.renderToStaticMarkup(React.createElement(ErrorView,{error:'조회 실패',cleanupFailed:true,href:'/battle?field=bad',defaultHref:'/battle?locale=ko'}));
+assert.match(fallback,/<a href="\\/battle\\?field=bad">전장 검수 페이지 다시 열기<\\/a>/);
+assert.match(fallback,/<a href="\\/battle\\?locale=ko">기본 전장으로 열기<\\/a>/);
+const retry=server.renderToStaticMarkup(React.createElement(ErrorView,{error:'조회 실패',cleanupFailed:false,defaultHref:'/battle'}));
+assert.doesNotMatch(retry,/기본 전장으로 열기/);"""
             subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,text=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
 
     def test_selected_field_must_match_before_url_changes(self):
@@ -25,11 +30,11 @@ assert.match(html,/<p role="alert">조회 실패[^<]*<\\/p>/);assert.match(html,
         script=r"""
 const assert=require('node:assert/strict');let result={field:'old'},changed='',failure='',state;
 const controller={current:{selectField(){},readState:()=>result}},validBattlefieldState=()=>true,sameBattlefieldState=()=>false,setState=fn=>state=fn(null);
-const location={href:'http://localhost/battle?field=old'},history={replaceState:(_a,_b,url)=>changed=url.href},fail=e=>failure=e.message;
+const location={href:'http://localhost/battle?field=old&locale=ko'},history={state:{marker:1},replaceState:(value,_b,url)=>{assert.equal(value,history.state);changed=url.href;}},fail=e=>failure=e.message;
 REFRESH
 SELECT
 select('new');assert.equal(changed,'');assert.match(failure,/선택한 전장/);
-result={field:'new'};failure='';select('new');assert.equal(new URL(changed).searchParams.get('field'),'new');assert.equal(state.field,'new');
+result={field:'new'};failure='';select('new');assert.equal(new URL(changed).searchParams.get('field'),'new');assert.equal(new URL(changed).searchParams.get('locale'),'ko');assert.equal(state.field,'new');
 """.replace('REFRESH',refresh).replace('SELECT',select)
         result=subprocess.run(['node','-e',script],capture_output=True,text=True,timeout=10)
         self.assertEqual(result.returncode,0,result.stderr)

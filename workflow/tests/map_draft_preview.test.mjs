@@ -1,6 +1,11 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {validMapDraftPreview,mapDraftSaveReason,isMapCellDirty,readMapCell} from "../../gui/mapDraftPreview.mjs";
+import {validMapDraftPreview,mapDraftSaveReason,isMapCellDirty,invalidMapCellHeight,readMapCell} from "../../gui/mapDraftPreview.mjs";
+
+test("셀 높이는 0~20 정수만 허용한다",()=>{
+  for(const value of [0,20,'0','20'])assert.equal(invalidMapCellHeight(value),false);
+  for(const value of ['',null,-1,21,1.5,'abc'])assert.equal(invalidMapCellHeight(value),true);
+});
 
 test("셀 좌표와 원본 응답을 함께 확인한다",()=>{
   const snapshot={map:"field",revision:"rev",tiles:{rows:["ab","ba"],objects:[]},terrain:{elevations:[[0,1],[2,3]],blocked:[[1,0]]},codes:{a:"땅",b:"벽"}};

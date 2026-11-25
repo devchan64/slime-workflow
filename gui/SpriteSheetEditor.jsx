@@ -280,10 +280,14 @@ function GridEditor({detail,size,onSaved}){
     {grid && <FrameEditor key={grid.key+"/"+grid.revision} frames={grid.frames} image={detail.image} original={detail} onSaved={onSaved}/>}</>;
 }
 
-function Sheet({path,source}){
+function Sheet({path,source,focusFrom,region}){
   const [saved,setSaved]=useState(null);
   const [detail,setDetail]=useState(null),[error,setError]=useState("");
   const [revision,retry]=useState(0);
+  const retryButton=useRef(null);
+  useEffect(()=>{
+    if(focusFrom && (document.activeElement===focusFrom || document.activeElement===document.body))region.current?.focus();
+  },[]);
   useEffect(()=>{
     let active=true,timedOut=false;
     const controller=new AbortController();
@@ -295,10 +299,10 @@ function Sheet({path,source}){
     }).catch(problem=>{if(active)setError(timedOut ? "시트 조회 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[path,source,saved,revision]);
-  return <>{saved && <p role="status">원본 갱신 완료 · {saved.path} · 기록 {saved.id}</p>}
-    {error?<div role="alert"><p>{error}</p><button type="button" onClick={()=>retry(value=>value+1)}>원본 시트 다시 불러오기</button></div>:detail?<SheetView path={path} detail={detail} onSaved={record=>{
+  return <section ref={region} tabIndex={-1} aria-label="원본 시트" aria-busy={!detail && !error}>{saved && <p role="status">원본 갱신 완료 · {saved.path} · 기록 {saved.id}</p>}
+    {error?<div role="alert"><p>{error}</p><button ref={retryButton} type="button" onClick={()=>{if(document.activeElement===retryButton.current)region.current?.focus();retry(value=>value+1);}}>원본 시트 다시 불러오기</button></div>:detail?<SheetView path={path} detail={detail} onSaved={record=>{
       setDetail(null);setSaved(record);
-    }}/>:<p role="status">원본 시트를 불러오는 중…</p>}</>;
+    }}/>:<p role="status">원본 시트를 불러오는 중…</p>}</section>;
 }
 
 function AutoCrop({image,size,onApply}){
@@ -389,7 +393,8 @@ function LocalSheet(){
     <fieldset disabled={busy || !!pending}><label>시트 PNG<input type="file" accept="image/png" onChange={e=>{
       setFile(e.target.files[0] || null);setError("");
     }}/></label>
-    <button disabled={!file} onClick={()=>{if(detail){changeTrigger.current=document.activeElement;setPending(file);}else load(file);}}>{busy ? "시트 확인 중…" : detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</button></fieldset>
+    <ActionButton type="button" reasons={[!file && "열려면 PNG 시트 파일을 선택하세요."]} onClick={()=>{if(detail){changeTrigger.current=document.activeElement;setPending(file);}else load(file);}}>{busy ? "시트 확인 중…" : detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</ActionButton></fieldset>
+    {busy && <p role="status">로컬 시트 파일을 확인하고 있습니다.</p>}
     {pending && <LocalSheetReplaceConfirmation name={pending.name} busy={busy} returnFocus={changeTrigger.current} onConfirm={()=>load(pending)} onCancel={()=>setPending(null)}/>}
     {error && <p role="alert">{error}{detail && " 기존 편집 내용은 유지됩니다."}</p>}
     {detail && <SheetView key={revision} path={detail.path} detail={detail}/>}
@@ -409,7 +414,7 @@ export default function SpriteSheetEditor(){
   const [items,setItems]=useState(null),[selected,select]=useState(link.path || "");
   const [error,setError]=useState(link.error || "");
   const [pendingChange,setPendingChange]=useState(null);
-  const changeTrigger=useRef(null),searchRef=useRef(null);
+  const changeTrigger=useRef(null),searchRef=useRef(null),selectionFocus=useRef(null),sheetRegion=useRef(null);
   useEffect(()=>{
     if(!request)return;
     let active=true,timedOut=false;
@@ -428,7 +433,10 @@ export default function SpriteSheetEditor(){
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[request]);
   function applyChange(change){
-    if(change.kind==="select"){select(change.path);return;}
+    if(change.kind==="select"){
+      if(change.path===selected){sheetRegion.current?.focus();return;}
+      selectionFocus.current=document.activeElement;select(change.path);return;
+    }
     setSource(change.source);setItems(null);setError("");select("");setRequest({source:change.source,query:change.query});
   }
   function requestChange(change){
@@ -451,8 +459,8 @@ export default function SpriteSheetEditor(){
     {request && !items && !error && <p role="status">스프라이트 검색 중…</p>}
     {items?.length === 0 && query===request?.query && <p role="status">일치하는 시트가 없습니다. 검색어를 바꾸거나 지운 후 원본 검색을 누르세요.</p>}
     {items && <ResultTable table={{title:"검색 결과",summary:items.length+"개 시트",columns:["스프라이트","원본 경로"],
-      rows:items.map(item=>[<button onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}</button>,item.path])}}/>}
+      rows:items.map(item=>[<button type="button" aria-current={selected===item.path ? "true" : undefined} onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}{selected===item.path && " · 선택됨"}</button>,item.path])}}/>}
     {pendingChange && <SheetSourceChangeConfirmation change={pendingChange} returnFocus={changeTrigger.current} onConfirm={()=>{const change=pendingChange;setPendingChange(null);applyChange(change);}} onCancel={()=>setPendingChange(null)}/>}
-    {selected && <Sheet key={source+":"+selected} path={selected} source={source}/>}
+    {selected && <Sheet key={source+":"+selected} path={selected} source={source} focusFrom={selectionFocus.current} region={sheetRegion}/>}
   </article>;
 }

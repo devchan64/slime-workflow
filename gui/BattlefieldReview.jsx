@@ -18,8 +18,8 @@ export function BattlefieldControls({state,controlsRef,selectRef,cameraReasonId,
     </fieldset><p role={failed ? "alert" : "status"}>{state.status}</p></div>;
 }
 
-export function BattlefieldError({error,cleanupFailed,retryRef,onRetry,href}){
-  return <div><p role="alert">{error}{!cleanupFailed && " 재시도가 계속 실패하면 페이지를 다시 열어 주세요."}</p>{cleanupFailed ? <a ref={retryRef} href={href}>전장 검수 페이지 다시 열기</a> : <button ref={retryRef} type="button" onClick={onRetry}>전장 검수 다시 불러오기</button>}</div>;
+export function BattlefieldError({error,cleanupFailed,retryRef,onRetry,href,defaultHref}){
+  return <div><p role="alert">{error}{!cleanupFailed && " 재시도가 계속 실패하면 페이지를 다시 열어 주세요."}</p>{cleanupFailed ? <><a ref={retryRef} href={href}>전장 검수 페이지 다시 열기</a>{defaultHref && <> · <a href={defaultHref}>기본 전장으로 열기</a></>}</> : <button ref={retryRef} type="button" onClick={onRetry}>전장 검수 다시 불러오기</button>}</div>;
 }
 
 export default function BattlefieldReview(){
@@ -86,12 +86,13 @@ export default function BattlefieldReview(){
     return ()=>{active=false;abort.abort();clearTimeout(timeout);clearInterval(pollTimer.current);pollTimer.current=null;dispose();};
   },[revision]);
   function select(field){
-    try{controller.current.selectField(field);refresh(field);const url=new URL(location.href);url.searchParams.set("field",field);history.replaceState(null,"",url);}
+    try{controller.current.selectField(field);refresh(field);const url=new URL(location.href);url.searchParams.set("field",field);history.replaceState(history.state,"",url);}
     catch(problem){fail(problem);}
   }
   const back=new URL(location.href);back.pathname="/management/frame/map-review/";back.searchParams.set("mapKind","field");back.searchParams.delete("field");
+  const defaultField=new URL(location.href);const hasField=defaultField.searchParams.has("field");defaultField.searchParams.delete("field");
   return <article className="battlefield-review"><a href={back.href}>지도 검수로 돌아가기</a><h1>전투필드 검수</h1>
-    {error && <BattlefieldError error={error} cleanupFailed={cleanupFailed} retryRef={retryRef} href={location.href} onRetry={event=>{if(retryPending.current)return;retryPending.current=true;restoreFocus.current=document.activeElement===event.currentTarget;setError("");retry(value=>value+1);}}/>}
+    {error && <BattlefieldError error={error} cleanupFailed={cleanupFailed} retryRef={retryRef} href={location.href} defaultHref={hasField ? defaultField.href : undefined} onRetry={event=>{if(retryPending.current)return;retryPending.current=true;restoreFocus.current=document.activeElement===event.currentTarget;setError("");retry(value=>value+1);}}/>}
     {!state && !error && <p role="status">전장 검수 화면을 불러오는 중입니다.</p>}
     {state && <BattlefieldControls state={state} controlsRef={controls} selectRef={selectRef} cameraReasonId={cameraReasonId} onSelect={select}
       onRetry={event=>{const restore=document.activeElement===event.currentTarget;select(state.field);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,selectRef.current));}}

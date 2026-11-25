@@ -55,7 +55,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
   const [placement,setPlacement]=useState(null);
   const [segments,setSegments]=useState("");
   const [generationMode,setGenerationMode]=useState("single");
-  const modeName=useId(),segmentHelp=useId(),promptHelp=useId(),frameErrorId=useId(),stepErrorId=useId(),cfgErrorId=useId(),scaleErrorId=useId();
+  const modeName=useId(),segmentHelp=useId(),promptHelp=useId(),frameErrorId=useId(),stepErrorId=useId(),cfgErrorId=useId(),scaleErrorId=useId(),placementHelpId=useId();
   const segmentTokens=segments.trim() ? segments.trim().split(/\s+/) : [];
   const segmentCounts=segmentTokens.every(value=>/^\d+$/.test(value)) ? segmentTokens.map(Number) : [];
   const segmentTotal=segmentCounts.length ? segmentCounts.reduce((sum,value)=>sum+value,0) : null;
@@ -75,7 +75,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
   const [loadingReferences,setLoadingReferences]=useState(false),[loadingExample,setLoadingExample]=useState(false);
   const promptSegmentCount=inputs?.prompt?.split(/\r\n|\r|\n/).filter(line=>line.trim()).length || 0;
   const [sourceJob,setSourceJob]=useState("");
-  const advancedRef=useRef(null),busyRef=useRef(false),reviewButtonRef=useRef(null),reviewSectionRef=useRef(null),reviewEpoch=useRef(0),inputEpoch=useRef(0),bundleInputRef=useRef(null),calibrationInputRef=useRef(null),exampleRequest=useRef(null),referenceRequest=useRef(null),referenceExamplesRef=useRef(null),restoreReferenceFocus=useRef(false),motionExamplesRef=useRef(null),restoreMotionFocus=useRef(false);
+  const advancedRef=useRef(null),placementEditRef=useRef(null),placementCatalogRef=useRef(null),busyRef=useRef(false),reviewButtonRef=useRef(null),reviewSectionRef=useRef(null),reviewEpoch=useRef(0),inputEpoch=useRef(0),bundleInputRef=useRef(null),calibrationInputRef=useRef(null),exampleRequest=useRef(null),referenceRequest=useRef(null),referenceExamplesRef=useRef(null),restoreReferenceFocus=useRef(false),motionExamplesRef=useRef(null),restoreMotionFocus=useRef(false);
   useEffect(()=>()=>{exampleRequest.current?.abort();referenceRequest.current?.abort();},[]);
   useEffect(()=>{if(!busy && !loadingReferences && restoreReferenceFocus.current){restoreReferenceFocus.current=false;restoreLostFocus(document,referenceExamplesRef.current);}},[busy,loadingReferences]);
   useEffect(()=>{if(!busy && !loadingExample && restoreMotionFocus.current){restoreMotionFocus.current=false;restoreLostFocus(document,motionExamplesRef.current);}},[busy,loadingExample]);
@@ -338,12 +338,12 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
     {loadingTemplate && <p role="status">생성 입력을 불러오는 중…</p>}
     {templateError && <div role="alert"><p>{templateError}{inputs && " · 기존 입력을 유지합니다."}</p><button type="button" onClick={()=>{setNotice("");setTemplateRevision(value=>value+1);}}>생성 입력 다시 불러오기</button></div>}
     {inputs && <fieldset disabled={busy || loadingTemplate}><legend>키프레임 배치</legend>
-      <button aria-expanded={placing} onClick={()=>setPlacing(!placing)}>{placing?"배치 편집 닫기":"키프레임 배치 편집"}</button>
+      <button ref={placementEditRef} aria-expanded={placing} onClick={()=>setPlacing(!placing)}>{placing?"배치 편집 닫기":"키프레임 배치 편집"}</button>
       {placement && <><p>{placement.placements.map(item=>item.frame+"프레임 · "+item.id).join(", ")}</p>
-        <button onClick={()=>{setPlacement(null);setReview(null);setPlacing(false);}}>배치 해제</button></>}
-      {placing && <><label>키프레임 검색 <input value={search} onChange={e=>setSearch(e.target.value)}/></label>
+        <button onClick={event=>{if(document.activeElement===event.currentTarget)placementEditRef.current?.focus();setPlacement(null);setReview(null);setPlacing(false);}}>배치 해제</button></>}
+      {placing && <div ref={placementCatalogRef}><label>키프레임 검색 <input value={search} onChange={e=>setSearch(e.target.value)}/></label>
         <KeyframeCatalog query={search} initialFrames={inputs.frames} initialRows={placement?.placements || []}
-          apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></>}
+          apply={(frames,result)=>{if(placementCatalogRef.current?.contains(document.activeElement))placementEditRef.current?.focus();setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></div>}
     </fieldset>}
     {inputs && <form onInvalidCapture={event=>openInvalidDetails(event,advancedRef.current)} onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (target.matches("textarea") && promptReason && value===promptReason) || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();const epoch=reviewEpoch.current;perform(async()=>{setReviewing(true);try{await inspect();}catch(error){if(epoch!==reviewEpoch.current)return;setTimeout(()=>{if(document.activeElement===document.body && reviewButtonRef.current?.isConnected && !reviewButtonRef.current.disabled)reviewButtonRef.current.focus();},50);throw error;}finally{setReviewing(false);}});}}><fieldset disabled={busy || loadingTemplate}>
       <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions} generationMode={generationMode} segmentCount={segmentTokens.length} segmentFrames={segmentCounts} frameInvalid={generationMode==="sequence" ? !segmentsValid : singleFrameInvalid}/>
@@ -415,8 +415,8 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
           onChange={e=>edit("openpose_scale_percent",e.target.value)}/>{invalidScale && <small id={scaleErrorId}>10~100 사이로 입력하세요.</small>}</label>
         {[["post_processing","공식 후처리"],["remove_horizontal_motion","수평 이동 제거"],["pose_include_hands","손 포즈 포함"],
           ["pose_include_face","얼굴 포즈 포함"]].map(([field,label])=>
-          <label key={field}><input type="checkbox" disabled={Boolean(placement) && ["post_processing","remove_horizontal_motion"].includes(field)} checked={inputs[field]} onChange={e=>edit(field,e.target.checked)}/>{label}</label>)}
-        {placement && <p>키프레임 좌표를 유지하기 위해 공식 후처리를 켜고 수평 이동 제거를 끕니다.</p>}
+          <label key={field}><input type="checkbox" disabled={Boolean(placement) && ["post_processing","remove_horizontal_motion"].includes(field)} aria-describedby={placement && ["post_processing","remove_horizontal_motion"].includes(field) ? placementHelpId : undefined} checked={inputs[field]} onChange={e=>edit(field,e.target.checked)}/>{label}</label>)}
+        {placement && <p id={placementHelpId}>키프레임 좌표를 유지하기 위해 공식 후처리를 켜고 수평 이동 제거를 끕니다. 변경하려면 키프레임 배치를 해제하세요.</p>}
       </details>
       {imagesChecking && <p role="status">선택한 이미지 확인이 끝날 때까지 기다리세요.</p>}
       <button ref={reviewButtonRef} disabled={busy || imagesChecking}>{reviewing ? "생성 요청 확인 중…" : "생성 요청 검토"}</button>

@@ -1,6 +1,10 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {validWorldMap,worldMapLinks} from "../../gui/worldMapValidation.mjs";
+import {validWorldMap,worldMapLinks,worldMapDirectionLabel} from "../../gui/worldMapValidation.mjs";
+
+test("이동 방향은 한국어로 표시하고 알 수 없는 값은 보존한다",()=>{
+  assert.deepEqual(['north','south','east','west','other','toString'].map(worldMapDirectionLabel),['북쪽','남쪽','동쪽','서쪽','other','toString']);
+});
 
 test("월드맵은 빈 목록과 선택적 도착 지점을 허용하고 손상된 연결은 거부한다",()=>{
   const thumbnail={url:"/image.png",managementId:"image",version:"v1",sha256:"a",path:"image.png"};

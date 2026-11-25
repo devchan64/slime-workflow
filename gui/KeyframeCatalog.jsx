@@ -123,8 +123,9 @@ export default function KeyframeCatalog({query,choose,apply,initialFrames="",ini
   return <>
     <SearchResults key={query} sectionRef={searchRef} query={query} choose={choose} disabled={busy || rows.length>=20} disabledReason={busy ? "배치 검증이 끝나면 키프레임을 추가할 수 있습니다." : rows.length>=20 ? "키프레임은 최대 20개까지 배치할 수 있습니다." : ""}
       add={(id,tag,origin)=>{focusPlacement.current=document.activeElement===origin ? origin : null;edit([...rows,{id,tag,frame:""}]);}}/>
-    {apply && <ActionButton reasons={[busy && "배치 검증이 끝날 때까지 기다리세요.",rows.length>0 && "기본 자세를 배치하려면 기존 배치를 모두 삭제하세요."]} onClick={()=>{
+    {apply && <ActionButton reasons={[busy && "배치 검증이 끝날 때까지 기다리세요.",rows.length>0 && "기본 자세를 배치하려면 기존 배치를 모두 삭제하세요."]} onClick={event=>{
       const standingPose="b0000000000000000000000000000004";
+      focusPlacement.current=document.activeElement===event.currentTarget ? event.currentTarget : null;
       edit([{id:standingPose,frame:1},{id:standingPose,frame:frames}]);
     }}>첫 프레임과 마지막 프레임에 기본 서기 자세 배치</ActionButton>}
     {rows.length>0 && <form ref={placementRef} className="keyframe-placement-form" tabIndex={-1} aria-label="출력 프레임 배치" onSubmit={validate}><fieldset disabled={busy}><legend>출력 프레임 배치</legend>
