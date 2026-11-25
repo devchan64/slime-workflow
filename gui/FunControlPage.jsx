@@ -191,7 +191,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     }).catch(problem=>{if(active)setRestoreError((timedOut ? "저장 폼 조회 시간이 초과됐습니다." : requestErrorMessage(problem))+" 현재 입력은 유지됩니다.");}).finally(()=>{clearTimeout(timeout);if(active){restorePending.current=false;setBusy(false);}});
     return ()=>{active=false;restorePending.current=false;clearTimeout(timeout);controller.abort();};
   },[embedded,session,restoreFormId,template,restoreRevision]);
-  useEffect(()=>{if(busy || !restoreRetryFocus.current)return;restoreRetryFocus.current=false;const target=restoreError ? restoreRetryRef.current : formRef.current;if(document.activeElement===document.body && target?.isConnected && !target.matches(':disabled'))target.focus();},[busy,restoreError]);
+  useEffect(()=>{if(busy || !restoreRetryFocus.current)return;restoreRetryFocus.current=false;const target=restoreError ? restoreRetryRef.current : formRef.current;restoreLostFocus(document,visibleFocusTarget(target));},[busy,restoreError]);
   useEffect(()=>{
     if(!embedded || !seedProposal || !template)return;
     let active=true,timedOut=false;const controller=new AbortController(),inputAtStart=requestRef.current,attachmentAtStart=attachmentRevision.current,reviewAtStart=reviewEpoch.current;
@@ -211,7 +211,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     })().catch(problem=>{if(active)setSeedError((timedOut ? "원본 입력 조회 시간이 초과됐습니다." : requestErrorMessage(problem))+" 현재 입력은 유지됩니다.");}).finally(()=>{clearTimeout(timeout);if(active){seedPending.current=false;setBusy(false);}});
     return ()=>{active=false;seedPending.current=false;clearTimeout(timeout);controller.abort();};
   },[embedded,seedProposal,template,seedRevision]);
-  useEffect(()=>{if(busy || !seedRetryFocus.current)return;seedRetryFocus.current=false;const target=seedError ? seedRetryRef.current : formRef.current;if(document.activeElement===document.body && target?.isConnected && !target.matches(':disabled'))target.focus();},[busy,seedError]);
+  useEffect(()=>{if(busy || !seedRetryFocus.current)return;seedRetryFocus.current=false;const target=seedError ? seedRetryRef.current : formRef.current;restoreLostFocus(document,visibleFocusTarget(target));},[busy,seedError]);
   async function attach(file,field){
     if(!file)return false;
     const epoch=attachmentEpoch.current;

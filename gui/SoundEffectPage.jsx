@@ -66,7 +66,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   useEffect(()=>{
     if(!inputRetryFocus.current || (!form && !inputError))return;
     inputRetryFocus.current=false;
-    const frame=requestAnimationFrame(()=>{if(document.activeElement===document.body)(form ? promptRef.current : inputRetryRef.current)?.focus();});
+    const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(form ? promptRef.current : inputRetryRef.current)));
     return ()=>cancelAnimationFrame(frame);
   },[form,inputError]);
   function closeReview(){
@@ -244,7 +244,8 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       <GeneratorHistory card allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={(input,record)=>{
         if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.review)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
         if(record.formAtStart!==formRef.current)throw new Error("입력 조회 중 작성 내용이 변경되어 적용하지 않았습니다.");
-        setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.review && (document.activeElement===record.focusAtStart || document.activeElement===document.body) && promptRef.current?.isConnected && !promptRef.current.disabled)promptRef.current.focus();});
+        setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");const card=promptRef.current?.closest('details');if(card)card.open=true;
+        if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.review && (document.activeElement===record.focusAtStart || document.activeElement===document.body) && promptRef.current?.isConnected && !promptRef.current.disabled)promptRef.current.focus();});
       }} renderResult={(id,close)=><section ref={resultRegion} tabIndex={-1} aria-label="선택한 오디오 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service={service} kind="audio" readJob={readJob} onDeleted={cleaned}/></section>}/>
     </fieldset>
     {(busy || review || !form) && <p id={historyLockId} role="status">{!form ? "기본 입력을 확인한 뒤 이력을 사용할 수 있습니다." : busy ? "요청을 처리하고 있습니다." : "요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}

@@ -120,15 +120,16 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
   const handoff=useGpuHandoff(session,service,setJob,setError);
-  async function readJob(id){
-    const inputAtStart=inputRef.current,selectionAtStart=JSON.stringify(videoSequences.current),imageAtStart=imageSelectionRevision.current,checkingAtStart=imageChecking.current || Object.keys(videoControllers.current).length>0,reviewAtStart=reviewEpoch.current;
+  async function readJob(id,{signal}={}){
+    const inputAtStart=inputRef.current,selectionAtStart=JSON.stringify(videoSequences.current),imageAtStart=imageSelectionRevision.current,checkingAtStart=imageChecking.current || Object.keys(videoControllers.current).length>0,reviewAtStart=reviewEpoch.current,focusAtStart=document.activeElement;
     const prefix="/management/assistant/vace-input/"+encodeURIComponent(id)+"/";
     const controller=new AbortController();let timedOut=false;
+    const cancel=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',cancel,{once:true});
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
-    const response=await fetch(prefix+"request",{cache:"no-store",signal:controller.signal});
+    const response=await untilAborted(fetch(prefix+"request",{cache:"no-store",signal:controller.signal}),controller.signal);
     if(!response.ok)throw new Error("저장된 입력 사본을 확인할 수 없습니다.");
-    const record=await response.json();
+    const record=await untilAborted(response.json(),controller.signal);
     const saved=record?.request;
     if(record?.id!==id || !saved || typeof saved.prompt!=="string" || typeof saved.negative_prompt!=="string" ||
       !supportedModes.has(saved.mode) || (template && !template.modes.some(mode=>mode.id===saved.mode)) ||
@@ -137,15 +138,15 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       throw new Error("저장된 VACE 입력 형식을 확인할 수 없습니다.");
     const restored={};
     for(const key of record.attachments){
-      const attachment=await fetch(prefix+key,{cache:"no-store",signal:controller.signal});
+      const attachment=await untilAborted(fetch(prefix+key,{cache:"no-store",signal:controller.signal}),controller.signal);
       if(!attachment.ok)throw new Error("첨부 사본을 읽을 수 없습니다.");
-      const blob=await attachment.blob();
+      const blob=await untilAborted(attachment.blob(),controller.signal);
       restored[key]=new File([blob],key+(key==="reference"?".png":".mp4"),{type:blob.type});
     }
-    const entries=await Promise.all(Object.entries(restored).filter(([key])=>key!=="reference").map(async ([key,file])=>[key,await inspectVideo(file,controller.signal)]));
-    return {...record,files:restored,videoInfo:Object.fromEntries(entries),inputAtStart,selectionAtStart,imageAtStart,checkingAtStart,reviewAtStart};
+    const entries=await untilAborted(Promise.all(Object.entries(restored).filter(([key])=>key!=="reference").map(async ([key,file])=>[key,await inspectVideo(file,controller.signal)])),controller.signal);
+    return {...record,files:restored,videoInfo:Object.fromEntries(entries),inputAtStart,selectionAtStart,imageAtStart,checkingAtStart,reviewAtStart,focusAtStart};
     }catch(problem){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 확인하세요.");throw problem;}
-    finally{clearTimeout(timeout);controller.abort();}
+    finally{clearTimeout(timeout);signal?.removeEventListener('abort',cancel);controller.abort();}
   }
   function restore(request,record){
     if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.pending)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
@@ -155,7 +156,8 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     nonLoraSettings.current=null;
     setChecking({});setValues({...request});setFiles(record.files);setVideoInfo(record.videoInfo);setFileErrors({});setJob(record.id);setSourceJob(record.id);setPending(null);
     setNotice(record.id+" 입력을 복원했습니다.");
-    requestAnimationFrame(()=>{const form=formRef.current;const card=form?.closest('details');if(card)card.open=true;form?.focus();form?.scrollIntoView({block:'start'});});
+    const card=formRef.current?.closest('details');if(card)card.open=true;
+    requestAnimationFrame(()=>{const form=formRef.current;if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && form?.isConnected){form.focus();form.scrollIntoView({block:'start'});}});
   }
   function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
   function openResult(id){focusResult.current=true;if(id===job){const card=historyRef.current?.querySelector('details.generator-history');if(card)card.open=true;resultRef.current?.focus();focusResult.current=false;}else setJob(id);}
@@ -287,7 +289,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><ReviewPrompt label="부정 프롬프트" text={pending.negative_prompt}/>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setPending(null);handoff.clearReview();if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(formRef.current?.querySelector("textarea"))));}} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
-    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending} aria-label="생성 이력" aria-describedby={busy || pending ? historyLockId : undefined}><GeneratorHistory card directApply allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected){node.focus();node.scrollIntoView({block:'start'});}});}}} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
+    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending} aria-label="생성 이력" aria-describedby={busy || pending ? historyLockId : undefined}><GeneratorHistory card directApply allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected){node.focus();node.scrollIntoView({block:'start'});}});}}} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
       {(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}
     </MediaJobResult></section>}/></fieldset>
     {(busy || pending) && <p id={historyLockId} role="status">{busy ? "요청 처리 후 이력을 사용할 수 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}

@@ -123,7 +123,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const gifSizeIssues=invalidRange ? [] : spriteOutputSizeIssues(rows.slice(Number(first)-1,Number(last)),4,true);
   const [review,setReview]=useState(null),[restoredFeet,setRestoredFeet]=useState({});
   const canvas=useRef(null),frameTableRef=useRef(null),reviewRef=useRef(null),reviewTrigger=useRef(null),saving=useRef(false);
-  useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus({preventScroll:true});},[review]);
+  useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus();},[review]);
   function readBodyReference(){
     if(original?.source!=="assets")return null;
     const reference=canvas.current?.spriteEditorState?.bodyReference;
@@ -193,7 +193,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     <div ref={frameTableRef} className="sprite-frame-table"><ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
         step="any" aria-invalid={Boolean(frameFieldIssues[i][field]) || undefined} aria-describedby={frameFieldIssues[i][field] ? `${frameErrorId}-${i}-${field}` : undefined} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/></div>
-    {hasFrameIssues && <p id={frameErrorId}>프레임 크롭과 앵커 입력을 확인하세요. <button type="button" onClick={()=>frameTableRef.current?.querySelector('input[aria-invalid="true"]')?.focus()}>첫 오류로 이동</button></p>}
+    {hasFrameIssues && <p><span id={frameErrorId}>프레임 크롭과 앵커 입력을 확인하세요.</span> <button type="button" onClick={()=>frameTableRef.current?.querySelector('input[aria-invalid="true"]')?.focus()}>첫 오류로 이동</button></p>}
     {frameFieldIssues.map((issues,i)=>Object.entries(issues).map(([field,issue])=><p id={`${frameErrorId}-${i}-${field}`} key={`${i}-${field}`}>{i+1}번 {labels[fields.indexOf(field)]}: {issue}</p>))}
     <BulkEdit rows={rows} onEdit={editRows}/>
     {original?.animation?.animationId && original.animation.version && <SpriteAnchorRestore original={original} rows={rows}
@@ -202,13 +202,13 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     <div><label>출력 열 수<input type="number" step="any" aria-invalid={invalidOutputColumns || undefined} aria-describedby={invalidOutputColumns ? outputColumnsErrorId : undefined} value={columns}
       onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/></label>{invalidOutputColumns && <small id={outputColumnsErrorId}>1~128의 정수를 입력하세요.</small>}</div>
     {sheetSizeIssues.length>0 && <p id={sheetSizeErrorId}>{sheetSizeIssues.join(" ")}</p>}
-    <button disabled={invalidOutputColumns || hasFrameIssues || sheetSizeIssues.length>0} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId,sheetSizeIssues.length>0 && sheetSizeErrorId].filter(Boolean).join(" ") || undefined}>시트와 좌표맵 내보내기</button>
-    {original?.metadataSha256 && <button value="review" disabled={invalidOutputColumns || hasFrameIssues || sheetSizeIssues.length>0} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId,sheetSizeIssues.length>0 && sheetSizeErrorId].filter(Boolean).join(" ") || undefined}>원본 갱신 검토</button>}
-    {review && <section ref={reviewRef} tabIndex={-1} aria-label="원본 갱신 검토"><h3>{original.path}</h3><p>좌표 변경 {review.changed} / {rows.length}프레임 · 출력 {columns}열</p>
+    <div className="choice-buttons sprite-output-actions"><button disabled={invalidOutputColumns || hasFrameIssues || sheetSizeIssues.length>0} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId,sheetSizeIssues.length>0 && sheetSizeErrorId].filter(Boolean).join(" ") || undefined}>시트와 좌표맵 내보내기</button>
+    {original?.metadataSha256 && <button value="review" disabled={invalidOutputColumns || hasFrameIssues || sheetSizeIssues.length>0} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId,sheetSizeIssues.length>0 && sheetSizeErrorId].filter(Boolean).join(" ") || undefined}>원본 갱신 검토</button>}</div>
+    {review && <section ref={reviewRef} className="sprite-update-review" tabIndex={-1} aria-label="원본 갱신 검토"><h3>{original.path}</h3><p>좌표 변경 {review.changed} / {rows.length}프레임 · 출력 {columns}열</p>
       {review.bodyReference && <p>머리 기준 · {review.bodyReference.frame}번 프레임 · Y {review.bodyReference.headY}px</p>}
       <p>{original.source==="baseline"?"베이스라인 이미지·좌표맵·YAML":"등록 이미지·좌표맵·등록부와 잠금 해시"}를 갱신합니다.</p>
-      <button type="button" onClick={save}>확인 후 원본 갱신</button>
-      <button type="button" onClick={()=>{const focused=document.activeElement;setReview(null);requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}}>취소</button></section>}
+      <div className="choice-buttons"><button type="button" onClick={save}>확인 후 원본 갱신</button>
+      <button type="button" onClick={()=>{const focused=document.activeElement;setReview(null);requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}}>취소</button></div></section>}
     <fieldset onChange={()=>{setResult(null);setError("");}}><legend>GIF 내보내기</legend>
       <label>시작 프레임<input type="number" step="any" aria-invalid={invalidRange || undefined} aria-describedby={invalidRange ? rangeErrorId : undefined} value={first} onChange={e=>setFirst(e.target.value)}/></label>
       <label>끝 프레임<input type="number" step="any" aria-invalid={invalidRange || undefined} aria-describedby={invalidRange ? rangeErrorId : undefined} value={last} onChange={e=>setLast(e.target.value)}/></label>{invalidRange && <p id={rangeErrorId}>1~{rows.length}의 정수로 시작이 끝보다 크지 않게 입력하세요.</p>}

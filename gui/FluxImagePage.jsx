@@ -99,7 +99,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
   useEffect(()=>{
     if(!profileRetryFocus.current || (!profile && !profileError))return;
     profileRetryFocus.current=false;
-    const frame=requestAnimationFrame(()=>{if(document.activeElement===document.body)(profile ? inputFormRef.current : profileRetryRef.current)?.focus();});
+    const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(profile ? inputFormRef.current : profileRetryRef.current)));
     return ()=>cancelAnimationFrame(frame);
   },[profile,profileError]);
   const [selectedGuide,setSelectedGuide]=useState(""),[guideNotice,setGuideNotice]=useState(""),[guideError,setGuideError]=useState(false);
@@ -197,7 +197,8 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
     if(record.checkingAtStart || checkingSlots.current.size || record.inputAtStart.form!==inputRef.current.form || record.inputAtStart.files!==inputRef.current.files || record.imageAtStart!==imageSelectionRevision.current)throw new Error("이미지 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");
     setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);
     setNotice(seamless?"프롬프트와 시드를 복원했습니다. 새 타일은 512×512 무참조로 생성합니다.":"선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
-    requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===record.focusAtStart) && inputFormRef.current?.isConnected)inputFormRef.current.focus();});
+    const card=inputFormRef.current?.closest('details');if(card)card.open=true;
+    requestAnimationFrame(()=>{if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.review && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && inputFormRef.current?.isConnected)inputFormRef.current.focus();});
   }
   function edit(key,value){setForm(current=>({...current,[key]:value}));}
   const guides=filterFluxGuides(profile?.guides || [],guideQuery);

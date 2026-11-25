@@ -19,10 +19,10 @@ test('오디오 이력 복원 초점은 사용자의 이동과 새 검토를 존
  const end=source.indexOf('}} renderResult=',start);
  const code=source.slice(start+'restore={'.length,end+1);assert.ok(start>=0 && end>start);
  for(const scenario of ['restore','moved','review']){
-  let frame,focused=0;const body={},origin={},other={},document={body,activeElement:origin},form={};
-  const context=vm.createContext({document,reviewEpoch:{current:0},interactionRef:{current:{busy:false,review:null}},formRef:{current:form},restoreFrame:{current:null},promptRef:{current:{isConnected:true,disabled:false,focus:()=>focused++}},
+  let frame,focused=0;const body={},origin={},other={},document={body,activeElement:origin},form={},card={open:false};
+  const context=vm.createContext({document,reviewEpoch:{current:0},interactionRef:{current:{busy:false,review:null}},formRef:{current:form},restoreFrame:{current:null},promptRef:{current:{isConnected:true,disabled:false,closest:()=>card,focus:()=>focused++}},
    setForm:()=>{},setNotice:()=>{},cancelAnimationFrame:()=>{},requestAnimationFrame:fn=>(frame=fn,1),record:{reviewAtStart:0,formAtStart:form,focusAtStart:origin}});
-  vm.runInContext('globalThis.restore='+code,context);context.restore({},context.record);
+  vm.runInContext('globalThis.restore='+code,context);context.restore({},context.record);assert.equal(card.open,true);
   document.activeElement=scenario==='moved'?other:body;if(scenario==='review')context.reviewEpoch.current++;frame();
   assert.equal(focused,scenario==='restore'?1:0,scenario);
  }

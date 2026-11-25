@@ -474,12 +474,17 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .sprite-editor-page :is(h2,h3) {overflow-wrap:anywhere}
 .sprite-editor-page .sprite-canvas-controls {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
 .sprite-editor-page .sprite-canvas-controls label {display:grid;gap:.3rem;min-width:0}
-.sprite-editor-page .sprite-canvas-controls select {max-width:100%;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.sprite-editor-page select {box-sizing:border-box;max-width:100%;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
 .sprite-editor-page .sprite-frame-slider {display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-block:.75rem}
 .sprite-frame-table {max-width:100%;min-width:0}
 .sprite-frame-table input {min-width:5rem;width:6rem}
+.sprite-output-actions {margin-block:.65rem}
+.sprite-update-review {margin-block:.75rem;padding:.8rem;border:1px solid var(--line,#484d50);border-radius:.5rem;background:var(--surface,#25292c)}
+.sprite-update-review > :is(h3,p) {margin:0 0 .65rem;overflow-wrap:anywhere}
+.sprite-update-review:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .world-map-connections {max-width:100%;min-width:0}
-.world-map-review {display:grid;gap:.65rem;padding:1rem;min-width:0;overflow-wrap:anywhere}
+.world-map-connections table {min-width:32rem}
+.world-map-review {display:grid;gap:.65rem;padding:1rem;min-width:0;word-break:keep-all;overflow-wrap:anywhere}
 .world-map-review > :is(h1,h2,p) {margin:0}
 .world-map-review > h1 {font-size:1.5rem;line-height:1.3}
 .world-map-review > h2 {font-size:1.2rem;line-height:1.3;margin-top:.35rem}
@@ -719,7 +724,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .model-management-page .model-backup li {padding:.4rem 0;overflow-wrap:anywhere}
 .model-management-page .model-backup > div:not(.model-choice-list):not(.generator-history-actions) {min-width:0;overflow-wrap:anywhere}
 .model-management-page .model-backup > div:not(.model-choice-list):not(.generator-history-actions) > :is(p,label,details) {margin:.65rem 0}
-.model-management-page > .model-catalog {display:grid;gap:.65rem;min-width:0;line-height:1.5}
+.model-management-page > .model-catalog {display:grid;gap:.65rem;min-width:0;line-height:1.5;word-break:keep-all}
 .model-management-page > .model-catalog > :is(h2,p,ul) {margin:0}
 .model-management-page > .model-catalog > button {justify-self:start;margin:0}
 .model-management-page > .model-catalog label {display:grid;gap:.3rem;max-width:32rem;font-size:1rem}

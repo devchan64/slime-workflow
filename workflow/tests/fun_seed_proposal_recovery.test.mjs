@@ -1,3 +1,4 @@
+import {restoreLostFocus,visibleFocusTarget} from '../../gui/restoreLostFocus.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -29,10 +30,11 @@ test('원본 조회 재시도에서 유효한 입력과 시드를 적용한다',
 test('원본 입력 재조회는 중복을 막고 잃은 초점만 복구한다',()=>{
  const begin=source.indexOf('onClick={()=>{if(seedPending.current || interactionRef.current.busy'),endHandler=source.indexOf('}}>원본 입력 다시 불러오기',begin),handler=source.slice(begin+'onClick={'.length,endHandler+1);
  const focus=source.match(/useEffect\(\(\)=>\{if\(busy \|\| !seedRetryFocus\.current\)return;.*?\},\[busy,seedError\]\);/)?.[0];assert.ok(begin>=0 && endHandler>begin && focus);
- for(const mode of ['success','failure','moved']){
-  const body={},button={},other={};let run,count=0,formFocus=0,retryFocus=0;
-  const context=vm.createContext({document:{body,activeElement:button},seedPending:{current:false},interactionRef:{current:{busy:false,pending:null}},seedRetryFocus:{current:false},seedRetryRef:{current:button},retrySeed:()=>count++,useEffect:fn=>run=fn,busy:false,seedError:mode==='failure'?'오류':'',formRef:{current:{isConnected:true,matches:()=>false,focus:()=>formFocus++}}});
+ for(const mode of ['success','failure','moved','folded']){
+  const body={},button={},other={};let run,count=0,formFocus=0,retryFocus=0,summaryFocus=0;
+  const summary={isConnected:true,focus:()=>summaryFocus++},details={tagName:"DETAILS",open:mode!=="folded",parentElement:null,querySelector:()=>summary};
+  const context=vm.createContext({restoreLostFocus,visibleFocusTarget,document:{body,activeElement:button},seedPending:{current:false},interactionRef:{current:{busy:false,pending:null}},seedRetryFocus:{current:false},seedRetryRef:{current:button},retrySeed:()=>count++,useEffect:fn=>run=fn,busy:false,seedError:mode==='failure'?'오류':'',formRef:{current:{isConnected:true,parentElement:details,matches:()=>false,focus:()=>formFocus++}}});
   button.isConnected=true;button.matches=()=>false;button.focus=()=>retryFocus++;
-  vm.runInContext('this.retry='+handler+';'+focus,context);context.retry();context.retry();assert.equal(count,1);context.document.activeElement=mode==='moved'?other:body;run();assert.equal(formFocus,mode==='success'?1:0);assert.equal(retryFocus,mode==='failure'?1:0);
+  vm.runInContext('this.retry='+handler+';'+focus,context);context.retry();context.retry();assert.equal(count,1);context.document.activeElement=mode==='moved'?other:body;run();assert.equal(formFocus,mode==='success'?1:0);assert.equal(retryFocus,mode==='failure'?1:0);assert.equal(summaryFocus,mode==='folded'?1:0);
  }
 });

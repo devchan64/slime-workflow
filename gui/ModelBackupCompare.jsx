@@ -107,13 +107,16 @@ export default function ModelBackupCompare({requestedSelection}) {
 
   useEffect(() => {
     if (!requestedSelection || handledSelection.current === requestedSelection || busy || modelsLoading) return;
-    handledSelection.current = requestedSelection;
-    headingRef.current?.scrollIntoView({block: 'start'});
-    headingRef.current?.focus();
+    if (document.activeElement===document.body || document.activeElement===requestedSelection.focusAtStart) {
+      headingRef.current?.scrollIntoView({block: 'start'});
+      headingRef.current?.focus();
+    }
     if (modelsError || !models.some(model => model.name === requestedSelection.name)) {
+      if (!modelsError) handledSelection.current = requestedSelection;
       setSelectionNotice('선택한 설치본을 백업 목록에서 확인할 수 없습니다. 목록을 새로고침하세요.');
       return;
     }
+    handledSelection.current = requestedSelection;
     setSelectionNotice(''); setSelected(requestedSelection.name); setModelQuery('');
     setComparison(null); setMetadata(null); setJobResult(null);
     if (requestedSelection.jobId) showJob(requestedSelection.jobId);

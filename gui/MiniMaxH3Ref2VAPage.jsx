@@ -33,6 +33,7 @@ export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSess
   const [prompt,setPrompt]=useState(""),[seed,setSeed]=useState(45),[file,setFile]=useState(null);
   const [model,setModel]=useState(null),[modelError,setModelError]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || ""),[revision,setRevision]=useState(0);
+  const interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
   const [proposalScope,setProposalScope]=useState(null);
   const receipt=useVideoDelegationReceipt(proposalScope,service);
   const formRef=useRef(null),inputRef=useRef(null),videoInputRef=useRef(null),historyRef=useRef(null),resultRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null),sending=useRef(false),editVersion=useRef(0),promptEdited=useRef(false),activeRead=useRef(null);
@@ -82,26 +83,27 @@ export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSess
       if(proposalScope)receipt.refresh();
       setJob(resultId);setRevision(value=>value+1);setNotice('편집 요청을 접수했습니다. 이력에서 진행 상태를 확인하세요.');
     }catch(problem){if(proposalScope)receipt.unknown();setError((controller.signal.aborted ? '접수 응답 시간이 초과됐습니다.' : requestErrorMessage(problem))+' · 재접수 전에 이력과 접수 상태를 확인하세요.');}
-    finally{const restore=reviewRef.current?.contains(document.activeElement);clearTimeout(timer);sending.current=false;setBusy(false);setPending(null);if(restore)requestAnimationFrame(()=>{if(document.activeElement===document.body)formRef.current?.focus();});}
+    finally{const restore=reviewRef.current?.contains(document.activeElement);clearTimeout(timer);sending.current=false;setBusy(false);setPending(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(formRef.current)));}
   }
   function cancelReview(){
     const restore=reviewRef.current?.contains(document.activeElement);setPending(null);
     if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(formRef.current)));
   }
   async function readSavedInput(id,{signal}={}){
-    const version=editVersion.current;
-    const response=await fetch('/management/assistant/minimax-h3-ref2va-input/'+encodeURIComponent(id),{cache:'no-store',signal});
+    const version=editVersion.current,focusAtStart=document.activeElement;
+    const response=await untilAborted(fetch('/management/assistant/minimax-h3-ref2va-input/'+encodeURIComponent(id),{cache:'no-store',signal}),signal);
     if(!response.ok)throw new Error('저장된 입력 또는 원본 영상 사본을 확인할 수 없습니다.');
-    const record=await response.json(),request=record?.request;
+    const record=await untilAborted(response.json(),signal),request=record?.request;
     if(record?.id!==id || !request || request.action!=='generate' || typeof request.prompt!=='string' || !request.prompt.trim() || typeof request.edit_video!=='string' || request.width!==832 || request.height!==480 || request.frames!==124 || request.steps!==8 || !Number.isInteger(request.seed) || request.seed<0 || request.seed>2147483647)throw new Error('저장 입력 형식을 확인할 수 없습니다.');
-    return {...record,version};
+    return {...record,version,focusAtStart};
   }
   function restoreSavedInput(request,record){
     if(busy || pending || activeRead.current || editVersion.current!==record.version)throw new Error('조회 중 입력이 바뀌어 적용하지 않았습니다. 다시 시도하세요.');
     const decoded=atob(request.edit_video),bytes=new Uint8Array(decoded.length);
     for(let index=0;index<decoded.length;index++)bytes[index]=decoded.charCodeAt(index);
     editVersion.current++;promptEdited.current=true;setPrompt(request.prompt);setSeed(request.seed);setFile(new File([bytes],'edit-video.mp4',{type:'video/mp4'}));setError('');setNotice(record.id+'의 입력을 적용했습니다.');
-    if(inputRef.current)inputRef.current.open=true;requestAnimationFrame(()=>formRef.current?.focus());
+    if(inputRef.current)inputRef.current.open=true;
+    const appliedVersion=editVersion.current;requestAnimationFrame(()=>{if(editVersion.current===appliedVersion && !activeRead.current && !interactionRef.current.busy && !interactionRef.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && formRef.current?.isConnected)formRef.current.focus();});
   }
   return <article className={'vace-page generator-page-common'+(embedded ? '' : ' vace-standalone')}>
     <GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>

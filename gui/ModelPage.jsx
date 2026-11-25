@@ -187,7 +187,7 @@ export default function ModelPage() {
     {service === "wan21-fun-1.3b" && <p>공용 텍스트 인코더와 VAE는 14B 준비 환경을 사용합니다.</p>}
     {service && <ModelReadiness key={service} service={service} manage/>}
     {service && <DownloadProgress key={"progress-" + service} service={service}/>}
-    <ModelCatalog onCompare={(name, jobId) => setBackupSelection({name, jobId, request: Symbol()})}/>
+    <ModelCatalog onCompare={(name, jobId) => setBackupSelection({name, jobId, focusAtStart:document.activeElement, request: Symbol()})}/>
     <ModelBackupCompare requestedSelection={backupSelection}/>
     {service === "kimodo" && <KimodoBuild/>}
   </article>;

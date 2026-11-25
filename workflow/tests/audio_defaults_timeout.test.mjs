@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
+import {restoreLostFocus,visibleFocusTarget} from '../../gui/restoreLostFocus.mjs';
 
 test('오디오 대화 제안 조회가 지연되면 기본 입력으로 복구한다',async()=>{
  const source=readFileSync(new URL('../../gui/SoundEffectPage.jsx',import.meta.url),'utf8');
@@ -36,11 +37,12 @@ test('오디오 기본 입력 재시도는 중복을 막고 잃은 초점만 복
  const handler=source.slice(start+'onClick={'.length,end+1);
  const effect=source.match(/useEffect\(\(\)=>\{\s*if\(!inputRetryFocus\.current.*?\},\[form,inputError\]\);/s)?.[0];
  assert.ok(start>=0 && end>start && effect);
- for(const moved of [false,true]){
-  let run,frame,count=0,focused=0,cancelled=0;const body={},button={},other={},document={body,activeElement:button};
-  const context=vm.createContext({document,inputPending:{current:false},inputRetryFocus:{current:false},inputRetryRef:{current:button},promptRef:{current:{focus:()=>focused++}},form:{},inputError:'',
+ for(const [moved,folded] of [[false,false],[true,false],[false,true]]){
+  let run,frame,count=0,focused=0,summaryFocused=0,cancelled=0;const body={},button={},other={},document={body,activeElement:button};
+  const summary={isConnected:true,focus:()=>summaryFocused++},details={tagName:'DETAILS',open:!folded,querySelector:()=>summary,parentElement:null};
+  const context=vm.createContext({document,restoreLostFocus,visibleFocusTarget,inputPending:{current:false},inputRetryFocus:{current:false},inputRetryRef:{current:button},promptRef:{current:{isConnected:true,parentElement:details,focus:()=>focused++}},form:{},inputError:'',
    setInputError:()=>{},retryInput:()=>count++,useEffect:fn=>run=fn,requestAnimationFrame:fn=>(frame=fn,1),cancelAnimationFrame:()=>cancelled++});
   vm.runInContext('globalThis.retry='+handler+';'+effect,context);context.retry();context.retry();const cleanup=run();document.activeElement=moved?other:body;frame();cleanup();
-  assert.equal(count,1);assert.equal(focused,moved?0:1);assert.equal(cancelled,1);
+  assert.equal(count,1);assert.equal(focused,moved || folded?0:1);assert.equal(summaryFocused,!moved && folded?1:0);assert.equal(cancelled,1);
  }
 });
