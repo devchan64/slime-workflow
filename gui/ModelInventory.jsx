@@ -3,6 +3,7 @@ import {managementCommand,untilAborted} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 import {validModelInventory} from "./modelInventoryValidation.mjs";
 import {LiveRefreshControl,useLiveRefresh} from "./LiveRefresh.jsx";
+import {requestErrorMessage} from "./requestError.mjs";
 
 function formatBytes(bytes) {
   if (!Number.isFinite(bytes) || bytes < 0) return "확인 불가";
@@ -58,7 +59,7 @@ export function InventoryFiles({service}) {
           setError("");
         }
       } catch (problem) {
-        if (active) setError(timedOut ? "파일 목록 조회 시간이 초과됐습니다. 다시 확인하세요." : typeof problem?.message==="string" && problem.message.trim() ? problem.message : "파일 목록을 조회할 수 없습니다.");
+        if (active) setError(timedOut ? "파일 목록 조회 시간이 초과됐습니다. 다시 확인하세요." : typeof problem?.message==="string" && problem.message.trim() ? requestErrorMessage(problem) : "파일 목록을 조회할 수 없습니다.");
       } finally {
         clearTimeout(timeout);
         if (active) {pending.current=false;setLoading(false);}

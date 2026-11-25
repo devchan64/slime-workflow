@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
+import {generationReady} from '../../gui/generationReady.mjs';
+
+test('열린 검토는 모델 재조회 중 생성 요청을 보내지 않는다',async()=>{
+ const source=readFileSync(new URL('../../gui/AnimateInputs.jsx',import.meta.url),'utf8');
+ const start=source.indexOf('  async function submit(){');
+ const code=source.slice(start,source.indexOf('  return (',start));
+ for(const state of [{model:null,loraModel:{ready:true},mode:'none'},{model:{ready:true},loraModel:null,mode:'lightx2v'}]){
+  let calls=0;const scope={session:'test'},context=vm.createContext({pending:{lora_mode:state.mode},pendingScope:{current:scope},currentReviewScope:{current:scope},sameScope:(a,b)=>a===b,sending:{current:false},model:state.model,loraModel:state.loraModel,generationReady,managementCommand:()=>calls++});
+  vm.runInContext(code,context);await context.submit();assert.equal(calls,0);assert.equal(context.sending.current,false);
+ }
+});
 
 test('영상 정보의 각 읽기 단계가 중단을 무시해도 시간 초과 후 대기를 해제한다',async()=>{
  const source=readFileSync(new URL('../../gui/AnimateInputs.jsx',import.meta.url),'utf8');

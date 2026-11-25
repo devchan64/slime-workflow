@@ -23,6 +23,28 @@ class KimodoReadinessTests(unittest.TestCase):
             result=subprocess.run(['node','-e',script,str(bundle)],cwd=gui,capture_output=True,text=True,
                                   env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         self.assertEqual(result.returncode,0,result.stderr)
+    def test_inventory_uses_model_management_service_when_specified(self):
+        self.run_readiness_javascript("""const original=React.createElement,seen=[];
+          React.createElement=(type,props,...children)=>{if(type?.name==='ModelInventory')seen.push(props.service);return original(type,props,...children)};
+          render(React.createElement(Page,{service:'wan22-i2v',modelManagementService:'wan22-i2v-assets'}));
+          render(React.createElement(Page,{service:'kimodo'}));
+          assert.deepEqual(seen,['wan22-i2v-assets','kimodo']);""")
+    def test_readiness_checking_button_describes_initial_status(self):
+        self.run_readiness_javascript("""const html=render(React.createElement(Page,{service:'kimodo'}));
+          const id=html.match(/aria-disabled="true" aria-describedby="([^"]+)">모델 준비 상태 확인 중/)[1];
+          assert.ok(html.includes('id="'+id+'" role="status">모델 상태 확인 중…'));""")
+    def test_download_progress_connects_checking_description(self):
+        import os
+        import subprocess
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'progress.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'DownloadProgress.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+              const Page=require(process.argv[1]).default,html=server.renderToStaticMarkup(React.createElement(Page,{service:'kimodo'}));
+              const id=html.match(/aria-disabled="true" aria-describedby="([^"]+)"/)[1];
+              assert.ok(html.includes('id="'+id+'" role="status">다운로드 기록을 확인하고 있습니다.'));"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
     def test_invalid_readiness_does_not_reach_status_rendering(self):
         self.run_readiness_javascript("""assert.equal(validModelReadiness({ready:false,message:'준비 필요',missing:['모델']}),true);
           assert.equal(validModelReadiness({ready:false,message:'준비',can_prepare:true,prepare_request:{service:'kimodo',command:'prepare',payload:{action:'prepare'}}}),true);
@@ -40,12 +62,13 @@ class KimodoReadinessTests(unittest.TestCase):
             with patch('workflow.common.model_preparation_controls.execute_model_preparation_command', return_value=statuses), \
                  patch('workflow.common.model_preparation_controls.execute_wan13_model_command', return_value=statuses), \
                  TestClient(app) as client:
-                services = ('kimodo', 'music-heartmula', 'sfx-dasheng-audiogen', 'wan22-vace', 'wan21-fun-1.3b')
+                services = ('kimodo', 'music-heartmula', 'sfx-dasheng-audiogen', 'wan22-vace')
                 responses = []
                 for service in services:
                     response = client.get('/management/assistant/model-readiness/'+service)
                     self.assertEqual(response.status_code, 200, service)
                     responses.append(response.json())
+                self.assertEqual(client.get('/management/assistant/model-readiness/wan21-fun-1.3b').status_code, 404)
         self.run_readiness_javascript('for(const item of '+json.dumps(responses, ensure_ascii=False)+') assert.equal(validModelReadiness(item),true);')
     def test_current_readiness_message_distinguishes_assets_and_generation(self):
         import subprocess

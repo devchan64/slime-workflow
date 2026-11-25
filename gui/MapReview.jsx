@@ -28,6 +28,18 @@ export function mapSelectionReasons({draft,field,reading,saving}){
   return [draft && "map-change-reason",field && reading && (saving ? "map-saving-status" : "map-reading-status")].filter(Boolean).join(" ") || undefined;
 }
 
+export function mapBrushFailure(stroke,error){
+  const first=stroke?.[0],last=stroke?.[stroke.length-1];
+  const position=point=>point && Number.isInteger(point.column) && Number.isInteger(point.row) ? `열 ${point.column} · 행 ${point.row}` : "위치 확인 불가";
+  const range=first && last && first!==last ? `시작 ${position(first)} · 끝 ${position(last)}` : position(first);
+  return {summary:`${range} · ${stroke?.length || 0}곳 · ${requestErrorMessage(error)}`,points:(stroke || []).map(point=>({position:position(point),object:typeof point.object==="string" ? point.object : ""}))};
+}
+
+export function MapBrushErrors({errors,onDismiss}){
+  if(!errors.length)return null;
+  return <section className="map-brush-errors" aria-label="브러시 편집 오류"><p role="alert">브러시 획 {errors.length}개가 초안에 반영되지 않았습니다. 원인을 확인하고 다시 그리세요.</p><ol>{errors.map((error,index)=><li key={index}>{error.summary}<details><summary>적용 대상 {error.points.length}곳 보기</summary><ol>{error.points.map((point,pointIndex)=><li key={pointIndex}>{point.position}{point.object && ` · 배치 ${point.object}`}</li>)}</ol></details></li>)}</ol><button type="button" onClick={onDismiss}>브러시 오류 안내 닫기</button></section>;
+}
+
 export default function MapReview(){
   const field=location.pathname.replace(/\/$/,"").endsWith("/field-map");
   const title=field?"야외필드":"도시맵";
@@ -47,6 +59,7 @@ export default function MapReview(){
   const [saveUncertain,setSaveUncertain]=useState(false);
   const [storageFailed,setStorageFailed]=useState(false);
   const [importError,setImportError]=useState("");
+  const [brushErrors,setBrushErrors]=useState([]);
   const [recovery,setRecovery]=useState(null);
   const readRequest=useRef(null),importRequest=useRef(null),savingRef=useRef(false),cellFormRef=useRef(null),feedbackRef=useRef(null),restorePreviewFocus=useRef(false),importInputRef=useRef(null),restoreImportFocus=useRef(false),discardedRecovery=useRef(new Set());
   useEffect(()=>()=>{readRequest.current?.abort();importRequest.current?.abort();},[]);
@@ -71,7 +84,7 @@ export default function MapReview(){
   }
   async function importDraft(file,focused=false){
     if(!file || importRequest.current || readRequest.current || savingRef.current)return;
-    if(window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setImportError("대기 중인 브러시 편집을 먼저 처리한 뒤 파일을 다시 선택하세요.");return;}
+    if(window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setImportError("진행 중이거나 대기 중인 브러시 편집을 먼저 처리한 뒤 파일을 다시 선택하세요.");return;}
     restoreImportFocus.current=focused;
     const controller=new AbortController();importRequest.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
@@ -91,7 +104,7 @@ export default function MapReview(){
   }
   async function discardDraft(){
     if(readRequest.current || importRequest.current || savingRef.current)return;
-    if(window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("대기 중인 브러시 편집을 먼저 처리하세요.");return;}
+    if(window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("진행 중이거나 대기 중인 브러시 편집을 먼저 처리하세요.");return;}
     if(!window.confirm("현재 지도의 미저장 초안과 편집 이력을 버릴까요?"))return;
     setReading(true);
     try{
@@ -129,11 +142,10 @@ export default function MapReview(){
   const cellDirty=isMapCellDirty(cell,cellOriginal);
   const unsafeAutosave=Boolean(draft && (past.length || future.length) && storageFailed);
   useEffect(()=>{
-    if(!cellDirty && !unsafeAutosave && !saving && !saveUncertain)return;
-    const warn=event=>{event.preventDefault();event.returnValue=true;};
+    const warn=event=>{if(cellDirty || unsafeAutosave || saving || saveUncertain || (field && (window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length))){event.preventDefault();event.returnValue=true;}};
     window.addEventListener("beforeunload",warn);
     return ()=>window.removeEventListener("beforeunload",warn);
-  },[cellDirty,unsafeAutosave,saving,saveUncertain]);
+  },[cellDirty,unsafeAutosave,saving,saveUncertain,field]);
   const atCell=item=>cell && item.position.column===cell.column && item.position.row===cell.row;
   const selectedObject=placed.find(item=>item.id===objectId);
   function makeBillboard(objects,column,row,textureKey){
@@ -162,9 +174,9 @@ export default function MapReview(){
     const next={...draft,cells:[...cells,{column,row,tile,height:Number(height),blocked,...(cell.wall?{wall:cell.wall}:{})}]};
     await applyDraft(next,"cell");
   }
-  async function applyDraft(next,action){
+  async function applyDraft(next,action,stroke=null){
     if(readRequest.current || savingRef.current || (importRequest.current && action!=="import"))return;
-    if(action!=="brush" && (window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length)){setFeedback("대기 중인 브러시 편집을 먼저 처리하세요. 셀 입력이 변경됐다면 취소한 뒤 다시 시도하세요.");return;}
+    if(action!=="brush" && (window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length)){setFeedback("진행 중이거나 대기 중인 브러시 편집을 먼저 처리하세요. 셀 입력이 변경됐다면 취소한 뒤 다시 시도하세요.");return;}
     if(cellDirty && action!=="cell"){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}
     setReading(true);setPreview(null);setFeedback("");
     try{
@@ -182,12 +194,12 @@ export default function MapReview(){
       }
       setStorageFailed(true);setDraft(next);setPreview(result);
       setFeedback("검증 완료 · 변경 셀 "+result.cells+"개 · 도달 가능 "+result.reachable+"칸");
-    }catch(error){setFeedback(requestErrorMessage(error));}
+    }catch(error){if(action==="brush")setBrushErrors(errors=>[...errors,mapBrushFailure(stroke,error)]);else setFeedback(requestErrorMessage(error));}
     finally{setReading(false);}
   }
   async function save(event){
     if(savingRef.current || readRequest.current || importRequest.current || mapDraftSaveReason(preview))return;
-    if(window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("대기 중인 브러시 편집을 먼저 처리하세요.");return;}
+    if(window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("진행 중이거나 대기 중인 브러시 편집을 먼저 처리하세요.");return;}
     restorePreviewFocus.current=Boolean(event && event.currentTarget===document.activeElement);
     savingRef.current=true;
     const controller=new AbortController();let timedOut=false;
@@ -215,7 +227,7 @@ export default function MapReview(){
   }
   async function inspectCell(override=null){
     if(readRequest.current || importRequest.current || savingRef.current)return;
-    if(window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("대기 중인 브러시 편집을 먼저 처리하세요.");return;}
+    if(window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("진행 중이거나 대기 중인 브러시 편집을 먼저 처리하세요.");return;}
     if(cellDirty){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}
     const selected=override || window.mapReviewSelectedCell;
     if(!selected){setFeedback("지도를 눌러 셀을 선택하거나 아래 열·행을 입력해 조회하세요.");return;}
@@ -325,11 +337,11 @@ export default function MapReview(){
         cells.set(key,{...current,height});
       }
       setCell(null);
-      applyDraft({...draft,objects,cells:[...cells.values()]},"brush").finally(()=>{
+      applyDraft({...draft,objects,cells:[...cells.values()]},"brush",stroke).finally(()=>{
         window.mapReviewBrushBusy=false;window.mapReviewFlushBrushQueue?.();
       });
     }catch(error){
-      setFeedback(error.message);window.mapReviewBrushBusy=false;window.mapReviewFlushBrushQueue?.();
+      setBrushErrors(errors=>[...errors,mapBrushFailure(stroke,error)]);window.mapReviewBrushBusy=false;window.mapReviewFlushBrushQueue?.();
     }
   },[strokeCount,reading,draft,cellDirty]);
   const destination=kind=>{
@@ -343,10 +355,11 @@ export default function MapReview(){
     catch(error){setFeedback(error.message);}
   }
   function guardNavigation(event){
-    if((cellDirty || unsafeAutosave || saving) && event.button===0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey){event.preventDefault();setFeedback(saving ? "지도 저장 결과를 확인하는 중입니다." : cellDirty ? "변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요." : "탭 임시저장을 확인하지 못했습니다. 이동 전 초안을 저장하거나 JSON으로 내려받으세요.");}
+    const brushPending=field && (window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length);
+    if((cellDirty || unsafeAutosave || saving || brushPending) && event.button===0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey){event.preventDefault();setFeedback(saving ? "지도 저장 결과를 확인하는 중입니다." : brushPending ? "진행 중이거나 대기 중인 브러시 편집을 먼저 처리하세요. 셀 입력이 변경됐다면 취소한 뒤 다시 시도하세요." : cellDirty ? "변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요." : "탭 임시저장을 확인하지 못했습니다. 이동 전 초안을 저장하거나 JSON으로 내려받으세요.");}
   }
   return <article className="map-review"><MapReviewNavigation field={field} destination={destination} onNavigate={guardNavigation} saving={saving} cellDirty={cellDirty} unsafeAutosave={unsafeAutosave}/>
-    <h1 id="map-title">{title} 검수</h1>
+    <h1 id="map-title" tabIndex={-1}>{title} 검수</h1>
     <fieldset className="map-view-controls" disabled={!ready} aria-describedby={!ready ? "status" : undefined}><legend>지도와 시점</legend>
       <div className="map-selection-row"><label>맵 선택<select id="map-select" disabled={Boolean(draft) || reading} aria-describedby={mapSelectionReasons({draft,field,reading,saving})}/></label><button id="load-map" disabled={Boolean(draft) || reading} aria-describedby={mapSelectionReasons({draft,field,reading,saving})}>맵 불러오기</button></div>
       {draft && <p id="map-change-reason">현재 지도 초안이 열려 있습니다. 지도를 바꾸려면 초안을 저장하거나 초안 보관 및 복원에서 원본으로 되돌리세요.</p>}
@@ -364,6 +377,7 @@ export default function MapReview(){
     <p role="status" id="status">{loadError ? "지도 검수 화면을 불러오지 못했습니다." : "지도를 불러오는 중입니다."}</p>
     {loadError && <div role="alert"><p>{loadError} 새 탭에서 지도 검수를 다시 열 수 있습니다.</p><a href={"/management/frame/map-review/?"+recoveryParams} target="_blank" rel="noopener noreferrer">새 탭에서 지도 검수 열기</a></div>}
     {feedback && <p ref={feedbackRef} className="map-review-feedback" role="status" tabIndex={-1}>{feedback}</p>}
+    <MapBrushErrors errors={brushErrors} onDismiss={event=>{if(document.activeElement===event.currentTarget)document.getElementById("map-title")?.focus();setBrushErrors([]);}}/>
     {field && reading && <p id={saving ? "map-saving-status" : "map-reading-status"} role="status">{saving ? "지도 저장 결과를 확인하고 있습니다." : "지도 조회 또는 초안 처리를 진행하고 있습니다."}</p>}
     {field && <fieldset disabled={!ready || reading} aria-describedby={reading ? (saving ? "map-saving-status" : "map-reading-status") : undefined}><legend>셀 검수</legend>
       {saveUncertain && <section aria-label="저장 결과 확인"><p>이전 저장 결과가 불확실합니다. 초안은 유지됩니다. 새로 검증하거나 원본 리비전을 조회해도 이전 저장의 완료 여부가 확인되는 것은 아닙니다.</p><button type="button" onClick={inspectSaveRevision}>현재 원본 리비전 확인</button></section>}

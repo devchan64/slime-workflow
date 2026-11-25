@@ -31,7 +31,7 @@ export function ModelDownloadButton({sending,reason,reasonId,onPrepare}) {
   </button>{reason && <p id={reasonId}>{reason}</p>}</>;
 }
 
-export function ModelReadinessMessage({service,status,error,hasStatusSummary=false}) {
+export function ModelReadinessMessage({service,status,error,hasStatusSummary=false,id}) {
   let text="모델 상태 확인 중…";
   if(error) text="모델 상태 조회 실패 · "+error;
   else if(status) {
@@ -42,7 +42,7 @@ export function ModelReadinessMessage({service,status,error,hasStatusSummary=fal
     } else if(service==="wan22-animate2") text=ready && status.message.startsWith("모델 파일 준비 완료") ? status.message : (ready ? "모델 파일 준비 완료" : "모델 파일 준비 필요")+" · "+status.message;
     else text=(["animationgpt","wan22-fighting-lora","wan22-vace-lightning","wan22-animate2-lightx2v","wan22-vace-q8","wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
   }
-  return <p role={error ? "alert" : "status"}>{text}</p>;
+  return <p id={id} role={error ? "alert" : "status"}>{text}</p>;
 }
 
 export default function ModelReadiness(props) {
@@ -61,15 +61,15 @@ function ModelReadinessForService({service, modelManagementService=service, mana
   const [notice,setNotice]=useState(""),[noticeError,setNoticeError]=useState(false);
   const preparing=useRef(false),readiness=useRef({status:null,error:"",checking:true}),poller=useRef(null);
   const sectionRef=useRef(null);
-  const reasonId=useId();
+  const reasonId=useId(),pendingId=useId();
   useEffect(()=>{
     if(preparing.current)return;
-    readiness.current={status:null,error:"",checking:true};setError("");onError?.("");setStatus(null);onStatus?.(null);
+    readiness.current={status:null,error:"",checking:true};setError("");onError?.("");
     const stop=startModelReadinessPoller({
       initialRetryDelay:manage ? 30000 : null,
       validate:validModelReadiness,
       delayForStatus:next=>modelReadinessPollDelay(next,manage),
-      onStart:()=>{readiness.current.checking=true;setChecking(true);},
+      onStart:()=>{readiness.current.checking=true;readiness.current.status=null;setChecking(true);onStatus?.(null);},
       read:async signal=>{
         if (manage) {
           const response=await fetch("/management/assistant/model-readiness/"+encodeURIComponent(service), {cache:"no-store",signal});
@@ -81,7 +81,7 @@ function ModelReadinessForService({service, modelManagementService=service, mana
       onSuccess:next=>{
         readiness.current.status=next;readiness.current.error="";setStatus(next);setCheckedAt(new Date());setError("");onStatus?.(next);onError?.("");
       },
-      onFailure:(problem,timedOut)=>{const message=timedOut ? "모델 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem);readiness.current.status=null;readiness.current.error=message;setStatus(null);onStatus?.(null);setError(message);onError?.(message);},
+      onFailure:(problem,timedOut)=>{const message=timedOut ? "모델 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem);readiness.current.status=null;readiness.current.error=message;onStatus?.(null);setError(message);onError?.(message);},
       onFinish:()=>{readiness.current.checking=false;setChecking(false);},
     });
     poller.current=stop;
@@ -117,15 +117,16 @@ function ModelReadinessForService({service, modelManagementService=service, mana
   }
   const prepareReason=modelPrepareReason(status,error,sending,checking);
   return <section ref={sectionRef} className="model-readiness" tabIndex={-1} aria-label="모델 준비 상태">
-    <ModelReadinessMessage service={service} status={status} error={error} hasStatusSummary={hasStatusSummary}/>
+    <ModelReadinessMessage service={service} status={status} error={error} hasStatusSummary={hasStatusSummary} id={checking && !status && !sending ? pendingId : undefined}/>
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
-    {checking && status && <p role="status">모델 준비 상태를 다시 확인하고 있습니다. 위 상태는 마지막 조회 결과입니다.</p>}
-    <button type="button" aria-disabled={checking || sending} onClick={refreshReadiness}>{checking ? "모델 준비 상태 확인 중…" : sending ? "준비 요청 접수 중…" : "모델 준비 상태 확인"}</button>
+    {error && status && <><p>아래는 마지막 조회 결과입니다. 준비 상태를 다시 확인하기 전에는 작업에 사용할 수 없습니다.</p><ModelReadinessMessage service={service} status={status} hasStatusSummary={hasStatusSummary}/></>}
+    {sending ? <p id={pendingId} role="status">모델 준비 요청을 접수하고 있습니다.</p> : checking && status && <p id={pendingId} role="status">모델 준비 상태를 다시 확인하고 있습니다. 위 상태는 마지막 조회 결과입니다.</p>}
+    <button type="button" aria-disabled={checking || sending} aria-describedby={checking || sending ? pendingId : undefined} onClick={refreshReadiness}>{sending ? "준비 요청 접수 중…" : checking ? "모델 준비 상태 확인 중…" : "모델 준비 상태 확인"}</button>
     {manage && <>
       <ModelDownloadButton sending={sending} reason={prepareReason} reasonId={reasonId} onPrepare={prepare}/>
       {notice && <p role={noticeError ? "alert" : "status"}>{notice}</p>}
     </>}
-    <ModelInventory service={service}/>
+    <ModelInventory service={modelManagementService}/>
     {!manage && <a href={"/management/frame/model-management/?"+modelQuery}>모델 관리로 이동</a>}
   </section>;
 }

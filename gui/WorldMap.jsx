@@ -33,11 +33,11 @@ export function WorldMapMarker({node,label,x,y,selected,href,onSelect,revision})
   </a>;
 }
 
-export function WorldMapStatus({checkedAt,error,loading,loaded,mapCount}) {
+export function WorldMapStatus({checkedAt,error,loading,loaded,mapCount,loadingId}) {
   return <>
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
     {error && <p role="alert">{error} {loaded && "아래는 마지막 조회 결과입니다."} 다시 불러오기를 시도하세요.</p>}
-    {loading && <p role="status">맵 원본 조회 중… {loaded && "아래는 마지막 조회 결과입니다."}</p>}
+    {loading && <p id={loadingId} role="status">맵 원본 조회 중… {loaded && "아래는 마지막 조회 결과입니다."}</p>}
     {loaded && mapCount===0 && <p>{loading || error ? "마지막으로 조회한 목록에 등록된 맵이 없습니다." : "등록된 맵이 없습니다. 맵을 등록한 뒤 원본을 다시 불러오세요."}</p>}
   </>;
 }
@@ -52,7 +52,7 @@ export default function WorldMap() {
   const [revision,setRevision]=useState(0);
   const [imageRevision,setImageRevision]=useState(0);
   const [zoom,setZoom]=useState(1);
-  const viewportHelpId=useId(),selectionHelpId=useId();
+  const viewportHelpId=useId(),selectionHelpId=useId(),loadingId=useId();
   const viewport=useRef(null),selectRef=useRef(null),reloadRef=useRef(null),reloadPending=useRef(true),restoreReloadFocus=useRef(false),restoreMapFocus=useRef(false);
   useEffect(()=>{
     if(!loading && restoreReloadFocus.current){
@@ -99,8 +99,8 @@ export default function WorldMap() {
   }
   return <section className="world-map-review">
     <a href={conversation}>헤르메스 대화</a><h1>월드맵 검수</h1>
-    <button ref={reloadRef} type="button" aria-disabled={loading} onClick={event=>{if(reloadPending.current)return;reloadPending.current=true;restoreReloadFocus.current=document.activeElement===event.currentTarget;setLoading(true);setRevision(v=>v+1);}}>{loading ? "원본 조회 중…" : "원본 다시 불러오기"}</button>
-    <WorldMapStatus checkedAt={checkedAt} error={error} loading={loading} loaded={loaded} mapCount={maps.length}/>
+    <button ref={reloadRef} type="button" aria-disabled={loading} aria-describedby={loading ? loadingId : undefined} onClick={event=>{if(reloadPending.current)return;reloadPending.current=true;restoreReloadFocus.current=document.activeElement===event.currentTarget;setLoading(true);setRevision(v=>v+1);}}>{loading ? "원본 조회 중…" : "원본 다시 불러오기"}</button>
+    <WorldMapStatus checkedAt={checkedAt} error={error} loading={loading} loaded={loaded} mapCount={maps.length} loadingId={loadingId}/>
     {maps.length>0 && <>
       <p>검증 통과 · 맵 {maps.length}개 · 지도 간 연결 {links.length}개</p>
       <label className="world-map-select">맵 선택 <select ref={selectRef} value={selected?.id || ""} aria-describedby={!selected ? selectionHelpId : undefined} onChange={e=>select(e.target.value)}>

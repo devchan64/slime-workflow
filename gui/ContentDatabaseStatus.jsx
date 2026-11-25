@@ -1,6 +1,7 @@
 import MapDatabaseReceipt from "./MapDatabaseReceipt.jsx";
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
 
 const mapModeLabels=new Map([["files","파일"],["database","DB"]]);
@@ -21,6 +22,7 @@ function validContentStatus(result){
 }
 
 export default function ContentDatabaseStatus(){
+  const loadingId=useId();
   const [record,setRecord]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0);
   const [loading,setLoading]=useState(true),[receivedAt,setReceivedAt]=useState(null);
   const refreshRef=useRef(null),restoreFocus=useRef(false);
@@ -33,7 +35,7 @@ export default function ContentDatabaseStatus(){
     untilAborted(managementCommand("hermes-agent","hermes-content-database-status",{},{signal:controller.signal}),controller.signal).then(result=>{
       if(!validContentStatus(result))throw new Error("콘텐츠 DB 상태 형식을 확인할 수 없습니다.");
       if(active && !controller.signal.aborted){setRecord(result);setReceivedAt(new Date());}
-    }).catch(problem=>{if(active)setError(timedOut?"콘텐츠 DB 상태 조회 시간이 초과됐습니다. 다시 시도하세요.":problem instanceof TypeError?"콘텐츠 DB 상태에 연결하지 못했습니다. 다시 시도하세요.":problem.message);}).finally(()=>{clearTimeout(timer);if(active)setLoading(false);});
+    }).catch(problem=>{if(active)setError(timedOut?"콘텐츠 DB 상태 조회 시간이 초과됐습니다. 다시 시도하세요.":requestErrorMessage(problem));}).finally(()=>{clearTimeout(timer);if(active)setLoading(false);});
     return ()=>{active=false;clearTimeout(timer);controller.abort();};
   },[revision]);
   const available=record?.status==="available",sources=record?.map_sources,save=record?.map_save;
@@ -53,15 +55,15 @@ export default function ContentDatabaseStatus(){
     ["야외 맵 저장",contentStatusLabel("save",save?.state)]
   ]:[];
   return <section>
-    <button ref={refreshRef} disabled={loading} onClick={()=>{restoreFocus.current=true;setLoading(true);refresh(n=>n+1);}}>{loading?"조회 중…":"콘텐츠 DB 상태 새로고침"}</button>
+    <button ref={refreshRef} disabled={loading} aria-describedby={loading ? loadingId : undefined} onClick={()=>{restoreFocus.current=true;setLoading(true);refresh(n=>n+1);}}>{loading?"조회 중…":"콘텐츠 DB 상태 새로고침"}</button>
     {error && <p role="alert">{error}{record && " 이전 조회 결과를 유지합니다."}</p>}
-    {loading && record && <p role="status">새 상태 조회 중 · 아래는 이전 결과입니다.</p>}
+    {loading && <p id={loadingId} role="status">{record ? "새 상태 조회 중 · 아래는 이전 결과입니다." : "콘텐츠 DB 상태 조회 중…"}</p>}
     {record?<><p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p><ResultTable table={{title:"콘텐츠 DB와 원장",summary:showObservedTime ? "서버 관측 시각 · "+observedAt : undefined,columns:["항목","조회 결과"],rows}}/>
       <p>{record.note}</p>
       {save?.state==="pending" && Array.isArray(save.file_details) && <ResultTable table={{
         title:"맵 저장 중단 파일",summary:"현재 파일과 백업 상태",columns:["경로","현재","백업"],
         rows:save.file_details.map(file=>[file.path,file.current,file.backup])}}/>}
-    </>:!error && <p role="status">콘텐츠 DB 상태 조회 중…</p>}
+    </>:null}
     <MapDatabaseReceipt/>
   </section>;
 }

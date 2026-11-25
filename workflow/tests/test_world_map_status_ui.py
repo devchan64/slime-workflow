@@ -7,6 +7,17 @@ import unittest
 
 
 class WorldMapStatusTests(unittest.TestCase):
+    def test_loading_button_describes_current_lookup(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'world.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'WorldMap.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""global.location={search:''};const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+const Page=require(process.argv[1]).default,html=server.renderToStaticMarkup(React.createElement(Page));
+const id=html.match(/aria-disabled="true" aria-describedby="([^"]+)">원본 조회 중/)[1];
+assert.ok(html.includes('id="'+id+'" role="status">맵 원본 조회 중'));"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_result_table_uses_contextual_empty_message(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:

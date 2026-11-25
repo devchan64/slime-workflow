@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from "react";
+import React, {useEffect, useId, useRef, useState} from "react";
 import {untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {downloadPollInterval} from "./downloadPollInterval.mjs";
@@ -9,6 +9,7 @@ export default function DownloadProgress({service}) {
 }
 
 function DownloadProgressForService({service}) {
+  const checkingId=useId();
   const [lines, setLines] = useState(null);
   const [error, setError] = useState("");
   const [checkedAt,setCheckedAt]=useState(null);
@@ -55,10 +56,10 @@ function DownloadProgressForService({service}) {
   }, [service,revision]);
   const stale=Boolean(error || checking);
   return <section className="download-progress" ref={live.ref}><h2>다운로드 진행 상황</h2>
-    <button type="button" aria-disabled={checking} onClick={refreshProgress}>{checking ? "다운로드 기록 조회 중…" : "다운로드 기록 새로고침"}</button>
+    <button type="button" aria-disabled={checking} aria-describedby={checking ? checkingId : undefined} onClick={refreshProgress}>{checking ? "다운로드 기록 조회 중…" : "다운로드 기록 새로고침"}</button>
     <LiveRefreshControl live={live} label="다운로드 기록 자동 갱신"/>
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
-    {checking && <p role="status">{lines===null ? "다운로드 기록을 확인하고 있습니다." : "다운로드 기록을 다시 확인하고 있습니다. 아래는 마지막 조회 결과입니다."}</p>}
+    {checking && <p id={checkingId} role="status">{lines===null ? "다운로드 기록을 확인하고 있습니다." : "다운로드 기록을 다시 확인하고 있습니다. 아래는 마지막 조회 결과입니다."}</p>}
     {error && <p role="alert">{error} 새로고침으로 다시 확인하세요.{lines!==null && " 아래는 마지막 조회 결과입니다."}</p>}
     {downloading && lines?.length>0 && <p role="status">{stale ? "마지막 조회 당시 다운로드 진행 중" : "다운로드 진행 중"}</p>}
     {lines === null ? null : lines.length ?

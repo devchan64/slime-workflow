@@ -37,9 +37,27 @@ test('자동 모델 상태 조회 시작은 렌더 전 준비 제한에 반영�
  const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(preparing.current)return;'),source.indexOf('  async function prepare()'));
  const code=source.slice(source.indexOf('  async function prepare()'),source.indexOf('  const prepareReason='));
  const reason=source.slice(source.indexOf('export function modelPrepareReason'),source.indexOf('export function modelReadinessPollDelay')).replace('export function','function');
- let options,calls=0;const readiness={current:{status:null,error:'',checking:true}};
- const context=vm.createContext({readiness,preparing:{current:false},poller:{current:null},manage:true,service:'service',revision:0,onStatus:null,onError:null,useEffect:fn=>fn(),setError:()=>{},setStatus:()=>{},setChecking:()=>{},setCheckedAt:()=>{},validModelReadiness:()=>true,modelReadinessPollDelay:()=>null,startModelReadinessPoller:value=>options=value,managementCommand:()=>calls++});
- vm.runInContext(reason+effect+code,context);options.onSuccess({ready:false,prepare_request:{service:'service',command:'prepare',payload:{}}});options.onFinish();options.onStart();await context.prepare();assert.equal(calls,0);assert.equal(readiness.current.checking,true);
+ let options,calls=0,parent=null;const readiness={current:{status:null,error:'',checking:true}};
+ const context=vm.createContext({readiness,preparing:{current:false},poller:{current:null},manage:true,service:'service',revision:0,onStatus:value=>parent=value,onError:null,useEffect:fn=>fn(),setError:()=>{},setStatus:()=>{},setChecking:()=>{},setCheckedAt:()=>{},validModelReadiness:()=>true,modelReadinessPollDelay:()=>null,startModelReadinessPoller:value=>options=value,managementCommand:()=>calls++});
+ vm.runInContext(reason+effect+code,context);options.onSuccess({ready:false,prepare_request:{service:'service',command:'prepare',payload:{}}});options.onFinish();assert.equal(parent.ready,false);options.onStart();await context.prepare();assert.equal(parent,null);assert.equal(calls,0);assert.equal(readiness.current.checking,true);
+});
+
+test('재조회 시작 시 표시된 상태는 유지하면서 상위 생성 상태를 잠근다',()=>{
+ const source=readFileSync(new URL('../../gui/ModelReadiness.jsx',import.meta.url),'utf8');
+ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(preparing.current)return;'),source.indexOf('  async function prepare()'));
+ let displayed={ready:true},parent={ready:true};const readiness={current:{status:displayed,error:'',checking:false}};
+ const context=vm.createContext({preparing:{current:false},readiness,poller:{current:null},manage:true,service:'service',revision:1,onStatus:value=>parent=value,onError:()=>{},useEffect:fn=>fn(),setError:()=>{},setStatus:value=>displayed=value,setChecking:()=>{},setCheckedAt:()=>{},validModelReadiness:()=>true,modelReadinessPollDelay:()=>null,startModelReadinessPoller:options=>{options.onStart();return ()=>{};}});
+ vm.runInContext(effect,context);assert.deepEqual(displayed,{ready:true});assert.equal(parent,null);assert.equal(readiness.current.status,null);assert.equal(readiness.current.checking,true);
+});
+
+test('모델 상태 재조회 실패 시 관측을 보존하지만 상위와 준비 접수는 잠근다',async()=>{
+ const source=readFileSync(new URL('../../gui/ModelReadiness.jsx',import.meta.url),'utf8');
+ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(preparing.current)return;'),source.indexOf('  async function prepare()'));
+ const code=source.slice(source.indexOf('  async function prepare()'),source.indexOf('  const prepareReason='));
+ const reason=source.slice(source.indexOf('export function modelPrepareReason'),source.indexOf('export function modelReadinessPollDelay')).replace('export function','function');
+ let options,displayed={ready:false,prepare_request:{}},parent=displayed,error='',calls=0;const readiness={current:{status:displayed,error:'',checking:false}};
+ const context=vm.createContext({preparing:{current:false},readiness,poller:{current:null},manage:true,service:'service',revision:1,onStatus:value=>parent=value,onError:()=>{},useEffect:fn=>fn(),setError:value=>error=value,setStatus:value=>displayed=value,setChecking:()=>{},setCheckedAt:()=>{},validModelReadiness:()=>true,modelReadinessPollDelay:()=>null,startModelReadinessPoller:value=>{options=value;return ()=>{};},requestErrorMessage:e=>e.message,managementCommand:()=>calls++});
+ vm.runInContext(reason+effect+code,context);options.onFailure(Error('조회 실패'),false);options.onFinish();await context.prepare();assert.equal(displayed.ready,false);assert.equal(parent,null);assert.equal(error,'조회 실패');assert.equal(calls,0);
 });
 
 test('모델 준비 접수 중 상위 속성이 바뀌어도 자동 조회를 재시작하지 않는다',()=>{

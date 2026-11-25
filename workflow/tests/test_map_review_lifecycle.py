@@ -11,6 +11,7 @@ class MapReviewLifecycleTests(unittest.TestCase):
         check='async function inspectSaveRevision(event){'+source.split('async function inspectSaveRevision(event){',1)[1].split('\n  async function inspectCell',1)[0]
         script=r"""
 const assert=require('node:assert/strict');let result,feedback='',reading=false;
+const readRequest={current:null},importRequest={current:null},savingRef={current:false};
 const draft={map:'test',revision:'old'},readMap=async()=>result,setReading=value=>reading=value,setFeedback=value=>feedback=value,requestErrorMessage=e=>e.message,restorePreviewFocus={current:false};
 const button={},document={activeElement:button};
 SOURCE
@@ -27,6 +28,7 @@ result={map:'other',revision:'new'};await inspectSaveRevision();assert.match(fee
         until=(root/'gui/managementCommand.js').read_text().split('\nexport async function managementCommand',1)[0].replace('export async function','async function')
         script=r"""
 const assert=require('node:assert/strict');let timer,calls=0,feedback='',reading=false,saving=false,changed=false;
+const window={},readRequest={current:null},importRequest={current:null};
 const draft={map:'test'},preview={token:'token'},savingRef={current:false},restorePreviewFocus={current:false};
 const setTimeout=fn=>{timer=fn;return 1},clearTimeout=()=>{},managementCommand=()=>{calls++;return new Promise(()=>{})};
 const mapDraftSaveReason=()=>'',setSaving=value=>saving=value,setReading=value=>reading=value,setFeedback=value=>feedback=value,setPreview=()=>{},setSaveUncertain=()=>{};
@@ -40,9 +42,10 @@ SOURCE
 
     def test_new_edit_requires_autosave_confirmation(self):
         source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
-        apply='async function applyDraft(next,action){'+source.split('async function applyDraft(next,action){',1)[1].split('\n  async function save(',1)[0]
+        apply='async function applyDraft(next,action,stroke=null){'+source.split('async function applyDraft(next,action,stroke=null){',1)[1].split('\n  async function save(',1)[0]
         script=r"""
 const assert=require('node:assert/strict');let storageFailed=false,applied=false;
+const window={},readRequest={current:null},importRequest={current:null},savingRef={current:false};
 const cellDirty=false,draft={map:'test'},past=[],future=[],cell=null;
 const readMap=async()=>({render:{},cells:1,reachable:2}),validMapDraftPreview=()=>true,applyMapPreview=async()=>{};
 const setStorageFailed=value=>storageFailed=value,setDraft=value=>{assert.equal(storageFailed,true);applied=value.map==='test'},requestErrorMessage=e=>e.message;
@@ -56,9 +59,9 @@ SOURCE
     def test_unsaved_cell_guards_same_tab_and_unload(self):
         source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
         guard='function guardNavigation(event){'+source.split('function guardNavigation(event){',1)[1].split('\n  return <article',1)[0]
-        effect='useEffect(()=>{'+source.split('const cellDirty=isMapCellDirty(cell,cellOriginal);',1)[1].split('useEffect(()=>{',1)[1].split('},[cellDirty,unsafeAutosave,saving,saveUncertain]);',1)[0]+'},[cellDirty,unsafeAutosave,saving,saveUncertain]);'
+        effect='useEffect(()=>{'+source.split('const cellDirty=isMapCellDirty(cell,cellOriginal);',1)[1].split('useEffect(()=>{',1)[1].split('},[cellDirty,unsafeAutosave,saving,saveUncertain,field]);',1)[0]+'},[cellDirty,unsafeAutosave,saving,saveUncertain,field]);'
         script=r"""
-const assert=require('node:assert/strict');let cellDirty=true,unsafeAutosave=false,saving=false,saveUncertain=false,message='',blocked=false,handler,removed=false,cleanup;
+const assert=require('node:assert/strict');let cellDirty=true,unsafeAutosave=false,saving=false,saveUncertain=false,message='',blocked=false,handler,removed=false,cleanup;const field=true;
 const setFeedback=value=>message=value;
 const window={addEventListener:(name,fn)=>{assert.equal(name,'beforeunload');handler=fn},removeEventListener:(name,fn)=>{removed=fn===handler}};
 const useEffect=fn=>{cleanup=fn()};
@@ -81,9 +84,10 @@ assert.equal(typeof handler,'function');cleanup();
 
     def test_failed_preview_preserves_draft_and_history(self):
         source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
-        apply='async function applyDraft(next,action){'+source.split('async function applyDraft(next,action){',1)[1].split('\n  async function save(',1)[0]
+        apply='async function applyDraft(next,action,stroke=null){'+source.split('async function applyDraft(next,action,stroke=null){',1)[1].split('\n  async function save(',1)[0]
         script=r"""
 const assert=require('node:assert/strict');let draftState='old',history='old',feedback='',reading=false;
+const window={},readRequest={current:null},importRequest={current:null},savingRef={current:false};
 const cellDirty=false,draft={map:'test'},past=[],future=[],cell=null;
 const requestErrorMessage=error=>error.message;
 const readMap=async()=>({render:{},cells:1,reachable:2}),validMapDraftPreview=()=>true,applyMapPreview=async()=>{throw Error('미리보기 실패')};
@@ -121,6 +125,7 @@ await assert.rejects(window.mapReviewApplyDraft({id:'different',name:'wrong'}),/
         until=(root/'gui/managementCommand.js').read_text().split('\nexport async function managementCommand',1)[0].replace('export async function','async function')
         script=r"""
 const assert=require('node:assert/strict');let resolve,applied=[],feedback='',reading=false;
+const window={};
 const draft={map:'test',revision:'r'},importRequest={current:null},readRequest={current:null},savingRef={current:false},restoreImportFocus={current:false};
 const setReading=value=>reading=value,setImportError=value=>feedback=value,requestErrorMessage=e=>e.message,applyDraft=async(value,action)=>applied.push([value,action]);
 UNTIL
@@ -143,6 +148,7 @@ SOURCE
         importer='async function importDraft(file,focused=false){'+source.split('async function importDraft(file,focused=false){',1)[1].split('\n  async function discardDraft()',1)[0]
         script=r"""
 const assert=require('node:assert/strict');let timer,resolve,applied=0,reading=false,feedback='';
+const window={};
 const draft={map:'test',revision:'r'},importRequest={current:null},readRequest={current:null},savingRef={current:false},restoreImportFocus={current:false};
 const file={text:()=>new Promise(done=>resolve=done)},setTimeout=fn=>{timer=fn;return 1},clearTimeout=()=>{};
 const setReading=value=>reading=value,setImportError=value=>feedback=value,requestErrorMessage=e=>e.message,applyDraft=async()=>applied++;
@@ -174,6 +180,7 @@ fail=false;run();assert.equal(discardedRecovery.current.has('test'),false);asser
         save='async function save(event){'+source.split('async function save(event){',1)[1].split('\n  async function inspectCell',1)[0]
         script=r"""
 const assert=require('node:assert/strict');let draftState='old',notice='',feedback='',reading=false;
+const window={},readRequest={current:null},importRequest={current:null};
 const draft={map:'test'},preview={token:'token'},discardedRecovery={current:new Set()},savingRef={current:false},restorePreviewFocus={current:false};
 const untilAborted=promise=>promise,setSaving=()=>{};
 const managementCommand=async()=>({map:'test',saved:true}),mapDraftSaveReason=()=>'',storageKey=map=>map,requestErrorMessage=error=>error.message;
@@ -192,6 +199,7 @@ SOURCE
         script=r"""
 const assert=require('node:assert/strict');
 let applied=false,feedback='',notice='',draftState='old',reading=false;
+const readRequest={current:null},importRequest={current:null},savingRef={current:false};
 const draft={map:'test'},discardedRecovery={current:new Set()},window={confirm:()=>true};
 const applyMapPreview=async()=>{applied=true};
 const readMap=async()=>({render:{}}),storageKey=map=>map,requestErrorMessage=error=>error.message;

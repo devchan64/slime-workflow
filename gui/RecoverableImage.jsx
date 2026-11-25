@@ -16,11 +16,11 @@ function RecoverableImageForSource({src,name,maxHeight=420,kind="원본"}) {
   },[failed,revision]);
   useEffect(()=>{
     if(loaded || failed)return;
-    const cancel=startImageLoadDeadline(()=>{restoreFocus.current=document.activeElement===image.current;setFailed(true);});
+    const cancel=startImageLoadDeadline(()=>{restoreFocus.current=document.activeElement===image.current;setFailed("timeout");});
     cancelDeadline.current=cancel;
     return ()=>{cancel();if(cancelDeadline.current===cancel)cancelDeadline.current=null;};
   },[loaded,failed,revision,src]);
-  return failed ? <div><p role="alert">{name} {kind} 이미지를 불러오지 못했습니다.</p><button ref={button} type="button" aria-label={`${name} ${kind} 이미지 다시 불러오기`} onClick={()=>{restoreFocus.current=document.activeElement===button.current;setLoaded(false);setFailed(false);retry(value=>value+1);}}>이미지 다시 불러오기</button></div> : <>
+  return failed ? <div><p role="alert">{name} {kind} {failed==="timeout" ? "이미지를 불러오는 시간이 초과됐습니다." : "이미지를 불러오지 못했습니다."}</p><button ref={button} type="button" aria-label={`${name} ${kind} 이미지 다시 불러오기`} onClick={()=>{restoreFocus.current=document.activeElement===button.current;setLoaded(false);setFailed(false);retry(value=>value+1);}}>이미지 다시 불러오기</button></div> : <>
     {!loaded && <p role="status">{name} {kind} 이미지를 불러오는 중입니다.</p>}
-    <img className="recoverable-image" key={revision} ref={image} tabIndex={-1} src={imageRetryUrl(src,revision)} alt={name+" "+kind} style={{maxWidth:"100%",maxHeight,objectFit:"contain"}} onLoad={event=>{if(event.currentTarget!==image.current)return;cancelDeadline.current?.();setLoaded(true);}} onError={event=>{if(event.currentTarget!==image.current)return;cancelDeadline.current?.();restoreFocus.current=document.activeElement===image.current;setFailed(true);}}/></>;
+    <img className="recoverable-image" key={revision} ref={image} tabIndex={-1} src={imageRetryUrl(src,revision)} alt={name+" "+kind} style={{maxWidth:"100%",maxHeight,objectFit:"contain"}} onLoad={event=>{if(event.currentTarget!==image.current)return;cancelDeadline.current?.();setLoaded(true);}} onError={event=>{if(event.currentTarget!==image.current)return;cancelDeadline.current?.();restoreFocus.current=document.activeElement===image.current;setFailed("error");}}/></>;
 }

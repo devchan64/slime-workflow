@@ -483,6 +483,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .map-review > details {min-width:0;font-size:1rem}
 .map-review > details > summary {box-sizing:border-box;min-height:var(--generator-disclosure-min-height,2.75rem);padding:var(--generator-disclosure-padding,.6rem .8rem);border:1px solid var(--line,#484d50);border-radius:.5rem;font-size:var(--generator-disclosure-font-size,1rem);line-height:var(--generator-disclosure-line-height,1.5);cursor:pointer}
 .map-review > details > summary:focus-visible {outline:2px solid var(--accent,#a7c8ff);outline-offset:2px}
+.map-brush-errors summary {cursor:pointer}
+.map-brush-errors summary:focus-visible {outline:2px solid var(--accent,#a7c8ff);outline-offset:2px}
 .map-cell-inspect-form > button {justify-self:start}
 .sprite-editor-page > .sprite-search {width:100%;max-width:none;margin:0;padding:0;display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
 .sprite-search label {display:grid;gap:.35rem;min-width:0;flex:1 1 12rem}

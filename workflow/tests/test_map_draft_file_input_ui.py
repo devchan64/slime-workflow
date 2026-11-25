@@ -7,6 +7,20 @@ import unittest
 
 
 class MapDraftFileInputTests(unittest.TestCase):
+    def test_brush_error_list_renders_locations_and_recovery(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'map.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MapReview.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+const {MapBrushErrors,mapBrushFailure}=require(process.argv[1]);
+const render=errors=>server.renderToStaticMarkup(React.createElement(MapBrushErrors,{errors,onDismiss:()=>{}}));
+assert.equal(render([]),'');
+const error=mapBrushFailure([{column:1,row:2},{column:3,row:4,object:'tree'}],Error('연결 실패'));
+const html=render([error,error]);assert.match(html,/role="alert">브러시 획 2개/);assert.match(html,/<summary>적용 대상 2곳 보기<\\/summary>/);
+assert.match(html,/열 3 · 행 4 · 배치 tree/);assert.match(html,/브러시 오류 안내 닫기/);assert.match(html,/연결 실패/);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_initial_map_controls_describe_loading(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:
