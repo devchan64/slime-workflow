@@ -12,6 +12,7 @@ from PIL import Image
 from workflow.common.management_gateway import ManagementCommandGateway
 from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
 from workflow.domains.hermes_agent.flux_reports import proposal_request_id
+from workflow.domains.hermes_agent.minimax_form_commands import execute_minimax_form_command
 from workflow.domains.hermes_agent.minimax_submission import submit_from_proposal, read_report_status
 from workflow.domains.hermes_agent.minimax_report_lifecycle import advance_minimax_report
 from workflow.domains.hermes_agent.session_store import HermesSessionStore
@@ -57,7 +58,21 @@ class MiniMaxReportFlowTests(unittest.TestCase):
                 def dispatch(target,command,request):
                     calls.append(command);return run_generation(manager,target,request)
                 with patch(manager_path,return_value=manager),patch.object(manager,'history_storage_path',return_value=root/'history'),patch.object(manager,'validate_generation_runtime'),patch.object(manager,'launch_generation_worker',return_value=Mock()),patch('workflow.domains.image.image_generation.threading.Thread'):
-                    accepted=submit_from_proposal(payload,sessions=sessions,read_job=lambda _:detail,dispatch=dispatch,store=store)
+                    if service == 'minimax-h3-image':
+                        def form_command(action, **fields):
+                            return execute_minimax_form_command(
+                                'hermes-minimax-form-' + action, {'session_id': session, **fields},
+                                sessions=sessions, read_job=lambda _: detail, dispatch=dispatch, receipts=store)
+                        form = form_command('prepare', service=service, proposal_job_id=proposal)
+                        panel_input = {**form['request'], 'prompt': 'house in a rainy forest'}
+                        edited = form_command('save', form_id=form['form_id'], revision=form['revision'], request=panel_input)
+                        final = form_command('update', form_id=form['form_id'], revision=edited['revision'], request={'seed': 73})
+                        generation = final['request']
+                        self.assertEqual((generation['prompt'], generation['seed']), ('house in a rainy forest', 73))
+                        payload['request'] = generation
+                        accepted = form_command('submit', form_id=form['form_id'], revision=final['revision'])
+                    else:
+                        accepted=submit_from_proposal(payload,sessions=sessions,read_job=lambda _:detail,dispatch=dispatch,store=store)
                     duplicate=submit_from_proposal(payload,sessions=sessions,read_job=lambda _:detail,dispatch=dispatch,store=store)
                 self.assertEqual(calls,['generate']);self.assertTrue(duplicate['duplicate'])
                 directory=manager.job_storage_root/accepted['job_id']
@@ -83,6 +98,9 @@ class MiniMaxReportFlowTests(unittest.TestCase):
                 observed=Mock(return_value=[{'observation':'sample'}])
                 result=advance_minimax_report(directory,service,report_dispatch,sessions,observe=observed,receipts=store)
                 self.assertEqual(result['state'],'completed')
+                instructions = saved['prompt'].split('\n', 1)[0]
+                self.assertEqual('최종 MP4 표본' in instructions, service == 'minimax-h3-i2v')
+                self.assertEqual('결과 PNG를 비교' in instructions, service == 'minimax-h3-image')
                 report_input=json.loads(saved['prompt'].split('\n',1)[1])
                 self.assertEqual(report_input['evidence']['original_user_request'],'원래 대화의 요청')
                 self.assertEqual(report_input['evidence']['subsequent_user_messages'],['수정한 폼을 대기열에 접수해줘'])
@@ -93,5 +111,33 @@ class MiniMaxReportFlowTests(unittest.TestCase):
                 self.assertEqual(status['report']['state'],'completed')
                 self.assertEqual(status['report']['generation_state'],'completed')
                 messages=sessions.read_session_record(session)['messages']
-                self.assertEqual([entry.get('job_id') for entry in messages],[proposal,None,report_job])
+                self.assertEqual([entry.get('job_id') for entry in messages if not entry.get('result_notice')],[proposal,None,report_job])
+                if service == 'minimax-h3-image':
+                    self.assertIn(result['evidence']['result_url'], messages[-3]['text'])
+                    self.assertIn('작성을 시작', messages[-2]['text'])
+                    self.assertEqual([item['role'] for item in messages[-3:-1]], ['assistant', 'assistant'])
                 self.assertIn(result['evidence']['result_url'],messages[-1]['text'])
+
+    def test_report_reuses_session_resident_without_injecting_chat_history(self):
+        from workflow.domains.hermes_agent.service import HermesServiceManager
+        session = 'b' * 32
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            sessions = HermesSessionStore(root / 'sessions')
+            sessions.create_session_record(session)
+            jobs = root / 'jobs'
+            jobs.mkdir()
+            manager = HermesServiceManager(jobs, root / 'sessions')
+            payload = {'request_id': 'report_' + 'a' * 64, 'report_session_id': session, 'prompt': '비교 보고서'}
+            with patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready'), \
+                 patch('workflow.domains.hermes_agent.resident_queue.ensure_session_resident',
+                       return_value={'state': 'accepted', 'id': 'resident_test'}) as ensure, \
+                 patch('workflow.domains.hermes_agent.resident_chat_executor.launch_resident_chat') as launch:
+                job = manager.submit_hermes_job_locked(payload)
+                duplicate = manager.submit_hermes_job_locked(payload)
+            ensure.assert_called_once_with(session, payload['request_id'])
+            self.assertEqual(launch.call_args.args, (jobs / job['id'], 'resident_test', session))
+            self.assertEqual(duplicate, {'id':job['id'], 'duplicate':True})
+            saved = json.loads((jobs / job['id'] / 'request.json').read_text())
+            self.assertEqual(saved['report_session_id'], session)
+            self.assertNotIn('context', saved)

@@ -1,9 +1,8 @@
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import FluxImagePage from "./FluxImagePage.jsx";
-import {useMinimaxReportReceipt,MinimaxReportStatus} from "./useMinimaxReportReceipt.jsx";
+import {useMinimaxReportReceipt,MinimaxReportStatus,PreparedMinimaxForm} from "./useMinimaxReportReceipt.jsx";
 import {verifyFluxProposal} from "./fluxProposalReceipt.mjs";
-import {formStateLabel} from './minimaxFormState.mjs';
 
 export default function FluxProposal({job,session,snapshot,offset,onOpenForm}) {
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
@@ -38,7 +37,7 @@ export default function FluxProposal({job,session,snapshot,offset,onOpenForm}) {
   }
   if(!proposal)return <section aria-label="이미지 생성 제안"><button type="button" disabled={busy} onClick={load}>이미지 생성 제안 검토</button>{error && <p role="alert">{error}</p>}</section>;
   const {service="flux-image",selection_reason,...inputs}=proposal;
-  if(prepared)return <section aria-label="이미지 생성 제안"><p>MiniMax 이미지 접수폼 {prepared.form_id.slice(0,8)} · v{prepared.revision} · {formStateLabel(prepared.state,prepared.receipt_state)}</p>{onOpenForm && <button type="button" onClick={()=>onOpenForm(prepared.form_id)}>접수폼 열기</button>}<MinimaxReportStatus receipt={minimaxReceipt}/>{error && <p role="alert">{error}</p>}</section>;
+  if(prepared)return <section aria-label="이미지 생성 제안"><PreparedMinimaxForm form={prepared} label="이미지" onOpenForm={onOpenForm} receipt={minimaxReceipt}/>{error && <p role="alert">{error}</p>}</section>;
   if(service==="minimax-h3-image")return <section aria-label="이미지 생성 제안"><p>이 제안에 연결된 MiniMax 이미지 접수폼이 아직 확인되지 않았습니다. 준비된 폼은 이 대화의 우측 패널에서 확인할 수 있습니다.</p><MinimaxReportStatus receipt={minimaxReceipt}/>{error && <p role="alert">{error}</p>}</section>;
   return <section aria-label="이미지 생성 제안"><p>선택 생성기: {service}{selection_reason && " · "+selection_reason}</p>{error && <p role="alert">{error}</p>}{service==="minimax-h3-image" && <MinimaxReportStatus receipt={minimaxReceipt}/>}<p>생성 폼에서 입력과 필요한 참조를 확인한 뒤 접수하세요. 접수와 보고 상태는 이 생성 폼에서 다시 확인할 수 있습니다.</p>
     <button type="button" aria-expanded={open} onClick={()=>{setMounted(true);setOpen(value=>!value);}}>{open?"생성 폼 접기":"생성 폼 검토"}</button>

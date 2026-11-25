@@ -258,7 +258,7 @@ class HermesSessionStore:
             record = self.read_session_record_locked(session_id, archived=operation != "archive")
             if record["updated_at"] != expected_update:
                 raise ValueError("세션이 변경되었습니다. 목록을 다시 조회하세요.")
-            if any(message.get("job_id") is None and not message.get("form_id") for message in record["messages"]):
+            if any(message.get("job_id") is None and not message.get("form_id") and not message.get("result_notice") for message in record["messages"]):
                 raise ValueError("접수 확인 중인 메시지가 있습니다. 세션에서 접수 결과를 먼저 확인하세요.")
             if operation == "delete":
                 archive.unlink()
@@ -320,7 +320,7 @@ class HermesSessionStore:
             current_next_offset=current_offset_value+len(current_page_values)
             return {'sessions':current_page_values,'offset':current_offset_value,'next_offset':current_next_offset if current_next_offset<len(current_matching_summaries) else None,'total':len(current_matching_summaries),'snapshot':current_snapshot_value,'unreadable_count':len(current_unreadable_identifiers)}
 
-    def append_session_request(self, session_identifier_value, request_identifier_value, request_message_text, execution_prompt_text=None, verification_module_names=None, context_truncated=False, execution_context=None, model_profile=None, *, report_job_id=None):
+    def append_session_request(self, session_identifier_value, request_identifier_value, request_message_text, execution_prompt_text=None, verification_module_names=None, context_truncated=False, execution_context=None, model_profile=None, *, report_job_id=None, result_notice=False):
         if not isinstance(request_identifier_value, str) or not HERMES_SESSION_REQUEST_PATTERN.fullmatch(request_identifier_value):
             raise ValueError('접수 식별자 형식 오류')
         if not isinstance(request_message_text, str) or not request_message_text.strip() or len(request_message_text) > 12000:
@@ -342,6 +342,8 @@ class HermesSessionStore:
                 raise ValueError('세션 메시지 한도에 도달했습니다. 새 세션을 시작하세요.')
             current_created_timestamp = datetime.now(timezone.utc).isoformat()
             current_message_record = {'id': uuid.uuid4().hex, 'request_id': request_identifier_value, 'role': 'user', 'text': request_message_text, 'created_at': current_created_timestamp, 'job_id': None, 'execution_prompt': execution_prompt_text if execution_prompt_text is not None else request_message_text, 'verification_modules': verification_module_names or [], 'context_truncated': context_truncated}
+            if result_notice:
+                current_message_record.update(role="assistant", result_notice=True)
             if report_job_id is not None:
                 current_message_record.update(job_id=report_job_id, report_job_id=report_job_id)
             if model_profile is not None:
@@ -354,6 +356,9 @@ class HermesSessionStore:
             current_session_record['updated_at'] = current_created_timestamp
             write_record_atomically(self.resolve_session_record_path(session_identifier_value), current_session_record)
             return {'message': current_message_record, 'duplicate': False}
+
+    def append_result_notice(self, session, identifier, text):
+        return self.append_session_request(session, identifier, text, result_notice=True)
 
     def attach_session_job(self, session_identifier_value, request_identifier_value, job_identifier_value):
         if not isinstance(job_identifier_value, str) or not HERMES_SESSION_JOB_PATTERN.fullmatch(job_identifier_value):

@@ -161,7 +161,7 @@ def retry_report(payload, *, sessions, store=None):
                 if not isinstance(history,list) or len(history) != expected:
                     raise ValueError('보고서 재시도 이력이 일치하지 않습니다.')
                 history.append({key:record[key] for key in ('state','error','report_request_id','hermes_job_id') if key in record})
-                for key in ('evidence','observations','report_request_id','report_prompt','hermes_job_id','writer_status','body','last_error','retry_at','error'):
+                for key in ('evidence','observations','report_request_id','report_prompt','hermes_job_id','writer_status','writing_notice_sent','body','last_error','retry_at','error'):
                     record.pop(key,None)
                 record.update(state='waiting', retry_revision=expected+1, retry_history=history)
                 write_record_atomically(path,record)

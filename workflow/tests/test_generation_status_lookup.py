@@ -100,6 +100,11 @@ class GenerationStatusLookupTests(unittest.TestCase):
               const render=value=>server.renderToStaticMarkup(value);
               const html=render(React.createElement(React.Fragment,null,...[1,2].map(i=>React.createElement(cleanup,{key:i,job:'j',service:'kimodo',state:null}))));
               assert.match(html,/삭제하려면 작업 상태를 다시 확인하세요/);
+              const canceled=render(React.createElement(cleanup,{job:'j',service:'kimodo',state:'canceled'}));
+              assert.match(canceled,/이 취소 상태는 현재 이력 정리에서 지원하지 않아 삭제할 수 없습니다/);
+              assert.match(canceled,/<button[^>]*disabled[^>]*>선택 이력 삭제 검토<\\/button>/);
+              const unknown=render(React.createElement(cleanup,{job:'j',service:'kimodo',state:'unknown'}));
+              assert.match(unknown,/삭제하려면 작업 상태를 다시 확인하세요/);
               const ids=[...html.matchAll(/aria-describedby="([^"]+)"/g)].map(match=>match[1]);
               assert.equal(ids.length,2);assert.notEqual(ids[0],ids[1]);
               const action=render(React.createElement(controls,{service:'kimodo',id:'j',state:'running',disabled:true,refresh:()=>{}}));

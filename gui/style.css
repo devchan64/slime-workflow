@@ -1110,3 +1110,25 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .hermes-activity-detail pre {background:var(--bg, #171a28);border:1px solid var(--line);border-radius:.45rem;padding:.65rem .75rem;font-size:.8rem;line-height:1.55}
 .activity-detail-meta {display:flex;flex-wrap:wrap;gap:.35rem 1rem;color:var(--muted);font-size:.78rem;overflow-wrap:anywhere}
 .activity-detail-header .message-copy,.activity-detail-actions .message-copy {margin:0}
+
+.hermes-chat .panel.unified-queue-overview {max-height:none;overflow:visible}
+.unified-queue-overview footer {display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;margin:.6rem 0}
+.unified-queue-overview .queue-state-filter {display:flex;align-items:center;gap:.6rem}
+.queue-entries {list-style:none;padding:0;margin:.6rem 0}
+.queue-entries li {padding:.6rem 0;border-top:1px solid #484d50}
+.queue-entries li p {margin:.25rem 0}
+
+.prepared-minimax-form {margin-block:.8rem;padding:.8rem 1rem;border:1px solid var(--line,currentColor);border-radius:.75rem;overflow-wrap:anywhere}
+.prepared-minimax-heading {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem 1rem}
+.prepared-minimax-heading small {display:block}
+.prepared-minimax-form summary {cursor:pointer}
+
+.queue-current-preview {display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+
+.queue-record > summary {overflow-wrap:anywhere;cursor:pointer;color:var(--ink);font-size:1rem}
+
+.conversation-job-footer {display:flex;align-items:center;flex-wrap:wrap;gap:.5rem 1rem;margin-top:.65rem}
+.message .conversation-job-footer .conversation-job-identity {display:flex;align-items:center;flex-wrap:wrap;gap:.35rem;margin:0;min-width:0}
+.conversation-job-identity a {overflow-wrap:anywhere}
+.conversation-job-footer .conversation-stop-job {margin-inline-start:auto}
+.conversation-job-footer .conversation-stop-job:has([role="group"]) {flex-basis:100%}

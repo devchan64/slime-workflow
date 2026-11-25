@@ -1,3 +1,4 @@
+import {formStateLabel} from './minimaxFormState.mjs';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {managementCommand,untilAborted} from './managementCommand.js';
 import {fluxProposalRequestId} from './fluxProposalReceipt.mjs';
@@ -68,13 +69,25 @@ export function minimaxReceiptText(receipt){
 }
 
 
-export function MinimaxReportStatus({receipt}){
+export function PreparedMinimaxForm({form,label,onOpenForm,receipt}){
+  return <div className="prepared-minimax-form">
+    <div className="prepared-minimax-heading">
+      <div><strong>MiniMax {label} 접수폼</strong>
+        <small>버전 {form.revision} · {formStateLabel(form.state,form.receipt_state)}</small></div>
+      {onOpenForm && <button type="button" onClick={()=>onOpenForm(form.form_id)}>접수폼 열기</button>}
+    </div>
+    <MinimaxReportStatus receipt={receipt} formId={form.form_id}/>
+  </div>;
+}
+
+export function MinimaxReportStatus({receipt,formId}){
   const retryAvailable=receipt?.state==='accepted' && receipt.report?.retry_available===true;
   const message=minimaxReceiptText(receipt);
   const linked=receipt.state==='accepted' && receipt.service==='minimax-h3-image';
   const offset=linked ? message.indexOf(receipt.job) : -1;
-  return <div><p role="status">{offset>=0 ? <>{message.slice(0,offset)}<a href={'/management/frame/minimax-h3-image-generator/?job='+encodeURIComponent(receipt.job)+'#job-result'}>{receipt.job}</a>{message.slice(offset+receipt.job.length)}</> : message}{retryAvailable && ' · 재분석 가능'}{receipt.report?.retry_unavailable_reason && ' · 재분석 불가: '+receipt.report.retry_unavailable_reason}</p>
-    <button type="button" onClick={receipt.refresh} disabled={receipt.retryState?.busy}>접수·보고 상태 새로고침</button>
+  const refreshButton=<button type="button" onClick={receipt.refresh} disabled={receipt.retryState?.busy}>접수·보고 상태 새로고침</button>;
+  return <div>{message && <p role="status">{offset>=0 ? <>{message.slice(0,offset)}<a href={'/management/frame/minimax-h3-image-generator/?job='+encodeURIComponent(receipt.job)+'#job-result'}>{receipt.job}</a>{message.slice(offset+receipt.job.length)}</> : message}{retryAvailable && ' · 재분석 가능'}{receipt.report?.retry_unavailable_reason && ' · 재분석 불가: '+receipt.report.retry_unavailable_reason}</p>}
+    {formId ? <details><summary>접수 상세</summary><p>폼 ID · {formId}</p>{refreshButton}</details> : refreshButton}
     {retryAvailable && <button type="button" onClick={receipt.retry} disabled={receipt.retryState?.busy}>{receipt.retryState?.busy ? '재분석 요청 중' : '보고서 재분석'}</button>}
     {receipt.retryState?.error && <p role="alert">{receipt.retryState.error}</p>}</div>;
 }

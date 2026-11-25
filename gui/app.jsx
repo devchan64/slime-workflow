@@ -2,7 +2,7 @@ import {formatActivityCopy} from './formatActivityCopy.mjs';
 import {ConversationPending} from './ConversationPending.jsx';
 import MiniMaxForms from './MiniMaxForms.jsx';
 import {classifyQueueUpdate,validChatActive,validChatQueue,matchesChatQueueReceipt} from "./chatQueueUpdate.mjs";
-import {sessionQueueStateLabel} from "./sessionQueueValidation.mjs";
+import {validSessionQueueResult,sessionQueueStateLabel} from "./sessionQueueValidation.mjs";
 import LiveInstructionInput from "./LiveInstructionInput.jsx";
 import {validSessionViewPage} from "./sessionViewPage.mjs";
 import {validSessionListPage} from "./sessionListPage.mjs";
@@ -61,7 +61,7 @@ import CopyTextButton from "./CopyTextButton.jsx";
 import ResultTable from "./ResultTable.jsx";
 import WorldMap from "./WorldMap.jsx";
 import GpuPanel from "./GpuPanel.jsx";
-import GpuHandoffHistory from "./GpuHandoffHistory.jsx";
+import {GpuHandoffDisclosure} from "./GpuHandoffHistory.jsx";
 import QueuePanel from "./QueuePanel.jsx";
 import UnifiedQueueOverview from "./UnifiedQueueOverview.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
@@ -97,6 +97,12 @@ function messagesFrom(view) {
   const start = (view.message_count ?? records.length) - (view.offset || 0) - records.length;
   return records.flatMap((m,index) => {
     const job = m.job || {}, key=m.id || m.request_id || (view.id + "-" + (start + index));
+    if(m.result_notice){
+      const progress=m.report_progress;
+      const phase={writing:"작성 중",completed:"작성 완료 · 대화 전달 완료",failed:"작성 실패"};
+      const flow=progress ? "\n\n**보고서 진행 상황**\n1. 생성 결과 파일 확인 완료\n2. 이미지 관찰 단계 종료 · 접수폼과 관찰 자료 전달 완료\n3. 비교 보고서 "+(phase[progress.state] || "상태 확인 중")+"\n\n[보고서 작업 상세]("+jobLink(progress.writer,view.id)+")" : "";
+      return [{id:key+"-notice",role:"assistant",content:m.text+flow}];
+    }
     if(m.form_id)return [{id:m.form_id,role:"user",content:m.text,metadata:{custom:{formId:m.form_id,session:view.id}}}];
     if(m.report_job_id && m.report_job_id===m.job_id){
       const [,service,sourceJob] = (m.text || "").split(" · ");
@@ -208,7 +214,20 @@ function LiveInstructionReceipts({rows,session,onRefresh,unavailable=false}){
   const recoveryLabels={queued:"대기 중",dispatching:"실행 준비 중",dispatched:"실행 접수됨",cancelled:"취소됨"};
   return <details className="live-instruction-receipts"><summary>실행 중 전달한 지시 내역 · 최근 {rows.length}건{needsRecovery>0 && ` · 미복구 ${needsRecovery}건`}</summary>{rows.slice().reverse().map(row=><article key={row.request_id}><strong>{labels[row.state] || "확인 불가"} · {row.mode==="steer"?"지시 추가":"방향 수정"}</strong><p>{row.text}</p><small>{row.created_at && !Number.isNaN(new Date(row.created_at).getTime()) && <>접수 · {new Date(row.created_at).toLocaleString("ko-KR")} · </>}{row.job_id && <a href={jobLink(row.job_id,session)}>원래 작업 보기</a>}</small>{row.state==="undelivered" && (row.recovery ? <p><small>후속 요청 {recoveryLabels[row.recovery.state] || "상태 확인 불가"}{row.recovery.job_id && <> · <a href={jobLink(row.recovery.job_id,session)}>후속 작업 보기</a></>}</small></p> : <button type="button" disabled={Boolean(busy) || unavailable} onClick={()=>recover(row)}>{busy===row.request_id?"복구 중":"후속 요청으로 복구"}</button>)}{row.state==="unknown" && <p><small>중복 반영 가능성이 있어 자동 재전달하지 않습니다.</small></p>}</article>)}{notice && <p role="status">{notice}</p>}</details>;
 }
-function ChatQueuePanel({session}){
+function CurrentQueueCommand({data,session}){
+  const active=data.chat_active;
+  const job=data.messages?.find(message=>message.job_id===active.job_id)?.job;
+  const activity=job?.tool_activity;
+  const tools=groupActivityEvents(activity?.events || []).filter(item=>item.start?.call_id && !item.result);
+  return <div className="current-queue-command">
+    <h3>현재 처리 중인 명령</h3>
+    <p>{active.prompt}</p>
+    {tools.length>0 ? <ul>{tools.map(({start,index})=><li key={index}><strong>{start.name}</strong> · 실행 중{start.target && <pre>{start.target}</pre>}</li>)}</ul> :
+      <p>{activity?.observation?.request?.active>0 ? "모델 연결 중 · 실행 중인 도구 호출 기록 없음" : "실행 중인 도구 호출 기록 없음"}</p>}
+    <a href={jobLink(active.job_id,session)}>현재 작업 상세 보기</a>
+  </div>;
+}
+function ChatQueuePanel({session,children,openDetails,messages}){
   const [data,setData]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0),[stopJobs,setStopJobs]=useState(()=>new Set()),[stopNotices,setStopNotices]=useState({});
   const editKey="hermes-queue-edit-"+session;
   const [editingItem,setEditingItem]=useState(()=>{try{const saved=JSON.parse(sessionStorage.getItem(editKey));return saved && typeof saved.request_id==="string" && typeof saved.text==="string" && Number.isInteger(saved.revision) ? saved : null;}catch{return null;}});
@@ -252,25 +271,68 @@ function ChatQueuePanel({session}){
     catch{if(panelMounted.current)setStopNotices(previous=>({...previous,[job]:"중단 요청 결과를 확인하지 못했습니다. 작업 상세에서 종료 여부를 확인하세요."}));}finally{clearTimeout(timer);stopControllers.current.delete(job);if(panelMounted.current){setStopJobs(previous=>{const next=new Set(previous);next.delete(job);return next;});refresh(n=>n+1);}}
   }
   useEffect(()=>{let active=true,timer,timeout,controller;async function load(){controller=new AbortController();timeout=setTimeout(()=>controller.abort(),15000);try{const next=await callUntilAborted("session-view",{session_id:session,limit:1},controller.signal);if(!validChatQueue(next,session) || !validChatActive(next.chat_active) || !validLiveInstructionRows(next.live_instructions))throw new Error("대기열 응답 오류");if(active && !controller.signal.aborted){setData({...next,checkedAt:new Date()});setError("");}}catch(problem){if(active)setError(problem.message || "대기열 조회 오류");}finally{clearTimeout(timeout);if(active)timer=setTimeout(load,3000);}}load();return()=>{active=false;clearTimeout(timer);clearTimeout(timeout);controller?.abort();};},[session,revision]);
-  return <section className="chat-queue-panel" aria-label="세션 채팅 대기열"><div className="chat-queue-header"><h2>세션 채팅 대기열</h2><button ref={queueRefreshRef} type="button" onClick={()=>refresh(n=>n+1)}>새로고침</button></div>
-    <small>{data?.checkedAt ? "조회 시각 · "+data.checkedAt.toLocaleString("ko-KR")+" · 조회 종료 후 3초마다" : error ? "대기열 조회 실패" : "대기열 조회 중"}</small>
-    {error && <p role="alert">대기열을 불러오지 못했습니다. {data && "표시된 내용은 마지막 조회 결과입니다."}</p>}
+  const [workflow,setWorkflow]=useState(null),[workflowError,setWorkflowError]=useState("");
+  useEffect(()=>{
+    let active=true,timer,controller;
+    async function load(){
+      controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(),15000);
+      try{
+        const result=await callUntilAborted("workflow-list",{session_id:session,category:"",state:"",search_filters:{}},controller.signal);
+        if(!validSessionQueueResult(result))throw new Error("작업 목록 응답 오류");
+        if(active){setWorkflow(result);setWorkflowError("");}
+      }catch{if(active)setWorkflowError("생성 작업 현황을 갱신하지 못했습니다.");}
+      finally{clearTimeout(timeout);if(active)timer=setTimeout(load,10000);}
+    }
+    load();return ()=>{active=false;clearTimeout(timer);controller?.abort();};
+  },[session]);
+  const steps=[...(workflow?.steps || []),...(workflow?.direct_jobs || [])];
+  const scheduleRows=state=>steps.filter(step=>(step.source_state || step.state)===state).map(step=>({
+    id:step.source_job_id || step.request_id,kind:step.generator || "생성 작업",text:step.step_id || step.generator
+  }));
+  const running=scheduleRows("running");
+  const completed=[...scheduleRows("completed"),...(messages || []).filter(m=>m.job_id && m.job?.status?.status==="completed").map(m=>({
+    id:m.job_id,kind:m.report_job_id ? "검수 보고서" : "대화 요청",text:m.text
+  }))];
+  function records(rows){
+    return Array.from(new Map(rows.map(row=>[row.kind+row.id,row])).values()).map(row=><details key={row.kind+row.id} className="queue-record">
+      <summary><strong>{row.kind}</strong> · <code>{row.id}</code></summary><p>{row.text}</p>
+    </details>);
+  }
+  const activeRows=records(running);
+  if(data?.chat_active?.status==="running")activeRows.unshift(<details key={data.chat_active.job_id} className="queue-record">
+    <summary><strong>대화 요청</strong> · <code>{data.chat_active.job_id}</code></summary>
+    <CurrentQueueCommand data={data} session={session}/>
+  </details>);
+  return <section className="chat-queue-panel" aria-label="작업 일정">
+    {workflowError && <p role="alert">{workflowError} {workflow && "마지막 조회 결과를 표시합니다."}</p>}
+    {error && <p role="alert">대화 요청 조회 실패. {data && "마지막 조회 결과를 표시합니다."}</p>}
+    <UnifiedQueueOverview session={session} call={call} running={activeRows} completed={records(completed)} ready={Boolean(data && workflow && !error && !workflowError)}/>
+    <details open={openDetails}><summary>상세 및 제어</summary>
+    <div className="chat-queue-header"><small>{data?.checkedAt && "최근 조회 · "+data.checkedAt.toLocaleTimeString("ko-KR")}</small><button ref={queueRefreshRef} type="button" onClick={()=>refresh(n=>n+1)}>새로고침</button></div>
     {editStorageError && editingItem && <p role="alert">편집 내용을 이 탭에 보관하지 못했습니다. 패널을 닫기 전에 내용을 복사하세요. <CopyTextButton value={editingItem.text} label="대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/></p>}
     {pendingUpdate && <section ref={pendingPanelRef} className="chat-queued-item" aria-label="대기 요청 변경 확인"><strong>대기 요청 변경 확인 필요</strong><p>{pendingUpdate.cancel?"대기 취소":"대기 요청 수정"} · {pendingUpdate.request_id}</p>{pendingUpdate.prompt && <><ChatQueuePrompt text={pendingUpdate.prompt}/><CopyTextButton value={pendingUpdate.prompt} label="확인할 수정 내용 복사" buttonLabel="수정 내용 복사"/></>}<div className="chat-queue-actions"><button type="button" aria-disabled={updateBusy} onClick={()=>sendUpdate()}>{updateBusy?"확인 중":"같은 요청 다시 확인"}</button><button type="button" aria-disabled={updateBusy} onClick={checkUpdate}>현재 상태 확인</button></div></section>}
     {updateNotice && <p role="status">{updateNotice}</p>}
     {!data && error && editingItem && <section className="chat-queued-item" aria-label="복원된 대기 요청 편집 내용"><strong>이 탭에 보관된 편집 내용</strong><p>대기열 상태를 확인할 때까지 저장할 수 없습니다. 내용을 복사하거나 연결 후 다시 확인하세요.</p><textarea aria-label="복원된 대기 요청 수정" value={editingItem.text} onChange={event=>rememberEdit({...editingItem,text:event.target.value})}/>{editingItem.text && <CopyTextButton value={editingItem.text} label="복원된 대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/>}<button type="button" onClick={()=>rememberEdit(null)}>편집 내용 지우기</button></section>}
     {data && <><h3>현재 요청</h3>{data.chat_active ? <article className="chat-queue-current"><strong>{sessionQueueStateLabel(statusLabels,data.chat_active.status)}</strong><ChatQueuePrompt key={data.chat_active.job_id} text={data.chat_active.prompt}/><JobIdentifier id={data.chat_active.job_id} label="채팅 작업 ID" compact/><a href={jobLink(data.chat_active.job_id,session)}>작업 상세 보기</a>{data.chat_active.status==="running" && (data.chat_active.control_ready ? <LiveInstructionForm key={data.chat_active.job_id} session={session} job={data.chat_active.job_id} receipts={data.live_instructions} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/> : <p>실행 중 지시 전달 경로가 준비되지 않았습니다. 준비 중이거나 이전 방식으로 시작된 작업일 수 있습니다.</p>)}{["running","queued"].includes(data.chat_active.status) && <button type="button" aria-disabled={stopJobs.has(data.chat_active.job_id) || Boolean(error)} onClick={stopCurrent}>{stopJobs.has(data.chat_active.job_id)?"중단 요청 중":"지시 중단"}</button>}{stopNotices[data.chat_active.job_id] && <p role="status">{stopNotices[data.chat_active.job_id]}</p>}</article> : <p>실행 중인 채팅 요청이 없습니다.</p>}
       <h3>대기 중인 요청 · {data.chat_queue.length}</h3>{!data.chat_queue.length && <p>대기 중인 요청이 없습니다. 이 세션에서 요청이 실행되는 동안 새 메시지를 보내면 대기열에 추가되고, 앞선 요청이 끝난 뒤 순서대로 실행됩니다.</p>}{[...data.chat_queue,...(editingItem && !data.chat_queue.some(item=>item.request_id===editingItem.request_id) ? [{...editingItem,state:"departed"}] : [])].map((item,index)=><div key={item.request_id}><small>{item.state==="departed"?"대기열에서 사라진 요청의 편집 내용":"대기 순서 · "+(index+1)}</small><ChatQueueItem item={item} savedEdit={editingItem?.request_id===item.request_id ? editingItem : null} unavailable={Boolean(error)} mutationLocked={Boolean(pendingUpdate)} disableEdit={Boolean(editingItem && editingItem.request_id!==item.request_id)} onEditing={rememberEdit} onChange={sendUpdate}/></div>)}<LiveInstructionReceipts rows={data.live_instructions} session={session} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/></>}
+    {children}
+  </details>
   </section>;
 }
 const fluxResultImagePath = /^\/flux-[a-z0-9-]+-generator\/jobs\/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}\/result\.png$/;
+const miniMaxVideoPath = /^\/minimax-h3-i2v\/jobs\/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}\/attempts\/[a-f0-9]{32}\/preview\.mp4$/;
 function markChatThumbnails() {
   return tree => {
     const seen = new Set();
     function visit(node) {
       const href = node.properties?.href;
-      if (node.tagName === "a" && fluxResultImagePath.test(href) && !seen.has(href)) {
+      if (node.tagName === "a" && (fluxResultImagePath.test(href) || /^\/minimax-h3-image\/jobs\/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}\/result\.png$/.test(href)) && !seen.has(href)) {
         node.data = {...node.data, thumbnail: true};
+        seen.add(href);
+      }
+      if (node.tagName === "a" && miniMaxVideoPath.test(href) && !seen.has(href)) {
+        node.data = {...node.data, video: true};
         seen.add(href);
       }
       node.children?.forEach(visit);
@@ -282,10 +344,11 @@ function ChatResultLink({href, children, node}) {
   const [failedSource, setFailedSource] = useState("");
   if (!href) return <>{children}</>;
   const preview = node.data?.thumbnail && failedSource !== href;
-  return <a href={href} target="_blank" rel="noopener noreferrer">
+  return <>{node.data?.video && failedSource !== href && <video controls playsInline preload="metadata" aria-label="생성 결과 영상" style={{display:"block",width:"min(100%, 640px)",marginBottom:"0.5rem"}} src={href} onError={()=>setFailedSource(href)}/>}
+    <a href={href} target="_blank" rel="noopener noreferrer">
     {preview && <img className="chat-result-thumbnail" src={href} alt="생성 이미지 미리보기" loading="lazy" onError={()=>setFailedSource(href)}/>}
     {children}
-  </a>;
+  </a></>;
 }
 function linkMiniMaxImageJobs() {
   return tree => {
@@ -419,8 +482,13 @@ function Message() {
     {(meta.status==="running" || meta.activity?.events?.length>0) && <ActivitySection activity={meta.activity} running={meta.status==="running"}/>}
     {meta.queueMessage && <p role="status">{meta.queueMessage}</p>}
     {copyText.trim() && !meta.formId && meta.status!=="failed" && <CopyTextButton value={copyText} label={message.role==="user" ? "사용자 메시지 복사" : "헤르메스 메시지 복사"} buttonLabel="메시지 복사"/>}
-    {message.role==="assistant" && meta.job && ["running","queued"].includes(meta.status) && <StopConversationJob key={meta.job} job={meta.job}/>}
-    {meta.status && <small>{sessionQueueStateLabel(statusLabels,meta.status)} {meta.job && <> · <a href={jobLink(meta.job,meta.session)}>{meta.job}</a> <CopyTextButton value={meta.job} label="헤르메스 작업 ID 복사" buttonLabel="ID 복사"/></>}</small>}
+    {meta.status && <div className="conversation-job-footer">
+      <small className="conversation-job-identity"><span>{sessionQueueStateLabel(statusLabels,meta.status)}</span>{meta.job && <>
+        <a href={jobLink(meta.job,meta.session)}>{meta.job}</a>
+        <CopyTextButton value={meta.job} label="헤르메스 작업 ID 복사" buttonLabel="ID 복사"/>
+      </>}</small>
+      {message.role==="assistant" && meta.job && ["running","queued"].includes(meta.status) && <StopConversationJob key={meta.job} job={meta.job}/>}
+    </div>}
   </MessagePrimitive.Root>;
 }
 function Conversation({view,historyPage,changeHistory,refreshPending}) {
@@ -742,12 +810,6 @@ function App() {
     }catch(e){setError(e.message)}finally{setBusy(false);}
   }
   const [showGpu,setShowGpu]=useState(false);
-  const [showHandoff,setShowHandoff]=useState(false);
-  const handoffToggle=useRef(null);
-  useEffect(()=>{if(showTools || showGpu || queue || generatorPanel || showKimodo || showFunControl)setShowHandoff(false);},[showTools,showGpu,queue,generatorPanel,showKimodo,showFunControl]);
-  useEffect(()=>{setShowHandoff(false);},[session]);
-  function closeHandoff(){setShowHandoff(false);handoffToggle.current?.focus();}
-  function openHandoff(){if(showTools)closeTools();setShowGpu(false);setQueue(null);setGeneratorPanel(null);setShowKimodo(false);setShowFunControl(false);setShowHandoff(true);}
   const [searchMode,setSearchMode]=useState(()=>["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");
   const appendSelection=(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));closeTools(text);};
   function openFunFromTools(){
@@ -801,7 +863,7 @@ function App() {
   const [panelWidth,setPanelWidth]=useState(()=>{const saved=Number(localStorage.getItem("hermes-panel-width"));return saved>=260 && saved<=1200?saved:480;});
   const [viewportWidth,setViewportWidth]=useState(()=>window.innerWidth);
   useEffect(()=>{const update=()=>setViewportWidth(window.innerWidth);window.addEventListener("resize",update);return()=>window.removeEventListener("resize",update);},[]);
-  const panelOpen=Boolean(showFunControl || showKimodo || showTools || showGpu || showHandoff || queue || generatorPanel);
+  const panelOpen=Boolean(showFunControl || showKimodo || showTools || showGpu || queue || generatorPanel);
   const sidebarMax=Math.min(600,Math.floor(viewportWidth*.48),panelOpen && viewportWidth>=1000 ? Math.max(200,viewportWidth-340-320-8) : 600);
   const sidebarActual=Math.min(sidebarWidth,sidebarMax);
   const panelMin=Math.min(260,viewportWidth);
@@ -873,9 +935,8 @@ function App() {
       {view.context.checkpoint && <details><summary>대화 정리 내용 · {view.context.checkpoint.count}개 지시{view.context.checkpoint.created_at && " · "+view.context.checkpoint.created_at}</summary><pre>{view.context.checkpoint.summary || "정리된 대화에 별도 요약 표시가 없습니다."}</pre></details>}
     </section></details>}
     {session && <ResidentModelStatus key={session} session={session}/>}
-    {session && <button type="button" ref={handoffToggle} aria-controls="hermes-side-panel" aria-expanded={showHandoff} onClick={()=>showHandoff?closeHandoff():openHandoff()}>GPU 양도 이력</button>}
-    <button type="button" ref={gpuToggle} aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(value=>!value);}}>GPU 프로세스 정보</button>
-    {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && !showTools && !showGpu ? null : {run:""});}}>대기열{view.chat_queue?.length ? " · 대화 "+view.chat_queue.length : ""}</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
+    <button type="button" ref={gpuToggle} aria-controls="hermes-side-panel" aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(value=>!value);}}>GPU 현황</button>
+    {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && !showTools && !showGpu ? null : {run:""});}}>작업 일정{view.chat_queue?.length ? " · 대화 "+view.chat_queue.length : ""}</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
     {pending && <small>접수 확인 중인 요청의 모델: {pending.model_profile || '자동 선택'}</small>}
     {pending && !confirmWithdrawal && <button type="button" disabled={busy} onClick={()=>setConfirmWithdrawal(true)}>미접수 요청 철회</button>}
@@ -892,8 +953,7 @@ function App() {
     {pending && pending.prompt===draft && <small className="composer-reason" role="status">이전 요청의 접수 여부를 같은 요청 ID로 다시 확인합니다.</small>}
     {submitDisabledReason && <small id="composer-submit-reason" className={submitDisabledReason === "메시지를 입력해 주세요." ? "composer-reason-hidden" : "composer-reason"} role="status">{submitDisabledReason}</small>}
     <button type="submit" disabled={Boolean(submitDisabledReason)} title={submitDisabledReason || undefined}>{busy?"접수 중":pending && pending.prompt===draft?"접수 다시 확인":"보내기"}</button></form></article>
-    {(showFunControl || showKimodo || showTools || showGpu || showHandoff || queue || generatorPanel || funMounted || kimodoMounted || mountedGenerators.length>0) && <SidePanel hidden={!panelOpen} width={panelActual} minWidth={panelMin} maxWidth={panelMax} onResize={resizePanel} title={showHandoff?"GPU 양도 이력":showTools?"도구 탐색":showGpu?"GPU 프로세스 정보":queue?"대기열":generatorPanel?generatorPanel.label:showKimodo?"Kimodo 모션 생성":"Wan Fun Control"} subtitle={showHandoff?"이 대화의 양도와 모델 복구 상태":showTools?"도구와 관리 기능 찾기":showGpu?"GPU 사용 현황":queue?"대화 요청과 작업 진행 상태":"생성 입력 검토"} onClose={showHandoff?closeHandoff:showTools?()=>closeTools():showGpu?closeGpu:queue?closeQueue:generatorPanel?closeGenerator:showKimodo?closeKimodo:closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();showHandoff?closeHandoff():showGpu?closeGpu():queue?closeQueue():generatorPanel?closeGenerator():showKimodo?closeKimodo():closeFun();}}}>
-    {showHandoff && session && <GpuHandoffHistory key={session} session={session}/>}
+    {(showFunControl || showKimodo || showTools || showGpu || queue || generatorPanel || funMounted || kimodoMounted || mountedGenerators.length>0) && <SidePanel hidden={!panelOpen} width={panelActual} minWidth={panelMin} maxWidth={panelMax} onResize={resizePanel} title={showTools?"도구 탐색":showGpu?"GPU 현황":queue?"작업 일정":generatorPanel?generatorPanel.label:showKimodo?"Kimodo 모션 생성":"Wan Fun Control"} subtitle={showTools?"도구와 관리 기능 찾기":showGpu?"프로세스 정보와 이 대화의 양도 이력":queue?"현재 진행 · 다음 후보 · 완료":"생성 입력 검토"} onClose={showTools?()=>closeTools():showGpu?closeGpu:queue?closeQueue:generatorPanel?closeGenerator:showKimodo?closeKimodo:closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();showGpu?closeGpu():queue?closeQueue():generatorPanel?closeGenerator():showKimodo?closeKimodo():closeFun();}}}>
     {showTools && <div className="tool-drawer-content">
       <label className="search-scope">탐색 대상 <select ref={toolScope} value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
         <optgroup label="도구와 기능"><option value="tools">도구 목록</option><option value="capabilities">관리 명령 검색</option></optgroup>
@@ -938,8 +998,14 @@ function App() {
         </Command.List>
       </Command>}
     </div>}
-      {showGpu && !showTools && <GpuPanel embedded/>}
-      {queue && session && !showTools && !showGpu && <><UnifiedQueueOverview key={session} session={session} call={call}/><details><summary>대화 요청 상세 및 제어</summary><ChatQueuePanel key={session} session={session}/></details><details open={Boolean(queue.run)}><summary>작업 상세 및 제어</summary><QueuePanel key={session+queue.run} session={session} initialRun={queue.run} filterCache={queueFilterCache} call={call} openMessage={openQueueMessage} choose={appendSelection}/></details></>}
+      {showGpu && !showTools && <>
+        <GpuPanel embedded/>
+        {session && <GpuHandoffDisclosure key={session} session={session}/>}
+      </>}
+      {queue && session && !showTools && !showGpu && <ChatQueuePanel key={session} session={session} messages={view.id===session ? view.messages : []} openDetails={Boolean(queue.run)}
+        >
+        <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} filterCache={queueFilterCache} call={call} openMessage={openQueueMessage} choose={appendSelection}/>
+      </ChatQueuePanel>}
       {mountedGenerators.map(id=>{const Generator=embeddedGenerators[id];return <div key={id} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!==id} className="embedded-generator"><Generator embedded session={session}/></div>;})}
       {kimodoMounted && <div hidden={!showKimodo || showTools || showGpu || Boolean(queue) || Boolean(generatorPanel)} className="embedded-generator"><KimodoPage key={session+":"+kimodoRevision} embedded session={session} initialInputs={currentFormInputs ? kimodoProposal : null} onChoose={(label,value)=>{edit([draft,label+" "+value].filter(Boolean).join("\n"));text.current?.focus();}}/></div>}
       {funMounted && <div hidden={!showFunControl || showTools || showGpu || Boolean(queue) || showKimodo || Boolean(generatorPanel)}><FunControlPage key={session+(currentFormInputs ? videoFormId : "")+videoFormRevision} embedded session={session} restoreFormId={currentFormInputs ? videoFormId : ""} seedProposal={currentFormInputs ? seedProposal : null} onSaved={()=>setRefresh(n=>n+1)}/></div>}

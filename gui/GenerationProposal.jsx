@@ -1,10 +1,9 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {readProposalPreview} from './readProposalPreview.mjs';
 import {readGenerationProposal} from './generationProposal.mjs';
-import {useMinimaxReportReceipt,MinimaxReportStatus} from './useMinimaxReportReceipt.jsx';
+import {useMinimaxReportReceipt,MinimaxReportStatus,PreparedMinimaxForm} from './useMinimaxReportReceipt.jsx';
 import {useVideoDelegationReceipt} from './useVideoDelegationReceipt.js';
 import {managementCommand,untilAborted} from './managementCommand.js';
-import {formStateLabel} from './minimaxFormState.mjs';
 
 const names={audio:'오디오',video:'영상',writer:'작가'};
 const routes={'music-heartmula':'music-heartmula','sfx-dasheng-audiogen':'sfx-dasheng-audiogen',dwpose:'dwpose-generator','wan22-animate2':'wan22-animate2-generator','wan22-fun-control':'wan22-fun-control-generator','wan22-vace':'wan22-vace-generator','wan22-i2v':'wan22-i2v-generator','minimax-h3-i2v':'minimax-h3-i2v-generator','minimax-h3-ref2va':'minimax-h3-ref2va-generator','wan21-t2v':'wan21-t2v-generator','wan21-i2v':'wan21-i2v-generator','writer-agent':'writer-agent'};
@@ -63,5 +62,5 @@ function GenerationProposalForSelection({session,job,snapshot,offset,kind,onOpen
     catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? '생성 제안 조회 시간이 초과됐습니다. 다시 확인하세요.' : problem.message);}
     finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);requestAnimationFrame(()=>{if(document.activeElement===document.body && buttonRef.current?.isConnected && !buttonRef.current.disabled)buttonRef.current.focus();});}}
   }
-  return <section aria-label={names[kind]+' 제안'}>{prepared ? <><p>MiniMax 영상 접수폼 {prepared.form_id.slice(0,8)} · v{prepared.revision} · {formStateLabel(prepared.state,prepared.receipt_state)}</p>{onOpenForm && <button type="button" onClick={()=>onOpenForm(prepared.form_id)}>접수폼 열기</button>}<MinimaxReportStatus receipt={receipt}/></> : <><button ref={buttonRef} type="button" disabled={busy} onClick={inspect}>{names[kind]} 제안 확인</button>{busy && <p role="status">생성 제안을 조회하고 있습니다.</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</>}{error && <p role="alert">{error}</p>}</section>;
+  return <section aria-label={names[kind]+' 제안'}>{prepared ? <><PreparedMinimaxForm form={prepared} label="영상" onOpenForm={onOpenForm} receipt={receipt}/></> : <><button ref={buttonRef} type="button" disabled={busy} onClick={inspect}>{names[kind]} 제안 확인</button>{busy && <p role="status">생성 제안을 조회하고 있습니다.</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</>}{error && <p role="alert">{error}</p>}</section>;
 }

@@ -516,6 +516,15 @@ class HermesServiceManager:
         return {'status':status, 'final_response':answer, 'final_response_truncated':truncated}
 
     def submit_hermes_job_locked(self, hermes_payload_record, *, context=None, model_profile=None):
+        report_session = hermes_payload_record.get('report_session_id')
+        if report_session is not None:
+            if context is not None or not re.fullmatch(r'report_[0-9a-f]{64}', str(hermes_payload_record.get('request_id'))):
+                raise ValueError('보고서 작성 요청 ID를 확인하세요.')
+            from workflow.domains.hermes_agent.session_store import HermesSessionStore
+            store = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            store.read_session_record(report_session)
+            hermes_payload_record = dict(hermes_payload_record)
+            del hermes_payload_record['report_session_id']
         if not {'request_id', 'prompt'} <= set(hermes_payload_record) or set(hermes_payload_record) - {'request_id', 'prompt', 'verification_modules'}:
             raise ValueError('request_id·prompt와 선택 검증 모듈만 전달하세요.')
         hermes_request_identifier = hermes_payload_record['request_id']
@@ -533,11 +542,15 @@ class HermesServiceManager:
             if hermes_previous_request.get('request_id') == hermes_request_identifier:
                 if hermes_previous_request.get('prompt') != hermes_prompt_text or hermes_previous_request.get('verification_modules', []) != hermes_verification_modules:
                     raise ValueError('같은 접수 식별자를 다른 지시에 사용할 수 없습니다.')
+                if hermes_previous_request.get('report_session_id') not in (None, report_session):
+                    raise ValueError('기존 보고서의 세션이 다릅니다.')
                 if hermes_previous_request.get('context') != context:
                     raise ValueError('같은 접수 식별자의 대화 문맥이 변경되었습니다.')
                 if model_profile is not None and hermes_previous_request.get('model_profile') != model_profile:
                     raise ValueError('같은 접수 식별자의 모델이 변경되었습니다.')
                 return {'id':hermes_previous_path.name, 'duplicate':True}
+        if report_session:
+            model_profile = COMPLEX_MODEL
         if model_profile is None:
             model_profile = route_hermes_request(hermes_payload_record)
         from workflow.common.hermes_model_routing import MODEL_FLOORS_MIB
@@ -545,6 +558,12 @@ class HermesServiceManager:
             raise ValueError('지원하지 않는 Hermes 모델입니다.')
         validate_hermes_runtime_ready(model_profile)
         resident_id = None
+        if report_session:
+            from workflow.domains.hermes_agent.resident_queue import ensure_session_resident
+            resident = ensure_session_resident(report_session, hermes_request_identifier)
+            if resident.get('state') != 'accepted' or not resident.get('id'):
+                raise ValueError('보고서용 상주 모델 접수를 확인할 수 없습니다.')
+            resident_id = resident['id']
         if isinstance(context, dict) and context.get('session_id'):
             from workflow.domains.hermes_agent.resident_queue import find_session_resident
             resident_id = find_session_resident(context['session_id'])
@@ -560,6 +579,8 @@ class HermesServiceManager:
             request_record['image_selection_version'] = 1
         if context is not None:
             request_record['context'] = context
+        if report_session:
+            request_record['report_session_id'] = report_session
         if resident_id is not None:
             request_record['resident_id'] = resident_id
         write_record_atomically(hermes_job_path / 'request.json', request_record)
@@ -568,7 +589,7 @@ class HermesServiceManager:
         with (hermes_job_path / 'worker.log').open('a') as hermes_log_stream:
             if resident_id is not None:
                 from workflow.domains.hermes_agent.resident_chat_executor import launch_resident_chat
-                launch_resident_chat(hermes_job_path, resident_id, context['session_id'], log=hermes_log_stream)
+                launch_resident_chat(hermes_job_path, resident_id, report_session or context['session_id'], log=hermes_log_stream)
             else:
                 launch_gpu_process([sys.executable, str(WORKFLOW_ROOT_DIRECTORY / 'workflow/domains/hermes_agent/worker.py'), str(hermes_job_path)], hermes_job_path, 'hermes-agent', stdout=hermes_log_stream, stderr=subprocess.STDOUT, start_new_session=True, cwd=WORKFLOW_ROOT_DIRECTORY)
         return {'id':hermes_job_identifier, 'status':'queued', 'duplicate':False}
@@ -749,6 +770,19 @@ class HermesServiceManager:
             collect_source(earlier)
         for current_message_record in hermes_session_record['messages'][current_start_index:current_end_index]:
             current_view_record = {'text': current_message_record['text'], 'created_at':current_message_record.get('created_at'), 'job_id': current_message_record.get('job_id'), 'session_job_unique':current_session_job_counts[current_message_record['job_id']]==1 if isinstance(current_message_record.get('job_id'),str) else None, 'context_truncated': current_message_record.get('context_truncated', False), 'job': None}
+            if current_message_record.get('result_notice'):
+                current_view_record['result_notice'] = True
+                source = re.search(r'작업 ID: (\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}) \(minimax-h3-image\)$', current_message_record['text'])
+                if source:
+                    from generators.minimax_h3_image.contracts import STORAGE
+                    from workflow.domains.hermes_agent.delegation_store import read_bounded_delegation_record
+                    try:
+                        report = read_bounded_delegation_record(STORAGE / source[1] / 'hermes-report.json')
+                        writer = report.get('hermes_job_id')
+                        if report.get('origin', {}).get('session_id') == hermes_session_record['id'] and isinstance(writer,str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}', writer):
+                            current_view_record['report_progress'] = {'state':report['state'], 'writer':writer}
+                    except (OSError, ValueError, KeyError):
+                        pass
             if current_message_record.get('report_job_id') and current_message_record['report_job_id'] == current_view_record['job_id']:
                 current_view_record['report_job_id'] = current_message_record['report_job_id']
             proposal = seed_form_proposal(current_message_record.get('text'), prior_sources)

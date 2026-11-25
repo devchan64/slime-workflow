@@ -57,13 +57,15 @@ export default function GpuPanel({embedded=false}) {
   const vramMismatch=Number.isFinite(status?.vram_used_mib) && Number.isFinite(status?.vram_total_mib) && status.vram_total_mib>0 && status.vram_used_mib>status.vram_total_mib;
   return <section ref={live.ref} id="gpu-panel" className={embedded?"gpu-panel-content":"floating-panel"} aria-label="GPU 프로세스 정보">
     {!embedded && <h2>GPU 프로세스 정보</h2>}
-    <div className="gpu-refresh"><LiveRefreshControl live={live} label="GPU 상태 자동 갱신"/><button type="button" aria-disabled={loading} onClick={requestRefresh}>{loading?"조회 중…":"새로고침"}</button></div>
-    {checkedAt && <p className="gpu-checked">마지막 조회 성공 · <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
-    {error && <p role="alert">{error}{status && " · 아래는 마지막으로 조회한 정보입니다."}</p>}
-    {loading && <p role="status">{status ? "GPU 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다." : "GPU 상태를 조회하고 있습니다."}</p>}
     {status && <>
       <p>{status.status==="idle" && !processes ? "GPU 상태 확인 불가" : ({busy:"GPU 사용 중",idle:"실행 중인 GPU 작업 없음"}[status.status] || "GPU 상태 확인 불가")}</p>
       {vramPercent && <div className="gpu-memory-meter"><span>VRAM 사용률 · {vramPercent}</span><meter aria-label="VRAM 사용률" min="0" max={status.vram_total_mib} value={status.vram_used_mib} aria-valuetext={vramPercent}/></div>}
+    </>}
+    <div className="gpu-refresh"><LiveRefreshControl live={live} label="GPU 상태 자동 갱신"/><button type="button" aria-disabled={loading} onClick={requestRefresh}>{loading?"조회 중…":"새로고침"}</button></div>
+    {checkedAt && <p className="gpu-checked">최근 확인 · <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
+    {error && <p role="alert">{error}{status && " · 아래는 마지막으로 조회한 정보입니다."}</p>}
+    {loading && <p role="status">{status ? "GPU 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다." : "GPU 상태를 조회하고 있습니다."}</p>}
+    {status && <>
       {vramMismatch && <p role="status">VRAM 사용량이 총량보다 커서 사용률을 계산할 수 없습니다. 다시 조회해 주세요.</p>}
       <details><summary>메모리{status.vram_total_mib != null && <> · VRAM {memory(status.vram_used_mib)} / {memory(status.vram_total_mib)}{vramPercent && ` · ${vramPercent}`}</>}</summary>
         {domains.length===0 && <p>측정된 메모리 정보 없음</p>}

@@ -450,7 +450,7 @@ def execute_resident_hermes_job(worker_job_directory, resident_id, session_id):
     if request_path.is_symlink() or request_path.stat().st_size > 1048576:
         raise ValueError('대화 작업 요청 형식 오류')
     request = json.loads(request_path.read_text(encoding='utf-8'))
-    if not isinstance(request, dict) or not isinstance(request.get('context'), dict) or request['context'].get('session_id') != session_id:
+    if not isinstance(request, dict) or (request.get('report_session_id') or (request.get('context') or {}).get('session_id')) != session_id:
         raise ValueError('대화 세션과 상주 모델 세션이 일치하지 않습니다.')
     while True:
         state = inspect_resident(resident_id, session_id).get('state')

@@ -41,6 +41,9 @@ def build_context_messages(session, read_job):
     else:
         context, start = [], 0
     for record in records[start:]:
+        if record.get('result_notice'):
+            context.append({'role':'assistant', 'content':record['text']})
+            continue
         if record.get('form_id'):
             context.append({'role': 'user', 'content': 'Wan Fun Control 생성 폼을 저장했습니다.'})
             continue

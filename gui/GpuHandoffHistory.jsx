@@ -3,6 +3,16 @@ import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {readHandoffHistoryResult} from "./handoffHistoryResult.mjs";
 
+export function GpuHandoffDisclosure({session}){
+  const [opened,setOpened]=useState(false);
+  return <details onToggle={event=>{
+    if(event.target===event.currentTarget && event.currentTarget.open)setOpened(true);
+  }}>
+    <summary>이 대화의 GPU 양도 이력</summary>
+    {opened && <GpuHandoffHistory session={session}/>}
+  </details>;
+}
+
 export default function GpuHandoffHistory({session}){
   return <HandoffHistoryForSession key={session} session={session}/>;
 }
