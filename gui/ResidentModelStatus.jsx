@@ -1,4 +1,5 @@
 import React,{useEffect,useId,useRef,useState} from "react";
+import {createPortal} from "react-dom";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 
@@ -22,7 +23,7 @@ export function DflashSwitch({settings,settingsError,saving,onChange}){
   </label><span id={settingsHelpId} className={settingsError || needsModel ? "dflash-status-help" : "generator-visually-hidden"}>{settingsHelp}</span></>;
 }
 
-export default function ResidentModelStatus({session}){
+export default function ResidentModelStatus({session,dflashTarget}){
   const [snapshot,setSnapshot]=useState(null),[error,setError]=useState(""),[checking,setChecking]=useState(false),[revision,refresh]=useState(0);
   const [settings,setSettings]=useState(null),[settingsError,setSettingsError]=useState("");
   const [saving,setSaving]=useState(false),[saveError,setSaveError]=useState("");
@@ -80,7 +81,6 @@ export default function ResidentModelStatus({session}){
   }
   const [label,description]=error ? ["조회 실패",error] : snapshot ? descriptions[snapshot.state] : ["조회 중","이 세션의 상주 모델 상태를 확인하고 있습니다."];
   return <><details name="composer-popover" className="resident-model-status"><summary title={`세션 상주 Qwen 3.8 · ${description}`} aria-label={`세션 상주 Qwen 3.8 · ${label}`}>Qwen 3.8 · <span aria-live="polite">{label}</span></summary><div className="resident-model-status-panel" aria-busy={checking}><p>{description}</p>{snapshot?.state==="ready" && <p>현재 로드된 모델 · DFlash2 {snapshot.activeDflash?"켜짐":"꺼짐"}</p>}{snapshot && <p>마지막 조회 성공 · <time dateTime={snapshot.checkedAt.toISOString()}>{snapshot.checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time>{error && " · 이전 관측"}</p>}<p>이 탭이 보이는 동안 30초 간격으로 조회합니다.</p><button ref={refreshRef} type="button" disabled={checking} onClick={()=>{restoreFocus.current=true;refresh(value=>value+1);}}>{checking ? "조회 중…" : "모델 상태 다시 조회"}</button></div></details>
-    <DflashSwitch settings={settings} settingsError={settingsError} saving={saving} onChange={changeDflash}/>
-    {saveError && <span role="alert">{saveError}</span>}
+    {dflashTarget ? createPortal(<><DflashSwitch settings={settings} settingsError={settingsError} saving={saving} onChange={changeDflash}/>{saveError && <span role="alert">{saveError}</span>}</>,dflashTarget) : <DflashSwitch settings={settings} settingsError={settingsError} saving={saving} onChange={changeDflash}/>}
   </>;
 }

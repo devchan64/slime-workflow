@@ -668,7 +668,8 @@ function App() {
     observer.observe(node);
     return()=>observer.disconnect();
   },[draft,session]);
-  const toolToggle=useRef(null),toolSearch=useRef(null),toolScope=useRef(null),gpuToggle=useRef(null),queueToggle=useRef(null),sessionToggle=useRef(null),sessionSearch=useRef(null);
+  const toolToggle=useRef(null),composerMenu=useRef(null),toolSearch=useRef(null),toolScope=useRef(null),gpuToggle=useRef(null),queueToggle=useRef(null),sessionToggle=useRef(null),sessionSearch=useRef(null);
+  const [dflashTarget,setDflashTarget]=useState(null);
   useEffect(()=>{if(showTools)(toolSearch.current || toolScope.current)?.focus({preventScroll:true});},[showTools]);
   function closeTools(focusTarget=toolToggle) {
     const url=new URL(location.href);
@@ -978,7 +979,8 @@ function App() {
     <ProposalActions.Provider value={{append:appendSelection,openFluxForm,openStep:inputs=>openKimodo(inputs),openMinimaxForm,openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory} refreshPending={()=>retryView(n=>n+1)}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
 
     <form onSubmit={e=>{e.preventDefault();send()}}>
-    {session && view.context && <><details name="composer-popover" className="composer-context"><summary>대화 문맥{view.context.usage?.state==="compressing" ? " · 요약 중" : view.context.usage?.state==="summary_failed" ? " · 요약 미완료" : view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) ? " · 정리 상태 확인 중" : ""}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
+    <details className="composer-menu" ref={composerMenu} onKeyDown={event=>{if(event.key==='Escape' && !event.nativeEvent.isComposing){event.preventDefault();event.stopPropagation();composerMenu.current.open=false;toolToggle.current?.focus();}}}><summary ref={toolToggle}>메뉴</summary><div className="composer-menu-panel">
+    {session && view.context && <details name="composer-popover" className="composer-context"><summary>대화 문맥{view.context.usage?.state==="compressing" ? " · 요약 중" : view.context.usage?.state==="summary_failed" ? " · 요약 미완료" : view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) ? " · 정리 상태 확인 중" : ""}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
       {view.context.usage && <section aria-label="문맥 토큰 측정">
         <strong role="status">{{checking_budget:"보호 입력 확인 중",compressing:"요약 진행 중",compressed:"요약 완료",summary_failed:"요약 미완료",disabled:"자동 정리 꺼짐",not_needed:"정리 기준 미도달",unchanged:"정리할 범위 없음"}[view.context.usage.state] || "문맥 측정"}</strong>
         <div>정리 전 · {view.context.usage.tokens.toLocaleString()} 토큰</div>
@@ -995,11 +997,14 @@ function App() {
       {view.queried_at && <small>상태 조회 시각 · {new Date(view.queried_at).toLocaleString('ko-KR')}{historyPage && ' · 이전 대화 조회 중에는 자동 갱신되지 않습니다.'}</small>}
 
       {view.context.checkpoint && <details><summary>대화 정리 내용 · {view.context.checkpoint.count}개 지시{view.context.checkpoint.created_at && " · "+view.context.checkpoint.created_at}</summary><pre>{view.context.checkpoint.summary || "정리된 대화에 별도 요약 표시가 없습니다."}</pre></details>}
-    </section></details>{view.context.usage && <span className="composer-token-count"><span className="composer-token-number">{(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()}</span> 토큰</span>}</>}
-    {session && <ResidentModelStatus key={session} session={session}/>}
+    </section></details>}
+    {session && <ResidentModelStatus key={session} session={session} dflashTarget={dflashTarget}/>}
+    <button type="button" aria-expanded={showTools} onClick={()=>{composerMenu.current.open=false;setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
+    </div></details>
+    {session && view.context?.usage && <span className="composer-token-count"><span className="composer-token-number">{(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()}</span> 토큰</span>}
+    {session && <span className="composer-dflash" ref={setDflashTarget}/>}
     <button type="button" className="composer-gpu" ref={gpuToggle} aria-controls="hermes-side-panel" aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(value=>!value);}} title="GPU 현황 · GPU 연산 사용률"><span ref={gpuTelemetry.live.ref} className="gpu-util-icon" aria-hidden="true" style={{"--gpu-fill":(gpuPercent ?? 0)+"%"}}/> GPU {gpuPercent == null ? "—" : gpuPercent+"%"}</button>
     {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && !showTools && !showGpu ? null : {run:""});}}>작업 일정{view.chat_queue?.length ? " · 대화 "+view.chat_queue.length : ""}</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
-    <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
     {pending && <small>접수 확인 중인 요청의 모델: {pending.model_profile || '자동 선택'}</small>}
     {pending && !confirmWithdrawal && <button type="button" disabled={busy} onClick={()=>setConfirmWithdrawal(true)}>미접수 요청 철회</button>}
     {pending && confirmWithdrawal && <div role="group" aria-label="미접수 요청 철회 확인"><p>미접수인 경우에만 철회하며 기존 작업은 중단하지 않습니다. 작성한 이전 요청은 지워집니다.</p><button type="button" disabled={busy} onClick={()=>setConfirmWithdrawal(false)}>취소</button><button type="button" disabled={busy} onClick={withdrawPending}>미접수 확인 후 철회</button></div>}
