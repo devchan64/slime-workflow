@@ -51,7 +51,7 @@ test('비교 조회가 메시지 없는 오류로 실패해도 대기를 해제�
   const effect=section.slice(section.indexOf('  useEffect(()=>{\n    const controller='),section.indexOf('  if(error)return'));
   let error='',loading=false;
   const context=vm.createContext({AbortController,untilAborted,mediaResultErrorMessage,id:'job',revision:0,useEffect:fn=>fn(),setTimeout:()=>1,clearTimeout:()=>{},fetch:()=>Promise.reject(null),setLoading:value=>loading=value,setError:value=>error=value});
-  vm.runInContext(effect,context);await new Promise(resolve=>setImmediate(resolve));assert.equal(loading,false);assert.match(error,/불러올 수 없습니다/);
+  vm.runInContext(effect,context);await new Promise(resolve=>setImmediate(resolve));assert.equal(loading,false);assert.match(error,/연결 상태를 확인하고 다시 조회/);
  }
 });
 

@@ -48,7 +48,7 @@ article {position:relative;}
 .workflow-step {padding:.65rem 0;border-bottom:1px solid var(--line,#484d50);overflow-wrap:anywhere}.workflow-step p {margin:.2rem 0}.workflow-step-status {display:inline-block;margin-left:.35rem;padding:.1rem .5rem;border:1px solid var(--line,#484d50);border-radius:999px;font-size:.75rem;color:var(--muted,#afbabd)}
 .workflow-output {min-width:0;margin-top:1rem;overflow-wrap:anywhere}.workflow-output h4 {margin:.3rem 0;font-size:.95rem}.workflow-output > section {margin:.6rem 0}.workflow-output img,.workflow-output audio {display:block;max-width:100%}.workflow-output pre {max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
 .kimodo-media {display:grid;gap:.6rem;min-width:0}.kimodo-media label {display:grid;gap:.3rem;max-width:100%}.kimodo-media select {max-width:100%;min-width:0}.kimodo-media video {display:block;width:100%;max-width:100%;max-height:60vh;background:#10121a;border-radius:.5rem}.kimodo-media a {justify-self:start}
-.kimodo-media video:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.kimodo-media video:focus, .kimodo-media video:focus-within {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .workflow-result [aria-label="실행 취소 확인"]:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .workflow-result [role="status"][tabindex="-1"]:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .kimodo-multiview-focus:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
@@ -293,10 +293,10 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .job-identifier {display:flex;flex-wrap:wrap;align-items:end;gap:.4rem;margin:.55rem 0;min-width:0}.job-identifier label {display:grid;gap:.2rem;flex:1 1 13rem;min-width:0;color:var(--muted);font-size:.8rem}.job-identifier input {width:100%;min-width:0;font-size:.85rem}.job-identifier button {flex-shrink:0}.job-identifier [role=status] {flex-basis:100%;font-size:.8rem;color:var(--muted)}.job-identifier [role=status]:empty {display:none}
 .job-identifier-compact {display:flex;align-items:center;gap:.35rem;margin:.25rem 0}.job-identifier-compact code {min-width:0;overflow-wrap:anywhere}.job-identifier-compact button {font-size:.8rem;padding:.25rem .45rem}
 .media-result-note {font-size:.78rem;color:var(--muted);line-height:1.5;margin:.35rem 0 .7rem}.media-result-card video {display:block;width:100%;border-radius:.5rem;background:#10121a}.media-result-link {display:inline-block;margin:.45rem .75rem .45rem 0}.media-result-actions {display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.6rem}.media-result-card > button {margin:.35rem .35rem 0 0}
-.media-result-card video:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.media-result-card video:focus, .media-result-card video:focus-within {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .media-result-image {display:block;max-width:100%}
 .media-audio-tracks {display:grid;gap:.9rem;margin:.8rem 0;min-width:0}.media-audio-track {display:grid;gap:.45rem;min-width:0}.media-audio-track audio {display:block;width:100%;max-width:100%;min-width:0}.media-audio-downloads {display:flex;flex-wrap:wrap;gap:.4rem 1rem}.media-audio-downloads a {overflow-wrap:anywhere}
-.media-audio-track audio:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.media-audio-track audio:focus, .media-audio-track audio:focus-within {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .generation-progress {margin:.7rem 0;padding:.7rem;border:1px solid var(--line);border-radius:.6rem}.generation-progress p {margin:.35rem 0;color:var(--muted);font-size:.8rem;line-height:1.5}.generation-progress progress {width:100%;accent-color:#a8a5f4}
 .generation-progress > strong {display:block}
 .kimodo-result-actions {display:flex;align-items:flex-start;flex-wrap:wrap;gap:.4rem}.kimodo-result-actions > section {min-width:0}.kimodo-result-actions pre {max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -351,6 +351,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .fun-attachment > label {display:grid;grid-template-rows:2.6em auto;gap:.3rem;min-width:0}
 .fun-attachment input {width:100%;min-width:0}
 .fun-attachment-preview {display:block;width:100%;aspect-ratio:832 / 480;object-fit:contain;background:#10121a;border-radius:.5rem}
+.fun-attachment-preview:focus, .fun-attachment-preview:focus-within {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 @media(max-width:400px){.fun-attachments {grid-template-columns:1fr}}
 
 /* 생성기 공용 이력: 선택한 카드 안에서 동작하고 좁은 화면에서도 ID를 읽는다. */
@@ -477,6 +478,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .sprite-editor-page select {box-sizing:border-box;max-width:100%;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
 .sprite-editor-page .sprite-frame-slider {display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-block:.75rem}
 .sprite-frame-table {max-width:100%;min-width:0}
+.sprite-frame-table th {white-space:nowrap}
 .sprite-frame-table input {min-width:5rem;width:6rem}
 .sprite-output-actions {margin-block:.65rem}
 .sprite-update-review {margin-block:.75rem;padding:.8rem;border:1px solid var(--line,#484d50);border-radius:.5rem;background:var(--surface,#25292c)}
@@ -501,6 +503,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .world-map-viewport:focus-visible {outline:2px solid var(--accent,#b5d8ff);outline-offset:2px}
 .map-review {display:grid;gap:.65rem;padding:1rem;min-width:0;overflow-wrap:anywhere}
 .map-review > :is(h1,p) {margin:0}
+.map-review p {word-break:keep-all;overflow-wrap:anywhere}
 .map-review > h1 {font-size:1.5rem;line-height:1.3}
 .map-review fieldset {min-width:0;margin:0;padding:.8rem;border:1px solid var(--line,#484d50);border-radius:.6rem}
 .map-selection-row:not([hidden]) {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem;margin-bottom:.65rem}
@@ -552,8 +555,9 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 
 .flux-page form > fieldset {min-width:0;width:100%;overflow-wrap:anywhere}.flux-page :is(input,textarea,select,button,img) {max-width:100%}.flux-page figure {margin-inline:0;min-width:0}.flux-page figcaption {overflow-wrap:anywhere}.flux-page section > button {overflow-wrap:anywhere}
 
-.reference-image-input {min-width:0;border:1px dashed var(--line,#484d50);border-radius:.6rem;padding:.65rem;display:grid;gap:.5rem}.reference-image-input img {display:block;width:100%;max-height:18rem;object-fit:contain;background:#10121a;border-radius:.4rem}.reference-image-input p {overflow-wrap:anywhere}.reference-image-file {position:relative;display:inline-flex;align-items:center;border:1px solid #484d50;border-radius:.5rem;padding:.55rem .8rem;cursor:pointer}.reference-image-file input {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.reference-image-file:focus-within {outline:2px solid var(--accent,#a7c8ff);outline-offset:2px}
+.reference-image-input {min-width:0;border:1px dashed var(--line,#484d50);border-radius:.6rem;padding:.65rem;display:grid;align-content:start;gap:.5rem}.reference-image-input img {display:block;width:100%;max-height:18rem;object-fit:contain;background:#10121a;border-radius:.4rem}.reference-image-input p {word-break:keep-all;overflow-wrap:anywhere}.reference-image-file {position:relative;display:inline-flex;align-items:center;border:1px solid #484d50;border-radius:.5rem;padding:.55rem .8rem;cursor:pointer}.reference-image-file input {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.reference-image-file:focus-within {outline:2px solid var(--accent,#a7c8ff);outline-offset:2px}
 .reference-image-input img:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.reference-image-input.is-empty:not(.is-disabled):has(input[type=file]:not(:disabled)) {cursor:pointer}
 
 .reference-image-slots {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:.75rem;min-width:0}.reference-image-input small {color:var(--muted,#afbabd)}
 .reference-image-name {overflow-wrap:anywhere}
@@ -955,6 +959,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .vace-standalone.generator-page-common form > fieldset {padding:var(--generator-fieldset-padding)}
 .generator-page-common .kimodo-standalone-form label:not(.reference-image-file):not(.kimodo-mode-options label),
 .vace-standalone.generator-page-common form label:not(.reference-image-file) {display:grid;gap:var(--generator-field-gap);margin:var(--generator-field-margin) 0;color:var(--muted);font-size:.9rem}
+.vace-standalone.generator-page-common form label:has(> input[type=checkbox]) {display:flex;align-items:center;gap:.45rem}
+.vace-standalone.generator-page-common form label > input[type=checkbox] {width:auto;flex:none;margin:0}
 .generator-page-common :is(button,input,select,textarea) {font-family:inherit}
 
 .generator-page-standalone-shell {padding-inline:0}
@@ -1107,6 +1113,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .vace-usage-card .generator-section-card-body li + li {margin-top:.35rem}
 .input-video-preview {margin-top:.75rem;display:grid;gap:.5rem;min-width:0}
 .input-video-preview video {display:block;width:100%;max-width:32rem;max-height:24rem;background:#101216;border-radius:.5rem}
+.input-video-preview video:focus, .input-video-preview video:focus-within {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .generator-visually-hidden {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .kimodo-input-summary {padding:.8rem;border:1px solid var(--border, #34394e);border-radius:.5rem}
 .kimodo-input-summary dl {display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin:.5rem 0 0}
@@ -1116,6 +1123,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .fun-drawer [aria-label="Kimodo 생성 입력"] form > fieldset {border:0;padding:0;margin:0}
 .fun-drawer [aria-label="Kimodo 생성 입력"] .kimodo-segment-settings {padding:.5rem}
 .vace-page .vace-input-card form > fieldset {padding:0;border:0;margin:0}
+.vace-page p {word-break:keep-all;overflow-wrap:anywhere}
 .vace-page .vace-input-card form :is(textarea,select,input:not([type=file]):not([type=checkbox]):not([type=radio])) {font-size:1rem}
 .vace-page .vace-history-card {padding:0;border:0;margin:0;min-width:0}
 .generator-history.generator-section-card > fieldset {padding:.8rem;border:0;margin:0;min-width:0}
@@ -1132,7 +1140,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .anchor-history-pagination {display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.65rem 0}
 .anchor-history-pagination span {font-size:.875rem}
 .gpu-queue-summary { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
-.gpu-queue-summary p { margin: 0; }
+.gpu-queue-summary p { margin: 0; word-break: keep-all; overflow-wrap: anywhere; }
 .gpu-queue-summary button[aria-disabled="true"] {opacity:.65;cursor:wait}
 /* Hermes conversation composer: shared sizing and responsive action layout. */
 .hermes-chat > article > form {

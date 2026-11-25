@@ -39,7 +39,7 @@ function SeamlessComparison({id}){
         const prefix="/flux-seamless-generator/jobs/"+id+"/";
         if(!value || typeof value.method!=="string" || !Array.isArray(value.images) || value.images.some(item=>!item || typeof item.label!=="string" || !["tiled-preview.png","raw-result.png","blend-preview.png"].some(name=>item.url===prefix+name)) || new Set(value.images.map(item=>item.url)).size!==value.images.length)throw new Error("타일 비교 결과 형식을 확인할 수 없습니다.");
         if(active && !controller.signal.aborted)setResult(value);
-      }catch(problem){if(active)setError(timedOut?"타일 비교 조회 시간이 초과됐습니다.":mediaResultErrorMessage(problem,"타일 비교 결과를 불러올 수 없습니다."));}
+      }catch(problem){if(active)setError(timedOut?"타일 비교 조회 시간이 초과됐습니다.":mediaResultErrorMessage(problem,"타일 비교 결과를 불러오지 못했습니다. 연결 상태를 확인하고 다시 조회해 주세요."));}
       finally{clearTimeout(timer);if(active)setLoading(false);}
     }
     load();return ()=>{active=false;clearTimeout(timer);controller.abort();};
@@ -69,7 +69,7 @@ function CircularComparison({id}){
         const prefix="/image-generation-21-circular/jobs/"+id+"/";
         if(!Array.isArray(data?.images) || data.images.some(item=>!item || typeof item.label!=="string" || !["result.png","tiled-preview.png","baseline.png","baseline-preview.png"].some(name=>item.url===prefix+name)) || new Set(data.images.map(item=>item.url)).size!==data.images.length)throw new Error("비교 결과 경로를 확인할 수 없습니다.");
         if(active && !controller.signal.aborted)setImages(data.images);
-      }catch(problem){if(active)setError(timedOut?"순환 VAE 비교 조회 시간이 초과됐습니다.":mediaResultErrorMessage(problem,"저장된 비교 결과를 불러올 수 없습니다."));}
+      }catch(problem){if(active)setError(timedOut?"순환 VAE 비교 조회 시간이 초과됐습니다.":mediaResultErrorMessage(problem,"저장된 비교 결과를 불러오지 못했습니다. 연결 상태를 확인하고 다시 조회해 주세요."));}
       finally{clearTimeout(timer);if(active)setLoading(false);}
     }
     load();return()=>{active=false;clearTimeout(timer);controller.abort();};
@@ -113,7 +113,7 @@ function AudioTrack({track}) {
   const audioRef=useRef(null),retryRef=useRef(null),restoreFocus=useRef(false);
   useEffect(()=>{if(restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body)(failed ? retryRef : audioRef).current?.focus();}},[failed,revision]);
   return <section className="media-audio-track"><strong>{track.label}</strong>
-    {failed ? <div><p role="alert">{track.label} 오디오를 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={retryRef} type="button" aria-label={track.label+" 다시 불러오기"} onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;setFailed(false);retry(value=>value+1);}}>오디오 다시 불러오기</button></div> : <audio ref={audioRef} key={revision} controls preload="metadata" src={imageRetryUrl(track.wav,revision)} aria-label={track.label} onError={event=>{if(event.currentTarget!==audioRef.current)return;restoreFocus.current=document.activeElement===audioRef.current;setFailed(true);}}/>}
+    {failed ? <div><p role="alert">{track.label} 파일을 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={retryRef} type="button" aria-label={track.label+" 다시 불러오기"} onClick={()=>{restoreFocus.current=document.activeElement===retryRef.current;setFailed(false);retry(value=>value+1);}}>오디오 다시 불러오기</button></div> : <audio ref={audioRef} key={revision} controls preload="metadata" src={imageRetryUrl(track.wav,revision)} aria-label={track.label} onError={event=>{if(event.currentTarget!==audioRef.current)return;restoreFocus.current=document.activeElement===audioRef.current;setFailed(true);}}/>}
     <div className="media-audio-downloads"><a href={track.wav} download>{track.label} WAV 다운로드</a>{track.mp3 && <a href={track.mp3} download>{track.label} MP3 다운로드</a>}</div>
   </section>;
 }

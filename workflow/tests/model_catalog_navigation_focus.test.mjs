@@ -20,3 +20,11 @@ test('백업 목록 오류 후 재조회가 성공하면 요청한 선택을 이
  const c=vm.createContext({document,requestedSelection,handledSelection:{current:null},busy:false,modelsLoading:false,modelsError:'오류',models:[],headingRef:{current:{focus:()=>assert.fail('옮긴 초점을 가져오면 안 됨'),scrollIntoView:()=>assert.fail('스크롤하면 안 됨')}},setSelectionNotice:x=>notice=x,setSelected:x=>selected=x,setModelQuery:()=>{},setComparison:()=>{},setMetadata:()=>{},setJobResult:()=>{},showJob:()=>{},useEffect:fn=>run=fn});
  vm.runInContext(source.slice(start,end),c);run();assert.match(notice,/목록/);assert.equal(c.handledSelection.current,null);c.modelsError='';c.models=[{name:'kimodo'}];run();assert.equal(selected,'kimodo');assert.equal(notice,'');assert.equal(c.handledSelection.current,requestedSelection);
 });
+
+test('목록에 없던 설치본이 새로고침 후 나타나면 요청한 선택을 적용한다',()=>{
+ const source=readFileSync(new URL('../../gui/ModelBackupCompare.jsx',import.meta.url),'utf8');
+ const start=source.indexOf('  useEffect(() => {\n    if (!requestedSelection');const marker='  }, [requestedSelection, busy, modelsLoading, modelsError, models]);';const end=source.indexOf(marker,start)+marker.length;
+ let run,selected='',notice='';const body={},document={body,activeElement:{}},requestedSelection={name:'kimodo',focusAtStart:{}};
+ const c=vm.createContext({document,requestedSelection,handledSelection:{current:null},busy:false,modelsLoading:false,modelsError:'',models:[{name:'other'}],headingRef:{current:null},setSelectionNotice:x=>notice=x,setSelected:x=>selected=x,setModelQuery:()=>{},setComparison:()=>{},setMetadata:()=>{},setJobResult:()=>{},showJob:()=>{},useEffect:fn=>run=fn});
+ vm.runInContext(source.slice(start,end),c);run();assert.match(notice,/새로고침/);assert.equal(c.handledSelection.current,null);c.models=[{name:'kimodo'}];run();assert.equal(selected,'kimodo');assert.equal(notice,'');
+});

@@ -17,5 +17,6 @@ export function mediaResultPendingMessage(job){
 }
 
 export function mediaResultErrorMessage(problem,fallback){
+  if(problem instanceof TypeError)return fallback;
   return typeof problem?.message==="string" && problem.message.trim() ? problem.message : fallback;
 }

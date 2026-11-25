@@ -392,6 +392,7 @@ export default function MapReview(){
         <MapCoordinateInput axis="행" value={cellRow} onChange={setCellRow}/>
         </div>
         <button type="submit" aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined}>입력한 셀 속성 조회</button>
+        {cellDirty && <p id="map-cell-pending-reason">다른 초안 조작을 하려면 셀 입력을 먼저 검증하거나 취소하세요.</p>}
       </form>
       {cell && <form ref={cellFormRef} className="map-cell-editor" tabIndex={-1} aria-label="선택 셀 편집" onSubmit={previewCell}><p>열 {cell.column} · 행 {cell.row} · {cell.tile} · 높이 {cell.height} · {cell.blocked?"이동 금지":"이동 가능"} · 배치물 {placed.filter(atCell).map(item=>item.id).join(", ") || "없음"}</p>
         <div className="generator-settings-grid">
@@ -413,7 +414,6 @@ export default function MapReview(){
       </details>}
       {storageNotice && <p role="status">{storageNotice}</p>}
       {unsafeAutosave && <p id="map-storage-failure">이동 전 초안을 저장하거나 JSON으로 내려받으세요.</p>}
-      {cellDirty && <p id="map-cell-pending-reason">다른 초안 조작을 하려면 셀 입력을 먼저 검증하거나 취소하세요.</p>}
       {draft && <label>지도 드래그 도구<select value={brush} disabled={!editing || cellDirty} aria-describedby={cellDirty ? "map-cell-pending-reason" : !editing ? "map-brush-reason" : undefined} onChange={e=>setBrush(e.target.value)}>
         <option value="pan">이동·셀 선택</option><option value="floor" disabled={!source?.blocked_tile_codes}>바닥 칠하기</option><option value="wall" disabled={!source?.wall_tiles?.length}>벽면 칠하기</option><option value="raise">높이 올리기</option><option value="lower">높이 내리기</option><option value="place">빌보드 배치</option><option value="delete">빌보드 삭제</option>
       </select></label>}

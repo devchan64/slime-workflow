@@ -337,24 +337,27 @@ function AutoCrop({image,size,onApply}){
       {candidate.result.frames.map(({x,y,width,height},i)=><g key={i}><rect x={x} y={y} width={width} height={height} fill="none" stroke="red" strokeWidth="2"/>
         <text x={Math.max(0,x)+3} y={Math.max(0,y)+14} fill="red">{i+1}</text></g>)}</svg>
       <p>{candidate.result.frames.length}개 후보 · 적용하면 현재 프레임 편집을 교체합니다.</p>
-      <button onClick={()=>{try{onApply(confirmCropCandidate(candidate,image,padding));setCandidate(null);}catch(problem){setCandidate(null);setError(requestErrorMessage(problem));}}}>검출 결과 적용</button>
-      <button type="button" onClick={event=>{const focused=document.activeElement===event.currentTarget;setCandidate(null);if(focused)requestAnimationFrame(()=>{if(document.activeElement===document.body && detectButton.current?.isConnected && !detectButton.current.disabled)detectButton.current.focus();});}}>취소</button></>}
+      <div className="choice-buttons"><button type="button" onClick={event=>{try{onApply(confirmCropCandidate(candidate,image,padding),event.currentTarget);setCandidate(null);}catch(problem){setCandidate(null);setError(requestErrorMessage(problem));}}}>검출 결과 적용</button>
+      <button type="button" onClick={event=>{const focused=document.activeElement===event.currentTarget;setCandidate(null);if(focused)requestAnimationFrame(()=>{if(document.activeElement===document.body && detectButton.current?.isConnected && !detectButton.current.disabled)detectButton.current.focus();});}}>취소</button></div></>}
   </details>;
 }
 
 function SheetView({path,detail,onSaved}){
   const [size,setSize]=useState(null),[imageError,setImageError]=useState(false);
   const [detected,setDetected]=useState(null),[revision,setRevision]=useState(0);
+  const editorRegion=useRef(null);
   const frames=detected?.frames || detail.animation?.frames;
-  function apply(result){
+  function apply(result,origin){
+    const restore=document.activeElement===origin;
     const next=result.frames.map(({x,y,width,height,anchorX,anchorY})=>({rect:{x,y,width,height},anchor:{x:anchorX,y:anchorY}}));
     setDetected({frames:next,columns:result.columns,bounds:result.sourceFrames});setRevision(n=>n+1);
+    if(restore)requestAnimationFrame(()=>{if(editorRegion.current?.isConnected && (document.activeElement===document.body || document.activeElement===origin))editorRegion.current.focus();});
   }
   return <section><h2>{path}</h2><img src={"data:image/png;base64,"+detail.image} onLoad={e=>{setImageError(false);setSize({width:e.target.naturalWidth,height:e.target.naturalHeight});}} onError={()=>{setSize(null);setImageError(true);}} alt="원본 스프라이트 시트" style={{maxWidth:"100%"}}/>
     {imageError && <p role="alert">원본 이미지를 표시할 수 없습니다. 파일을 확인하거나 다른 시트를 선택하세요.</p>}
     {detail.layout && <p>{detail.layout.columns}열 × {detail.layout.rows}행</p>}
     <AutoCrop image={detail.image} size={size} onApply={apply}/>
-    {frames?.length>0?<FrameEditor key={revision} frames={frames} image={detail.image} initialColumns={detected?.columns} bounds={detected?.bounds} original={detail} onSaved={onSaved}/>:<GridEditor detail={detail} size={size} onSaved={onSaved}/>}
+    <section ref={editorRegion} tabIndex={-1} className="ui-focus-target" aria-label="프레임 편집">{frames?.length>0?<FrameEditor key={revision} frames={frames} image={detail.image} initialColumns={detected?.columns} bounds={detected?.bounds} original={detail} onSaved={onSaved}/>:<GridEditor detail={detail} size={size} onSaved={onSaved}/>}</section>
   </section>;
 }
 

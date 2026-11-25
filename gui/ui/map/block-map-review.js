@@ -93,7 +93,9 @@ const currentReviewTitle=currentMapRecord.name+' · '+currentMapRecord.reviewLab
 document.querySelector('#map-title').textContent=currentReviewTitle;
 document.title=currentReviewTitle;
 document.querySelector('.map-toolbar')?.setAttribute('aria-label',currentMapRecord.reviewLabel+' 도구');
-currentMapCanvas.setAttribute('aria-label',currentReviewTitle+'. 방향키로 화면 이동, Shift+좌우로 캐릭터 열 이동, Shift+상하로 행 이동. 더하기와 빼기 키로 확대 또는 축소하며 0 키로 전체 보기를 적용합니다.');
+const currentKeyboardHelpId='map-keyboard-help';
+const hasKeyboardDescription=(currentMapCanvas.getAttribute('aria-describedby') || '').split(/\s+/).includes(currentKeyboardHelpId) && document.getElementById(currentKeyboardHelpId);
+currentMapCanvas.setAttribute('aria-label',hasKeyboardDescription ? currentReviewTitle+' 지도' : currentReviewTitle+'. 방향키로 화면 이동, Shift+좌우로 캐릭터 열 이동, Shift+상하로 행 이동. 더하기와 빼기 키로 확대 또는 축소하며 0 키로 전체 보기를 적용합니다.');
 const currentMaterialColors=await fetchMapReviewRecord('block-materials.json');
 const currentTextureRecords=await fetchMapReviewRecord('/management/map-assets/textures');
 const currentResourceKeys=isCharacterReviewPage?CHARACTER_REVIEW_TILE_NAMES:collectMapResourceKeys(currentMapRecord,isFieldMapReview?'field':'town');

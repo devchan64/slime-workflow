@@ -22,6 +22,15 @@ def execute(job):
     job = Path(job)
     if job.is_symlink() or job.resolve().parent != STORAGE.resolve():
         raise ValueError('이미지 작업 경로 오류')
+    # Keep compiler temporary files with this job instead of the quota-limited /tmp.
+    temp_root = job / 'runtime-tmp'
+    if temp_root.is_symlink():
+        raise ValueError('임시 작업 경로 오류')
+    temp_root.mkdir(mode=0o700, exist_ok=True)
+    os.environ['TMPDIR'] = str(temp_root.resolve())
+    import tempfile
+    tempfile.tempdir = None
+    print('임시 작업 경로:', temp_root.resolve(), flush=True)
     request = json.loads((job / 'request.json').read_text())
     from generators.minimax_h3_image.contracts import verify_saved_request
     from workflow.domains.image.three_reference_generation import validate_three_reference_request, verify_reference_snapshots

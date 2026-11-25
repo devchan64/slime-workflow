@@ -25,3 +25,13 @@ test('지도 배율 한계는 초점을 유지할 수 있게 설명하고 복귀
   if(!existingHelp){assert.equal(nodes.get('zoom-maximum-help').textContent,'최대 배율입니다.');assert.equal(nodes.get('zoom-minimum-help').textContent,'최소 배율입니다.');}
  }
 });
+
+test('지도 이름은 별도 조작 안내가 연결된 경우에만 간결하게 표시한다',()=>{
+ const source=readFileSync(new URL('../../gui/ui/map/block-map-review.js',import.meta.url),'utf8');
+ const start=source.indexOf("const currentKeyboardHelpId='map-keyboard-help';"),end=source.indexOf('\nconst currentMaterialColors=',start);assert.ok(start>=0 && end>start);
+ for(const [describedBy,exists,short] of [['map-keyboard-help',true,true],['other map-keyboard-help',true,true],['',true,false],['map-keyboard-help',false,false]]){
+  let name='';const currentMapCanvas={getAttribute:()=>describedBy,setAttribute:(key,value)=>{assert.equal(key,'aria-label');name=value}};
+  vm.runInNewContext(source.slice(start,end),{currentMapCanvas,currentReviewTitle:'이슬온 · 도시맵 검수',document:{getElementById:()=>exists?{}:null}});
+  assert.equal(name.startsWith('이슬온 · 도시맵 검수'),true);assert.equal(name.includes('방향키'),!short);if(short)assert.equal(name,'이슬온 · 도시맵 검수 지도');
+ }
+});

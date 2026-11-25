@@ -5,6 +5,7 @@ import {mediaResultErrorMessage,mediaResultPendingMessage,validMediaResultDetail
 test('메시지가 없는 비정상 오류도 복구 가능한 문자열로 표시한다',()=>{
   for(const problem of [null,undefined,'실패',{}, {message:42},{message:'  '}])assert.equal(mediaResultErrorMessage(problem,'다시 확인하세요'),'다시 확인하세요');
   assert.equal(mediaResultErrorMessage(new Error('조회 오류'),'다시 확인하세요'),'조회 오류');
+  assert.equal(mediaResultErrorMessage(new TypeError('Failed to fetch'),'다시 확인하세요'),'다시 확인하세요');
 });
 
 test('결과 미준비는 진행 중과 종료 후를 구분하고 파일 확인 실패와 중복하지 않는다',()=>{

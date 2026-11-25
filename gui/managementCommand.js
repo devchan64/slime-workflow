@@ -6,9 +6,19 @@ export async function untilAborted(promise,signal) {
 }
 
 export async function managementCommand(service, command, payload = {}, {signal} = {}) {
+  const headers={"Content-Type":"application/json"};
+  if(service==="writer-agent" && command.startsWith("writer-") && command!=="writer-state" && command!=="writer-token"){
+    const tokenResponse=await fetch("/management/command",{method:"POST",headers,body:JSON.stringify({service,command:"writer-token",payload:{}}),signal});
+    let token;
+    try{token=await tokenResponse.json();}
+    catch(problem){signal?.throwIfAborted();throw new Error("작가 세션을 확인하지 못했습니다. 화면을 다시 열고 시도하세요.");}
+    signal?.throwIfAborted();
+    if(!tokenResponse.ok || typeof token?.csrf_token!=="string" || !token.csrf_token)throw new Error("작가 세션을 확인하지 못했습니다. 화면을 다시 열고 시도하세요.");
+    headers["X-Writer-Token"]=token.csrf_token;
+  }
   const response = await fetch("/management/command", {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers,
     body: JSON.stringify({service, command, payload}),
     signal
   });

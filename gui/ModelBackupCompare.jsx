@@ -112,7 +112,6 @@ export default function ModelBackupCompare({requestedSelection}) {
       headingRef.current?.focus();
     }
     if (modelsError || !models.some(model => model.name === requestedSelection.name)) {
-      if (!modelsError) handledSelection.current = requestedSelection;
       setSelectionNotice('선택한 설치본을 백업 목록에서 확인할 수 없습니다. 목록을 새로고침하세요.');
       return;
     }
@@ -237,7 +236,7 @@ export default function ModelBackupCompare({requestedSelection}) {
     {selectedModel?.equivalent_target && <p>백업 대상 {selectedModel.equivalent_target}은 같은 디렉터리입니다. 각각 백업하면 내용이 여러 스냅샷에 저장됩니다.</p>}
     {(models.length > 0 || (!modelsLoading && !modelsError)) && <p role="status">{modelQuery.trim() ? `검색 결과 ${matchingModels.length}개 / 전체 ${models.length}개` : `디렉터리 ${models.length}개`}{searchTerms.length > 0 && selected && !matchingModels.some(model => model.name === selected) ? ' · 현재 선택은 유지됩니다.' : ''}</p>}
     {matchingModels.length > 0 && <div role="group" aria-label="백업 모델 디렉터리 목록" className="model-choice-list">
-      {matchingModels.map(model => <button key={model.name} type="button" className="generator-history-select" aria-pressed={selected === model.name} disabled={busy || modelsLoading || !!modelsError} onClick={() => {setSelected(model.name); setComparison(null); setMetadata(null); setJobResult(null);}}><span className="history-card-content"><span className="history-card-heading"><strong>{directoryLabel(model.name, model.relative_path)}</strong>{selected === model.name && <span>선택됨</span>}</span><small className="history-card-summary">로컬 {presence(model.local_present)} · 기존 공유 {presence(model.backup_present)} · 완료 스냅샷 {presence(model.snapshot_present)}</small></span></button>)}
+      {matchingModels.map(model => <button key={model.name} type="button" className="generator-history-select" aria-pressed={selected === model.name} disabled={busy || modelsLoading || !!modelsError} onClick={() => {handledSelection.current = requestedSelection; setSelectionNotice(''); setSelected(model.name); setComparison(null); setMetadata(null); setJobResult(null);}}><span className="history-card-content"><span className="history-card-heading"><strong>{directoryLabel(model.name, model.relative_path)}</strong>{selected === model.name && <span>선택됨</span>}</span><small className="history-card-summary">로컬 {presence(model.local_present)} · 기존 공유 {presence(model.backup_present)} · 완료 스냅샷 {presence(model.snapshot_present)}</small></span></button>)}
     </div>}
     {modelQuery.trim() && matchingModels.length === 0 && !modelsLoading && !modelsError && <p>일치하는 디렉터리가 없습니다. 다른 이름으로 검색하세요.</p>}
     <p>‘기존 공유’는 현재 복사된 공유 폴더이며, ‘완료 스냅샷’은 이 관리 기능으로 별도 저장한 백업입니다. 있음은 파일 내용이 일치한다는 뜻이 아닙니다.</p>
