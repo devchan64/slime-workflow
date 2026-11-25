@@ -2,6 +2,7 @@ import React,{useEffect,useState} from "react";
 import QueuePagination from "./QueuePagination.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {untilAborted} from "./managementCommand.js";
+import StatusTag from "./StatusTag.jsx";
 
 export function validSnapshot(value,session){
   return value?.session_id===session && Array.isArray(value.entries) && typeof value.note==="string" && value.entries.every(row=>
@@ -67,7 +68,7 @@ function QueueForSession({session,call,linkedRow,running=[],completed=[],ready,f
   }
   const groups=[["running","진행 중",running],["pending","다음 후보",[...extraPending,...pending]],["completed","완료",completed],...(other.length ? [["other","기타 상태",other]] : [])];
   const entries=groups.filter(([key])=>filter==="all" || filter===key)
-    .flatMap(([key,label,items])=>items.map(item=>({key:key+":"+item.key,label,item})));
+    .flatMap(([key,label,items])=>items.map(item=>({key:key+":"+item.key,label,tone:key,item})));
   if(linkedRow && filter==="all"){
     const index=entries.findIndex(({item})=>item.props.id===linkedRow.props.id);
     if(index<0)entries.push({key:linkedRow.key,label:"연결된 작업",item:linkedRow});
@@ -92,8 +93,11 @@ function QueueForSession({session,call,linkedRow,running=[],completed=[],ready,f
     </details>}
     {!current && checking && <p role="status">공용 대기열 조회 중…</p>}
     {ready && !error && current && !entries.length && <p>표시할 작업이 없습니다.</p>}
-    <ul className="queue-entries">{entries.slice(currentPage*size,(currentPage+1)*size).map(({key,label,item})=>
-      <li key={key}><small>{label}</small>{item}</li>)}</ul>
+    {entries.length>0 && <table className="queue-table">
+      <thead><tr><th scope="col">상태</th><th scope="col">작업</th></tr></thead>
+      <tbody>{entries.slice(currentPage*size,(currentPage+1)*size).map(({key,label,tone,item})=>
+        <tr key={key}><td><StatusTag tone={tone}>{label}</StatusTag></td><td>{item}</td></tr>)}</tbody>
+    </table>}
     <QueuePagination sizes={[3,5,10]} page={currentPage} size={size} total={entries.length} label="작업 일정 페이지" onPage={setPage} onSize={value=>{setSize(value);setPage(0);}}/>
     <footer><small>5초마다 갱신{checkedAt && <> · 최근 조회 <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleTimeString("ko-KR")}</time></>}</small>
     </footer>

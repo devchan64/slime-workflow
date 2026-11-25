@@ -67,7 +67,7 @@ export default function GpuPanel({embedded=false,telemetry}) {
       <p>GPU 연산 사용률 · {status.gpu_activity_percent == null ? "미측정" : status.gpu_activity_percent+"%"}</p>
       {vramPercent && <div className="gpu-memory-meter"><span>VRAM 사용률 · {vramPercent}</span><meter aria-label="VRAM 사용률" min="0" max={status.vram_total_mib} value={status.vram_used_mib} aria-valuetext={vramPercent}/></div>}
     </>}
-    <div className="gpu-refresh"><LiveRefreshControl live={live} label="GPU 상태 자동 갱신"/><button type="button" aria-disabled={loading} onClick={requestRefresh}>{loading?"조회 중…":"새로고침"}</button></div>
+    <div className="gpu-refresh"><LiveRefreshControl live={live} label="GPU 상태 자동 갱신"/>{!live.enabled && <button type="button" aria-disabled={loading} onClick={requestRefresh}>{loading?"조회 중…":"새로고침"}</button>}</div>
     {checkedAt && <p className="gpu-checked">최근 확인 · <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
     {error && <p role="alert">{error}{status && " · 아래는 마지막으로 조회한 정보입니다."}</p>}
     {loading && !status && <p role="status">{status ? "GPU 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다." : "GPU 상태를 조회하고 있습니다."}</p>}
