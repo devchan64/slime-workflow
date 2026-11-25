@@ -131,6 +131,9 @@ function GeneratorHistoryForService({service, statusCommand, restore, inspectRes
     return ()=>{if(lookupRequest.current===request)lookupRequest.current=null;active=false;clearTimeout(timeout);controller.abort();};
   },[resultId,service,lookupRevision]);
   useEffect(()=>{
+    if(!resultId && detailsRef.current?.open && !page && !error)perform(()=>list(0,query.trim()));
+  },[resultId]);
+  useEffect(()=>{
     setSummaries({});setSummaryNotice("");
     if(!page?.records.length)return;
     const controller=new AbortController();
@@ -233,6 +236,7 @@ function GeneratorHistoryForService({service, statusCommand, restore, inspectRes
       {(query || filter) && <button type="button" onClick={()=>{setQuery("");perform(()=>list(0,"")).then(()=>requestAnimationFrame(()=>{if(document.activeElement===document.body)searchRef.current?.focus();}));}}>검색 초기화</button>}
     </div>
       {error && (!selected || errorScope!=="input") && <p id={searchErrorId} role="alert">{error}</p>}
+      {!page && !busy && !error && !resultId && <p>이력 조회를 눌러 작업 목록을 확인하세요.</p>}
       {resultId && resultLookup?.id===resultId && resultLookup.loading && <p role="status">선택한 작업을 이력에서 찾고 있습니다.</p>}
       {resultId && resultLookup?.id===resultId && resultLookup.error && <section ref={resultPanelRef} tabIndex={-1} className="history-action-detail" aria-label="이력 밖 선택 결과"><p role="alert">{resultLookup.error}</p><button type="button" onClick={retryResultLookup}>이력에서 다시 찾기</button>{toggleResult && <button type="button" onClick={()=>{onCloseResult?.();requestAnimationFrame(()=>restoreLostFocus(document,detailsRef.current?.querySelector('summary')));}}>결과 접기</button>}{renderResult?.(resultId,()=>{onCloseResult?.();requestAnimationFrame(()=>restoreLostFocus(document,detailsRef.current?.querySelector('summary')));})}</section>}
       {resultId && resultLookup?.id===resultId && !resultLookup.loading && !resultLookup.error && page && !page.records.some(record=>record.id===resultId) && <section ref={resultPanelRef} tabIndex={-1} className="history-action-detail" aria-label="이력 범위 밖 선택 결과"><p>선택한 작업이 현재 이력 검색 또는 페이지 범위 밖에 있습니다.</p>{toggleResult && <button type="button" onClick={()=>{onCloseResult?.();requestAnimationFrame(()=>restoreLostFocus(document,detailsRef.current?.querySelector('summary')));}}>결과 접기</button>}{renderResult?.(resultId,()=>{onCloseResult?.();requestAnimationFrame(()=>restoreLostFocus(document,detailsRef.current?.querySelector('summary')));})}</section>}

@@ -38,10 +38,13 @@ test('포즈 비교 프레임 버튼은 경로를 이미지 속성으로 사용�
   buttons[2].onclick();assert.equal(buttons[2].attributes['aria-pressed'],'true');assert.equal(elements['#frameLabel'].textContent,'3 / 8 프레임');
   const image=elements['#resultImage'],[notice,retry]=image.following;image.alt='결과';image.onerror();
   assert.match(notice.textContent,/불러오지 못했습니다/);assert.equal(retry.hidden,false);
-  retry.onclick();assert.match(image.src,/retry=/);const retryUrl=image.src;elements['#overlayToggle'].oninput();assert.equal(image.src,retryUrl);
+  retry.onclick();assert.match(image.src,/retry=/);assert.equal(retry.attributes['aria-disabled'],'true');assert.match(notice.textContent,/다시 불러오는 중/);
+  const retryUrl=image.src,retryTimer=timerId;retry.onclick();assert.equal(timerId,retryTimer);assert.equal(image.src,retryUrl);elements['#overlayToggle'].oninput();assert.equal(image.src,retryUrl);
   document.activeElement=retry;image.onload();
-  assert.equal(retry.hidden,true);assert.equal(notice.textContent,'');assert.equal(image.focused,true);
+  assert.equal(retry.hidden,true);assert.equal(retry.attributes['aria-disabled'],'false');assert.equal(notice.textContent,'');assert.equal(image.focused,true);
   const previousLoad=image.onload;buttons[3].onclick();previousLoad();assert.equal(notice.textContent,'');assert.equal(retry.hidden,true);assert.equal(image.src,'frame-04/new.png');
+  buttons[3].children[0].onerror();image.onload();assert.equal(buttons[3].children[0].src,image.src);
+  buttons[3].children[0].onload();assert.equal(buttons[3].children[0].hidden,false);assert.equal(buttons[3].children[2].hidden,true);assert.equal(buttons[3].attributes['aria-label'],'4번 프레임');
   for(const frame of frames){delete frame.files.openpose;delete frame.modelRevision;}
   vm.runInNewContext(script.replace('__POSE_TRANSFER_DATA__',JSON.stringify(data)),{document,URL,setTimeout,clearTimeout,location:{href:'http://localhost/preview'}});
   assert.equal(elements['#openposeImage'].panel.hidden,true);assert.equal(elements['#rigImage'].panel.hidden,false);

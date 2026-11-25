@@ -17,7 +17,7 @@ export default function UnifiedQueueOverview(props){
   return <QueueForSession key={props.session} {...props}/>;
 }
 
-function QueueForSession({session,call,running,completed,ready}){
+function QueueForSession({session,call,running,completed,ready,failures=[]}){
   const [page,setPage]=useState(0),[size,setSize]=useState(5);
   const [snapshot,setSnapshot]=useState(null),[error,setError]=useState(""),[filter,setFilter]=useState("all"),[revision,refresh]=useState(0);
   const [checkedAt,setCheckedAt]=useState(null),[checking,setChecking]=useState(true);
@@ -55,6 +55,7 @@ function QueueForSession({session,call,running,completed,ready}){
   const groups=[["running","진행 중",running],["pending","다음 후보",pending],["completed","완료",completed]];
   const entries=groups.filter(([key])=>filter==="all" || filter===key)
     .flatMap(([key,label,items])=>items.map(item=>({key:key+":"+item.key,label,item})));
+  const failedSources=[...failures,["공용 대기열",error,Boolean(current)]].filter(([,reason])=>reason);
   const currentPage=Math.min(page,Math.max(0,Math.ceil(entries.length/size)-1));
   return <section className="panel unified-queue-overview" aria-label="작업 일정 목록">
     <label className="queue-state-filter">작업 상태
@@ -63,9 +64,13 @@ function QueueForSession({session,call,running,completed,ready}){
         {groups.map(([key,label])=><option key={key} value={key}>{label}</option>)}
       </select>
     </label>
-    {error && <p role="alert">공용 대기열 조회 실패 · {error} {current && "마지막 조회 결과입니다."}</p>}
+    {failedSources.length>0 && <details className="schedule-query-error">
+      <summary><span role="status">조회 실패 · {failedSources.map(([label])=>label).join(", ")}</span></summary>
+      <ul>{failedSources.map(([label,reason,stale])=><li key={label}><strong>{label}</strong> · {reason} {stale && "마지막 조회 결과를 표시합니다."}</li>)}</ul>
+      <p>자동으로 다시 조회합니다. 실패가 계속되면 연결 상태를 확인하세요.</p>
+    </details>}
     {!current && checking && <p role="status">공용 대기열 조회 중…</p>}
-    {ready && current && !entries.length && <p>표시할 작업이 없습니다.</p>}
+    {ready && !error && current && !entries.length && <p>표시할 작업이 없습니다.</p>}
     <ul className="queue-entries">{entries.slice(currentPage*size,(currentPage+1)*size).map(({key,label,item})=>
       <li key={key}><small>{label}</small>{item}</li>)}</ul>
     {entries.length>5 && <QueuePagination page={currentPage} size={size} total={entries.length} label="작업 일정 페이지" onPage={setPage} onSize={value=>{setSize(value);setPage(0);}}/>}

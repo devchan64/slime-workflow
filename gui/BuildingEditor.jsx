@@ -39,21 +39,33 @@ export function invalidBuildingSizeMap(building,properties){
   return null;
 }
 
-function BuildingProperties({building,generation,busy,setBusy,onSaved,onDirtyChange}){
+export function invalidBuildingSizeFields(building,properties){
+  const invalid={width:null,height:null};
+  for(const usage of building.maps){
+    const width=usage.tower?building.width*112/207:(usage.width+usage.height)*40*1.04/usage.contentWidth;
+    if(invalid.width===null && width+Number(properties.displayWidthAdjustment)<=0)invalid.width=usage.map;
+    if(invalid.height===null && width*building.height/building.width+Number(properties.displayHeightAdjustment)<=0)invalid.height=usage.map;
+  }
+  return invalid;
+}
+
+export function BuildingProperties({building,generation,busy,setBusy,onSaved,onDirtyChange}){
   const expected={displayWidthAdjustment:0,displayHeightAdjustment:0,...building.properties};
   const original={shadowShape:"circle",shadowOffsetColumn:0,shadowOffsetRow:0,shadowScaleX:1,shadowScaleY:1,...expected};
   const [values,edit]=useState(original),[error,setError]=useState("");
   const sizeErrorId=useId(),fieldErrorId=useId();
   const fieldMinimum=(key,min)=>building.texture==="ward-tower-v1" && ["displayWidthAdjustment","displayHeightAdjustment"].includes(key) ? -138 : min;
   const fieldIssues=Object.fromEntries(fields.map(([key,,min,max,step])=>{const raw=values[key],n=Number(raw);return [key,raw==null || String(raw).trim()==="" || !Number.isFinite(n) || n<fieldMinimum(key,min) || n>max || (step===1 && !Number.isInteger(n))];}));
-  const invalidMap=Object.values(fieldIssues).some(Boolean) ? null : invalidBuildingSizeMap(building,{displayWidthAdjustment:Number(values.displayWidthAdjustment),displayHeightAdjustment:Number(values.displayHeightAdjustment)});
-  const sizeError=invalidMap!==null ? invalidMap+"에서 표시 크기가 0 이하입니다." : "";
+  const invalidSizes=invalidBuildingSizeFields(building,{displayWidthAdjustment:Number(values.displayWidthAdjustment),displayHeightAdjustment:Number(values.displayHeightAdjustment)});
+  const widthSizeError=!fieldIssues.displayWidthAdjustment && invalidSizes.width!==null ? invalidSizes.width+"에서 표시 너비가 0 이하입니다." : "";
+  const heightSizeError=!fieldIssues.displayHeightAdjustment && invalidSizes.height!==null ? invalidSizes.height+"에서 표시 높이가 0 이하입니다." : "";
+  const sizeError=widthSizeError || heightSizeError;
   const [placement,selectPlacement]=useState(0);
   const [previewStatus,setPreviewStatus]=useState("loading"),[previewRevision,retryPreview]=useState(0);
   const canvas=useRef(null),previewRetryButton=useRef(null),previewInvalid=useRef(null),restorePreviewFocus=useRef(false),saving=useRef(false);
   useEffect(()=>{
     const url="/management/assistant/building-image/"+encodeURIComponent(building.texture);
-    if(Object.values(fieldIssues).some(Boolean)){
+    if(Object.values(fieldIssues).some(Boolean) || sizeError){
       canvas.current.getContext("2d").clearRect(0,0,canvas.current.width,canvas.current.height);setPreviewStatus("invalid");return;
     }
     return drawBuildingPreview(canvas.current,url,building.maps[placement],values,setPreviewStatus);
@@ -86,10 +98,11 @@ function BuildingProperties({building,generation,busy,setBusy,onSaved,onDirtyCha
     {previewStatus==="invalid" && <p ref={previewInvalid} tabIndex={-1} role="status">입력값과 표시 크기를 확인하면 미리보기를 볼 수 있습니다.</p>}
     {previewStatus==="image-error" && <p role="alert">건물 이미지를 불러오지 못했습니다. <button ref={previewRetryButton} type="button" onClick={()=>{restorePreviewFocus.current=document.activeElement===previewRetryButton.current;retryPreview(value=>value+1);}}>미리보기 다시 불러오기</button></p>}
     <p>{building.maps.length?"노란 윤곽은 점유 타일, 빨간 십자는 앵커, 점선은 주변 타일입니다.":"등록된 맵 배치가 없어 원본 이미지를 표시합니다."}</p>
-    <div className="building-properties-grid">{fields.map(([key,label,min,max,step])=>{const sizeField=["displayWidthAdjustment","displayHeightAdjustment"].includes(key);return <label key={key}>{label}<input type="number" required min={fieldMinimum(key,min)} max={max} step={step || "any"} value={values[key]} aria-invalid={fieldIssues[key] || (sizeField && sizeError) || undefined} aria-describedby={[fieldIssues[key] && `${fieldErrorId}-${key}`,sizeField && sizeError && sizeErrorId].filter(Boolean).join(" ") || undefined} onChange={e=>edit({...values,[key]:e.target.value})}/>{fieldIssues[key] && <small id={`${fieldErrorId}-${key}`}>{fieldMinimum(key,min)}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</label>;})}
+    <div className="building-properties-grid">{fields.map(([key,label,min,max,step])=>{const sizeFieldError=key==="displayWidthAdjustment" ? widthSizeError : key==="displayHeightAdjustment" ? heightSizeError : "";return <label key={key}>{label}<input type="number" required min={fieldMinimum(key,min)} max={max} step={step || "any"} value={values[key]} aria-invalid={Boolean(fieldIssues[key] || sizeFieldError) || undefined} aria-describedby={[fieldIssues[key] && `${fieldErrorId}-${key}`,sizeFieldError && `${sizeErrorId}-${key}`].filter(Boolean).join(" ") || undefined} onChange={e=>edit({...values,[key]:e.target.value})}/>{fieldIssues[key] && <small id={`${fieldErrorId}-${key}`}>{fieldMinimum(key,min)}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</label>;})}
     <label>그림자 형태<select value={values.shadowShape} onChange={e=>edit({...values,shadowShape:e.target.value})}>
       <option value="circle">원형</option><option value="rectangle">사각형</option></select></label></div>
-    {sizeError && <p id={sizeErrorId} role="alert">{sizeError}</p>}
+    {widthSizeError && <p id={`${sizeErrorId}-displayWidthAdjustment`} role="alert">{widthSizeError}</p>}
+    {heightSizeError && <p id={`${sizeErrorId}-displayHeightAdjustment`} role="alert">{heightSizeError}</p>}
     <button type="button" onClick={()=>edit({...values,displayWidthAdjustment:0,displayHeightAdjustment:0})}>크기 보정 초기화</button>
     {changed && <button type="button" onClick={()=>{edit(original);setError("");}}>편집 취소</button>}
     <ActionButton type="submit" reasons={[!changed && "변경한 속성이 없습니다.",Object.values(fieldIssues).some(Boolean) && "범위를 벗어난 속성을 수정하세요.",sizeError && "표시 크기 보정을 수정하세요."]}>표시 속성 저장</ActionButton>

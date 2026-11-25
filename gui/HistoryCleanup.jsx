@@ -69,7 +69,7 @@ export default function HistoryCleanup({service,job,state,onDeleted,allowSelecte
   return <details><summary>생성 이력 정리</summary>
     <fieldset disabled={busy}>
       {allowSelected && <button type="button" aria-describedby={!job || !eligible ? helpId : undefined} disabled={!job || !eligible} onClick={event=>{reviewOrigin.current=event.currentTarget;setAck(false);setReview({id:job});}}>선택 이력 삭제 검토</button>}
-      {allowSelected && (!job || !eligible) && <p id={helpId}>{!job ? "삭제하려면 생성 이력에서 작업 결과를 조회하세요." : !state ? "삭제하려면 작업 상태를 다시 확인하세요." : "종료된 작업만 삭제할 수 있습니다. 작업이 종료된 후 다시 확인하세요."}</p>}
+      {allowSelected && (!job || !eligible) && <p id={helpId}>{!job ? "삭제하려면 생성 이력에서 작업 결과를 조회하세요." : !state || state==="unknown" ? "삭제하려면 작업 상태를 다시 확인하세요." : state==="canceled" ? "이 취소 상태는 현재 이력 정리에서 지원하지 않아 삭제할 수 없습니다." : "종료된 작업만 삭제할 수 있습니다. 작업이 종료된 후 다시 확인하세요."}</p>}
       <button type="button" onClick={event=>{reviewOrigin.current=event.currentTarget;perform(inspectAll);}}>전체 이력 삭제 대상 조회</button>
       {review && <section ref={reviewRef} tabIndex={-1} aria-label="이력 삭제 확인" className="history-confirmation">
         <p>{review.all ? service+" · 전체 삭제 대상 "+review.preview.job_count+"건" : "선택 작업 · "+review.id}</p>

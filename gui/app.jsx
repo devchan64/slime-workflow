@@ -281,7 +281,7 @@ function ChatQueuePanel({session,children,openDetails,messages}){
         const result=await callUntilAborted("workflow-list",{session_id:session,category:"",state:"",search_filters:{}},controller.signal);
         if(!validSessionQueueResult(result))throw new Error("작업 목록 응답 오류");
         if(active){setWorkflow(result);setWorkflowError("");}
-      }catch{if(active)setWorkflowError("생성 작업 현황을 갱신하지 못했습니다.");}
+      }catch(problem){if(active)setWorkflowError(controller.signal.aborted ? "조회 시간이 초과됐습니다." : requestErrorMessage(problem));}
       finally{clearTimeout(timeout);if(active)timer=setTimeout(load,10000);}
     }
     load();return ()=>{active=false;clearTimeout(timer);controller?.abort();};
@@ -305,9 +305,7 @@ function ChatQueuePanel({session,children,openDetails,messages}){
     <CurrentQueueCommand data={data} session={session}/>
   </details>);
   return <section className="chat-queue-panel" aria-label="작업 일정">
-    {workflowError && <p role="alert">{workflowError} {workflow && "마지막 조회 결과를 표시합니다."}</p>}
-    {error && <p role="alert">대화 요청 조회 실패. {data && "마지막 조회 결과를 표시합니다."}</p>}
-    <UnifiedQueueOverview session={session} call={call} running={activeRows} completed={records(completed)} ready={Boolean(data && workflow && !error && !workflowError)}/>
+    <UnifiedQueueOverview session={session} call={call} running={activeRows} completed={records(completed)} failures={[["대화 요청",error,Boolean(data)],["생성 작업",workflowError,Boolean(workflow)]]} ready={Boolean(data && workflow && !error && !workflowError)}/>
     <details open={openDetails}><summary>상세 및 제어</summary>
     <div className="chat-queue-header"><small>{data?.checkedAt && "최근 조회 · "+data.checkedAt.toLocaleTimeString("ko-KR")}</small><button ref={queueRefreshRef} type="button" onClick={()=>refresh(n=>n+1)}>새로고침</button></div>
     {editStorageError && editingItem && <p role="alert">편집 내용을 이 탭에 보관하지 못했습니다. 패널을 닫기 전에 내용을 복사하세요. <CopyTextButton value={editingItem.text} label="대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/></p>}

@@ -6,6 +6,31 @@ from workflow.common.management_gateway import resolve_management_command
 
 
 class BuildingEditorTest(unittest.TestCase):
+    def test_size_error_is_exposed_as_boolean_aria_invalid(self):
+        import os, subprocess, tempfile
+        from pathlib import Path
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'building.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingEditor.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+              const {BuildingProperties}=require(process.argv[1]);
+              const building={texture:'house',width:100,height:200,properties:{anchorX:.5,anchorY:1,displayWidthAdjustment:-125},maps:[{map:'narrow',name:'집',facing:'front',width:1,height:2,contentWidth:1}]};
+              const html=server.renderToStaticMarkup(React.createElement(BuildingProperties,{building,generation:1,busy:false,setBusy:()=>{},onSaved:()=>{},onDirtyChange:()=>{}}));
+              assert.match(html,/narrow에서 표시 너비가 0 이하입니다/);
+              assert.equal((html.match(/aria-invalid=\"true\"/g)||[]).length,1);
+              assert.doesNotMatch(html,/aria-invalid=\"narrow/);
+              assert.match(html,/aria-describedby=\"[^\"]+\"/);
+              const height=server.renderToStaticMarkup(React.createElement(BuildingProperties,{building:{...building,properties:{...building.properties,displayWidthAdjustment:0,displayHeightAdjustment:-250}},generation:1,busy:false,setBusy:()=>{},onSaved:()=>{},onDirtyChange:()=>{}}));
+              assert.match(height,/narrow에서 표시 높이가 0 이하입니다/);
+              assert.equal((height.match(/aria-invalid=\"true\"/g)||[]).length,1);
+              const mixed=server.renderToStaticMarkup(React.createElement(BuildingProperties,{building:{...building,properties:{...building.properties,anchorX:17}},generation:1,busy:false,setBusy:()=>{},onSaved:()=>{},onDirtyChange:()=>{}}));
+              assert.match(mixed,/narrow에서 표시 너비가 0 이하입니다/);assert.match(mixed,/0~16 사이로 입력하세요/);
+              assert.equal((mixed.match(/aria-invalid=\"true\"/g)||[]).length,2);
+              const otherAxis=server.renderToStaticMarkup(React.createElement(BuildingProperties,{building:{...building,properties:{...building.properties,displayWidthAdjustment:0.5,displayHeightAdjustment:-250}},generation:1,busy:false,setBusy:()=>{},onSaved:()=>{},onDirtyChange:()=>{}}));
+              assert.match(otherAxis,/narrow에서 표시 높이가 0 이하입니다/);assert.equal((otherAxis.match(/aria-invalid=\"true\"/g)||[]).length,2);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_aborted_registration_preparation_never_sends_request(self):
         import subprocess
         import tempfile

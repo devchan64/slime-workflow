@@ -6,6 +6,39 @@ import {untilAborted} from '../../gui/managementCommand.js';
 import {validGeneratorHistoryPage} from '../../gui/generatorHistoryPage.mjs';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
 
+test('MiniMax 이미지 이력 관리는 이미지 원본 상태를 조회한다',async()=>{
+ const source=readFileSync(new URL('../../gui/SelectedHistoryDeletion.jsx',import.meta.url),'utf8');
+ const methods=source.slice(source.indexOf('function statusCommand('),source.indexOf('\nexport default function'));
+ const calls=[];const context=vm.createContext({untilAborted,managementCommand:async(...args)=>{calls.push(args);return {service:'minimax-h3-image',job_id:'job',job:{status:'completed'}};}});
+ vm.runInContext(methods,context);
+ assert.equal(await context.readState('minimax-h3-image','job',new AbortController().signal),'completed');
+ assert.equal(calls[0][0],'hermes-agent');assert.equal(calls[0][1],'hermes-image-source-status');
+ assert.equal(calls[0][2].service,'minimax-h3-image');assert.equal(calls[0][2].job_id,'job');
+ assert.equal(context.statusCommand('wan22-i2v'),'hermes-video-source-status');
+ assert.equal(context.statusCommand('flux-prop'),'hermes-flux-source-status');
+});
+
+test('직접 연결 결과를 닫은 뒤 늦게 끝난 이력 검색은 화면을 바꾸지 않는다',async()=>{
+ const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
+ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    cancelList();'),source.indexOf('  useEffect(()=>{\n    if(!resultId && detailsRef.current?.open'));
+ let finish,cleanup,updates=[];const id='2026-11-24_12-34-56-1234abcd';
+ const context=vm.createContext({AbortController,untilAborted,validGeneratorHistoryPage,requestErrorMessage,resultId:id,service:'flux-prop',lookupRevision:0,page:null,detailsRef:{current:{open:false}},lookupRequest:{current:null},cancelList:()=>{},useEffect:fn=>cleanup=fn(),setTimeout:()=>1,clearTimeout:()=>{},managementCommand:()=>new Promise(resolve=>finish=resolve),setResultLookup:value=>updates.push(['lookup',value]),setPage:value=>updates.push(['page',value]),setQuery:value=>updates.push(['query',value]),setFilter:value=>updates.push(['filter',value]),setPageSize:value=>updates.push(['size',value]),setSelected:value=>updates.push(['selected',value]),setJob:value=>updates.push(['job',value])});
+ vm.runInContext(effect,context);assert.equal(updates.length,1);assert.equal(updates[0][1].loading,true);
+ cleanup();finish({records:[{id,recorded_status:'completed'}],total:1,offset:0,next_offset:null,snapshot:'a'.repeat(64)});
+ await new Promise(done=>setImmediate(done));assert.equal(updates.length,1);assert.equal(context.lookupRequest.current,null);
+});
+
+test('직접 연결 이력 검색을 취소하면 늦은 응답 대신 중단 안내를 유지한다',async()=>{
+ const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
+ const cancel=source.slice(source.indexOf('  function cancelLookup()'),source.indexOf('  function retryResultLookup()'));
+ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    cancelList();'),source.indexOf('  useEffect(()=>{\n    if(!resultId && detailsRef.current?.open'));
+ let finish,cleanup,updates=[];const id='2026-11-24_12-34-56-1234abcd';
+ const context=vm.createContext({AbortController,untilAborted,validGeneratorHistoryPage,requestErrorMessage,resultId:id,service:'flux-prop',lookupRevision:0,page:null,detailsRef:{current:{open:false}},lookupRequest:{current:null},cancelList:()=>{},useEffect:fn=>cleanup=fn(),setTimeout:()=>1,clearTimeout:()=>{},managementCommand:()=>new Promise(resolve=>finish=resolve),setResultLookup:value=>updates.push(value),setPage:()=>assert.fail('취소한 검색의 목록이 반영됨'),setQuery:()=>assert.fail('취소한 검색의 검색어가 반영됨'),setFilter:()=>{},setPageSize:()=>{},setSelected:()=>{},setJob:()=>{}});
+ vm.runInContext(cancel+effect,context);context.cancelLookup();assert.match(updates[1].error,/자동 이력 찾기를 중단/);
+ finish({records:[{id,recorded_status:'completed'}],total:1,offset:0,next_offset:null,snapshot:'a'.repeat(64)});
+ await new Promise(done=>setImmediate(done));assert.equal(updates.length,2);cleanup();
+});
+
 test('이력 화면 종료 후 늦은 요청은 초점 복구를 예약하지 않는다',async()=>{
  const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
  const method=source.slice(source.indexOf('  async function perform('),source.indexOf('  async function list('));

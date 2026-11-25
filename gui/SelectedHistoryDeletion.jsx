@@ -10,6 +10,7 @@ const terminalStates=new Set(["completed","failed","cancelled","paused"]);
 function statusCommand(service) {
   if (service === "prompt-translation") return null;
   if (service.startsWith("flux-")) return "hermes-flux-source-status";
+  if (service === "minimax-h3-image") return "hermes-image-source-status";
   if (service === "music-heartmula" || service === "sfx-dasheng-audiogen") return "hermes-audio-source-status";
   return "hermes-video-source-status";
 }
@@ -82,7 +83,7 @@ function SelectedHistoryDeletionForJob({service,id,onDeleted,allowPriority=false
         <button className="history-action-priority" type="button" disabled aria-describedby={priorityHelp}>우선 실행 검토</button> : null}/>
     {allowPriority && <p className="history-action-detail" id={priorityHelp}>{state===null ? "현재 작업 상태를 확인해야 우선 실행을 검토할 수 있습니다." : state==="queued" ? "대기 순서는 검토할 때 다시 확인합니다." : "우선 실행은 대기 중인 작업에서 사용할 수 있습니다."}</p>}
     <button ref={setDeleteButton} className="history-action-delete" type="button" disabled={busy || review || controlActive || priorityActive || !terminalStates.has(state)} aria-describedby={deleteHelp} onClick={()=>{setReview(true);setAck(false);requestAnimationFrame(()=>reviewRef.current?.focus());}}>선택 이력 삭제 검토</button>
-    <p className="history-action-detail" id={deleteHelp}>{state===null ? "선택 작업의 상태를 확인할 수 있어야 삭제할 수 있습니다." : terminalStates.has(state) ? "삭제 전에 대상과 범위를 확인합니다." : "종료된 작업만 삭제할 수 있습니다. 종료 후 다시 확인하세요."}</p>
+    <p className="history-action-detail" id={deleteHelp}>{state===null ? "선택 작업의 상태를 확인할 수 있어야 삭제할 수 있습니다." : terminalStates.has(state) ? "삭제 전에 대상과 범위를 확인합니다." : state==="canceled" ? "이 취소 상태는 현재 이력 정리에서 지원하지 않아 삭제할 수 없습니다." : state==="unknown" ? "기록된 작업 상태를 확인할 수 없어 삭제할 수 없습니다." : "종료된 작업만 삭제할 수 있습니다. 종료 후 다시 확인하세요."}</p>
     {error && <div className="history-action-detail"><p role="alert">{error}</p>
       <button type="button" disabled={busy} onClick={event=>{event.currentTarget.closest(".generator-history-item")?.querySelector(".generator-history-select")?.focus();setRevision(value=>value+1);}}>작업 상태 다시 확인</button></div>}
     {review && <section ref={reviewRef} tabIndex={-1} aria-label="선택 이력 삭제 확인" className="history-action-detail history-confirmation">
