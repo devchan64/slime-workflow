@@ -1,5 +1,6 @@
 """1.3B 모델과 참조 인코더의 준비 검증."""
 import hashlib
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -9,6 +10,27 @@ from generators.wan_fun import wan13_model_assets
 
 
 class Wan13ModelAssetsTests(unittest.TestCase):
+    def test_queued_retired_prepare_fails_without_downloading(self):
+        from generators.wan_fun import prepare_worker
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            job = root/'queued-job'
+            job.mkdir()
+            (job/'request.json').write_text(json.dumps({'model_profile':'wan21-1.3b'}))
+            with patch.object(prepare_worker, 'FUN_JOB_STORAGE', root), \
+                 patch('sys.argv', ['prepare_worker', '--job-dir', str(job)]), \
+                 patch.object(prepare_worker, 'setup_fun_rocm_environment') as setup, \
+                 patch.object(wan13_model_assets, 'download_wan13_model_files') as download, \
+                 patch.object(prepare_worker.traceback, 'print_exc'):
+                with self.assertRaisesRegex(ValueError, '폐기'):
+                    prepare_worker.run_fun_prepare_worker()
+                download.assert_not_called()
+                setup.assert_not_called()
+            status = json.loads((job/'status.json').read_text())
+            self.assertEqual(status['status'], 'failed')
+            self.assertIn('폐기', status['error'])
+            self.assertFalse((job/'result.json').exists())
+
     def test_prepare_dispatches_profile_and_progress_is_separate(self):
         from workflow.common.model_preparation_controls import execute_wan13_model_command
         from workflow.common.model_download_progress import format_model_download_status

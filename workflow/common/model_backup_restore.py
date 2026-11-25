@@ -111,14 +111,21 @@ def restore_verified_backup(target, expected_sha256, expected_size=None, report=
                 snapshots = backup_root / '.model-backup-snapshots' / lookup.parts[0]
                 for snapshot in _completed_snapshots(snapshots):
                     candidates.append(snapshot.joinpath(*lookup.parts[1:]))
-        from workflow.common.model_backup_targets import CATALOG_TARGETS
+        from workflow.common.model_backup_targets import CATALOG_TARGETS, target_parts
         for name, parts in CATALOG_TARGETS.items():
-            for lookup in relatives:
-                if lookup.parts[:len(parts)] != parts or len(lookup.parts) <= len(parts):
-                    continue
-                snapshots = backup_root / '.model-backup-snapshots' / name
-                for snapshot in _completed_snapshots(snapshots):
-                    candidates.append(snapshot.joinpath(*lookup.parts[len(parts):]))
+            # Snapshots created after a move are rooted at the current target;
+            # older snapshots may still use the original catalog layout.
+            try:
+                current_parts = target_parts(source_root, name)
+            except (OSError, ValueError):
+                current_parts = parts
+            for prefix in dict.fromkeys((current_parts, parts)):
+                for lookup in relatives:
+                    if lookup.parts[:len(prefix)] != prefix or len(lookup.parts) <= len(prefix):
+                        continue
+                    snapshots = backup_root / '.model-backup-snapshots' / name
+                    for snapshot in _completed_snapshots(snapshots):
+                        candidates.append(snapshot.joinpath(*lookup.parts[len(prefix):]))
     except FileNotFoundError:
         return False
     except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):

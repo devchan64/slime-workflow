@@ -28,8 +28,7 @@ def run_fun_prepare_worker():
     try:
         current_request_record = json.loads((current_job_directory / 'request.json').read_text())
         if current_request_record.get('model_profile') == 'wan21-1.3b':
-            from generators.wan_fun.wan13_model_assets import download_wan13_model_files
-            download_wan13_model_files()
+            raise ValueError('Wan 2.1 Fun Control 모델 준비 기능은 폐기되었습니다.')
         else:
             setup_fun_rocm_environment()
         write_record_atomically(current_job_directory / 'result.json', {'prepared': True})

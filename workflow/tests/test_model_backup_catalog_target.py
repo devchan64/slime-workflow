@@ -12,6 +12,27 @@ from workflow.common.model_backup_sync import sync_snapshot
 
 
 class CatalogBackupTargetTest(unittest.TestCase):
+    def test_relocated_audio_catalog_snapshots_restore_model_files(self):
+        for name, directory in (('catalog-heartmula', 'heartmula-oss-3b'),
+                                ('catalog-dasheng-audiogen', 'dasheng-audiogen')):
+            with self.subTest(name=name), TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                source, backup = root/'local', root/'backup'
+                model = source/directory
+                model.mkdir(parents=True)
+                backup.mkdir()
+                data = b'model snapshot content'
+                (model/'weights').write_bytes(data)
+                config = root/'config.json'
+                config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+                sync_snapshot(name, 'a'*32, roots=(source, backup, None))
+                (model/'weights').unlink()
+                with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                    self.assertFalse(restore_verified_backup(model/'weights', hashlib.sha256(b'wrong').hexdigest()))
+                    self.assertFalse((model/'weights').exists())
+                    self.assertTrue(restore_verified_backup(model/'weights', hashlib.sha256(data).hexdigest()))
+                self.assertEqual((model/'weights').read_bytes(), data)
+
     def test_flattened_model_snapshot_compare_and_restore(self):
         with TemporaryDirectory() as temporary:
             root = Path(temporary)
