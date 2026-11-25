@@ -75,7 +75,7 @@ export default function BillboardCatalog({choose}){
     {notice && <p role="status">{notice}</p>}
     {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
     {!page && !error && <p role="status">카탈로그 조회 중…</p>}
-    {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><ResultTable table={{title:"검색 결과",summary:page.total+"종"+(page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""),columns:["이름","에셋 ID","분류"],
+    {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><ResultTable table={{title:"검색 결과",emptyMessage:page.total ? "현재 페이지에 표시할 빌보드가 없습니다. 이전 페이지를 확인하세요." : "조회한 조건에 맞는 빌보드가 없습니다.",summary:page.total+"종"+(page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""),columns:["이름","에셋 ID","분류"],
       rows:page.items.map(asset=>[<button type="button" aria-label={asset.name+" · "+asset.id} aria-describedby={locked && selected?.id!==asset.id ? lockDescription : undefined} disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{focusEpoch.current++;triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
           width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,billboardCategoryLabel(categories,asset.category)])}}/></div>
       {page.offset>0 && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} onClick={event=>movePage(Math.max(0,page.offset-page.limit),event)}>이전 페이지</button>}
@@ -84,7 +84,7 @@ export default function BillboardCatalog({choose}){
       {page && !page.items.some(item=>item.id===selected.id) && <p role="status">열린 빌보드는 현재 검색 결과에 없습니다. 마지막으로 선택한 상세를 유지합니다.</p>}
       <RecoverableImage key={selected.id+":"+imageRevision} src={imageUrl(selected.id)+"?r="+imageRevision} name={selected.name}/>
       <p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>
-      <div className="billboard-usage-table"><ResultTable table={{title:"사용 맵",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
+      <div className="billboard-usage-table"><ResultTable table={{title:"사용 맵",emptyMessage:selected.maps_truncated ? "표시할 사용 맵 정보가 없습니다. 다시 검색하세요." : "이 빌보드가 배치된 맵이 없습니다.",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
         columns:["맵","원본 경로","사용 횟수"],rows:selected.maps.map(map=>[map.map,map.source_path,map.occurrences ?? "미확인"])}}/></div>
       <fieldset disabled={lifecycleActive} style={{border:0,padding:0,margin:0}}><BillboardProperties key={selected.id} texture={selected.id} onDirtyChange={setEditingProperties} onCrop={()=>setImageRevision(n=>n+1)}/></fieldset>
       <fieldset disabled={editingProperties} style={{border:0,padding:0,margin:0}}><BillboardLifecycle key={selected.id} texture={selected.id} onInteractionChange={setLifecycleActive} onComplete={(msg,{retired})=>{setNotice(msg);if(retired){restoreSearchFocus.current=document.activeElement===document.body || Boolean(detailRef.current?.contains(document.activeElement));select(null);}setImageRevision(n=>n+1);setRequest({...request,offset:0});}}/></fieldset>

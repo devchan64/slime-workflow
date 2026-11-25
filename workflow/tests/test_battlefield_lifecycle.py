@@ -50,7 +50,15 @@ const state={choices:[['전장','field-a']],field:'field-a',status:'준비 중',
 const render=s=>server.renderToStaticMarkup(React.createElement(Controls,{state:s,cameraReasonId:'reason'}));
 const waiting=render(state);assert.match(waiting,/<fieldset disabled="" aria-describedby="reason"/);assert.doesNotMatch(waiting,/현재 전장 다시 불러오기/);
 const failed=render({...state,status:'전장 로드 실패: 오류'});assert.match(failed,/현재 전장 다시 불러오기/);assert.match(failed,/<p role="alert">전장 로드 실패/);
-const ready=render({...state,status:'완료',cameraReady:true});assert.doesNotMatch(ready,/<fieldset disabled/);assert.doesNotMatch(ready,/현재 전장 다시 불러오기/);"""
+assert.ok(render({...state,status:'  '}).includes('전장 상태를 확인할 수 없습니다.'));
+const ready=render({...state,status:'완료',cameraReady:true});assert.doesNotMatch(ready,/<fieldset disabled/);assert.doesNotMatch(ready,/현재 전장 다시 불러오기/);
+const duplicate=render({...state,choices:[['전장','field-a'],['전장','field-b'],['다른 전장','field-c']]});
+assert.ok(duplicate.includes('>전장 · field-a</option>'));assert.ok(duplicate.includes('>전장 · field-b</option>'));assert.ok(duplicate.includes('>다른 전장</option>'));
+const Host=require(process.argv[1]).BattlefieldHost;
+const host=(state,error='')=>server.renderToStaticMarkup(React.createElement(Host,{state,error}));
+for(const value of [null,state])assert.match(host(value),/aria-busy="true"/);
+for(const value of [{...state,cameraReady:true},{...state,status:'전장 로드 실패: 오류'}])assert.match(host(value),/aria-busy="false"/);
+assert.match(host(null,'오류'),/hidden=""[^>]*aria-busy="false"/);"""
             subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,text=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
 
     def test_cleanup_failure_still_reports_error_and_stops_polling(self):

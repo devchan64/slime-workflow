@@ -13,6 +13,7 @@ const descriptions={
 
 export default function ResidentModelStatus({session}){
   const [snapshot,setSnapshot]=useState(null),[error,setError]=useState(""),[checking,setChecking]=useState(false),[revision,refresh]=useState(0);
+  const [settings,setSettings]=useState(null),[settingsError,setSettingsError]=useState("");
   const [saving,setSaving]=useState(false),[saveError,setSaveError]=useState("");
   const refreshRef=useRef(null),restoreFocus=useRef(false);
   useEffect(()=>{if(!checking && restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body && refreshRef.current?.isConnected && refreshRef.current.closest("details")?.open)refreshRef.current.focus();}},[checking]);
@@ -28,7 +29,7 @@ export default function ResidentModelStatus({session}){
         const result=await Promise.race([managementCommand("hermes-agent","hermes-resident-status",{session_id:session},{signal:request.signal}),new Promise((_,reject)=>{deadline=setTimeout(()=>{request.abort();reject(new Error("status timeout"));},10000);})]);
         if(result?.session_id!==session || !result.resident || !Object.hasOwn(descriptions,result.resident.state))throw new Error("invalid status");
         if(result.resident.state==="ready" && (result.resident.model!=="qwen3.8-27b" || result.resident.gpu_loaded!==true || result.resident.reservation_verified!==true))throw new Error("invalid ready status");
-        if(active && current===sequence){setSnapshot({state:result.resident.state,available:result.dflash_available===true,dflash:result.dflash_enabled===true,activeDflash:result.resident.dflash===true,checkedAt:new Date()});setError("");}
+        if(active && current===sequence){setSnapshot({state:result.resident.state,activeDflash:result.resident.dflash===true,checkedAt:new Date()});setError("");}
       }catch(problem){if(active && current===sequence)setError(problem?.message?.startsWith("invalid ") ? "모델 상태 응답을 확인할 수 없습니다. 다시 조회하세요." : problem?.message==="status timeout" || problem?.name==="AbortError" ? "모델 상태 조회 시간이 초과됐습니다. 다시 조회하세요." : "모델 상태 조회 실패 · "+requestErrorMessage(problem));}
       finally{clearTimeout(deadline);if(active && current===sequence){setChecking(false);if(document.visibilityState==="visible")timer=setTimeout(read,30000);}}
     }
@@ -36,25 +37,39 @@ export default function ResidentModelStatus({session}){
     read();document.addEventListener("visibilitychange",visibility);
     return()=>{active=false;clearTimeout(timer);controller?.abort();document.removeEventListener("visibilitychange",visibility);};
   },[session,revision]);
+  useEffect(()=>{
+    if(saving)return;
+    let active=true,timer;
+    async function readSettings(){
+      try{
+        const value=await managementCommand("hermes-agent","hermes-dflash-status",{session_id:session},{signal:AbortSignal.timeout(10000)});
+        if(value?.session_id!==session || typeof value.enabled!=="boolean" || typeof value.available!=="boolean")throw Error("DFlash2 설정 응답 오류");
+        if(active){setSettings(value);setSettingsError("");}
+      }catch(problem){if(active)setSettingsError(requestErrorMessage(problem));}
+      if(active)timer=setTimeout(readSettings,30000);
+    }
+    readSettings();
+    return ()=>{active=false;clearTimeout(timer);};
+  },[session,saving,revision]);
   async function changeDflash(enabled){
     setSaving(true);setSaveError("");
     try{
       const result=await managementCommand("hermes-agent","hermes-resident-dflash",{session_id:session,enabled},{signal:AbortSignal.timeout(15000)});
       if(result?.enabled!==enabled || result.session_id!==session)throw Error("DFlash2 설정 저장 결과를 확인하세요.");
-      setSnapshot(previous=>({...previous,dflash:enabled}));
+      setSettings(previous=>({...previous,enabled}));
     }catch(problem){setSaveError(requestErrorMessage(problem));}
     finally{setSaving(false);refresh(value=>value+1);}
   }
   const [label,description]=error ? ["조회 실패",error] : snapshot ? descriptions[snapshot.state] : ["조회 중","이 세션의 상주 모델 상태를 확인하고 있습니다."];
-  const needsModel = snapshot && !snapshot.dflash && !snapshot.available;
+  const needsModel = settings && !settings.enabled && !settings.available;
   return <><details name="composer-popover" className="resident-model-status"><summary title={`세션 상주 Qwen 3.8 · ${description}`} aria-label={`세션 상주 Qwen 3.8 · ${label}`}>Qwen 3.8 · <span aria-live="polite">{label}</span></summary><div className="resident-model-status-panel" aria-busy={checking}><p>{description}</p>{snapshot?.state==="ready" && <p>현재 로드된 모델 · DFlash2 {snapshot.activeDflash?"켜짐":"꺼짐"}</p>}{snapshot && <p>마지막 조회 성공 · <time dateTime={snapshot.checkedAt.toISOString()}>{snapshot.checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time>{error && " · 이전 관측"}</p>}<p>이 탭이 보이는 동안 30초 간격으로 조회합니다.</p><button ref={refreshRef} type="button" disabled={checking} onClick={()=>{restoreFocus.current=true;refresh(value=>value+1);}}>{checking ? "조회 중…" : "모델 상태 다시 조회"}</button></div></details>
     <label className="dflash-switch"
-      title={needsModel ? "DFlash2 초안 모델 다운로드를 완료하면 켤 수 있습니다." : "이 세션의 다음 모델 로딩부터 적용합니다."}>
-      <input type="checkbox" role="switch" aria-label="DFlash2" checked={snapshot?.dflash === true}
-        disabled={!snapshot || needsModel || saving || Boolean(error)}
+      title={settingsError || (needsModel ? "DFlash2 초안 모델 다운로드를 완료하면 켤 수 있습니다." : "이 세션의 다음 모델 로딩부터 적용합니다.")}>
+      <input type="checkbox" role="switch" aria-label="DFlash2" checked={settings?.enabled === true}
+        disabled={!settings || needsModel || saving || Boolean(settingsError)}
         onChange={event=>changeDflash(event.target.checked)}/>
       DFlash2
-      {(saving || !snapshot || needsModel) && <small>{saving ? "저장 중" : needsModel ? "모델 필요" : "조회 중"}</small>}
+      {(saving || !settings || settingsError || needsModel) && <small>{saving ? "저장 중" : settingsError ? "조회 실패" : needsModel ? "모델 필요" : "조회 중"}</small>}
     </label>
     {saveError && <span role="alert">{saveError}</span>}
   </>;

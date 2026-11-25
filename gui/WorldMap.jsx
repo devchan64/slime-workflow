@@ -7,13 +7,16 @@ import {validWorldMap,worldMapLinks,worldMapDirectionLabel} from "./worldMapVali
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import {imageRetryUrl} from "./imageRetryUrl.mjs";
 import {startImageLoadDeadline} from "./imageLoadDeadline.mjs";
+import {choiceLabels} from "./choiceLabels.mjs";
 
 export function WorldMapThumbnail({src,x,y,failed,onError,onLoad}) {
   return failed ? <g><rect x={x-64} y={y-92} width="128" height="128" fill="none" stroke="currentColor"/><text x={x} y={y-24} textAnchor="middle" fill="currentColor">미리보기 없음</text></g> : <image href={src} x={x-64} y={y-92} width="128" height="128" onError={onError} onLoad={onLoad}/>;
 }
 
-function WorldMapMarker({node,x,y,selected,href,onSelect,revision}) {
+export function WorldMapMarker({node,label,x,y,selected,href,onSelect,revision}) {
   const [failed,setFailed]=useState(false),[loaded,setLoaded]=useState(false);
+  const idCharacters=Array.from(node.id);
+  const shortId=idCharacters.length>20 ? idCharacters.slice(0,19).join("")+"…" : node.id;
   const cancelDeadline=useRef(null);
   useEffect(()=>{
     if(loaded || failed)return;
@@ -21,11 +24,12 @@ function WorldMapMarker({node,x,y,selected,href,onSelect,revision}) {
     cancelDeadline.current=cancel;
     return ()=>{cancel();if(cancelDeadline.current===cancel)cancelDeadline.current=null;};
   },[loaded,failed]);
-  return <a href={href} aria-label={node.name+" 선택"+(failed ? " · 미리보기 없음" : "")} aria-current={selected ? "true" : undefined} onClick={onSelect}>
-    <title>{node.name} 선택</title><WorldMapThumbnail src={imageRetryUrl(node.thumbnail.url,revision)} x={x} y={y} failed={failed} onError={()=>{cancelDeadline.current?.();setFailed(true);}} onLoad={()=>{cancelDeadline.current?.();setLoaded(true);}}/>
+  return <a href={href} aria-label={label+" 선택"+(failed ? " · 미리보기 없음" : "")} aria-current={selected ? "true" : undefined} onClick={onSelect}>
+    <title>{label} 선택</title><WorldMapThumbnail src={imageRetryUrl(node.thumbnail.url,revision)} x={x} y={y} failed={failed} onError={()=>{cancelDeadline.current?.();setFailed(true);}} onLoad={()=>{cancelDeadline.current?.();setLoaded(true);}}/>
     {selected && <rect className="world-map-selected-marker" x={x-69} y={y-97} width="138" height="138" fill="none" vectorEffect="non-scaling-stroke" aria-hidden="true"/>}
     <text x={x} y={y+56} textAnchor="middle" fill="currentColor">{node.name}</text>
     <text x={x} y={y+78} textAnchor="middle" fill="currentColor">{node.safeTown?"도시":"필드"} {selected && "· 선택"}</text>
+    {label!==node.name && <text x={x} y={y+96} textAnchor="middle" fill="currentColor">{shortId}</text>}
   </a>;
 }
 
@@ -34,7 +38,7 @@ export function WorldMapStatus({checkedAt,error,loading,loaded,mapCount}) {
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
     {error && <p role="alert">{error} {loaded && "아래는 마지막 조회 결과입니다."} 다시 불러오기를 시도하세요.</p>}
     {loading && <p role="status">맵 원본 조회 중… {loaded && "아래는 마지막 조회 결과입니다."}</p>}
-    {loaded && mapCount===0 && <p>{loading || error ? "마지막으로 조회한 목록에 등록된 맵이 없습니다." : "등록된 맵이 없습니다."}</p>}
+    {loaded && mapCount===0 && <p>{loading || error ? "마지막으로 조회한 목록에 등록된 맵이 없습니다." : "등록된 맵이 없습니다. 맵을 등록한 뒤 원본을 다시 불러오세요."}</p>}
   </>;
 }
 
@@ -79,6 +83,7 @@ export default function WorldMap() {
     return ()=>{active=false;reloadPending.current=false;clearTimeout(timeout);controller.abort();};
   },[revision]);
   const nodes=new Map(maps.map(node=>[node.id,node]));
+  const labels=new Map(choiceLabels(maps.map(node=>[node.name,node.id])));
   const links=worldMapLinks(maps);
   const selected=id ? nodes.get(id) : maps[0];
   const columns=maps.map(node=>node.column), rows=maps.map(node=>node.row);
@@ -99,8 +104,8 @@ export default function WorldMap() {
     {maps.length>0 && <>
       <p>검증 통과 · 맵 {maps.length}개 · 지도 간 연결 {links.length}개</p>
       <label className="world-map-select">맵 선택 <select ref={selectRef} value={selected?.id || ""} aria-describedby={!selected ? selectionHelpId : undefined} onChange={e=>select(e.target.value)}>
-        {!selected && <option value="">등록되지 않은 맵입니다. 맵을 선택하세요.</option>}
-        {maps.map(node=><option key={node.id} value={node.id}>{node.name}</option>)}</select></label>
+        {!selected && <option value="" disabled>등록되지 않은 맵입니다. 맵을 선택하세요.</option>}
+        {maps.map(node=><option key={node.id} value={node.id}>{labels.get(node.id)}</option>)}</select></label>
       {!selected && <p id={selectionHelpId} role="status">선택한 맵을 현재 목록에서 찾지 못했습니다. 목록에서 다른 맵을 선택하세요.</p>}
       <div className="ui-action-row" role="group" aria-label="월드맵 화면 조정">
         <button type="button" aria-disabled={zoom<=.1} title={zoom<=.1 ? "최소 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.max(.1,v*.8))}>축소</button>
@@ -114,12 +119,12 @@ export default function WorldMap() {
         <svg aria-label="전체 맵과 이동 연결" width={width*zoom} height={height*zoom} viewBox={`0 0 ${width} ${height}`}>
           {links.map(([from,to])=>
             <line key={JSON.stringify([from,to])} x1={x(nodes.get(from))} y1={y(nodes.get(from))} x2={x(nodes.get(to))} y2={y(nodes.get(to))} stroke="currentColor"/>)}
-          {maps.map(node=><WorldMapMarker key={JSON.stringify([node.id,node.thumbnail.url,imageRevision])} node={node} x={x(node)} y={y(node)} selected={selected?.id===node.id} href={mapUrl(node.id)} revision={imageRevision} onSelect={e=>{if(e.button!==0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)return;e.preventDefault();select(node.id);}}/>)}
+          {maps.map(node=><WorldMapMarker key={JSON.stringify([node.id,node.thumbnail.url,imageRevision])} node={node} label={labels.get(node.id)} x={x(node)} y={y(node)} selected={selected?.id===node.id} href={mapUrl(node.id)} revision={imageRevision} onSelect={e=>{if(e.button!==0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)return;e.preventDefault();select(node.id);}}/>)}
         </svg>
       </div>
-      {selected && <><h2>{selected.name}</h2><div className="world-map-thumbnail"><RecoverableImage src={selected.thumbnail.url} name={selected.name+" 특징"} kind="썸네일"/></div>
+      {selected && <><h2>{labels.get(selected.id)}</h2><div className="world-map-thumbnail"><RecoverableImage src={selected.thumbnail.url} name={labels.get(selected.id)+" 특징"} kind="썸네일"/></div>
         <p>{selected.thumbnail.managementId} · {selected.thumbnail.version}</p><p>SHA-256 · {selected.thumbnail.sha256}</p><p>{selected.thumbnail.path}</p>
-        <div className="world-map-connections"><ResultTable table={{title:"선택 맵의 이동 연결",columns:["연결 맵","방향","출발 웨이포인트","도착 웨이포인트"],rows:selected.connections.map(edge=>[nodes.get(edge.target).name,worldMapDirectionLabel(edge.direction),edge.id,edge.targetWaypointId ?? "없음"])}}/></div>
+        <div className="world-map-connections"><ResultTable table={{title:"선택 맵의 이동 연결",emptyMessage:"이 맵에 등록된 이동 연결이 없습니다.",columns:["연결 맵","방향","출발 웨이포인트","도착 웨이포인트"],rows:selected.connections.map(edge=>[labels.get(edge.target),worldMapDirectionLabel(edge.direction),edge.id,edge.targetWaypointId ?? "없음"])}}/></div>
       </>}
     </>}
   </section>;

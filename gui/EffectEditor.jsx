@@ -9,12 +9,13 @@ import RecoverableImage from "./RecoverableImage.jsx";
 import {validEffectList} from "./effectListValidation.mjs";
 import {initialMotionPlaying} from "./initialMotionPlaying.mjs";
 import {validEffectSaveResponse,effectSaveNotice,effectSaveFailure} from "./effectSaveResponse.mjs";
+import {choiceLabels} from "./choiceLabels.mjs";
 
 import {drawAlignment} from "./drawAlignment.js";
 
 export function PreviewError({error,retryButton,onRetry}){
   if(!error)return null;
-  return <div><p role="alert">{error} 문제가 계속되면 편집을 저장하거나 취소한 뒤 이펙트 상세를 다시 불러오세요.</p><button ref={retryButton} type="button" onClick={onRetry}>미리보기 다시 불러오기</button></div>;
+  return <div><p role="alert">{error} 문제가 계속되면 이펙트 상세를 다시 불러오세요. 편집 중인 내용이 있다면 먼저 저장하거나 취소하세요.</p><button ref={retryButton} type="button" onClick={onRetry}>미리보기 다시 불러오기</button></div>;
 }
 
 export function AlignmentPreview({detail,values}){
@@ -37,12 +38,12 @@ export function AlignmentPreview({detail,values}){
   },[detail,values,play,frame,host,guides,revision]);
   return <fieldset className="effect-preview-controls"><legend>정렬 미리보기</legend>
     <label><input type="checkbox" checked={play} onChange={e=>{if(!e.target.checked)setFrame(canvas.current?.effectDisplayedFrame ?? frame);setPlay(e.target.checked);}}/>애니메이션 재생</label>
-    <label>정지 프레임<input type="range" min="0" max={values.frames.length-1} value={frame} disabled={play} aria-describedby={frameHelpId}
+    <label>정지 프레임<input type="range" min="0" max={values.frames.length-1} value={frame} disabled={play} aria-valuetext={`${frame+1} / ${values.frames.length} 프레임`} aria-describedby={frameHelpId}
       onChange={e=>setFrame(Number(e.target.value))}/></label>
     <small id={frameHelpId}>{play ? "재생을 멈추면 프레임을 선택할 수 있습니다." : `${frame+1} / ${values.frames.length} 프레임`}</small>
     {detail.hostImage && <label><input type="checkbox" checked={host} onChange={e=>setHost(e.target.checked)}/>빌보드 표시</label>}
     <label><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>영역 가이드</label>
-    <canvas ref={canvas} tabIndex={-1} width="640" height="640" style={{width:"100%",maxWidth:640}} aria-label="정렬 미리보기"/>
+    <canvas ref={canvas} tabIndex={-1} width="640" height="640" style={{width:"100%",maxWidth:640}} aria-label="정렬 미리보기" aria-busy={loading}/>
     <p role="status">{status}</p>
     <PreviewError error={error} retryButton={retryButton} onRetry={()=>{restoreFocus.current=document.activeElement===retryButton.current;retry(value=>value+1);}}/>
   </fieldset>;
@@ -100,11 +101,11 @@ export function WaypointPreview({detail}){
   if(!validFrames)return <p role="alert">프레임 정보를 확인할 수 없습니다. 원본을 확인한 뒤 상세를 다시 불러오세요.</p>;
   return <fieldset className="effect-preview-controls"><legend>웨이포인트 미리보기</legend>
     <label><input type="checkbox" checked={playing} onChange={e=>{if(!e.target.checked)setFrame(displayedFrame.current);setPlaying(e.target.checked);}}/>재생</label>
-    <label>프레임<input type="range" min="0" max={frames.length-1} value={frame} disabled={playing} aria-describedby={frameHelpId}
+    <label>프레임<input type="range" min="0" max={frames.length-1} value={frame} disabled={playing} aria-valuetext={`${frame+1} / ${frames.length} 프레임`} aria-describedby={frameHelpId}
       onChange={e=>setFrame(Number(e.target.value))}/></label>
     <small id={frameHelpId}>{playing ? "재생을 멈추면 프레임을 선택할 수 있습니다." : `${frame+1} / ${frames.length} 프레임`}</small>
     <label><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>영역과 앵커 표시</label>
-    <canvas ref={canvas} tabIndex={-1} width="640" height="640" style={{width:"100%",maxWidth:640}} aria-label="웨이포인트 애니메이션"/>
+    <canvas ref={canvas} tabIndex={-1} width="640" height="640" style={{width:"100%",maxWidth:640}} aria-label="웨이포인트 애니메이션" aria-busy={loading}/>
     {loading && <p role="status">웨이포인트 시트를 불러오는 중입니다.</p>}
     <PreviewError error={error} retryButton={retryButton} onRetry={()=>{restoreFocus.current=document.activeElement===retryButton.current;retry(value=>value+1);}}/>
   </fieldset>;
@@ -171,16 +172,17 @@ export function Alignment({detail,onDirtyChange,onBusyChange}){
   const [savedValues,setSavedValues]=useState(detail.document.alignment);
   const [revision,setRevision]=useState(detail.revision),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[saveError,setSaveError]=useState(false);
   const [inputError,setInputError]=useState(null);
-  const submitting=useRef(false),saveButton=useRef(null),messageRef=useRef(null),restoreSaveFocus=useRef(false);
-  const coordinatesHelpId=useId(),inputErrorId=useId(),alphaErrorId=useId();
+  const submitting=useRef(false),saveButton=useRef(null),messageRef=useRef(null),inputErrorRef=useRef(null),restoreSaveFocus=useRef(false),restoreInputFocus=useRef(false);
+  const coordinatesHelpId=useId(),inputErrorId=useId(),alphaErrorId=useId(),busyHelpId=useId();
   useEffect(()=>{onDirtyChange(JSON.stringify(values)!==JSON.stringify(savedValues));},[values,savedValues,onDirtyChange]);
   useEffect(()=>{onBusyChange(busy);},[busy,onBusyChange]);
   useEffect(()=>{if(!busy && message && restoreSaveFocus.current){restoreSaveFocus.current=false;restoreLostFocus(document,messageRef.current);}},[busy,message]);
+  useEffect(()=>{if(inputError && restoreInputFocus.current){restoreInputFocus.current=false;if(document.activeElement===saveButton.current || document.activeElement===document.body)inputErrorRef.current?.focus();}},[inputError]);
   function rectangle(key,index){
     const row=key==="target"?values.target:values.frames[index];
     const group=key==="target" ? "target" : `frame:${index}`;
     return <AlignmentRectangleInputs row={row} group={group} helpId={coordinatesHelpId} error={inputError} errorId={inputErrorId} onChange={next=>{
-      setInputError(previous=>previous?.group===group ? null : previous);setValues({...values,[key]:key==="target"?next:values.frames.map((v,j)=>index===j?next:v)});
+      if(!saveError)setMessage("");setInputError(previous=>previous?.group===group ? null : previous);setValues({...values,[key]:key==="target"?next:values.frames.map((v,j)=>index===j?next:v)});
     }}/>;
   }
   async function save(event){
@@ -188,7 +190,7 @@ export function Alignment({detail,onDirtyChange,onBusyChange}){
     const alignment={...values,target:values.target.map(Number),alpha:Number(values.alpha),
       frames:values.frames.map(row=>row.map(v=>Math.round(Number(v)*100)/100))};
     const originalIssue=effectAlignmentBoundsIssue(values),roundedIssue=originalIssue ? null : effectAlignmentBoundsIssue(alignment);
-    if(originalIssue || roundedIssue){const issue=originalIssue || roundedIssue;setInputError({...issue,message:issue.message+(roundedIssue ? " 프레임 좌표는 소수 둘째 자리로 저장됩니다." : "")+" 저장하지 않았습니다."});return;}
+    if(originalIssue || roundedIssue){const issue=originalIssue || roundedIssue;if(!saveError)setMessage("");restoreInputFocus.current=document.activeElement===saveButton.current;setInputError({...issue,message:issue.message+(roundedIssue ? " 프레임 좌표는 소수 둘째 자리로 저장됩니다." : "")+" 저장하지 않았습니다."});return;}
     restoreSaveFocus.current=document.activeElement===saveButton.current;
     submitting.current=true;setBusy(true);setMessage("");setSaveError(false);setInputError(null);
     let dispatched=false;
@@ -201,13 +203,13 @@ export function Alignment({detail,onDirtyChange,onBusyChange}){
     finally{submitting.current=false;setBusy(false);}
   }
   const alphaInvalid=String(values.alpha).trim()==="" || !Number.isFinite(Number(values.alpha)) || Number(values.alpha)<0 || Number(values.alpha)>1;
-  return <form className="effect-alignment-form" onSubmit={save}><fieldset disabled={busy} aria-describedby={inputError ? inputErrorId : undefined}><legend>공용 이펙트 정렬</legend>
+  return <form className="effect-alignment-form" onSubmit={save}><fieldset disabled={busy} aria-busy={busy} aria-describedby={[inputError && inputErrorId,busy && busyHelpId].filter(Boolean).join(" ") || undefined}><legend>공용 이펙트 정렬</legend>
     <p id={coordinatesHelpId}>좌표는 0부터 1까지의 비율입니다. 왼쪽은 오른쪽보다, 위쪽은 아래쪽보다 작아야 합니다.</p>
-    {inputError && <p id={inputErrorId} role="alert">{inputError.message}</p>}
+    {inputError && <p ref={inputErrorRef} tabIndex={-1} id={inputErrorId} role="alert">{inputError.message}</p>}
     <fieldset className="effect-rectangle"><legend>대상 영역</legend>{rectangle("target")}</fieldset>
-    <label>불투명도<input type="number" min="0" max="1" step="any" required aria-invalid={alphaInvalid || undefined} aria-describedby={alphaInvalid ? alphaErrorId : undefined} value={values.alpha} onChange={e=>setValues({...values,alpha:e.target.value})}/>{alphaInvalid && <small id={alphaErrorId}>0~1 사이로 입력하세요.</small>}</label>
+    <div><label>불투명도<input type="number" min="0" max="1" step="any" required aria-invalid={alphaInvalid || undefined} aria-describedby={alphaInvalid ? alphaErrorId : undefined} value={values.alpha} onChange={e=>{if(!saveError)setMessage("");setValues({...values,alpha:e.target.value});}}/></label>{alphaInvalid && <small id={alphaErrorId}>0~1 사이로 입력하세요.</small>}</div>
     {values.frames.map((_,index)=><fieldset className="effect-rectangle" key={index}><legend>{index+1}번 프레임</legend>{rectangle("frames",index)}</fieldset>)}
-    <AlignmentPreview detail={detail} values={values}/><button ref={saveButton} type="submit">정렬 저장</button></fieldset>{busy && <p role="status">이펙트 정렬을 저장 중입니다.</p>}{message && <p ref={messageRef} tabIndex={-1} role={saveError ? "alert" : "status"}>{message}</p>}</form>;
+    <AlignmentPreview detail={detail} values={values}/><button ref={saveButton} type="submit">정렬 저장</button></fieldset>{busy && <p id={busyHelpId} role="status">이펙트 정렬을 저장 중입니다. 완료될 때까지 기다리세요.</p>}{message && <p ref={messageRef} tabIndex={-1} role={saveError ? "alert" : "status"}>{message}</p>}</form>;
 }
 
 export default function EffectEditor(){
@@ -248,11 +250,12 @@ export default function EffectEditor(){
     }catch(problem){if(detailRequest.current===controller)setError(problem?.name==="AbortError" ? "이펙트 조회 시간이 초과됐습니다. 다시 불러오세요." : problem instanceof TypeError ? "이펙트 서버에 연결하지 못했습니다. 다시 불러오세요." : problem?.message || "이펙트 상세를 불러오지 못했습니다. 다시 불러오세요.");}
     finally{clearTimeout(timeout);if(detailRequest.current===controller){detailRequest.current=null;setDetailLoading(false);setBusy(false);}}
   }
+  const choices=choiceLabels(effects.map(item=>[item.name,item.id]));
   return <article className="effect-editor-page"><h1>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy || editorBusy}><legend>이펙트 선택</legend>
     <select ref={selectRef} aria-label="이펙트" aria-describedby={dirty ? dirtyHelpId : !effects.length ? selectionHelpId : undefined} disabled={dirty || !effects.length} value={selected} onChange={e=>{select(e.target.value);setDetail(null);}}>
       {selected && !effects.some(item=>item.id===selected) && <option value={selected}>{selected} · 현재 목록에 없음</option>}
       {!effects.length && <option value="">{busy ? "목록 조회 중…" : error ? "이펙트 목록 조회 실패" : "선택할 이펙트가 없습니다"}</option>}
-      {effects.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select>
+      {choices.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select>
     <button ref={reloadRef} type="button" onClick={()=>{if(listPending.current || detailRequest.current || busy || editorBusy)return;listPending.current=true;setBusy(true);if(document.activeElement===reloadRef.current)restorePickerFocus.current="list";reload(n=>n+1);}}>목록 새로고침</button><button ref={loadRef} type="button" disabled={dirty || !effects.some(item=>item.id===selected)} aria-describedby={dirty ? dirtyHelpId : !effects.some(item=>item.id===selected) ? selectionHelpId : undefined} onClick={load}>선택 이펙트 불러오기</button>{!dirty && !effects.some(item=>item.id===selected) && <p id={selectionHelpId}>목록을 불러온 뒤 이펙트를 선택하세요.</p>}</fieldset>
     {busy && <p role="status">{detailLoading ? "이펙트 상세를 불러오는 중입니다." : "이펙트 목록을 불러오는 중입니다."}</p>}
     {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}

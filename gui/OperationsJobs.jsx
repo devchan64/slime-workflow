@@ -36,6 +36,19 @@ function validOperationsPage(value,query,status,direction,previous){
     (!value.statuses || typeof value.statuses==="object" && !Array.isArray(value.statuses) && Object.values(value.statuses).every(item=>typeof item==="string")));
 }
 
+function FinalResponse({text,truncated}){
+  const answer=text?.trimEnd();
+  if(!answer)return <><h4>최종 응답</h4><p>기록된 최종 응답이 없습니다.</p></>;
+  const lines=answer.split(/\r?\n/);
+  const ending=Array.from(lines.slice(-2).join(" ").trim());
+  const preview=(lines.length>2 || ending.length>100 ? "… " : "")+ending.slice(-100).join("");
+  return <details className="job-final-response">
+    <summary>최종 응답 <span className="response-preview">{preview}</span></summary>
+    <pre tabIndex={0} aria-label="최종 응답 내용">{text}</pre>
+    {truncated && <p>응답 일부만 표시했습니다.</p>}
+  </details>;
+}
+
 export default function OperationsJobs({session,linkedJob,linkedStatus,detailOnly=false}){
   const storageKey="hermes-operations-search-"+(session || "");
   const [query,setQuery]=useState(()=>sessionStorage.getItem(storageKey) || "");
@@ -279,8 +292,7 @@ export default function OperationsJobs({session,linkedJob,linkedStatus,detailOnl
       {detail.status.message && <p>{detail.status.message}</p>}
       {detail.status.error && <p role="alert">{detail.status.error}</p>}
       <h4>작업 지시</h4><pre tabIndex={0} aria-label="작업 지시 내용">{detail.request?.prompt || "기록된 지시가 없습니다."}</pre>
-      <h4>최종 응답</h4><pre tabIndex={0} aria-label="최종 응답 내용">{detail.final_response || "기록된 최종 응답이 없습니다."}</pre>
-      {detail.final_response_truncated && <p>응답 일부만 표시했습니다.</p>}
+      <FinalResponse key={detail.id} text={detail.final_response} truncated={detail.final_response_truncated}/>
       {detail.result?.verification && <section aria-label="독립 검증 결과"><h4>독립 검증</h4><p>{verificationLabels[detail.result.verification.status] || detail.result.verification.status || "상태 확인 불가"}{Number.isInteger(detail.result.verification.exit_code) && " · 종료 코드 "+detail.result.verification.exit_code}</p>{Array.isArray(detail.result.verification.modules) && detail.result.verification.modules.length>0 && <p>검증 대상 · {detail.result.verification.modules.join(", ")}</p>}{detail.result.partial && <p>작업 결과가 부분 완료로 기록됐습니다. 최종 응답과 검증 결과를 함께 확인하세요.</p>}</section>}
       <details><summary>작업 로그</summary><pre tabIndex={0} aria-label="작업 로그 내용">{detail.log || "기록된 로그가 없습니다."}</pre></details>
       <details><summary>변경 내역</summary>{detail.diff_truncated && <p>변경 내역 일부만 표시했습니다.</p>}<pre ref={diffText} className="operations-focus" tabIndex={0} aria-label="변경 내역 내용">{diffPage?.text ?? (detail.diff || "기록된 변경이 없습니다.")}</pre>

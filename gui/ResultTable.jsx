@@ -16,7 +16,7 @@ export default function ResultTable({table}) {
       {table.columns.map(column=><th key={column} scope="col">{column}</th>)}
     </tr></thead><tbody>
       {table.rows.map((row,index)=><tr key={table.rowKeys?.[index] ?? index}>{row.map((value,i)=><td key={i}>{value}</td>)}</tr>)}
-      {table.rows.length===0 && <tr><td colSpan={table.columns.length}>조회된 항목이 없습니다.</td></tr>}
+      {table.rows.length===0 && <tr><td colSpan={table.columns.length}>{typeof table.emptyMessage==="string" && table.emptyMessage.trim() ? table.emptyMessage : "조회된 항목이 없습니다."}</td></tr>}
     </tbody></table></div>
   </section>;
 }

@@ -2,7 +2,7 @@ export function validBattlefieldState(value){
   if(!value || !Array.isArray(value.choices) || !value.choices.length || typeof value.field!=="string" || typeof value.status!=="string" || typeof value.cameraReady!=="boolean" || typeof value.spawnRegionsVisible!=="boolean")return false;
   const ids=new Set();
   for(const row of value.choices){
-    if(!Array.isArray(row) || row.length!==2 || typeof row[0]!=="string" || !row[0] || typeof row[1]!=="string" || !row[1] || ids.has(row[1]))return false;
+    if(!Array.isArray(row) || row.length!==2 || typeof row[0]!=="string" || !row[0].trim() || typeof row[1]!=="string" || !row[1].trim() || ids.has(row[1]))return false;
     ids.add(row[1]);
   }
   return ids.has(value.field);

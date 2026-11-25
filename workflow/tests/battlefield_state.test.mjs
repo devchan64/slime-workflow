@@ -8,7 +8,7 @@ test('전장 상태의 선택 목록과 현재 선택 및 표시 값을 확인�
   assert.equal(validBattlefieldState(state),true);
   assert.equal(battlefieldLoadFailed(state),false);
   assert.equal(battlefieldLoadFailed({...state,cameraReady:false,status:'전장 로드 실패: 장면 준비 시간 초과'}),true);
-  for(const value of [null,{...state,choices:[]},{...state,choices:[['전체','all'],['중복','all']]},{...state,choices:[['전체']]},{...state,field:'missing'},{...state,status:{}},{...state,cameraReady:'true'},{...state,spawnRegionsVisible:null}])
+  for(const value of [null,{...state,choices:[]},{...state,choices:[['전체','all'],['중복','all']]},{...state,choices:[['전체']]},{...state,choices:[['  ','all']]},{...state,choices:[['전체','  ']],field:'  '},{...state,field:'missing'},{...state,status:{}},{...state,cameraReady:'true'},{...state,spawnRegionsVisible:null}])
     assert.equal(validBattlefieldState(value),false);
 });
 

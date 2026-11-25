@@ -8,6 +8,18 @@ from workflow.domains.hermes_agent.service import HermesServiceManager
 
 
 class ResidentDflashTests(unittest.TestCase):
+    def test_dflash_status_reads_session_settings_without_resident_lookup(self):
+        with tempfile.TemporaryDirectory() as root:
+            manager = HermesServiceManager(Path(root)/'jobs', Path(root)/'sessions')
+            session = 'a' * 32
+            manager.execute_hermes_command('hermes-session-create', {'session_id':session})
+            with patch.object(resident_worker, 'dflash_model_present', return_value=True), \
+                 patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', side_effect=AssertionError('unexpected resident lookup')):
+                self.assertEqual(manager.execute_hermes_command('hermes-dflash-status', {'session_id':session}),
+                                 {'session_id':session,'enabled':False,'available':True})
+                with self.assertRaises(ValueError):
+                    manager.execute_hermes_command('hermes-dflash-status', {'session_id':session,'extra':True})
+
     def test_session_toggle_is_persistent_and_reversible(self):
         with tempfile.TemporaryDirectory() as root:
             manager = HermesServiceManager(Path(root)/'jobs', Path(root)/'sessions')

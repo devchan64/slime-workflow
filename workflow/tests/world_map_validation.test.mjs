@@ -15,6 +15,8 @@ test("월드맵은 빈 목록과 선택적 도착 지점을 허용하고 손상�
   assert.equal(validWorldMap({maps:[town]}),false);
   assert.equal(validWorldMap({maps:[town,town]}),false);
   assert.equal(validWorldMap({maps:[{...field,thumbnail:null}]}),false);
+  assert.equal(validWorldMap({maps:[{...field,name:'  '}]}),false);
+  assert.equal(validWorldMap({maps:[{...field,id:'  '}]}),false);
 });
 
 test("지도 간 연결은 방향과 중복에 관계없이 한 번씩 표시한다",()=>{

@@ -57,7 +57,7 @@ export default function AnchorHistory() {
   }
   function pagination(position){return page && <nav className="anchor-history-pagination" aria-label={"앵커 이력 페이지 "+position}>
     <button type="button" disabled={busy || !!error || filtersChanged || page.offset<=0} onClick={event=>load(true,Math.max(0,page.offset-20),event)}>이전 이력</button>
-    <span>{page.total ? `${page.offset+1}–${page.offset+page.records.length} / ${page.total}건` : "0건"}</span>
+    <span>{page.records.length ? `${page.offset+1}–${page.offset+page.records.length} / ${page.total}건` : page.total ? `현재 페이지 0건 / 전체 ${page.total}건` : "0건"}</span>
     <button type="button" disabled={busy || !!error || filtersChanged || page.next_offset==null} onClick={event=>load(true,null,event)}>다음 이력</button>
   </nav>;}
   return <fieldset><legend>과거 앵커 검수 이력</legend>
@@ -72,7 +72,7 @@ export default function AnchorHistory() {
     {!page && !busy && !error && <p>애니메이션 ID와 버전을 입력한 뒤 이력을 조회하세요.</p>}
     {page && <p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p>}
     {pagination("상단")}
-    {page && <div ref={resultRef} tabIndex={-1} className="ui-focus-target" aria-label="앵커 검수 이력 결과"><div className="anchor-history-table"><ResultTable table={{title:"과거 좌표 검수 기록",summary:"전체 "+page.total+"건",
+    {page && <div ref={resultRef} tabIndex={-1} className="ui-focus-target" aria-label="앵커 검수 이력 결과"><div className="anchor-history-table"><ResultTable table={{title:"과거 좌표 검수 기록",emptyMessage:page.total ? "현재 페이지에 표시할 이력이 없습니다. 이전 페이지를 확인하세요." : "조회한 조건에 맞는 좌표 검수 이력이 없습니다.",summary:"전체 "+page.total+"건",
       columns:["이력 ID","저장 시각","프레임 수"],rows:page.records.map(row=>[row.id,row.created_at,row.frames])}}/></div></div>}
     {page?.note && <p>{page.note}</p>}
     {page?.records.length>5 && pagination("하단")}

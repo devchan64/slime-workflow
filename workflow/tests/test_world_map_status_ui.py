@@ -7,6 +7,20 @@ import unittest
 
 
 class WorldMapStatusTests(unittest.TestCase):
+    def test_result_table_uses_contextual_empty_message(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'table.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'ResultTable.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict'),Table=require(process.argv[1]).default;
+const render=table=>server.renderToStaticMarkup(React.createElement(Table,{table}));
+const table={title:'연결',columns:['맵'],rows:[]};
+assert.ok(render(table).includes('조회된 항목이 없습니다.'));
+assert.ok(render({...table,emptyMessage:'등록된 연결이 없습니다.'}).includes('등록된 연결이 없습니다.'));
+for(const emptyMessage of [{},'   ',null])assert.ok(render({...table,emptyMessage}).includes('조회된 항목이 없습니다.'));
+assert.ok(!render({...table,rows:[['마을']],emptyMessage:'등록된 연결이 없습니다.'}).includes('등록된 연결이 없습니다.'));"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_thumbnail_retry_query_reaches_same_registered_image(self):
         import ast
         import io
@@ -53,9 +67,14 @@ class WorldMapStatusTests(unittest.TestCase):
             bundle=Path(directory)/'world.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'WorldMap.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
-const Thumbnail=require(process.argv[1]).WorldMapThumbnail;
+const {WorldMapThumbnail:Thumbnail,WorldMapMarker:Marker}=require(process.argv[1]);
 const render=failed=>server.renderToStaticMarkup(React.createElement('svg',null,React.createElement(Thumbnail,{src:'/image?retry=2',x:100,y:100,failed})));
-assert.match(render(false),/<image href="\\/image\\?retry=2"/);const failed=render(true);assert.match(failed,/미리보기 없음/);assert.doesNotMatch(failed,/<image/);"""
+assert.match(render(false),/<image href="\\/image\\?retry=2"/);const failed=render(true);assert.match(failed,/미리보기 없음/);assert.doesNotMatch(failed,/<image/);
+const node={id:'map-a',name:'마을',safeTown:true,thumbnail:{url:'/image'}};
+const marker=server.renderToStaticMarkup(React.createElement('svg',null,React.createElement(Marker,{node,label:'마을 · map-a',x:100,y:100,href:'#',selected:true,revision:0})));
+assert.ok(marker.includes('aria-label="마을 · map-a 선택"'));assert.ok(marker.includes('>map-a</text>'));assert.ok(marker.includes('aria-current="true"'));
+const id='123456789012345678901234',long=server.renderToStaticMarkup(React.createElement('svg',null,React.createElement(Marker,{node:{...node,id},label:'마을 · '+id,x:100,y:100,href:'#',revision:0})));
+assert.ok(long.includes('aria-label="마을 · '+id+' 선택"'));assert.ok(long.includes('>1234567890123456789…</text>'));"""
             subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
 
     def test_empty_result_remains_visible_during_retry_and_error(self):
@@ -67,7 +86,7 @@ assert.match(render(false),/<image href="\\/image\\?retry=2"/);const failed=rend
 const Status=require(process.argv[1]).WorldMapStatus;
 const render=props=>server.renderToStaticMarkup(React.createElement(Status,props));
 const base={loaded:true,mapCount:0,loading:false,error:''};
-assert.match(render(base),/등록된 맵이 없습니다/);
+assert.match(render(base),/등록된 맵이 없습니다[.] 맵을 등록한 뒤 원본을 다시 불러오세요/);
 for(const changes of [{loading:true},{error:'조회 실패'}]) {const text=render({...base,...changes});assert.match(text,/마지막으로 조회한 목록에 등록된 맵이 없습니다/);assert.match(text,/마지막 조회 결과/);}
 assert.doesNotMatch(render({...base,loaded:false,loading:true}),/등록된 맵이 없습니다/);
 assert.doesNotMatch(render({...base,mapCount:1}),/등록된 맵이 없습니다/);"""

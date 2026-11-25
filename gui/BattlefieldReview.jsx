@@ -3,23 +3,29 @@ import {untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {validBattlefieldState,battlefieldLoadFailed,sameBattlefieldState} from "./battlefieldState.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {choiceLabels} from "./choiceLabels.mjs";
 
 export function BattlefieldControls({state,controlsRef,selectRef,cameraReasonId,onSelect,onRetry,onSpawn,onCamera}){
   const failed=battlefieldLoadFailed(state);
+  const choices=choiceLabels(state.choices);
   return <div ref={controlsRef} className="battlefield-controls"><label className="battlefield-select">전투필드 선택<select ref={selectRef} value={state.field} onChange={event=>onSelect(event.target.value)}>
-    {state.choices.map(([name,id])=><option key={id} value={id}>{name}</option>)}</select></label>
+    {choices.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
     {!state.cameraReady && <p id={cameraReasonId}>{failed ? "전장 로드에 실패해 시점 조작을 사용할 수 없습니다. 다시 불러오거나 다른 전장을 선택하세요." : "전장 시점이 준비되면 표시와 확대를 조작할 수 있습니다."}</p>}
     {failed && <button type="button" onClick={onRetry}>현재 전장 다시 불러오기</button>}
     <fieldset disabled={!state.cameraReady} aria-describedby={!state.cameraReady ? cameraReasonId : undefined}><legend>전장 표시</legend>
       <label className="battlefield-checkbox"><input type="checkbox" checked={state.spawnRegionsVisible} onChange={event=>onSpawn(event.target.checked)}/>스폰지역 보기</label>
       <div className="ui-action-row" role="group" aria-label="전장 시점">
-        {[["zoom-out","축소"],["zoom-in","확대"],["reset","시점 복귀"]].map(([action,label])=><button key={action} onClick={()=>onCamera(action)}>{label}</button>)}
+        {[["zoom-out","축소"],["zoom-in","확대"],["reset","시점 복귀"]].map(([action,label])=><button key={action} type="button" onClick={()=>onCamera(action)}>{label}</button>)}
       </div>
-    </fieldset><p role={failed ? "alert" : "status"}>{state.status}</p></div>;
+    </fieldset><p role={failed ? "alert" : "status"}>{state.status.trim() || "전장 상태를 확인할 수 없습니다."}</p></div>;
 }
 
 export function BattlefieldError({error,cleanupFailed,retryRef,onRetry,href,defaultHref}){
   return <div><p role="alert">{error}{!cleanupFailed && " 재시도가 계속 실패하면 페이지를 다시 열어 주세요."}</p>{cleanupFailed ? <><a ref={retryRef} href={href}>전장 검수 페이지 다시 열기</a>{defaultHref && <> · <a href={defaultHref}>기본 전장으로 열기</a></>}</> : <button ref={retryRef} type="button" onClick={onRetry}>전장 검수 다시 불러오기</button>}</div>;
+}
+
+export function BattlefieldHost({hostRef,state,error}){
+  return <section ref={hostRef} hidden={Boolean(error)} aria-label="게임 전장 검수" aria-busy={!error && (!state || (!state.cameraReady && !battlefieldLoadFailed(state)))}/>;
 }
 
 export default function BattlefieldReview(){
@@ -98,6 +104,6 @@ export default function BattlefieldReview(){
       onRetry={event=>{const restore=document.activeElement===event.currentTarget;select(state.field);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,selectRef.current));}}
       onSpawn={visible=>{try{controller.current.setSpawnRegionsVisible(visible);refresh();}catch(problem){fail(problem);}}}
       onCamera={action=>{try{controller.current.adjustCamera(action);}catch(problem){fail(problem);}}}/>}
-    <section key={revision} ref={host} hidden={Boolean(error)} aria-label="게임 전장 검수"/>
+    <BattlefieldHost key={revision} hostRef={host} state={state} error={error}/>
   </article>;
 }
