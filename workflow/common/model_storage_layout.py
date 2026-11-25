@@ -23,12 +23,23 @@ def _resolve(root, old, new, *, default_new=False):
         if flattened.is_dir() and not any(path.is_symlink() for path in ancestors):
             return flattened
     if default_new and not modern.exists() and not modern.is_symlink() and not modern.parent.is_symlink():
+        if new.startswith('models/') and not modern.parent.exists():
+            return root / new.removeprefix('models/')
         return modern
     return legacy
 
 
 def resolve_hermes_model_directory(root):
-    return _resolve(root, 'hermes-agent', 'models/hermes-coding', default_new=True)
+    root = Path(root)
+    existing = _resolve(root, 'hermes-agent', 'models/hermes-coding')
+    named = root/'qwen3.8-27b-iq4-xs'
+    if named.is_symlink():
+        raise ValueError('Qwen 모델 경로에 심볼릭 링크를 사용할 수 없습니다.')
+    if existing.exists() or existing.is_symlink():
+        if named.exists():
+            raise ValueError('Qwen 모델이 이전 경로와 새 경로에 모두 존재합니다.')
+        return existing
+    return named
 
 
 def resolve_writer_embedding_directory(root):
@@ -43,7 +54,16 @@ def resolve_audio_model_directory(root, service):
     names = {'music-heartmula': 'heartmula', 'sfx-dasheng-audiogen': 'dasheng-audiogen'}
     if service not in names:
         return Path(root) / 'music' / service
-    return _resolve(root, 'music/' + service, 'models/audio/' + names[service], default_new=True)
+    metadata = Path(root).parent / '.local/audio-model-runtime' / names[service]
+    if metadata.is_dir() and not metadata.is_symlink():
+        return metadata
+    existing = _resolve(root, 'music/' + service, 'models/audio/' + names[service])
+    if existing.exists() or existing.is_symlink():
+        return existing
+    flattened = Path(root)/'audio'/names[service]
+    if flattened.exists() or flattened.is_symlink():
+        return flattened
+    return metadata
 
 
 def resolve_huggingface_cache(root):

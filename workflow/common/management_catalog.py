@@ -41,8 +41,6 @@ DEFAULT_PAGE_RECORDS=(
     {'id':'minimax-h3-ref2va-generator','label':'MiniMax H3 Ref2VA 영상 편집기','path':'/management/frame/minimax-h3-ref2va-generator/','category':'animation-tool','uiMode':'react','description':'원본 영상 + 편집 프롬프트 · Turbo 8스텝'},
     {'id':'minimax-h3-image-generator','label':'MiniMax H3 이미지 생성기','path':'/management/frame/minimax-h3-image-generator/','category':'image-generation','uiMode':'react','description':'INT8 · 텍스트 이미지 실험'},
     {'id':'wan22-i2v-generator','label':'Wan2.2 I2V 영상 생성기','path':'/management/frame/wan22-i2v-generator/','category':'animation-tool','uiMode':'react','description':'첫 이미지 + 프롬프트 · Lightning'},
-    {'id':'wan21-t2v-generator','label':'Wan 2.1 T2V 영상 생성기','path':REACT_REVIEW_PATHS['wan21-t2v-generator'],'category':'animation-tool','uiMode':'react','description':'1.3B · 텍스트 · 가속 및 KXSR LoRA 실험'},
-    {'id':'wan21-i2v-generator','label':'Wan 2.1 I2V 영상 생성기','path':REACT_REVIEW_PATHS['wan21-i2v-generator'],'category':'animation-tool','uiMode':'react','description':'14B 480p · 첫 이미지 · 가속 및 격투 LoRA 실험'},
     {'id':'wan22-animate2-generator','label':'Wan Animate-2 캐릭터 동작 전사','path':'/management/frame/wan22-animate2-generator/','category':'animation-tool','uiMode':'react','description':'RGB 동작 영상 + 캐릭터 참조 · 일관성 실험'},
     {'id':'dwpose-generator','label':'DWPose 이미지 추출','path':REACT_REVIEW_PATHS['dwpose-generator'],'category':'animation-tool','uiMode':'react','description':'단일 PNG · 포즈와 좌표 추출 · ROCm 대기열'},
     {'id':'wan22-fun-control-generator','label':'Wan Fun Control 영상 생성기','path':'/management/frame/wan22-fun-control-generator/','category':'animation-tool','uiMode':'react','description':'2.2 A14B·2.1 1.3B · 외형 참조+제어 영상'},

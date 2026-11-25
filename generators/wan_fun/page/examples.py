@@ -6,7 +6,7 @@ from workflow.common.strict_yaml import UniqueConfigLoader
 from generators.wan_fun.contracts import validate_fun_request
 
 FUN_EXAMPLE_STORAGE_ROOT = Path(__file__).resolve().parents[1] / 'examples'
-FUN_MODEL_CHOICES = [('Wan 2.2 A14B', 'wan22-14b'), ('Wan 2.1 1.3B', 'wan21-1.3b')]
+FUN_MODEL_CHOICES = [('Wan 2.2 A14B', 'wan22-14b')]
 
 def load_fun_example_catalog():
     current_catalog_record = yaml.load((FUN_EXAMPLE_STORAGE_ROOT / 'index.yaml').read_text(), Loader=UniqueConfigLoader)

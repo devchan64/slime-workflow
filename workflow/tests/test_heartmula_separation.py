@@ -11,6 +11,40 @@ from workflow.common.audio_results import render_audio_generation_result
 
 
 class HeartmulaSeparationTests(unittest.TestCase):
+    def test_heartcodec_uses_independent_directory_and_rejects_ambiguity(self):
+        from generators.music.heartmula.runtime import resolve_heartcodec_directory
+        from workflow.common.audio_model_download import resolve_audio_receipt_file
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / '.model' / 'audio' / 'heartmula'
+            old = root / 'bundle' / 'HeartCodec-oss'
+            old.mkdir(parents=True)
+            (old / 'config.json').write_text('{}')
+            self.assertEqual(resolve_heartcodec_directory(root), old)
+            new = root.parent.parent / 'heartcodec-oss'
+            old.rename(new)
+            self.assertEqual(resolve_heartcodec_directory(root), new)
+            self.assertEqual(resolve_audio_receipt_file('music-heartmula', root, 'bundle/HeartCodec-oss/config.json'), new/'config.json')
+            old.mkdir()
+            with self.assertRaisesRegex(ValueError, '두 위치'):
+                resolve_heartcodec_directory(root)
+
+    def test_demucs_location_supports_existing_and_separate_layout(self):
+        from generators.music.heartmula.separation import resolve_demucs_directory
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / 'audio' / 'heartmula'
+            old = root / 'demucs'
+            old.mkdir(parents=True)
+            new = root.parent / 'demucs'
+            self.assertEqual(resolve_demucs_directory(root), old)
+            old.rename(new)
+            self.assertEqual(resolve_demucs_directory(root), new)
+            top = root.parent.parent / 'demucs'
+            new.rename(top)
+            self.assertEqual(resolve_demucs_directory(root), top)
+            old.mkdir()
+            with self.assertRaisesRegex(ValueError, '두 위치'):
+                resolve_demucs_directory(root)
+
     def test_missing_checkpoint_fails_without_download(self):
         with tempfile.TemporaryDirectory() as current_temp_directory:
             with self.assertRaises(FileNotFoundError):

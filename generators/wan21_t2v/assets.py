@@ -25,4 +25,4 @@ def inspect_boss_lora(path=None):
         return False
 
 def prepare_assets():
-    prepare_files(DIRECTORY, FILES, 'wan21-t2v-assets')
+    raise ValueError('Wan 2.1 T2V 모델 준비 기능은 폐기되었습니다.')

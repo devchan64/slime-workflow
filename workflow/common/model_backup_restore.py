@@ -22,6 +22,16 @@ LEGACY_BACKUP_PREFIXES = {('models', 'flux-report-vision'): ('flux-report-vision
 # The flattened paths may need files from either earlier layout. These aliases
 # only select candidates; the caller's trusted digest still verifies all bytes.
 FLATTENED_BACKUP_PREFIXES = {
+    ('qwen3.8-27b-iq4-xs',): (('hermes-coding',), ('models', 'hermes-coding'), ('hermes-agent',)),
+    ('heartmula-oss-3b', 'generation'): (('audio', 'heartmula', 'bundle'), ('models', 'audio', 'heartmula', 'bundle'), ('music', 'music-heartmula', 'bundle')),
+    ('heartmula-oss-3b',): (('audio', 'heartmula', 'bundle', 'HeartMuLa-oss-3B'), ('models', 'audio', 'heartmula', 'bundle', 'HeartMuLa-oss-3B'), ('music', 'music-heartmula', 'bundle', 'HeartMuLa-oss-3B')),
+    ('heartcodec-oss',): (('audio', 'heartmula', 'bundle', 'HeartCodec-oss'), ('models', 'audio', 'heartmula', 'bundle', 'HeartCodec-oss'), ('music', 'music-heartmula', 'bundle', 'HeartCodec-oss')),
+    ('heartcodec-reference-encoder',): (('audio', 'heartmula', 'codec-reference-encoder'), ('models', 'audio', 'heartmula', 'codec-reference-encoder'), ('music', 'music-heartmula', 'codec-reference-encoder')),
+    ('dasheng-audiogen',): (('audio', 'dasheng-audiogen', 'model'), ('models', 'audio', 'dasheng-audiogen', 'model'), ('music', 'sfx-dasheng-audiogen', 'model')),
+    ('flan-t5-large',): (('audio', 'dasheng-audiogen', 'text-encoder'), ('models', 'audio', 'dasheng-audiogen', 'text-encoder'), ('music', 'sfx-dasheng-audiogen', 'text-encoder')),
+    ('dasheng-tokenizer',): (('audio', 'dasheng-audiogen', 'audio-tokenizer'), ('models', 'audio', 'dasheng-audiogen', 'audio-tokenizer'), ('music', 'sfx-dasheng-audiogen', 'audio-tokenizer')),
+    ('demucs',): (('audio', 'demucs'), ('audio', 'heartmula', 'demucs'), ('models', 'audio', 'heartmula', 'demucs'), ('music', 'music-heartmula', 'demucs')),
+    ('audio', 'demucs'): (('audio', 'heartmula', 'demucs'), ('models', 'audio', 'heartmula', 'demucs'), ('music', 'music-heartmula', 'demucs')),
     ('hermes-coding',): (('models', 'hermes-coding'), ('hermes-agent',)),
     ('qwen3-embedding-0.6b',): (('models', 'qwen3-embedding-0.6b'), ('writer-agent',)),
     ('translategemma-4b',): (('models', 'translategemma-4b'), ('prompt-translation',)),

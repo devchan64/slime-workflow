@@ -17,6 +17,35 @@ DASHENG_MODEL_REVISIONS = (
 DASHENG_GUIDANCE_SCALE = 5.0
 
 
+def resolve_effects_component(model_root, name):
+    model_root = Path(model_root)
+    names = {'model': 'dasheng-audiogen', 'text-encoder': 'flan-t5-large', 'audio-tokenizer': 'dasheng-tokenizer'}
+    if name not in names:
+        raise ValueError('지원하지 않는 Dasheng 구성 요소')
+    legacy = model_root/name
+    if model_root.parent.name in ('audio', 'audio-model-runtime'):
+        model_base = model_root.parent.parent if model_root.parent.name == 'audio' else model_root.parents[2]/'.model'
+        separate = model_base/names[name]
+        if separate.is_symlink() or (legacy.exists() and separate.exists()):
+            raise ValueError('Dasheng 모델 경로 충돌 또는 심볼릭 링크')
+        if separate.is_dir():
+            return separate
+        if model_root.parent.name == 'audio-model-runtime' and not legacy.exists():
+            return separate
+    return legacy
+
+
+def resolve_effects_file(model_root, relative):
+    relative = Path(relative)
+    if relative.is_absolute() or not relative.parts or '..' in relative.parts:
+        raise ValueError('효과음 모델 파일 경로 오류')
+    base = resolve_effects_component(model_root, relative.parts[0])
+    result = base.joinpath(*relative.parts[1:])
+    if result.is_symlink() or not result.resolve().is_relative_to(base.resolve()):
+        raise ValueError('효과음 모델 경로 이탈')
+    return result
+
+
 @lru_cache(maxsize=256)
 def calculate_cached_checksum(current_file_path,current_file_size,current_modified_time,current_changed_time):
     """파일 상태가 같은 동안 대용량 가중치의 반복 UI 해시 계산을 피한다."""
@@ -32,7 +61,7 @@ def require_effects_cuda():
 
 def configure_effects_cache(current_model_root):
     configure_music_cache(current_model_root)
-    os.environ['HF_MODULES_CACHE'] = str(current_model_root/'modules-cache')
+    os.environ['HF_MODULES_CACHE'] = str(current_model_root.parents[2]/'.cache/dasheng-modules' if current_model_root.parent.name == 'audio-model-runtime' else current_model_root/'modules-cache')
 
 
 def validate_effects_model(current_service_name):
@@ -47,8 +76,8 @@ def validate_effects_model(current_service_name):
     if not current_manifest_record['files']:
         raise ValueError('효과음 준비 파일 목록이 비어 있습니다.')
     for current_file_record in current_manifest_record['files']:
-        current_file_path = current_model_root/current_file_record['path']
-        if not current_file_path.resolve().is_relative_to(current_model_root.resolve()) or not current_file_path.is_file():
+        current_file_path = resolve_effects_file(current_model_root,current_file_record['path'])
+        if not current_file_path.is_file():
             raise ValueError('효과음 모델 파일 누락·경로 오류: '+str(current_file_path))
         current_file_status = current_file_path.stat()
         if calculate_cached_checksum(current_file_path,current_file_status.st_size,current_file_status.st_mtime_ns,current_file_status.st_ctime_ns) != current_file_record['sha256']:
@@ -79,13 +108,13 @@ def attach_effects_stage_progress(current_model_module,current_metrics_recorder=
 def load_effects_model(current_model_root,current_metrics_recorder=None):
     import torch
     from transformers import AutoConfig, AutoModel
-    current_model_path = current_model_root/'model'
+    current_model_path = resolve_effects_component(current_model_root,'model')
     current_model_config = AutoConfig.from_pretrained(str(current_model_path),trust_remote_code=True,local_files_only=True)
     if current_model_config.sample_rate != 16000 or current_model_config.text_encoder_name != 'google/flan-t5-large' or current_model_config.tokenizer_name != 'mispeech/dashengtokenizer':
         raise ValueError('Dasheng 고정 모델·종속 모델·샘플레이트 계약 오류')
     # 원본 config는 수정하지 않고 고정 revision으로 준비한 로컬 종속 모델만 지정한다.
-    current_model_config.text_encoder_name = str(current_model_root/'text-encoder')
-    current_model_config.tokenizer_name = str(current_model_root/'audio-tokenizer')
+    current_model_config.text_encoder_name = str(resolve_effects_component(current_model_root,'text-encoder'))
+    current_model_config.tokenizer_name = str(resolve_effects_component(current_model_root,'audio-tokenizer'))
     current_model_module = AutoModel.from_pretrained(str(current_model_path),config=current_model_config,trust_remote_code=True,local_files_only=True,torch_dtype=torch.bfloat16)
     current_model_module.eval().to(dtype=torch.bfloat16)
     # 공식 Vocos는 최종 ISTFT head에서 autocast를 끄고 FP32 입력을 사용한다.
@@ -110,14 +139,14 @@ def prepare_effects_model(current_service_name,current_metrics_recorder,current_
         current_metrics_recorder.update_generation_stage('download')
         current_file_records = []
         for current_repository_name,current_revision_value,current_directory_name in DASHENG_MODEL_REVISIONS:
-            current_resolved_path = Path(snapshot_download(repo_id=current_repository_name,revision=current_revision_value,local_dir=str(current_model_root/current_directory_name),allow_patterns=['*.json','*.py','*.safetensors','*.model','*.txt','README.md','LICENSE*']))
+            current_resolved_path = Path(snapshot_download(repo_id=current_repository_name,revision=current_revision_value,local_dir=str(resolve_effects_component(current_model_root,current_directory_name)),allow_patterns=['*.json','*.py','*.safetensors','*.model','*.txt','README.md','LICENSE*']))
             print(f'{datetime.now().isoformat()}/dasheng/download model_id={current_repository_name} model_path={current_resolved_path} revision={current_revision_value}',flush=True)
             for current_file_path in sorted(current_resolved_path.rglob('*')):
                 if not current_file_path.is_file() or '.cache' in current_file_path.parts:
                     continue
-                if not current_file_path.resolve().is_relative_to(current_model_root.resolve()):
+                if not current_file_path.resolve().is_relative_to(current_resolved_path.resolve()):
                     raise ValueError('모델 캐시 외부 참조 거절')
-                current_file_records.append({'path':str(current_file_path.relative_to(current_model_root)),'sha256':calculate_music_checksum(current_file_path)})
+                current_file_records.append({'path':str(Path(current_directory_name)/current_file_path.relative_to(current_resolved_path)),'sha256':calculate_music_checksum(current_file_path)})
         current_metrics_recorder.update_generation_stage('load')
         current_loaded_model = load_effects_model(current_model_root)
         del current_loaded_model

@@ -13,8 +13,9 @@ class Wan13ModelAssetsTests(unittest.TestCase):
         from workflow.common.model_preparation_controls import execute_wan13_model_command
         from workflow.common.model_download_progress import format_model_download_status
         with patch('workflow.common.management_client.execute_remote_management_command', return_value={'id': 'job'}) as current_gateway_mock:
-            execute_wan13_model_command('prepare', {'action': 'prepare'},current_gateway_mock)
-            current_gateway_mock.assert_called_once_with('wan22-fun-control', 'prepare', {'action': 'prepare', 'model_profile': 'wan21-1.3b'})
+            with self.assertRaisesRegex(ValueError, '폐기'):
+                execute_wan13_model_command('prepare', {'action': 'prepare'},current_gateway_mock)
+            current_gateway_mock.assert_not_called()
         current_progress_records = [{'model': wan13_model_assets.WAN13_REPOSITORY_NAME + '/diffusion_pytorch_model.safetensors', 'status': 'running', 'bytes': 50, 'total_bytes': 100}]
         self.assertIn('50.0%', format_model_download_status(current_progress_records, 'wan21-fun-1.3b'))
         self.assertNotIn('50.0%', format_model_download_status(current_progress_records, 'wan22-fun-control'))
@@ -23,8 +24,12 @@ class Wan13ModelAssetsTests(unittest.TestCase):
         from workflow.domains.wan_fun.generation import FunControlGenerationManager
         from workflow.common.management_gateway import resolve_management_command
         current_manager_instance = FunControlGenerationManager()
-        self.assertEqual(current_manager_instance.validate_generation_request({'action': 'prepare', 'model_profile': 'wan21-1.3b'})['model_profile'], 'wan21-1.3b')
-        resolve_management_command('wan22-fun-control', 'prepare', {'action': 'prepare', 'model_profile': 'wan21-1.3b'})
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            current_manager_instance.validate_generation_request({'action': 'prepare', 'model_profile': 'wan21-1.3b'})
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            resolve_management_command('wan22-fun-control', 'prepare', {'action': 'prepare', 'model_profile': 'wan21-1.3b'})
+        with self.assertRaisesRegex(ValueError, '폐기'):
+            current_manager_instance.validate_generation_runtime({'action': 'generate', 'model_profile': 'wan21-1.3b'})
         with self.assertRaises(ValueError):
             resolve_management_command('wan22-fun-control', 'prepare', {'action': 'prepare', 'model_profile': 'unknown'})
         with self.assertRaises(ValueError):
@@ -45,7 +50,7 @@ class Wan13ModelAssetsTests(unittest.TestCase):
         self.assertEqual(current_validated_record['model_profile'], 'wan21-1.3b')
         self.assertEqual(current_validated_record['tag'], 'wan21-fun-1.3b')
         from generators.wan_fun.page.examples import FUN_MODEL_CHOICES
-        self.assertEqual({item[1] for item in FUN_MODEL_CHOICES},{'wan21-1.3b','wan22-14b'})
+        self.assertEqual({item[1] for item in FUN_MODEL_CHOICES},{'wan22-14b'})
         with self.assertRaises(ValueError):
             validate_fun_request({**current_request_record, 'model_profile': 'unknown'})
 

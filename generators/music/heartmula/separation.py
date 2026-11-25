@@ -11,7 +11,7 @@ DEMUCS_CHECKPOINT_SHA256 = '8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459f
 
 
 def prepare_separation_model(current_model_root, current_download_requested):
-    current_checkpoint_root = current_model_root/'demucs'
+    current_checkpoint_root = resolve_demucs_directory(current_model_root)
     current_checkpoint_path = current_checkpoint_root/DEMUCS_CHECKPOINT_NAME
     if not current_checkpoint_path.is_file():
         if not current_download_requested:
@@ -24,6 +24,22 @@ def prepare_separation_model(current_model_root, current_download_requested):
     print(f'MR 분리 모델 준비 완료: {current_checkpoint_path}', flush=True)
     return {'model_id':'demucs/htdemucs', 'path':str(current_checkpoint_path), 'sha256':current_checkpoint_hash,
             'runtime_sha256':calculate_music_checksum(Path(__file__))}
+
+
+def resolve_demucs_directory(current_model_root):
+    """Use a separate audio model when present; preserve existing installs."""
+    current_model_root = Path(current_model_root)
+    legacy = current_model_root / 'demucs'
+    separate = current_model_root.parent / 'demucs'
+    top = (current_model_root.parent.parent / 'demucs' if current_model_root.parent.name == 'audio'
+           else current_model_root.parents[2] / '.model/demucs' if current_model_root.parent.name == 'audio-model-runtime' else separate)
+    candidates = tuple(dict.fromkeys((legacy, separate, top)))
+    if any(path.is_symlink() for path in candidates):
+        raise ValueError('Demucs 모델 경로에 심볼릭 링크를 사용할 수 없습니다.')
+    present = [path for path in candidates if path.exists()]
+    if len(present) > 1:
+        raise ValueError('Demucs 모델이 두 위치에 있어 자동 선택할 수 없습니다.')
+    return present[0] if present else top
 
 
 def separate_heartmula_audio(current_model_root, current_attempt_root, current_metrics_recorder):

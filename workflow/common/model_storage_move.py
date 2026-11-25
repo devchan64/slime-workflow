@@ -18,10 +18,19 @@ LAYOUTS = {'hermes-coding': ('hermes-agent', 'models/hermes-coding'),
            'heartmula': ('music/music-heartmula', 'models/audio/heartmula'),
            'dasheng-audiogen': ('music/sfx-dasheng-audiogen', 'models/audio/dasheng-audiogen'),
            'flatten-hermes-coding': ('models/hermes-coding', 'hermes-coding'),
+           'qwen-model-name': ('hermes-coding', 'qwen3.8-27b-iq4-xs'),
            'flatten-writer-embedding': ('models/qwen3-embedding-0.6b', 'qwen3-embedding-0.6b'),
            'flatten-translation': ('models/translategemma-4b', 'translategemma-4b'),
            'flatten-visual': ('models/flux-report-vision', 'flux-report-vision'),
            'flatten-audio': ('models/audio', 'audio'),
+           'audio-demucs': ('audio/heartmula/demucs', 'audio/demucs'),
+           'demucs-top': ('audio/demucs', 'demucs'),
+           'heartcodec-reference-top': ('audio/heartmula/codec-reference-encoder', 'heartcodec-reference-encoder'),
+           'heartcodec-top': ('audio/heartmula/bundle/HeartCodec-oss', 'heartcodec-oss'),
+           'heartmula-core-top': ('audio/heartmula/bundle/HeartMuLa-oss-3B', 'heartmula-oss-3b'),
+           'dasheng-core-top': ('audio/dasheng-audiogen/model', 'dasheng-audiogen'),
+           'flan-t5-top': ('audio/dasheng-audiogen/text-encoder', 'flan-t5-large'),
+           'dasheng-tokenizer-top': ('audio/dasheng-audiogen/audio-tokenizer', 'dasheng-tokenizer'),
            'minimax-hf-cache': ('huggingface', 'cache/huggingface'),
            'external-hf-cache': ('cache/huggingface', None)}
 
@@ -157,14 +166,15 @@ def move_verified_cache(root, journal, *, name='minimax-hf-cache'):
     return move_verified_storage(root, journal, name=name)
 
 
-def move_flattened_with_queue_guard(project_root, journal, *, name, validate):
+def move_flattened_with_queue_guard(project_root, journal, *, name, validate, allow_verified_hermes=False):
     """Move one prepared installation while queue and backup admission are held.
 
     The caller must also exclude independently launched readers and writers.
     Validation runs under the locks and must check the affected consumers.
     """
     if name not in {'flatten-hermes-coding', 'flatten-writer-embedding', 'flatten-translation',
-                    'flatten-visual', 'flatten-audio'} or not callable(validate):
+                    'flatten-visual', 'flatten-audio', 'audio-demucs', 'demucs-top', 'heartcodec-reference-top', 'heartcodec-top', 'qwen-model-name',
+                    'dasheng-core-top', 'flan-t5-top', 'dasheng-tokenizer-top', 'heartmula-core-top'} or not callable(validate):
         raise ValueError('이관 대상과 소비자 검증이 필요합니다.')
     project_root = Path(project_root)
     model_root = project_root / '.model'
@@ -177,8 +187,21 @@ def move_flattened_with_queue_guard(project_root, journal, *, name, validate):
     queue_fd = os.open(queue / 'execution.lock', os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK)
     with os.fdopen(queue_fd, 'r+') as queue_lock:
         fcntl.flock(queue_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        if any(active.iterdir()):
-            raise ValueError('GPU 작업 예약이 남아 있어 모델을 이동할 수 없습니다.')
+        reservations = list(active.iterdir())
+        if reservations:
+            if not allow_verified_hermes or name not in {'dasheng-core-top', 'flan-t5-top', 'dasheng-tokenizer-top', 'heartmula-core-top'}:
+                raise ValueError('GPU 작업 예약이 남아 있어 모델을 이동할 수 없습니다.')
+            from workflow.common.gpu_job_queue import open_verified_hermes_process_group
+            for reservation in reservations:
+                if reservation.is_symlink() or not reservation.is_file():
+                    raise ValueError('GPU 예약을 확인할 수 없습니다.')
+                record = json.loads(reservation.read_text())
+                if record.get('service') != 'hermes-agent' or record.get('cleanup_unverified'):
+                    raise ValueError('Hermes 외 GPU 작업 예약이 남아 있습니다.')
+                fd = open_verified_hermes_process_group(record)
+                if fd is None:
+                    raise ValueError('Hermes 예약의 실제 프로세스를 확인할 수 없습니다.')
+                os.close(fd)
         backup_fd = os.open(backup / 'worker.lock', os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK)
         with os.fdopen(backup_fd, 'r+') as backup_lock:
             fcntl.flock(backup_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

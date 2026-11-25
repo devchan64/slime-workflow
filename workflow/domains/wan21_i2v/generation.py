@@ -40,13 +40,7 @@ class Wan21I2VGenerationManager(ReferenceVideoGenerationManager):
     def select_generation_python(self,saved_request_record=None): return PYTHON
     def select_generation_service(self,saved_request_record=None): return 'wan21-i2v'
     def validate_generation_runtime(self,saved_request_record=None):
-        validate_runtime()
-        if saved_request_record and saved_request_record.get('action_lora') and saved_request_record.get('action_variant','fight') in ('attack_high','attack_low'):
-            from generators.wan21_i2v.attack_lora import FILES as attack_files
-            for relative,_,_,_,size,_ in attack_files:
-                path=DIRECTORY/relative
-                if path.is_symlink() or not path.is_file() or path.stat().st_size!=size:
-                    raise ValueError('공격 동작 LoRA 파일을 먼저 준비하세요.')
+        raise ValueError('Wan 2.1 I2V 실험 생성기는 폐기되었습니다.')
     def hold_generation_submission_guard(self):
         from contextlib import ExitStack
         from workflow.common.model_prepare_process import hold_registered_preparation_guard

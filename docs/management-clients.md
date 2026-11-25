@@ -1162,9 +1162,9 @@ MiniMax가 참조하는 Hugging Face 캐시는 프로젝트의 `.cache/huggingfa
 
 고정 SHA-256으로 검증할 수 있는 HTTP 및 지원 Hugging Face 다운로드는 등록된 백업과 완료된 스냅샷을 먼저 확인한다. 공급처 해시가 없는 파일이나 백업을 검증하지 못한 경우 기존 다운로드 경로를 사용한다. FLUX 준비 디렉터리는 최종 모델 경로에 대응하는 백업을 확인하며, Kimodo는 고정 SHA-256이 등록된 가중치를 네트워크 요청 전에 백업에서 확인한다.
 
-## Hermes 코딩 모델 다운로드
+## Qwen 모델 다운로드
 
-모델 관리의 **Hermes 코딩 모델 Qwen3.8 27B IQ4_XS**는 공개 GGUF 파일을 고정 리비전과 SHA-256으로 검증하여 `.model/models/hermes-coding/`에 저장한다. 이전 `.model/hermes-agent/` 경로도 호환된다. GUI와 CLI는 `hermes-model` 서비스의 `model-status`와 `prepare`를 공유한다. 상태 조회는 다운로드 당시 검증 기록과 현재 파일의 크기·수정 시각을 비교하며 매 조회마다 파일을 다시 해시하지 않는다. 실제 추론 작업자는 `verify_hermes_model_integrity`로 실행 직전 파일 해시를 다시 확인한다. 파일 준비는 Hermes 설치나 GPU 추론 검증을 뜻하지 않는다. 실패 시 `.local/model-preparation/hermes-model/worker.log`를 확인하고 다시 시도한다. 가중치는 Git에 등록하지 않는다.
+모델 관리의 **Qwen3.8 27B IQ4_XS**는 공개 GGUF 파일을 고정 리비전과 SHA-256으로 검증한다. 모델명 기준 경로는 `.model/qwen3.8-27b-iq4-xs/`이며 기존 `.model/hermes-coding/`, `.model/models/hermes-coding/`, `.model/hermes-agent/` 설치도 인식한다. Hermes와 작가 AI가 이 모델을 여러 업무에 함께 사용한다. GUI와 CLI는 기존 `hermes-model` 서비스의 `model-status`와 `prepare`를 공유한다. 상태 조회는 다운로드 당시 검증 기록과 현재 파일의 크기·수정 시각을 비교하며 매 조회마다 파일을 다시 해시하지 않는다. 실제 추론 작업자는 `verify_hermes_model_integrity`로 실행 직전 파일 해시를 다시 확인한다. 파일 준비는 Hermes 설치나 GPU 추론 검증을 뜻하지 않는다. 실패 시 `.local/model-preparation/hermes-model/worker.log`를 확인하고 다시 시도한다. 가중치는 Git에 등록하지 않는다.
 
 ## Hermes 격리 코딩 작업과 MCP
 

@@ -122,10 +122,10 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
         return 'wan-fun'
 
     def validate_generation_request(self, current_request_record):
+        if isinstance(current_request_record, dict) and current_request_record.get('model_profile') == 'wan21-1.3b':
+            raise ValueError('Wan 2.1 Fun Control 실험은 폐기되었습니다.')
         if current_request_record == {'action': 'prepare'}:
             return {'action': 'prepare', 'images': []}
-        if current_request_record == {'action': 'prepare', 'model_profile': 'wan21-1.3b'}:
-            return {'action': 'prepare', 'model_profile': 'wan21-1.3b', 'images': []}
         return super().validate_generation_request(current_request_record)
 
     def ensure_generation_request_available(self, current_request_record):
@@ -229,8 +229,7 @@ class FunControlGenerationManager(ReferenceVideoGenerationManager):
         if saved_request_record and saved_request_record.get('action') == 'prepare':
             return
         if saved_request_record and saved_request_record.get('model_profile') == 'wan21-1.3b':
-            from generators.wan_fun.wan13_model_assets import validate_wan13_generation_assets
-            validate_wan13_generation_assets()
+            raise ValueError('Wan 2.1 Fun Control 실험은 폐기되어 재개할 수 없습니다.')
         else:
             super().validate_generation_runtime(saved_request_record)
         if saved_request_record and ('driving_video' in saved_request_record or 'driving_video_file' in saved_request_record):

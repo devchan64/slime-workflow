@@ -14,6 +14,9 @@ def resolve_model_inventory_paths():
     from generators.kimodo.contracts import KIMODO_MODEL_ROOT
     from generators.kimodo.dwpose_runtime import FUN_POSE_MODEL_DIRECTORY
     from generators.music.contracts import resolve_music_paths
+    from generators.music.heartmula.runtime import resolve_heart_component, resolve_heart_bundle
+    from generators.music.heartmula.separation import resolve_demucs_directory
+    from generators.sound_effects.runtime import resolve_effects_component
     from generators.wan_animate2.contracts import ANIMATE_MODEL_DIRECTORY
     from generators.wan_animate2.lightx2v_assets import PATH as ANIMATE_LIGHTX2V_PATH
     from generators.wan_fun.contracts import FUN_MODEL_FILES, FUN_WORKSPACE_ROOT
@@ -52,8 +55,8 @@ def resolve_model_inventory_paths():
         'wan21-t2v-assets': [T2V21_DIRECTORY / entry[0] for entry in T2V21_FILES],
         'wan21-i2v-assets': [I2V21_DIRECTORY / entry[0] for entry in I2V21_FILES],
         'wan21-i2v-attack-lora': [I2V21_DIRECTORY / entry[0] for entry in I2V21_ATTACK_FILES],
-        'music-heartmula': [resolve_music_paths('music-heartmula')[1]],
-        'sfx-dasheng-audiogen': [resolve_music_paths('sfx-dasheng-audiogen')[1]],
+        'music-heartmula': [resolve_heart_component(resolve_music_paths('music-heartmula')[1], name) for name in ('HeartMuLa-oss-3B','HeartCodec-oss')] + [resolve_heart_bundle(resolve_music_paths('music-heartmula')[1]), resolve_demucs_directory(resolve_music_paths('music-heartmula')[1])],
+        'sfx-dasheng-audiogen': [resolve_effects_component(resolve_music_paths('sfx-dasheng-audiogen')[1], name) for name in ('model','text-encoder','audio-tokenizer')],
         'writer-agent': [embedding_model_directory(), current_hermes_model_directory()],
         'prompt-translation': [current_translation_model_root()],
         'hermes-model': [current_hermes_model_directory()],

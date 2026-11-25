@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 def main():
+    raise SystemExit('Wan 2.1 I2V 실험은 폐기되었습니다.')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--model', type=Path, required=True, help='Local Wan 2.1 I2V Diffusers model directory')
     parser.add_argument('--image', type=Path, required=True)

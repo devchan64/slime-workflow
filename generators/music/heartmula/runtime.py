@@ -16,6 +16,44 @@ HEARTMULA_DECODE_WINDOW_SECONDS = 7.44
 HEARTMULA_SAMPLING_SETTINGS = {'topk':50,'temperature':1.0,'cfg_scale':3.0}
 
 
+def resolve_heart_component(model_root, component):
+    model_root = Path(model_root)
+    names = {'HeartCodec-oss': 'heartcodec-oss', 'HeartMuLa-oss-3B': 'heartmula-oss-3b'}
+    if component not in names:
+        raise ValueError('지원하지 않는 HeartMuLa 구성 요소')
+    legacy = model_root/'bundle'/component
+    if model_root.parent.name in ('audio', 'audio-model-runtime'):
+        project_root = model_root.parent.parent if model_root.parent.name == 'audio' else model_root.parents[2]/'.model'
+        separate = project_root/names[component]
+        if legacy.exists() and separate.exists():
+            raise ValueError('모델이 두 위치에 있습니다.')
+        if separate.is_symlink():
+            raise ValueError('HeartCodec 모델 경로에 심볼릭 링크를 사용할 수 없습니다.')
+        if separate.is_dir():
+            return separate
+        if model_root.parent.name == 'audio-model-runtime' and not legacy.exists():
+            return separate
+    return legacy
+
+
+def resolve_heartcodec_directory(model_root):
+    return resolve_heart_component(model_root, 'HeartCodec-oss')
+
+
+def resolve_heart_bundle(model_root):
+    model_root = Path(model_root)
+    legacy = model_root/'bundle'
+    if model_root.parent.name == 'audio-model-runtime':
+        installed = model_root.parents[2]/'.model/heartmula-oss-3b/generation'
+        if legacy.exists() and installed.exists():
+            raise ValueError('HeartMuLa 설정이 두 위치에 있습니다.')
+        if installed.is_symlink():
+            raise ValueError('HeartMuLa 설정 경로에 심볼릭 링크를 사용할 수 없습니다.')
+        if installed.is_dir(): return installed
+        if not legacy.exists(): return installed
+    return legacy
+
+
 def sample_heartmula_finite_logits(current_logits_tensor, current_sampling_function, current_torch_module, *current_sampling_arguments, **current_sampling_keywords):
     if not bool(current_torch_module.isfinite(current_logits_tensor).all()):
         raise RuntimeError('HeartMuLa 생성 점수에 NaN 또는 무한대가 발생해 오염된 음악 생성을 중단했습니다.')
@@ -49,12 +87,15 @@ def validate_heartmula_artifacts(current_service_name):
     _,current_model_root,current_python_path = resolve_music_paths(current_service_name)
     if not current_python_path.is_file():
         raise FileNotFoundError(f'HeartMuLa 실행 환경 누락: {current_python_path}')
-    current_bundle_root = current_model_root/'bundle'
-    for current_relative_path in ('tokenizer.json','gen_config.json','HeartMuLa-oss-3B/config.json','HeartCodec-oss/config.json'):
+    current_bundle_root = resolve_heart_bundle(current_model_root)
+    for current_relative_path in ('tokenizer.json','gen_config.json'):
         if not (current_bundle_root/current_relative_path).is_file():
             raise FileNotFoundError(f'모델 파일 누락: {current_bundle_root/current_relative_path}')
     for current_model_name in ('HeartMuLa-oss-3B','HeartCodec-oss'):
-        current_index_path = current_bundle_root/current_model_name/'model.safetensors.index.json'
+        current_component = resolve_heart_component(current_model_root,current_model_name)
+        if not (current_component/'config.json').is_file():
+            raise FileNotFoundError(f'모델 파일 누락: {current_component}/config.json')
+        current_index_path = current_component/'model.safetensors.index.json'
         current_index_record = json.loads(current_index_path.read_text())
         for current_shard_name in set(current_index_record['weight_map'].values()):
             current_shard_path = current_index_path.parent/current_shard_name
@@ -78,12 +119,24 @@ def execute_heartmula_preparation(current_service_name,current_metrics_recorder,
     current_model_root = validate_heartmula_artifacts(current_service_name)
     current_metrics_recorder.update_generation_stage('prepare')
     current_manifest_path = current_model_root/'prepared.json'
-    current_model_files = sorted(current_model_root.glob('bundle/**/*.safetensors'))+sorted(current_model_root.glob('bundle/**/*.json'))
-    current_model_files = [current_model_path for current_model_path in current_model_files if '.cache' not in current_model_path.parts]
-    current_manifest_record = {'model_id':HEARTMULA_SOURCE_REVISIONS[1][0],'sources':HEARTMULA_SOURCE_REVISIONS,'library_revision':HEARTMULA_LIBRARY_REVISION,'runtime_sha256':calculate_music_checksum(Path(__file__)),'files':[{'path':str(current_model_path.relative_to(current_model_root)),'size':current_model_path.stat().st_size,'sha256':calculate_music_checksum(current_model_path)} for current_model_path in current_model_files]}
+    current_bundle_root = resolve_heart_bundle(current_model_root)
+    current_model_files = sorted(current_bundle_root.glob('**/*.safetensors'))+sorted(current_bundle_root.glob('**/*.json'))
+    current_codec_root = resolve_heartcodec_directory(current_model_root)
+    current_mula_root = resolve_heart_component(current_model_root,'HeartMuLa-oss-3B')
+    for current_component_root in (current_codec_root,current_mula_root):
+        if not current_component_root.is_relative_to(current_model_root):
+            current_model_files += sorted(current_component_root.glob('**/*.safetensors'))+sorted(current_component_root.glob('**/*.json'))
+    current_model_files = sorted({current_model_path for current_model_path in current_model_files if '.cache' not in current_model_path.parts})
+    def record_path(path):
+        if path.is_relative_to(current_model_root): return str(path.relative_to(current_model_root))
+        if path.is_relative_to(current_bundle_root): return str(Path('bundle')/path.relative_to(current_bundle_root))
+        for name, base in (('HeartCodec-oss',current_codec_root),('HeartMuLa-oss-3B',current_mula_root)):
+            if path.is_relative_to(base): return str(Path('bundle')/name/path.relative_to(base))
+        raise ValueError('HeartMuLa 모델 경로 이탈')
+    current_manifest_record = {'model_id':HEARTMULA_SOURCE_REVISIONS[1][0],'sources':HEARTMULA_SOURCE_REVISIONS,'library_revision':HEARTMULA_LIBRARY_REVISION,'runtime_sha256':calculate_music_checksum(Path(__file__)),'files':[{'path':record_path(current_model_path),'size':current_model_path.stat().st_size,'sha256':calculate_music_checksum(current_model_path)} for current_model_path in current_model_files]}
     current_manifest_record['separation'] = prepare_separation_model(current_model_root,current_download_requested)
     write_record_atomically(current_manifest_path,current_manifest_record)
-    print(f'HeartMuLa 모델 준비 완료: {current_model_root}/bundle',flush=True)
+    print(f'HeartMuLa 모델 준비 완료: {current_bundle_root}',flush=True)
     return current_manifest_record
 
 
@@ -122,7 +175,14 @@ def execute_heartmula_inference(current_service_name,current_request_record,curr
                 attach_cuda_guards(self._codec)
             return self._codec
 
-    current_music_pipeline = CudaSequentialPipeline.from_pretrained(str(current_model_root/'bundle'),device={'mula':torch.device('cuda:0'),'codec':torch.device('cuda:0')},dtype={'mula':torch.bfloat16,'codec':torch.float32},version='3B',lazy_load=True)
+    from tokenizers import Tokenizer
+    from heartlib.pipelines.music_generation import HeartMuLaGenConfig
+    current_bundle_root = resolve_heart_bundle(current_model_root)
+    current_music_pipeline = CudaSequentialPipeline(heartmula_path=str(resolve_heart_component(current_model_root,'HeartMuLa-oss-3B')),
+        heartcodec_path=str(resolve_heartcodec_directory(current_model_root)), heartmula_device=torch.device('cuda:0'),
+        heartcodec_device=torch.device('cuda:0'), heartmula_dtype=torch.bfloat16, heartcodec_dtype=torch.float32,
+        lazy_load=True, muq_mulan=None, text_tokenizer=Tokenizer.from_file(str(current_bundle_root/'tokenizer.json')),
+        config=HeartMuLaGenConfig.from_file(str(current_bundle_root/'gen_config.json')))
     current_lyrics_text = current_request_record['lyrics']
     current_tags_path = current_attempt_root/'tags.txt'
     current_lyrics_path = current_attempt_root/'lyrics.txt'

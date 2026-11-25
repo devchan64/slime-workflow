@@ -67,7 +67,7 @@ def model_metadata(model, *, config_path=None, service_paths=None):
             else:
                 manifest = None
         if manifest is None:
-            if model in ('hermes-agent', 'catalog-hermes-coding'):
+            if model in ('hermes-agent', 'hermes-coding', 'qwen3.8-27b-iq4-xs', 'catalog-hermes-coding'):
                 from workflow.common.hermes_model_download import HERMES_MODEL_FILENAME
                 ready = folder / 'ready.sha256'
                 try:

@@ -203,6 +203,10 @@ MANAGEMENT_SERVICE_COMMANDS['minimax-h3-i2v'] += ('prioritize',)
 
 def inspect_management_policy_rejection(service_command_name, operation_command_name):
     """게이트웨이의 명시적 차단 사유만 반환하며 서비스의 실행 가능성을 판정하지 않는다."""
+    if service_command_name in ('wan21-t2v', 'wan21-i2v') and operation_command_name in ('generate', 'queue', 'prepare', 'resume', 'prioritize'):
+        return 'Wan 2.1 실험 생성기는 폐기되어 새 생성과 재개를 지원하지 않습니다.'
+    if service_command_name in ('wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora') and operation_command_name == 'prepare':
+        return 'Wan 2.1 모델 준비 기능은 폐기되었습니다.'
     if service_command_name=='map-assets' and operation_command_name=='database-restore':
         return '폐기된 파일 스냅샷 복구는 지원하지 않습니다. 에셋 원본과 현재 콘텐츠 DB 상태를 확인하세요.'
     if service_command_name in RETIRED_AUDIO_SERVICE_NAMES and operation_command_name == 'prepare':
@@ -242,6 +246,8 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('지원하지 않는 관리 명령')
     if not isinstance(command_payload_value,dict):
         raise ValueError('명령 입력은 JSON 객체여야 합니다.')
+    if service_command_name == 'wan22-fun-control' and operation_command_name in ('generate', 'prepare', 'queue') and command_payload_value.get('model_profile') == 'wan21-1.3b':
+        raise ValueError('Wan 2.1 Fun Control은 폐기되어 새 생성과 모델 준비를 지원하지 않습니다.')
     if service_command_name == 'kimodo' and operation_command_name == 'active-observe' and command_payload_value:
         raise ValueError('Kimodo 기록 관측은 입력을 받지 않습니다.')
     if operation_command_name in ('migraphx-build', 'migraphx-build-status', 'migraphx-build-observe') and command_payload_value:

@@ -78,13 +78,26 @@ class ModelStorageLayoutTest(unittest.TestCase):
             resolve_translation_model_directory, resolve_audio_model_directory)
         with TemporaryDirectory() as directory:
             root = Path(directory) / '.model'
-            self.assertEqual(resolve_hermes_model_directory(root), root / 'models/hermes-coding')
-            self.assertEqual(resolve_writer_embedding_directory(root), root / 'models/qwen3-embedding-0.6b')
-            self.assertEqual(resolve_translation_model_directory(root), root / 'models/translategemma-4b')
-            self.assertEqual(resolve_audio_model_directory(root, 'music-heartmula'), root / 'models/audio/heartmula')
-            self.assertEqual(resolve_audio_model_directory(root, 'sfx-dasheng-audiogen'), root / 'models/audio/dasheng-audiogen')
+            self.assertEqual(resolve_hermes_model_directory(root), root / 'qwen3.8-27b-iq4-xs')
+            self.assertEqual(resolve_writer_embedding_directory(root), root / 'qwen3-embedding-0.6b')
+            self.assertEqual(resolve_translation_model_directory(root), root / 'translategemma-4b')
+            self.assertEqual(resolve_audio_model_directory(root, 'music-heartmula'), root.parent / '.local/audio-model-runtime/heartmula')
+            self.assertEqual(resolve_audio_model_directory(root, 'sfx-dasheng-audiogen'), root.parent / '.local/audio-model-runtime/dasheng-audiogen')
             (root / 'prompt-translation').mkdir(parents=True)
             self.assertEqual(resolve_translation_model_directory(root), root / 'prompt-translation')
+
+    def test_qwen_path_preferred_after_move_and_conflict_rejected(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)/'.model'
+            old = root/'hermes-coding'
+            old.mkdir(parents=True)
+            self.assertEqual(resolve_hermes_model_directory(root), old)
+            new = root/'qwen3.8-27b-iq4-xs'
+            old.rename(new)
+            self.assertEqual(resolve_hermes_model_directory(root), new)
+            old.mkdir()
+            with self.assertRaises(ValueError):
+                resolve_hermes_model_directory(root)
 
     def test_audio_manager_observes_directory_move(self):
         from unittest.mock import patch

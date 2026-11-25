@@ -31,6 +31,13 @@ class Wan21VideoContractsTest(unittest.TestCase):
         with self.assertRaises(ValueError): validate_request(data,'t2v')
 
 class Wan21ServiceIsolationTest(unittest.TestCase):
+    def test_retired_asset_preparations_do_not_start_downloads(self):
+        from generators.wan21_t2v import assets as t2v
+        from generators.wan21_i2v import assets as i2v, attack_lora
+        for module in (t2v, i2v, attack_lora):
+            with self.subTest(module=module.__name__), self.assertRaisesRegex(ValueError, '폐기'):
+                module.prepare_assets()
+
     def test_services_use_distinct_storage_and_execution_paths(self):
         from workflow.domains.wan21_t2v.generation import Wan21T2VGenerationManager
         from workflow.domains.wan21_i2v.generation import Wan21I2VGenerationManager
@@ -47,7 +54,7 @@ class Wan21ServiceIsolationTest(unittest.TestCase):
         from workflow.domains.wan21_t2v import generation
         manager=generation.Wan21T2VGenerationManager()
         with patch.object(generation,'validate_runtime'), patch.object(generation,'BOSS_LORA',Path('/nonexistent/kxsr.safetensors')):
-            with self.assertRaisesRegex(ValueError,'KXSR'):
+            with self.assertRaisesRegex(ValueError,'폐기'):
                 manager.validate_generation_runtime({'action_lora':True})
 
     def test_attack_adapter_must_be_present_before_submission(self):
@@ -56,9 +63,10 @@ class Wan21ServiceIsolationTest(unittest.TestCase):
         from workflow.domains.wan21_i2v import generation
         manager=generation.Wan21I2VGenerationManager()
         with patch.object(generation,'validate_runtime'), patch.object(generation,'DIRECTORY',Path('/nonexistent/wan21-i2v')):
-            with self.assertRaisesRegex(ValueError,'공격 동작 LoRA'):
+            with self.assertRaisesRegex(ValueError,'폐기'):
                 manager.validate_generation_runtime({'action_lora':True,'action_variant':'attack_high'})
-            manager.validate_generation_runtime({'action_lora':False,'action_variant':'attack_high'})
+            with self.assertRaisesRegex(ValueError,'폐기'):
+                manager.validate_generation_runtime({'action_lora':False,'action_variant':'attack_high'})
 
 
 class Wan21QueueIntegrationTest(unittest.TestCase):
@@ -73,7 +81,9 @@ class Wan21QueueIntegrationTest(unittest.TestCase):
             self.assertIn(service,GPU_EXCLUSIVE_SERVICES)
             payload=request()
             if mode=='i2v': payload['images']=['base64-input']
-            self.assertEqual(resolve_management_command(service,'generate',payload),('POST','/'+service+'/jobs'))
+            with self.assertRaisesRegex(ValueError,'폐기'):
+                resolve_management_command(service,'generate',payload)
+            self.assertEqual(resolve_management_command(service,'history',{}),('GET','/'+service+'/history'))
             with tempfile.TemporaryDirectory() as root:
                 path=Path(root)/'.tmp/test'/service/'2026-11-23_00-00-00-12345678'; path.mkdir(parents=True)
                 self.assertEqual(identify_dedicated_gpu_reservation_source(str(path),service,root),service)

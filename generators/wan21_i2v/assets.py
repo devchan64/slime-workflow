@@ -15,4 +15,4 @@ def inspect_assets():
     return inspect_files(DIRECTORY, FILES)
 
 def prepare_assets():
-    prepare_files(DIRECTORY, FILES, 'wan21-i2v-assets')
+    raise ValueError('Wan 2.1 I2V 모델 준비 기능은 폐기되었습니다.')

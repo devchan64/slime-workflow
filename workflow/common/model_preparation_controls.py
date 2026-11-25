@@ -42,7 +42,7 @@ def execute_model_preparation_command(current_service_name, current_command_name
 def execute_wan13_model_command(current_command_name, current_payload_record, execute_remote_management_command):
     """1.3B 다운로드는 기존 Fun Control 준비 대기열을 공유한다."""
     if current_command_name == 'prepare':
-        return execute_remote_management_command('wan22-fun-control', 'prepare', {'action': 'prepare', 'model_profile': 'wan21-1.3b'})
+        raise ValueError('Wan 2.1 Fun Control 모델 준비 기능은 폐기되었습니다.')
     if current_command_name != 'model-status':
         raise ValueError('지원하지 않는 1.3B 모델 명령입니다.')
     from generators.wan_fun.wan13_model_assets import inspect_wan13_model_files
@@ -54,4 +54,4 @@ def execute_wan13_model_command(current_command_name, current_payload_record, ex
     current_prepare_state = current_active_records[0]['status']['status'] if current_active_records else 'idle'
     return {'ready': current_file_record['ready'], 'preparation_status': current_prepare_state,
             'message': '1.3B 모델·참조 인코더 해시 검증 완료' if current_file_record['ready'] else '1.3B 모델·참조 인코더 준비 필요',
-            'can_prepare': not bool(current_active_records)}
+            'can_prepare': False}

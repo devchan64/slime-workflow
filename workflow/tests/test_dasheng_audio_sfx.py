@@ -28,6 +28,25 @@ class DashengAudioCleanupTests(MusicManagementAuditTests):
 
 
 class DashengAudioEffectsTests(unittest.TestCase):
+    def test_independent_components_keep_receipt_paths_and_reject_conflicts(self):
+        from generators.sound_effects.runtime import resolve_effects_component, resolve_effects_file
+        from workflow.common.audio_model_download import resolve_audio_receipt_file
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)/'.model/audio/dasheng-audiogen'
+            old = root/'text-encoder'
+            old.mkdir(parents=True)
+            (old/'weights').write_bytes(b'model')
+            new = root.parent.parent/'flan-t5-large'
+            old.rename(new)
+            self.assertEqual(resolve_effects_component(root, 'text-encoder'), new)
+            self.assertEqual(resolve_effects_file(root, 'text-encoder/weights'), new/'weights')
+            self.assertEqual(resolve_audio_receipt_file('sfx-dasheng-audiogen', root, 'text-encoder/weights'), new/'weights')
+            with self.assertRaises(ValueError):
+                resolve_effects_file(root, 'text-encoder/../weights')
+            old.mkdir()
+            with self.assertRaises(ValueError):
+                resolve_effects_component(root, 'text-encoder')
+
     def test_checksum_cache_revalidates_changed_files(self):
         from generators.sound_effects.runtime import calculate_cached_checksum
         calculate_cached_checksum.cache_clear()

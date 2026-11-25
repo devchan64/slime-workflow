@@ -1,4 +1,4 @@
-"""Hermes 구동 시험용 고정 모델 파일을 준비한다."""
+"""Hermes와 작가 AI가 공유하는 고정 Qwen 모델을 준비한다."""
 import hashlib
 import json
 from pathlib import Path

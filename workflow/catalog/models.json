@@ -53,14 +53,14 @@
       "id": "hermes-coding",
       "label": "Qwen3.8 27B IQ4_XS",
       "kind": "model",
-      "path": "hermes-agent",
+      "path": "qwen3.8-27b-iq4-xs",
       "services": [
         "hermes-model",
         "writer-agent"
       ],
       "source": "bartowski/Qwen3.8-27B-GGUF",
       "revision": "87410e7b9a5c21e6ca70c0c9cc5237de909fe621",
-      "usage_note": "Qwen3.8 27B의 IQ4_XS GGUF 변환본을 Hermes와 작가 AI가 생성에 사용한다. hermes-coding은 현재 설치 디렉터리의 이름이다."
+      "usage_note": "Qwen3.8 27B의 IQ4_XS GGUF 변환본을 Hermes와 작가 AI가 다양한 업무에 사용한다."
     },
     {
       "id": "animationgpt",
@@ -195,7 +195,8 @@
         "wan21-fun-1.3b"
       ],
       "source": null,
-      "revision": null
+      "revision": null,
+      "usage_note": "Wan 2.1 Fun Control 실험은 폐기되었다. 전용 모델 파일은 정리했으며 기존 이력은 보존한다."
     },
     {
       "id": "wan21-i2v-assets",
@@ -207,7 +208,8 @@
         "wan21-i2v-attack-lora"
       ],
       "source": null,
-      "revision": null
+      "revision": null,
+      "usage_note": "Wan 2.1 I2V 및 LoRA 실험은 폐기되었다. 전용 모델 파일은 정리했으며 기존 이력은 보존한다."
     },
     {
       "id": "wan21-t2v-assets",
@@ -218,7 +220,8 @@
         "wan21-t2v-assets"
       ],
       "source": null,
-      "revision": null
+      "revision": null,
+      "usage_note": "Wan 2.1 T2V 및 LoRA 실험은 폐기되었다. 전용 모델 파일은 정리했으며 기존 이력은 보존한다."
     },
     {
       "id": "wan-animate-components",
@@ -310,6 +313,76 @@
       ],
       "source": "mispeech/Dasheng-AudioGen",
       "revision": "e269f58e700d627b67600cbced86316c6585eae3"
+    },
+    {
+      "id": "heartmula-bundle",
+      "label": "HeartMuLa OSS 3B",
+      "kind": "model",
+      "path": "heartmula-oss-3b",
+      "services": ["music-heartmula"],
+      "source": "HeartMuLa/HeartMuLa-oss-3B-happy-new-year",
+      "revision": "41f6fc68490e11dc43fdabaa6b5767946408c903",
+      "usage_note": "음악 생성 모델이다. 토크나이저와 생성 설정은 generation 하위 폴더에 있다."
+    },
+    {
+      "id": "heartcodec-oss",
+      "label": "HeartCodec OSS",
+      "kind": "model",
+      "path": "heartcodec-oss",
+      "services": ["music-heartmula"],
+      "source": "HeartMuLa/HeartCodec-oss-20260123",
+      "revision": "f889dab0532cfa4bf459f2a3367eb6d346b8eeda",
+      "usage_note": "HeartMuLa 음악 생성의 오디오 디코더다."
+    },
+    {
+      "id": "heartmula-demucs",
+      "label": "Demucs 반주 분리 가중치",
+      "kind": "model",
+      "path": "demucs",
+      "services": ["music-heartmula"],
+      "source": "demucs/htdemucs",
+      "revision": null,
+      "usage_note": "HeartMuLa 생성 후 보컬과 반주 분리에 사용한다."
+    },
+    {
+      "id": "heartmula-reference-encoder",
+      "label": "HeartCodec 참조 인코더 파일",
+      "kind": "collection",
+      "path": "heartcodec-reference-encoder",
+      "services": [],
+      "source": null,
+      "revision": null,
+      "usage_note": "현재 저장소에서 소비 경로가 확인되지 않았으며 모델별 경로에 보존한다. 사용하지 않는다는 뜻은 아니다."
+    },
+    {
+      "id": "dasheng-core",
+      "label": "Dasheng AudioGen 본체",
+      "kind": "model",
+      "path": "dasheng-audiogen",
+      "services": ["sfx-dasheng-audiogen"],
+      "source": "mispeech/Dasheng-AudioGen",
+      "revision": "e269f58e700d627b67600cbced86316c6585eae3",
+      "usage_note": "Dasheng 효과음 생성의 본체 가중치와 로컬 모델 코드다."
+    },
+    {
+      "id": "dasheng-text-encoder",
+      "label": "Dasheng 텍스트 인코더 FLAN-T5",
+      "kind": "model",
+      "path": "flan-t5-large",
+      "services": ["sfx-dasheng-audiogen"],
+      "source": "google/flan-t5-large",
+      "revision": "0613663d0d48ea86ba8cb3d7a44f0f65dc596a2a",
+      "usage_note": "Dasheng 효과음 생성의 텍스트 조건 인코더다."
+    },
+    {
+      "id": "dasheng-audio-tokenizer",
+      "label": "Dasheng 오디오 토크나이저",
+      "kind": "model",
+      "path": "dasheng-tokenizer",
+      "services": ["sfx-dasheng-audiogen"],
+      "source": "mispeech/dashengtokenizer",
+      "revision": "46a0902499644aaf63bc7ba18698eea04ef160f9",
+      "usage_note": "Dasheng 효과음 생성에 필요한 토크나이저다."
     },
     {
       "id": "animationgpt-author",

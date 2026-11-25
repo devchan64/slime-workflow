@@ -33,6 +33,7 @@ def parse_args():
 
 
 def main():
+    raise SystemExit('Wan 2.1 T2V 실험은 폐기되었습니다.')
     args = parse_args()
     import torch
     from diffusers import AutoencoderKLWan, FlowMatchEulerDiscreteScheduler, WanPipeline

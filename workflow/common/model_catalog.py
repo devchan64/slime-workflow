@@ -3,6 +3,7 @@ import json
 import posixpath
 from pathlib import Path, PurePosixPath
 import re
+import stat
 
 CATALOG = Path(__file__).resolve().parents[1] / 'catalog' / 'models.json'
 DEFAULT_MODEL_ROOT = Path(__file__).resolve().parents[2] / '.model'
@@ -183,6 +184,19 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
     partial_roots = set()
     for item in catalog['components']:
         state = observed.get(item['path'])
+        if state is None and survey_root is not None and item['path'].startswith('audio/'):
+            from workflow.common.model_backup_targets import target_path
+            try:
+                nested_path = target_path(survey_root, tuple(item['path'].split('/')))
+                try:
+                    local_present = stat.S_ISDIR(nested_path.lstat().st_mode)
+                except FileNotFoundError:
+                    local_present = False
+                state = {'name': item['path'], 'local_present': local_present,
+                         'backup_present': None, 'snapshot_present': None}
+            except (OSError, ValueError):
+                state = {'name': item['path'], 'local_present': None,
+                         'backup_present': None, 'snapshot_present': None}
         install = None
         if include_manifests and state and state.get('local_present') is True and '/' not in item['path']:
             try:

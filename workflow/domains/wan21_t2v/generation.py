@@ -32,9 +32,7 @@ class Wan21T2VGenerationManager(ReferenceVideoGenerationManager):
     def __init__(self):
         super().__init__('/wan21-t2v',JOB_STORAGE,'generators/wan21_t2v/worker.py',lambda request:validate_request(request,'t2v'),validate_runtime,inspect_runtime)
     def validate_generation_runtime(self,saved_request_record=None):
-        validate_runtime()
-        if saved_request_record and saved_request_record.get('action_lora') and not inspect_boss_lora(BOSS_LORA):
-            raise ValueError('KXSR 1.3B LoRA 파일이 없거나 SHA-256이 일치하지 않습니다.')
+        raise ValueError('Wan 2.1 T2V 실험 생성기는 폐기되었습니다.')
     def select_generation_python(self,saved_request_record=None): return PYTHON
     def select_generation_service(self,saved_request_record=None): return 'wan21-t2v'
     def hold_generation_submission_guard(self):
