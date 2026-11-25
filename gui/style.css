@@ -1135,13 +1135,18 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 
 .conversation-job-footer {display:flex;align-items:center;flex-wrap:wrap;gap:.5rem 1rem;margin-top:.65rem}
 .conversation-job-footer .conversation-job-identity {
-  display:inline-flex;align-items:center;flex-wrap:wrap;gap:.4rem;
-  max-width:100%;min-width:0;box-sizing:border-box;padding:.2rem .35rem .2rem .6rem;
+  display:inline-flex;align-items:stretch;max-width:100%;min-width:0;box-sizing:border-box;
   background:var(--surface);border:1px solid var(--line);border-radius:.6rem;font-size:.85rem;
 }
-.conversation-job-identity > span:first-child {font-weight:600}
-.conversation-job-identity .message-copy {margin:0;max-width:100%}
-.conversation-job-identity a {overflow-wrap:anywhere}
+.conversation-job-identity > span:first-child,
+.conversation-job-identity > a {display:flex;align-items:center;padding:.35rem .55rem}
+.conversation-job-identity > span:first-child {font-weight:600;white-space:nowrap}
+.conversation-job-identity > a {min-width:0;overflow-wrap:anywhere;border-inline-start:1px solid var(--line)}
+.conversation-job-identity .message-copy {margin:0;border-inline-start:1px solid var(--line)}
+.conversation-job-identity .clipboard-copy-button {align-self:stretch;border:0;border-radius:0 .55rem .55rem 0;background:transparent}
+.conversation-job-identity .clipboard-copy-button:hover {background:var(--line)}
+.conversation-job-identity :focus-visible {outline-offset:-3px}
+.conversation-job-identity:has(.message-copy [role=status]:not(:empty)) {flex-wrap:wrap}
 .conversation-job-footer .conversation-stop-job {margin-inline-start:auto}
 .conversation-job-footer .conversation-stop-job:has([role="group"]) {flex-basis:100%}
 
@@ -1155,3 +1160,5 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .minimax-snapshot dd {margin:0}
 .minimax-snapshot dt:first-child,.minimax-snapshot dd:nth-child(2) {grid-column:1/-1}
 .minimax-snapshot dd:nth-child(2) {white-space:pre-wrap;margin-bottom:.5rem}
+
+.assistant-markdown .saved-form-link {text-decoration:underline;text-underline-offset:.2em;color:var(--accent);margin-top:.4rem}

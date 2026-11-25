@@ -413,11 +413,15 @@ function linkMiniMaxImageJobs() {
   };
 }
 function AssistantText({text}){
+  const actions=React.useContext(ProposalActions);
+  const marker=/(?:^|\n)접수폼 열기 · ([a-f0-9]{32})\s*$/.exec(text);
   return <div className="assistant-markdown"><Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[linkMiniMaxImageJobs,markChatThumbnails]} skipHtml components={{
     a:ChatResultLink,
     table:MarkdownTable,
     img:({alt})=><span>{alt || "이미지"}</span>,
-  }}>{text}</Markdown></div>;
+  }}>{marker ? text.slice(0,marker.index) : text}</Markdown>
+    {marker && <button type="button" className="saved-form-link" aria-controls="hermes-side-panel" onClick={()=>actions.openMinimaxForm(marker[1])}>접수폼 보기</button>}
+  </div>;
 }
 function ActivityOutput({output}){
   const [mode,setMode]=useState("formatted");
@@ -860,17 +864,6 @@ function App() {
     setShowTools(false);setShowGpu(false);setQueue(null);setShowKimodo(false);setShowFunControl(false);
     setGeneratorPanel({id:"saved-form",label:"생성 접수폼",formId,session});
   }
-  const lastFormReply=useRef(null);
-  useEffect(()=>{
-    if(view.id!==session || view.offset>0 || historyPage)return;
-    const latest=view.messages?.at(-1);
-    const completed=latest?.job?.status?.status==="completed";
-    const previous=lastFormReply.current;
-    lastFormReply.current={session,id:latest?.job_id,completed};
-    if(!previous || previous.session!==session || !completed || (previous.id===latest.job_id && previous.completed))return;
-    const target=/^접수폼 열기 · ([a-f0-9]{32})$/m.exec(latest.job.final_response || "");
-    if(target)openMinimaxForm(target[1]);
-  },[session,view,historyPage]);
   function closeQueue(){setQueue(null);queueToggle.current?.focus();}
   function openKimodo(inputs=null) {
     if(showTools)closeTools();
