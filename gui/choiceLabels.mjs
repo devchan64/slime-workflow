@@ -2,5 +2,12 @@
 export function choiceLabels(choices){
   const counts=new Map();
   for(const [name] of choices)counts.set(name,(counts.get(name) || 0)+1);
-  return choices.map(([name,id])=>[id,counts.get(name)>1 ? `${name} · ${id}` : name]);
+  const used=new Set();
+  return choices.map(([name,id])=>{
+    const base=counts.get(name)>1 ? `${name} · ${id}` : name;
+    let label=base,number=2;
+    while(used.has(label))label=`${base} · ${number++}`;
+    used.add(label);
+    return [id,label];
+  });
 }

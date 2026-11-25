@@ -24,6 +24,10 @@ export function MapReviewNavigation({field,destination,onNavigate,saving,cellDir
   return <nav aria-label="지도 검수 이동"><a href={destination(field?"town":"field")} onClick={onNavigate} aria-describedby={help}>{field?"도시맵":"야외필드"} 검수</a> · <a href={destination("battle")} onClick={onNavigate} aria-describedby={help}>전투필드 검수</a></nav>;
 }
 
+export function mapSelectionReasons({draft,field,reading,saving}){
+  return [draft && "map-change-reason",field && reading && (saving ? "map-saving-status" : "map-reading-status")].filter(Boolean).join(" ") || undefined;
+}
+
 export default function MapReview(){
   const field=location.pathname.replace(/\/$/,"").endsWith("/field-map");
   const title=field?"야외필드":"도시맵";
@@ -67,6 +71,7 @@ export default function MapReview(){
   }
   async function importDraft(file,focused=false){
     if(!file || importRequest.current || readRequest.current || savingRef.current)return;
+    if(window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setImportError("대기 중인 브러시 편집을 먼저 처리한 뒤 파일을 다시 선택하세요.");return;}
     restoreImportFocus.current=focused;
     const controller=new AbortController();importRequest.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
@@ -85,6 +90,8 @@ export default function MapReview(){
     finally{clearTimeout(timeout);if(importRequest.current===controller)importRequest.current=null;if(!controller.signal.aborted || timedOut)setReading(false);}
   }
   async function discardDraft(){
+    if(readRequest.current || importRequest.current || savingRef.current)return;
+    if(window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("대기 중인 브러시 편집을 먼저 처리하세요.");return;}
     if(!window.confirm("현재 지도의 미저장 초안과 편집 이력을 버릴까요?"))return;
     setReading(true);
     try{
@@ -156,6 +163,8 @@ export default function MapReview(){
     await applyDraft(next,"cell");
   }
   async function applyDraft(next,action){
+    if(readRequest.current || savingRef.current || (importRequest.current && action!=="import"))return;
+    if(action!=="brush" && (window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length)){setFeedback("대기 중인 브러시 편집을 먼저 처리하세요. 셀 입력이 변경됐다면 취소한 뒤 다시 시도하세요.");return;}
     if(cellDirty && action!=="cell"){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}
     setReading(true);setPreview(null);setFeedback("");
     try{
@@ -177,7 +186,8 @@ export default function MapReview(){
     finally{setReading(false);}
   }
   async function save(event){
-    if(savingRef.current || mapDraftSaveReason(preview))return;
+    if(savingRef.current || readRequest.current || importRequest.current || mapDraftSaveReason(preview))return;
+    if(window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("대기 중인 브러시 편집을 먼저 처리하세요.");return;}
     restorePreviewFocus.current=Boolean(event && event.currentTarget===document.activeElement);
     savingRef.current=true;
     const controller=new AbortController();let timedOut=false;
@@ -193,7 +203,7 @@ export default function MapReview(){
     finally{clearTimeout(timeout);savingRef.current=false;setSaving(false);setReading(false);}
   }
   async function inspectSaveRevision(event){
-    if(!draft)return;
+    if(!draft || readRequest.current || importRequest.current || savingRef.current)return;
     restorePreviewFocus.current=Boolean(event && event.currentTarget===document.activeElement);
     setReading(true);setFeedback("");
     try{
@@ -204,6 +214,8 @@ export default function MapReview(){
     finally{setReading(false);}
   }
   async function inspectCell(override=null){
+    if(readRequest.current || importRequest.current || savingRef.current)return;
+    if(window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("대기 중인 브러시 편집을 먼저 처리하세요.");return;}
     if(cellDirty){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}
     const selected=override || window.mapReviewSelectedCell;
     if(!selected){setFeedback("지도를 눌러 셀을 선택하거나 아래 열·행을 입력해 조회하세요.");return;}
@@ -278,7 +290,7 @@ export default function MapReview(){
   useEffect(()=>{if(!field || !ready)return;window.mapReviewBrushReadOnly=reading;return()=>{window.mapReviewBrushReadOnly=false;};},[field,ready,reading]);
   useEffect(()=>{
     const queue=window.mapReviewBrushQueue;
-    if(reading || !draft || !queue?.length)return;
+    if(reading || readRequest.current || importRequest.current || savingRef.current || cellDirty || !draft || !queue?.length)return;
     const stroke=queue.shift();
     try{
       const cells=new Map(draft.cells.map(item=>[[item.column,item.row].join(","),item]));
@@ -313,13 +325,13 @@ export default function MapReview(){
         cells.set(key,{...current,height});
       }
       setCell(null);
-      applyDraft({...draft,objects,cells:[...cells.values()]},"edit").finally(()=>{
+      applyDraft({...draft,objects,cells:[...cells.values()]},"brush").finally(()=>{
         window.mapReviewBrushBusy=false;window.mapReviewFlushBrushQueue?.();
       });
     }catch(error){
       setFeedback(error.message);window.mapReviewBrushBusy=false;window.mapReviewFlushBrushQueue?.();
     }
-  },[strokeCount,reading,draft]);
+  },[strokeCount,reading,draft,cellDirty]);
   const destination=kind=>{
     const url=new URL(location.href);
     url.pathname="/management/frame/map-review/";
@@ -335,8 +347,8 @@ export default function MapReview(){
   }
   return <article className="map-review"><MapReviewNavigation field={field} destination={destination} onNavigate={guardNavigation} saving={saving} cellDirty={cellDirty} unsafeAutosave={unsafeAutosave}/>
     <h1 id="map-title">{title} 검수</h1>
-    <fieldset className="map-view-controls" disabled={!ready}><legend>지도와 시점</legend>
-      <div className="map-selection-row"><label>맵 선택<select id="map-select" disabled={Boolean(draft) || reading} aria-describedby={draft ? "map-change-reason" : undefined}/></label><button id="load-map" disabled={Boolean(draft) || reading} aria-describedby={draft ? "map-change-reason" : undefined}>맵 불러오기</button></div>
+    <fieldset className="map-view-controls" disabled={!ready} aria-describedby={!ready ? "status" : undefined}><legend>지도와 시점</legend>
+      <div className="map-selection-row"><label>맵 선택<select id="map-select" disabled={Boolean(draft) || reading} aria-describedby={mapSelectionReasons({draft,field,reading,saving})}/></label><button id="load-map" disabled={Boolean(draft) || reading} aria-describedby={mapSelectionReasons({draft,field,reading,saving})}>맵 불러오기</button></div>
       {draft && <p id="map-change-reason">현재 지도 초안이 열려 있습니다. 지도를 바꾸려면 초안을 저장하거나 초안 보관 및 복원에서 원본으로 되돌리세요.</p>}
       <section className="map-selection-row" hidden={field}><label>건물 선택<select id="building"><option value="">건물 선택</option></select></label></section>
       <div className="ui-action-row" role="group" aria-label="지도 시점">

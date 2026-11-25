@@ -36,7 +36,8 @@ function validOperationsPage(value,query,status,direction,previous){
     (!value.statuses || typeof value.statuses==="object" && !Array.isArray(value.statuses) && Object.values(value.statuses).every(item=>typeof item==="string")));
 }
 
-function FinalResponse({text,truncated}){
+export function FinalResponse({text,truncated}){
+  if(text!=null && typeof text!=="string")return <><h4>최종 응답</h4><p role="alert">최종 응답의 형식을 확인할 수 없습니다. 상세를 다시 조회하세요.</p></>;
   const answer=text?.trimEnd();
   if(!answer)return <><h4>최종 응답</h4><p>기록된 최종 응답이 없습니다.</p></>;
   const lines=answer.split(/\r?\n/);
@@ -47,6 +48,23 @@ function FinalResponse({text,truncated}){
     <pre tabIndex={0} aria-label="최종 응답 내용">{text}</pre>
     {truncated && <p>응답 일부만 표시했습니다.</p>}
   </details>;
+}
+
+export function operationStatusLabel(labels,value){
+  return typeof value!=="string" || !value ? "상태 확인 불가" : Object.hasOwn(labels,value) ? labels[value] : value;
+}
+
+export function OperationsDetailData({detail,verificationLabels}){
+  return <>
+    {Number.isInteger(detail.status.queue_position) && detail.status.queue_position>0 && <p>대기 순서 · {detail.status.queue_position}</p>}
+    {typeof detail.status.message==="string" && detail.status.message && <p>{detail.status.message}</p>}
+    {typeof detail.status.error==="string" && detail.status.error && <p role="alert">{detail.status.error}</p>}
+    {([detail.status.message,detail.status.error].some(value=>value!=null && typeof value!=="string") || detail.status.queue_position!=null && (!Number.isInteger(detail.status.queue_position) || detail.status.queue_position<0)) && <p role="alert">작업 상태의 일부 형식을 확인할 수 없습니다. 상세를 다시 조회하세요.</p>}
+    <h4>작업 지시</h4><pre tabIndex={0} aria-label="작업 지시 내용">{typeof detail.request?.prompt==="string" ? detail.request.prompt || "기록된 지시가 없습니다." : detail.request?.prompt == null ? "기록된 지시가 없습니다." : "작업 지시 형식을 확인할 수 없습니다."}</pre>
+    <FinalResponse key={detail.id} text={detail.final_response} truncated={detail.final_response_truncated}/>
+    {detail.result?.verification && <section aria-label="독립 검증 결과"><h4>독립 검증</h4><p>{operationStatusLabel(verificationLabels,detail.result.verification.status)}{Number.isInteger(detail.result.verification.exit_code) && " · 종료 코드 "+detail.result.verification.exit_code}</p>{Array.isArray(detail.result.verification.modules) && detail.result.verification.modules.length>0 && <p>검증 대상 · {detail.result.verification.modules.filter(item=>typeof item==="string").join(", ") || "확인 불가"}</p>}{detail.result.partial && <p>작업 결과가 부분 완료로 기록됐습니다. 최종 응답과 검증 결과를 함께 확인하세요.</p>}</section>}
+    <details><summary>작업 로그</summary><pre tabIndex={0} aria-label="작업 로그 내용">{typeof detail.log==="string" ? detail.log || "기록된 로그가 없습니다." : detail.log == null ? "기록된 로그가 없습니다." : "작업 로그 형식을 확인할 수 없습니다."}</pre></details>
+  </>;
 }
 
 export default function OperationsJobs({session,linkedJob,linkedStatus,detailOnly=false}){
@@ -284,18 +302,12 @@ export default function OperationsJobs({session,linkedJob,linkedStatus,detailOnl
   const verificationLabels={...statusLabels,not_requested:"요청하지 않음",unknown:"확인 불가"};
   const filterStatuses=result?.statuses || {queued:"대기",running:"실행 중",completed:"완료",failed:"실패",cancelled:"취소",paused:"일시정지",unknown:"확인 불가"};
   const pagination=position=> <OperationsPagination position={position} canPrevious={!listError && Boolean(same && page.offset)} canNext={!listError && Boolean(same && page.next_offset!=null)} onPage={load}/>;
-  const detailSection = detail && <section ref={detailRef} tabIndex={-1} className="operations-job-detail operations-focus" aria-label="운영 작업 상세"><div className="operations-job-heading">{!detailOnly && <h3>작업 상세</h3>}<span className="operations-job-status">{statusLabels[detail.status.status] || detail.status.status}</span></div>
+  const detailSection = detail && <section ref={detailRef} tabIndex={-1} className="operations-job-detail operations-focus" aria-label="운영 작업 상세"><div className="operations-job-heading">{!detailOnly && <h3>작업 상세</h3>}<span className="operations-job-status">{operationStatusLabel(statusLabels,detail.status.status)}</span></div>
       {!detailOnly && <JobIdentifier id={detail.id} compact/>}
       {!detailOnly && <p>선택한 작업 상세는 목록 검색이나 페이지가 바뀌어도 유지됩니다.</p>}
       {detailError && <p role="alert">{detailError}</p>}
-      {detail.status.queue_position && <p>대기 순서 · {detail.status.queue_position}</p>}
-      {detail.status.message && <p>{detail.status.message}</p>}
-      {detail.status.error && <p role="alert">{detail.status.error}</p>}
-      <h4>작업 지시</h4><pre tabIndex={0} aria-label="작업 지시 내용">{detail.request?.prompt || "기록된 지시가 없습니다."}</pre>
-      <FinalResponse key={detail.id} text={detail.final_response} truncated={detail.final_response_truncated}/>
-      {detail.result?.verification && <section aria-label="독립 검증 결과"><h4>독립 검증</h4><p>{verificationLabels[detail.result.verification.status] || detail.result.verification.status || "상태 확인 불가"}{Number.isInteger(detail.result.verification.exit_code) && " · 종료 코드 "+detail.result.verification.exit_code}</p>{Array.isArray(detail.result.verification.modules) && detail.result.verification.modules.length>0 && <p>검증 대상 · {detail.result.verification.modules.join(", ")}</p>}{detail.result.partial && <p>작업 결과가 부분 완료로 기록됐습니다. 최종 응답과 검증 결과를 함께 확인하세요.</p>}</section>}
-      <details><summary>작업 로그</summary><pre tabIndex={0} aria-label="작업 로그 내용">{detail.log || "기록된 로그가 없습니다."}</pre></details>
-      <details><summary>변경 내역</summary>{detail.diff_truncated && <p>변경 내역 일부만 표시했습니다.</p>}<pre ref={diffText} className="operations-focus" tabIndex={0} aria-label="변경 내역 내용">{diffPage?.text ?? (detail.diff || "기록된 변경이 없습니다.")}</pre>
+      <OperationsDetailData detail={detail} verificationLabels={verificationLabels}/>
+      <details><summary>변경 내역</summary>{detail.diff_truncated && <p>변경 내역 일부만 표시했습니다.</p>}<pre ref={diffText} className="operations-focus" tabIndex={0} aria-label="변경 내역 내용">{diffPage?.text ?? (typeof detail.diff==="string" ? detail.diff || "기록된 변경이 없습니다." : detail.diff == null ? "기록된 변경이 없습니다." : "변경 내역 형식을 확인할 수 없습니다.")}</pre>
         {diffError && <p role="alert">{diffError}</p>}
         {detail.diff_truncated && <><button onClick={event=>readDiff(null,event)}>처음 부분부터 조회</button>
           {diffPage && <p>{diffPage.notice}</p>}

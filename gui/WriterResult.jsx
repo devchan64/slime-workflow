@@ -1,4 +1,4 @@
-import React, {useEffect,useRef,useState} from "react";
+import React, {useEffect,useId,useRef,useState} from "react";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {writerStageLabel} from "./writerLabels.mjs";
@@ -8,6 +8,13 @@ import ActionButton from "./ActionButton.jsx";
 
 const activeStages=new Set(["queued","preparing","indexing","searching","reasoning"]);
 const finishedStages=new Set(["review","completed","applied","failed","interrupted"]);
+
+export function WriterStatus({status}){
+  const progress=status.progress;
+  const text=[status.error,status.summary].find(value=>typeof value==="string" && value.trim());
+  const summary=text || (progress!=null && typeof progress==="object" ? JSON.stringify(progress) : typeof progress==="number" && Number.isFinite(progress) ? String(progress) : typeof progress==="string" ? progress.trim() : "");
+  return <p role="status">{writerStageLabel(status.stage)}{summary ? " · "+summary : ""}</p>;
+}
 
 async function writerChange(command,payload){
   const controller=new AbortController();let timedOut=false;
@@ -22,6 +29,7 @@ export default function WriterResult(props) {
 }
 
 function WriterResultForJob({id,onDeleted}) {
+  const checkingId=useId(),busyId=useId();
   const [detail,setDetail]=useState(null);
   const [error,setError]=useState("");
   const [checkedAt,setCheckedAt]=useState(null);
@@ -105,17 +113,16 @@ function WriterResultForJob({id,onDeleted}) {
     } finally {changePending.current=false;setBusy(false);setChangeKind("");}
   }
   return <section ref={live.ref} className="writer-result" aria-label="작가 작업 결과"><h3>작업 결과</h3><JobIdentifier id={id}/>
-    <button ref={refreshButton} disabled={busy || checking} onClick={()=>{if(changePending.current || readPending.current)return;readPending.current=true;restoreRefreshFocus.current=document.activeElement===refreshButton.current;setChecking(true);setConfirmed(false);setDeleteConfirmed(false);refresh(value=>value+1);}}>결과 새로고침</button>
+    <button ref={refreshButton} disabled={busy || checking} aria-describedby={[busy && busyId,checking && checkingId].filter(Boolean).join(" ") || undefined} onClick={()=>{if(changePending.current || readPending.current)return;readPending.current=true;restoreRefreshFocus.current=document.activeElement===refreshButton.current;setChecking(true);setConfirmed(false);setDeleteConfirmed(false);refresh(value=>value+1);}}>결과 새로고침</button>
     <LiveRefreshControl live={live} label="작업 상태 자동 갱신" inactiveReason={busy ? "변경 처리 중" : "작업 종료로 중지"}/>
     <label><input type="checkbox" defaultChecked onChange={event=>{followLog.current=event.target.checked;}}/>조회할 때 실행 로그 갱신</label>
-    {busy && <p role="status">{changeKind==="apply" ? "원본 적용 요청 처리 중…" : "실행 기록 정리 요청 처리 중…"}</p>}
+    {busy && <p id={busyId} role="status">{changeKind==="apply" ? "원본 적용 요청 처리 중…" : "실행 기록 정리 요청 처리 중…"}</p>}
     {notice && <p role={noticeError ? "alert" : "status"}>{notice}</p>}
     {checkedAt && <p>마지막 조회 성공 · <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
-    {checking && detail && <p role="status">결과를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다.</p>}
+    {checking && <p id={checkingId} role="status">{detail ? "결과를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다." : "작업 결과를 조회하고 있습니다."}</p>}
     {error && <p role="alert">{error}{detail && " 아래 내용은 마지막 조회 결과입니다. 재조회 전에는 적용과 삭제를 할 수 없습니다."}</p>}
-    {!detail && !error && <p role="status">작업 결과를 조회하고 있습니다.</p>}
     {detail && <>
-      <p role="status">{writerStageLabel(detail.status.stage)} · {detail.status.error || detail.status.summary || (typeof detail.status.progress==="object" ? JSON.stringify(detail.status.progress) : detail.status.progress)}</p>
+      <WriterStatus status={detail.status}/>
       {!activeStages.has(detail.status.stage) && !finishedStages.has(detail.status.stage) && <p role="status">알 수 없는 작업 단계입니다. 상태를 다시 확인하세요.</p>}
       {proposal?.reason && <p>{proposal.reason}</p>}
       {proposal?.changes?.map(change=><details key={change.path}><summary>{change.path}</summary><pre tabIndex={0} aria-label={change.path+" 변경 내용"}>{change.diff}</pre></details>)}

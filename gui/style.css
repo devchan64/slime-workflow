@@ -743,6 +743,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .operations-job-status { padding: .2rem .55rem; border: 1px solid var(--line); border-radius: 999px; font-size: .8rem; white-space: nowrap; }
 .operations-job-detail h4 { margin: 1rem 0 .4rem; }
 .operations-job-detail pre { max-width: 100%; max-height: 16rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.operations-job-detail pre[tabindex]:focus-visible { outline: 2px solid var(--accent,#b5d8ff); outline-offset: 2px; }
 .operations-job-detail details { margin: .5rem 0; }
 .operations-job-detail summary { cursor: pointer; }
 
@@ -1185,7 +1186,9 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .dflash-switch input::before {content:"";width:.9rem;height:.9rem;border-radius:50%;background:currentColor}
 .dflash-switch input:checked {justify-content:flex-end;background:var(--accent);color:var(--canvas)}
 .dflash-switch input:focus-visible {outline:2px solid var(--accent);outline-offset:3px}
-.dflash-switch:has(input:disabled) {opacity:.65;cursor:not-allowed}
+.dflash-switch:has(input:disabled) {cursor:not-allowed}
+.dflash-switch input:disabled {opacity:.65}
+.dflash-status-help {flex-basis:100%;min-width:0;overflow-wrap:anywhere;font-size:.85rem}
 @media (forced-colors:active) {.dflash-switch input[role=switch] {appearance:auto}}
 
 .job-final-response .response-preview {display:block;overflow-wrap:anywhere;font-weight:normal;color:var(--muted)}

@@ -7,7 +7,7 @@ const source=readFileSync(new URL('../../gui/MapReview.jsx',import.meta.url),'ut
 const code=source.slice(source.indexOf('  async function importDraft(file,focused=false){'),source.indexOf('  async function discardDraft(){'));
 test('지도 초안 읽기 중 중복 선택을 막고 시간 초과 뒤 다시 불러올 수 있다',async()=>{
  let timer,finish,reads=0,busy=false,error='',applied;const file={text:()=>{reads++;return reads===1?new Promise(done=>finish=done):Promise.resolve(JSON.stringify({map:'map',revision:'rev'}));}};
- const c=vm.createContext({AbortController,untilAborted,JSON,importRequest:{current:null},readRequest:{current:null},savingRef:{current:false},restoreImportFocus:{current:false},draft:{map:'map',revision:'rev'},setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},setImportError:value=>error=value,setReading:value=>busy=value,requestErrorMessage:e=>e.message,applyDraft:async value=>applied=value});
+ const c=vm.createContext({AbortController,untilAborted,JSON,window:{},importRequest:{current:null},readRequest:{current:null},savingRef:{current:false},restoreImportFocus:{current:false},draft:{map:'map',revision:'rev'},setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},setImportError:value=>error=value,setReading:value=>busy=value,requestErrorMessage:e=>e.message,applyDraft:async value=>applied=value});
  vm.runInContext(code+'\nthis.importDraft=importDraft;',c);const first=c.importDraft(file);await c.importDraft(file);assert.equal(reads,1);timer();await first;assert.match(error,/시간이 초과/);assert.equal(busy,false);
  await c.importDraft(file);assert.equal(reads,2);assert.equal(applied.map,'map');finish(JSON.stringify({map:'old',revision:'rev'}));await Promise.resolve();assert.equal(applied.map,'map');
 });

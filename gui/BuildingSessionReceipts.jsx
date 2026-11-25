@@ -42,7 +42,7 @@ function BuildingSessionReceiptsForSession({session}){
     {busy && <p id={busyId} role="status">대화 접수 이력을 조회하고 있습니다.{page && " 아래는 마지막 조회 결과입니다."}</p>}
     {error && <p id={staleId} role="alert">{error}</p>}
     <BuildingReceiptEmptyState session={session} page={page} busy={busy} error={error} rowCount={rows.length}/>
-    {page && <><p>조회 시각 · {checkedAt?.toLocaleString("ko-KR")}{stale && " · 이전 결과"}</p><ResultTable table={{title:"에셋 변경 접수",summary:"현재 대화 페이지의 접수 "+rows.length+"건",columns:["대화 작업 ID","접수 상태","GPU"],rows:rows.map(([id,...cells])=>[id && id!=="확인 불가" ? <JobIdentifier id={id} compact/> : id,...cells])}}/>
+    {page && <><p>조회 시각 · {checkedAt?.toLocaleString("ko-KR")}{stale && " · 이전 결과"}</p><ResultTable table={{title:"에셋 변경 접수",emptyMessage:busy || stale ? "마지막으로 조회한 대화 페이지에 표시할 접수가 없습니다." : "이 대화 페이지에 표시할 접수가 없습니다.",summary:"현재 대화 페이지의 접수 "+rows.length+"건",columns:["대화 작업 ID","접수 상태","GPU"],rows:rows.map(([id,...cells])=>[id && id!=="확인 불가" ? <JobIdentifier id={id} compact/> : id,...cells])}}/>
       {(page.offset>0 || page.next_offset!=null) && <nav className="ui-action-row" aria-label="대화 에셋 접수 페이지 이동">
       {page.offset>0 && <button type="button" disabled={busy || stale} aria-describedby={[busy && busyId,stale && error && staleId].filter(Boolean).join(" ") || undefined} onClick={event=>load(Math.max(0,page.offset-6),page.snapshot,event)}>최근 대화</button>}
       {page.next_offset!=null && <button type="button" disabled={busy || stale} aria-describedby={[busy && busyId,stale && error && staleId].filter(Boolean).join(" ") || undefined} onClick={event=>load(page.next_offset,page.snapshot,event)}>이전 대화</button>}</nav>}</>}

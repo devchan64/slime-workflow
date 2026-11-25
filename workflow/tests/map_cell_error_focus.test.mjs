@@ -9,7 +9,7 @@ test('셀 조회 실패 후 사용자가 이동한 초점은 유지한다',async
  assert.ok(start>=0 && end>start);
  for(const state of ['origin','body','other']){
   const body={},origin={},other={},document={body,activeElement:origin};let rejectRequest,scheduled,focused=false,feedback='',reading=false;
-  const context=vm.createContext({document,window:{mapReviewControlOptions:()=>({selected:'map'})},cellDirty:false,source:null,
+  const context=vm.createContext({document,window:{mapReviewControlOptions:()=>({selected:'map'})},readRequest:{current:null},importRequest:{current:null},savingRef:{current:false},cellDirty:false,source:null,
    readMap:()=>new Promise((_,reject)=>{rejectRequest=reject;}),setReading:value=>reading=value,setFeedback:value=>feedback=value,
    requestAnimationFrame:fn=>scheduled=fn,feedbackRef:{current:{focus:()=>focused=true}}});
   vm.runInContext(source.slice(start,end)+'\nthis.inspectCell=inspectCell;',context);

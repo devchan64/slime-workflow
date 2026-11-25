@@ -7,6 +7,21 @@ import unittest
 
 
 class MapDraftFileInputTests(unittest.TestCase):
+    def test_initial_map_controls_describe_loading(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'map.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MapReview.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""global.location={pathname:'/management/frame/field-map',search:'',href:'http://localhost/management/frame/field-map',origin:'http://localhost'};
+const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict'),{default:MapReview,mapSelectionReasons}=require(process.argv[1]);
+const html=server.renderToStaticMarkup(React.createElement(MapReview));
+assert.match(html,/<fieldset class="map-view-controls" disabled="" aria-describedby="status"/);
+assert.match(html,/<p role="status" id="status">지도를 불러오는 중입니다[.]<\\/p>/);
+assert.equal(mapSelectionReasons({draft:{},field:true,reading:true,saving:true}),'map-change-reason map-saving-status');
+assert.equal(mapSelectionReasons({draft:null,field:true,reading:true,saving:false}),'map-reading-status');
+assert.equal(mapSelectionReasons({draft:null,field:false,reading:false}),undefined);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_coordinate_errors_are_connected_to_each_input(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:

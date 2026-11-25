@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from "react";
+import React, {useEffect, useId, useRef, useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 import {validModelInventory} from "./modelInventoryValidation.mjs";
@@ -16,7 +16,7 @@ function formatBytes(bytes) {
 export function InventoryContents({inventory}) {
   return <><div className="model-inventory-table"><ResultTable table={{
     title: "저장된 모델 파일",
-    emptyMessage: inventory.incomplete ? "확인된 파일이 없습니다. 일부 저장 위치를 확인하지 못했습니다." : inventory.count>0 ? "표시할 파일이 없습니다. 목록을 다시 확인하세요." : "저장된 모델 파일이 없습니다.",
+    emptyMessage: inventory.count>0 ? "확인된 파일은 있지만 표시할 목록이 없습니다. 다시 확인하세요." : inventory.incomplete ? "확인된 파일이 없습니다. 일부 저장 위치를 확인하지 못했습니다." : "저장된 모델 파일이 없습니다.",
     summary: [
       "파일 " + inventory.count.toLocaleString() + "개",
       Number.isFinite(inventory.total_bytes) && formatBytes(inventory.total_bytes),
@@ -28,7 +28,8 @@ export function InventoryContents({inventory}) {
   }}/></div><p>파일 목록은 해시 검증 결과가 아닙니다.</p></>;
 }
 
-function InventoryFiles({service}) {
+export function InventoryFiles({service}) {
+  const loadingId=useId();
   const [revision, refresh] = useState(0);
   const [inventory, setInventory] = useState(null);
   const [error, setError] = useState("");
@@ -67,10 +68,10 @@ function InventoryFiles({service}) {
     return () => { active = false; pending.current=false;controller?.abort(); };
   }, [service, revision]);
   return <div ref={live.ref}>
-    <button type="button" aria-disabled={loading} onClick={requestRefresh}>{loading ? "조회 중…" : "파일 목록 새로고침"}</button>
+    <button type="button" aria-disabled={loading} aria-describedby={loading ? loadingId : undefined} onClick={requestRefresh}>{loading ? "조회 중…" : "파일 목록 새로고침"}</button>
     <LiveRefreshControl live={live} label="파일 목록 자동 갱신"/>
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
-    {loading && <p role="status">{inventory ? "파일 목록을 다시 조회하고 있습니다. 아래는 마지막으로 확인한 목록입니다." : "파일 목록을 확인하고 있습니다."}</p>}
+    {loading && <p id={loadingId} role="status">{inventory ? "파일 목록을 다시 조회하고 있습니다. 아래는 마지막으로 확인한 목록입니다." : "파일 목록을 확인하고 있습니다."}</p>}
     {error && <p role="alert">{error}{inventory && " · 아래 목록은 마지막으로 확인한 정보입니다."}{loading && " · 다시 확인하고 있습니다."}</p>}
     {inventory && <InventoryContents inventory={inventory}/>}
   </div>;

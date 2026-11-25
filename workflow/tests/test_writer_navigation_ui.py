@@ -6,6 +6,21 @@ import unittest
 
 
 class WriterNavigationUiTests(unittest.TestCase):
+    def test_initial_result_refresh_describes_wait(self):
+        gui = Path(__file__).resolve().parents[2] / 'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / 'result.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'WriterResult.jsx', '--bundle', '--platform=node', '--format=cjs', '--external:react', '--outfile='+str(bundle)], cwd=gui, check=True, capture_output=True)
+            script = """const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict'),Result=require(process.argv[1]).default;
+const html=server.renderToStaticMarkup(React.createElement(Result,{id:'job',onDeleted:()=>{}}));
+const button=html.match(/<button[^>]*>결과 새로고침<\\/button>/)[0],id=button.match(/aria-describedby="([^"]+)"/)[1];
+assert.match(button,/disabled=""/);assert.ok(html.includes('id="'+id+'" role="status">작업 결과를 조회하고 있습니다.'));
+const Status=require(process.argv[1]).WriterStatus,render=status=>server.renderToStaticMarkup(React.createElement(Status,{status}));
+for(const progress of [null,undefined,'  ',false])assert.equal(render({stage:'completed',progress}),'<p role="status">완료</p>');
+assert.equal(render({stage:'running',progress:0}),'<p role="status">running · 0</p>');
+assert.equal(render({stage:'completed',summary:'결과 있음'}),'<p role="status">완료 · 결과 있음</p>');"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_standalone_and_embedded_have_named_navigation_regions(self):
         gui = Path(__file__).resolve().parents[2] / 'gui'
         with tempfile.TemporaryDirectory() as directory:
