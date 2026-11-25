@@ -21,13 +21,13 @@ test('폼 열기는 다른 세션 또는 다른 폼 응답을 적용하지 않�
   }
 });
 
-test('폼을 다시 열면 상세와 목록에 조회한 버전을 함께 반영한다',async()=>{
-  let selected=null,rows=[{form_id:'form',revision:1,state:'editing'}];
-  const result={session_id:'session',form_id:'form',revision:2,state:'editing',request:{prompt:'변경',seed:42,width:512,height:512}};
+test('폼을 다시 열면 조회한 버전과 참조 이미지를 복원한다',async()=>{
+  let selected=null,references=null,error='';
+  const result={session_id:'session',form_id:'form',revision:2,state:'editing',request:{prompt:'변경',seed:42,width:512,height:512,images:['encoded']}};
   const context=vm.createContext({session:'session',operation:{current:false},listEpoch:{current:0},active:{current:true},
-    setBusy:()=>{},setNotice:()=>{},setError:()=>{},setSelected:value=>selected=value,setRows:update=>rows=update(rows),
+    setBusy:()=>{},setNotice:()=>{},setError:value=>error=value,setSelected:value=>selected=value,setReferences:value=>references=value,
     setPrompt:()=>{},setSeed:()=>{},setSize:()=>{},setFile:()=>{},formError:problem=>problem.message,call:async()=>result});
   vm.runInContext(source.slice(start,end)+'\nthis.open=open;',context);
   await context.open('form');
-  assert.equal(selected.revision,2);assert.equal(rows[0].revision,2);
+  assert.equal(selected.revision,2);assert.equal(references[0],'data:image/png;base64,encoded');assert.equal(references[1],null);assert.equal(error,'');
 });

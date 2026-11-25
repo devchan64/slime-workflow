@@ -19,6 +19,8 @@
 
 ## 현재 탐색 목록
 
+2026-11-26 실행 중인 8770의 도구 목록은 31개다. 아래 Wan 2.1 I2V·T2V 두 항목은 현재 도구 목록에 없지만 호환 경로가 HTTP 200을 반환해 별도 검토 대상으로 유지한다. 정적 검수 경로는 실행 중인 버전을 기록하며, HTTP 응답만으로 화면 사용성이나 기능 지원을 판정하지 않는다.
+
 | 현재 이름 | 제안 이름 | 역할 | ID | 현재 경로 |
 | --- | --- | --- | --- | --- |
 | Dasheng-AudioGen 효과음 생성기 | Dasheng-AudioGen 효과음 생성기 | 생성기 | `sfx-dasheng-audiogen` | `/management/frame/sfx-dasheng-audiogen/` |
@@ -45,14 +47,14 @@
 | MiniMax H3 Ref2VA 영상 편집기 | MiniMax H3 영상 편집 | 생성기 | `minimax-h3-ref2va-generator` | `/management/frame/minimax-h3-ref2va-generator/` |
 | 건물 에셋 관리 | 건물 에셋 관리 | 관리 | `building-editor` | `/management/frame/building-editor/` |
 | 공용 빌보드 에셋 관리 | 공용 빌보드 에셋 관리 | 관리 | `asset-editor` | `/management/frame/asset-editor/` |
-| 디자인 시스템 · 토큰과 기본 컴포넌트 | 디자인 시스템 · 토큰과 기본 컴포넌트 | 검수 | `ui-98e8166f312ea4e7-design-system` | `/ui-98e8166f312ea4e7/review/design-system.html` |
+| 디자인 시스템 · 토큰과 기본 컴포넌트 | 디자인 시스템 · 토큰과 기본 컴포넌트 | 검수 | `ui-62838d08dcbc31e6-design-system` | `/ui-62838d08dcbc31e6/review/design-system.html` |
 | 맵 통합 검수 | 맵 통합 검수 | 검수 | `map-review-iseulon` | `/management/frame/map-review/?map=iseulon&townPage=1` |
 | 모델 다운로드·빌드 상태 | 모델 관리 | 관리 | `model-management` | `/management/frame/model-management/` |
 | 발광 이펙트 좌표 검수 | 발광 이펙트 좌표 검수 | 검수 | `effect-editor` | `/management/frame/effect-editor/` |
 | 스프라이트 시트 편집기 | 스프라이트 시트 편집기 | 편집 | `sprite-sheet-editor` | `/management/frame/sprite-sheet-editor/` |
 | 월드맵 검수 | 월드맵 검수 | 검수 | `world-map` | `/management/frame/world-map/` |
 | 작가 AI 에이전트 | 작가 AI 에이전트 | 작가 에이전트 | `writer-agent` | `/management/frame/writer-agent/` |
-| 전투 레이아웃 · 전체 전장 | 전투 레이아웃 · 전체 전장 | 검수 | `ui-98e8166f312ea4e7-battlefield-layout` | `/ui-98e8166f312ea4e7/review/battlefield-preview.html` |
+| 전투 레이아웃 · 전체 전장 | 전투 레이아웃 · 전체 전장 | 검수 | `ui-62838d08dcbc31e6-battlefield-layout` | `/ui-62838d08dcbc31e6/review/battlefield-preview.html` |
 | 프롬프트 번역 | 프롬프트 번역 | 번역 | `prompt-translation` | `/management/frame/prompt-translation/` |
 
 ## 별도 확인된 미등록 기능

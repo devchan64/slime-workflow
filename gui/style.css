@@ -514,12 +514,19 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .sprite-local-sheet > fieldset input {box-sizing:border-box;min-width:0;width:100%;max-width:100%}
 .flux-standalone {width:min(100% - 2rem,56rem);margin:1.5rem auto;gap:.8rem}
 .flux-standalone > h1 {flex:none;font-size:1.5rem}
+.flux-page > h1 {word-break:keep-all;overflow-wrap:anywhere}
 .flux-standalone > form {display:block;width:100%;max-width:none;margin:0;padding:0}
 .flux-standalone > form > fieldset {min-width:0;padding:1rem;border:1px solid var(--line);border-radius:.75rem}
 .flux-standalone > form > fieldset > label {display:grid;gap:.35rem;margin:.75rem 0}
 .flux-standalone > form > fieldset > label :is(input,textarea,select) {width:100%;min-width:0}
 .flux-standalone > form > fieldset > label textarea {min-height:5rem;resize:vertical}
 .flux-standalone > form > fieldset > label select {font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.flux-page .generator-section-card-body > form > fieldset {border:0;margin:0;padding:0;min-width:0;box-sizing:border-box}
+.flux-page .generator-section-card-body > form > fieldset > label {display:grid;gap:.35rem;margin:.75rem 0}
+.flux-page .generator-section-card-body > form > fieldset > label :is(input,textarea,select) {width:100%;min-width:0}
+.flux-page .generator-section-card-body > form > fieldset > label textarea {min-height:5rem;resize:vertical}
+.flux-page .generator-section-card-body > form > fieldset > label select {font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.flux-number-field {margin:.75rem 0;min-width:0}.flux-number-field label {display:grid;gap:.35rem}.flux-number-field input {width:100%;min-width:0;box-sizing:border-box}
 .flux-guides {min-width:0;margin:.75rem 0}
 .flux-guides-toolbar {display:flex;flex-wrap:wrap;gap:.5rem;align-items:end;margin:.5rem 0}
 .flux-guides-toolbar label {display:grid;gap:.3rem;flex:1 1 10rem;min-width:0;margin:0}
@@ -632,12 +639,14 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .audio-generator-page form > fieldset {width:100%;min-width:0}
 .audio-generator-page :where([tabindex="-1"]):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .audio-generator-page > :is(.audio-history-controls,.audio-examples-controls) {min-width:0;margin:0;padding:0;border:0}
+.audio-generator-page .generator-section-card-body > .audio-examples-controls,.audio-generator-page .generator-section-card-body > form > fieldset {min-width:0;margin:0;padding:0;border:0;box-sizing:border-box}
 .audio-standalone {width:min(100% - 2rem,56rem);margin:1.5rem auto;gap:.8rem}
 .audio-standalone > h1 {flex:none;font-size:1.5rem}
 .audio-standalone > form {display:block;width:100%;max-width:none;margin:0;padding:0}
 .audio-standalone > form > fieldset {padding:1rem;border:1px solid var(--line);border-radius:.75rem}
 .audio-generator-page form > fieldset > label:not(.sound-loop) {display:grid;gap:.3rem;margin:.65rem 0}
 .audio-generator-page form > fieldset > label :is(textarea,input:not([type=checkbox])) {width:100%;min-width:0}
+.audio-duration-field {margin:.65rem 0;min-width:0}.audio-duration-field label {display:grid;gap:.3rem}.audio-duration-field input {width:100%;min-width:0;box-sizing:border-box}
 .audio-generator-page .sound-loop,.fun-drawer .audio-generator-page .sound-loop {display:flex;align-items:center;gap:.45rem}
 .audio-generator-page .sound-loop input {width:auto;flex:none;margin:0}
 .music-examples {font-size:1rem;color:inherit}

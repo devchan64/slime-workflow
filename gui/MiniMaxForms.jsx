@@ -1,4 +1,4 @@
-import React,{useCallback,useEffect,useRef,useState} from 'react';
+import React,{useCallback,useEffect,useId,useRef,useState} from 'react';
 import {managementCommand,untilAborted} from './managementCommand.js';
 import ReferenceImageInput from './ReferenceImageInput.jsx';
 import SeedInput from './SeedInput.jsx';
@@ -8,8 +8,10 @@ import {formStateLabel} from './minimaxFormState.mjs';
 const formError=(problem,fallback)=>problem?.name==='AbortError' ? '요청 시간이 초과됐습니다.' : problem instanceof TypeError ? '서버에 연결할 수 없습니다. 연결 상태를 확인하세요.' : (problem?.message || fallback);
 
 function ImageFields({selected,size,setSize,references,setReferences,setReferenceChecking,busy}){
+  const referenceOrderId=useId();
   return <><label>이미지 크기<select value={size} onChange={event=>setSize(event.target.value)}><option value="832x480">832×480</option><option value="512x512">512×512</option><option value="1024x1024">1024×1024</option>{!['832x480','512x512','1024x1024'].includes(selected.request.width+'x'+selected.request.height) && <option value={selected.request.width+'x'+selected.request.height}>{selected.request.width}×{selected.request.height} · 저장된 설정</option>}</select></label>
-    <p>참조 PNG (최대 2장)</p>{[0,1].map(index=><ReferenceImageInput key={index} label={'참조 이미지 '+(index+1)} source={references[index]} accept="image/png" maxBytes={3000000} disabled={busy || (index===1 && !references[0])} onCheckingChange={value=>setReferenceChecking(previous=>{const next=[...previous];next[index]=value;return next;})} onChange={value=>setReferences(previous=>{const next=[...previous];next[index]=value;if(index===0 && !value)next[1]=null;return next;})}/>)}
+    <p>참조 PNG (최대 2장)</p>{[0,1].map(index=><ReferenceImageInput key={index} label={'참조 이미지 '+(index+1)} source={references[index]} accept="image/png" maxBytes={3000000} disabled={busy || (index===1 && !references[0])} describedBy={index===1 && !references[0] ? referenceOrderId : undefined} onCheckingChange={value=>setReferenceChecking(previous=>{const next=[...previous];next[index]=value;return next;})} onChange={value=>setReferences(previous=>{const next=[...previous];next[index]=value;if(index===0 && !value)next[1]=null;return next;})}/>)}
+    {!references[0] && <p id={referenceOrderId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}
   </>;
 }
 
@@ -22,6 +24,7 @@ function VideoFields({selected,file,setFile,setChecking,busy}){
 const editors={"minimax-h3-image":ImageFields,"minimax-h3-i2v":VideoFields};
 
 export default function MiniMaxForms({session,initialFormId=''}) {
+  const busyId=useId(),checkingId=useId();
   const [selected,setSelected]=useState(null),[prompt,setPrompt]=useState('');
   const [seed,setSeed]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
   const [size,setSize]=useState('1024x1024'),[file,setFile]=useState(null),[checking,setChecking]=useState(false);
@@ -85,11 +88,13 @@ export default function MiniMaxForms({session,initialFormId=''}) {
         {selected.service==='minimax-h3-i2v' && <><dt>프레임</dt><dd>{selected.request.frames}</dd></>}<dt>참조 이미지</dt><dd>{selected.request.images?.length || 0}장</dd>
       </dl> : <form onSubmit={save}>
       {dirty && <p role="status">저장하지 않은 수정 내용이 있습니다. 대화로 접수하기 전에 폼 수정 저장을 눌러 주세요.</p>}
-      <fieldset disabled={busy || selected.state!=='editing'}><label>프롬프트<textarea required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
+      <fieldset disabled={busy || selected.state!=='editing'} aria-describedby={busy ? busyId : undefined}><label>프롬프트<textarea required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
       <SeedInput value={seed} max={seedMax} error={invalidSeed ? `0~${seedMax}의 정수를 입력하세요.` : ""} onChange={setSeed}/>
       <Fields {...{selected,size,setSize,file,setFile,setChecking,busy,references,setReferences,setReferenceChecking}}/>
       <p>설정: {selected.request.steps}스텝{selected.request.frames && ' · '+selected.request.frames+'프레임'}{selected.service==='minimax-h3-i2v' && ' · '+selected.request.width+'×'+selected.request.height}</p>
-      <button type="submit" disabled={checking || referenceChecking.some(Boolean)}>{checking || referenceChecking.some(Boolean)?'이미지 확인 중':'폼 수정 저장'}</button></fieldset>
+      <button type="submit" disabled={checking || referenceChecking.some(Boolean)} aria-describedby={checking || referenceChecking.some(Boolean) ? checkingId : undefined}>{checking || referenceChecking.some(Boolean)?'이미지 확인 중':'폼 수정 저장'}</button></fieldset>
+      {busy && <p id={busyId} role="status">접수폼 요청을 처리하고 있습니다. 완료 후 수정할 수 있습니다.</p>}
+      {(checking || referenceChecking.some(Boolean)) && <p id={checkingId} role="status">이미지 확인이 끝난 뒤 폼을 저장할 수 있습니다.</p>}
       </form>}</>}
   </section>;
 }

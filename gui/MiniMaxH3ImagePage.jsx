@@ -15,7 +15,7 @@ import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
-import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import {useMinimaxReportReceipt,MinimaxReportStatus} from "./useMinimaxReportReceipt.jsx";
 import {verifyFluxProposal} from "./fluxProposalReceipt.mjs";
 import {validGenerationJobId} from "./generationJobId.mjs";
@@ -28,7 +28,7 @@ export function minimaxImageReasons({model,prompt,seed}) {
 }
 function imageBase64(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('참조 이미지를 읽을 수 없습니다.'));reader.readAsDataURL(file);});}
 export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,proposalScope=null,reportReceipt=null}={}) {
-  const inputLockId=useId();
+  const inputLockId=useId(),secondReferenceId=useId();
   const [prompt,setPrompt]=useState(initialInputs?.prompt || ""), [seed,setSeed]=useState(initialInputs?.seed ?? 42), [model,setModel]=useState(null), [modelError,setModelError]=useState("");
   const [size,setSize]=useState(initialInputs?.width===832 && initialInputs?.height===480 ? 832 : initialInputs?.width===512 && initialInputs?.height===512 ? 512 : 1024);
   const [downscale,setDownscale]=useState(false);
@@ -71,7 +71,7 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
   function closeReview(){
     const restore=reviewRef.current?.contains(document.activeElement);
     setPending(null);setPreview("");
-    if(restore)requestAnimationFrame(()=>restoreLostFocus(document,promptRef.current));
+    if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(promptRef.current)));
   }
   async function submit(){
     if(!pending || sending.current || !modelStatus.current?.generation_ready || (proposalScope && receipt.state!=="editing"))return;
@@ -104,7 +104,7 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
       <label>이미지 크기<select value={size} onChange={event=>setSize(Number(event.target.value))}><option value={832}>832×480</option><option value={512}>512×512</option><option value={1024}>1024×1024</option></select></label>
       {!proposalScope && <label><input type="checkbox" checked={downscale} onChange={event=>setDownscale(event.target.checked)}/> 2배 크기로 생성 후 축소</label>}
       {downscale && <p>생성 {size*2}×{(size===832?480:size)*2} · 최종 {size}×{size===832?480:size} · OpenCV 영역 보간</p>}
-      <section aria-label="참조 이미지"><p>참조 PNG · 최대 2장</p><div className="reference-image-slots">{[0,1].map(index=><ReferenceImageInput key={index} label={"참조 이미지 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || !!pending || (index===1 && !references[0])} onCheckingChange={value=>setChecking(previous=>{const next=[...previous];next[index]=value;return next;})} onChange={value=>setReferences(previous=>{const next=[...previous];next[index]=value;if(index===0 && !value)next[1]=null;return next;})}/>)}</div>{!references[0] && <p>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>
+      <section aria-label="참조 이미지"><p>참조 PNG · 최대 2장</p><div className="reference-image-slots">{[0,1].map(index=><ReferenceImageInput key={index} label={"참조 이미지 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || !!pending || (index===1 && !references[0])} describedBy={index===1 && !references[0] ? secondReferenceId : undefined} onCheckingChange={value=>setChecking(previous=>{const next=[...previous];next[index]=value;return next;})} onChange={value=>setReferences(previous=>{const next=[...previous];next[index]=value;if(index===0 && !value)next[1]=null;return next;})}/>)}</div>{!references[0] && <p id={secondReferenceId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>
       <p>직접 생성 · 6스텝 · INT8{size===512 && " · 512×512 실제 생성 미검증"}</p>
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
     </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{pending ? "입력을 수정하려면 아래 검토에서 입력 수정을 선택하세요." : "최종 프롬프트를 확인하고 있습니다. 잠시 기다려 주세요."}</p>}</form></GeneratorSectionCard>

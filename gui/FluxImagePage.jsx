@@ -11,6 +11,9 @@ import React,{useEffect,useId,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import {openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
+import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import GeneratorJobResult from "./GeneratorJobResult.jsx";
@@ -20,7 +23,7 @@ import {fluxModelReady} from "./fluxModelReady.mjs";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
 import {prepareFluxPreview} from "./fluxPreview.mjs";
 import {filterFluxGuides,addFluxRolePrompt} from "./fluxGuides.mjs";
-import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import RecoverableImage from "./RecoverableImage.jsx";
 import {imageRetryUrl} from "./imageRetryUrl.mjs";
 import {validFluxProfile} from "./fluxProfileValidation.mjs";
@@ -57,7 +60,7 @@ export default function FluxImagePage(props={}){
 }
 
 function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=null,receiptScope=null,session:embeddedSession=""}={}){
-  const referenceOrderHelpId=useId(),guidePageHelpId=useId(),numericErrorId=useId();
+  const referenceOrderHelpId=useId(),guidePageHelpId=useId(),numericErrorId=useId(),inputLockId=useId(),historyLockId=useId(),translationHelpId=useId();
   const service=serviceOverride || location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
   const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
   const [profileError,setProfileError]=useState("");
@@ -79,7 +82,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
   const inputRef=useRef({form,files});inputRef.current={form,files};
   const imageSelectionRevision=useRef(0),checkingSlots=useRef(new Set());
   const [imagesChecking,setImagesChecking]=useState(false);
-  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null);
+  const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null),[modelError,setModelError]=useState("");
   const reviewEpoch=useRef(0),interactionRef=useRef({busy,review});interactionRef.current={busy,review};
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [guideQuery,setGuideQuery]=useState(""),[guidePage,setGuidePage]=useState(0),[pageSize,setPageSize]=useState(8);
@@ -319,15 +322,25 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
     }catch(problem){if(!dispatched)setNotice(problem.message+" · 요청은 접수되지 않았습니다.");else if(handoffReview)setNotice(problem.message+" · GPU 양도 상태를 확인하세요.");else if(receiptKey){setReceiptState("unknown");setReceiptNotice(problem.message+" · 생성 이력에서 접수 여부를 확인하세요.");}else setNotice(problem.message+" · 생성 이력에서 접수 여부를 확인하세요.");}
     finally{sending.current=false;setBusy(false);setReview(null);setHandoffReview(null);}
   }
-  return <article className={"flux-page"+(embedded ? "" : " flux-standalone")}><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a>
-    <h1 className={embedded ? "embedded-page-title" : undefined}>FLUX 이미지 생성 · {profile?.label}</h1><GeneratorChangelog generator={service+"-generator"}/>{embedded ? <details><summary>모델 상태 · {model ? (fluxModelReady(model) ? "준비 완료" : "준비 필요") : "확인 필요"}</summary><ModelReadiness service={service} session={session} onStatus={setModel}/></details> : <ModelReadiness service={service} session={session} onStatus={setModel}/>}
+  return <article className={"flux-page generator-page-common"+(embedded ? "" : " flux-standalone")}><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a>
+    <h1 className={embedded ? "embedded-page-title" : undefined}>FLUX 이미지 생성 · {profile?.label}</h1><GeneratorChangelog generator={service+"-generator"} card/>
+    <GeneratorSectionCard title="사용설명" summary="사용 방법과 제한 사항">{profile ? <>
+      <p>{profile.description}</p>
+      <ol><li>모델 준비 상태를 확인합니다.</li><li>{profile.expressions ? "표정과 얼굴 참조 이미지를 선택합니다." : "원하는 장면을 프롬프트에 입력하고 필요한 참조와 설정을 선택합니다."}</li><li>생성 요청 검토에서 최종 입력과 GPU 대기열을 확인한 뒤 요청합니다.</li><li>생성 이력에서 작업 상태·결과와 저장 입력을 확인합니다.</li></ol>
+      <p>{seamless ? "새 심리스 타일은 참조 이미지 없이 고정 크기로 생성합니다." : `참조 이미지는 PNG 파일당 최대 3MB이며 ${profile.expressions ? "최대 1장" : "최대 2장"}입니다. ${profile.minimum ? `최소 ${profile.minimum}장이 필요합니다.` : "참조 없이도 요청할 수 있습니다."}`}</p>
+      {profile.guides && <p>입력의 가이드 목록에서 기준을 고르고 첫 참조에 적용할 수 있습니다.</p>}
+      {profile.stages && <p>마네킨 제작 단계를 선택해 해당 프롬프트 예시를 불러올 수 있습니다.</p>}
+      {profile.layouts && <p>점유 가이드와 생성 대상을 선택해 첫 참조와 프롬프트를 구성할 수 있습니다.</p>}
+      {!profile.expressions && <p>번역할 한국어 설명을 입력하면 생성 시 번역문을 프롬프트에 추가합니다.</p>}
+    </> : <p>생성기 설정을 불러오면 사용 방법을 표시합니다.</p>}</GeneratorSectionCard>
+    <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : model ? (fluxModelReady(model) ? "준비 완료" : "준비 필요") : "상태 확인 중"}><ModelReadiness service={service} session={session} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
+    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     <GeneratorSectionNavigation inputRef={inputFormRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(profile)} historyReady={Boolean(profile)} resultReady={Boolean(profile && job)} resultReason={job && !profile ? "생성기 설정을 확인해야 작업 결과를 볼 수 있습니다." : undefined} openOnNavigate/>
-    {profile && <p>{profile.description}</p>}
     {!profile && (profileError ? <div role="alert">{profileError} <button ref={profileRetryRef} type="button" onClick={retryProfile}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={receiptKey && handoffStatus?.state!=="withdrawn" ? undefined : ()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);if(receiptKey){setReceiptState("unknown");setReceiptNotice("이 제안의 양도 요청은 철회됐습니다. 새 작업은 생성기 화면에서 요청하세요.");}}}/>}
     {receiptKey && receiptState!=="editing" && <section aria-label="FLUX 제안 접수 상태"><p>접수 ID · {receiptState==="accepted"?"접수 확인됨":receiptState==="rejected"?"접수 거절됨":receiptState==="checking"?"확인 중":"확인 필요"}</p>{receipt ? <JobIdentifier id={receipt} label="접수 ID" compact/> : <p>확인 불가</p>}{receiptState==="accepted" && receiptJob && <div><p>접수 작업</p><JobIdentifier id={receiptJob} compact/> <button type="button" onClick={()=>setJob(receiptJob)}>이 작업 결과 조회</button></div>}{receiptNotice && <p role="status">{receiptNotice}</p>}<p>같은 제안은 중복 접수를 막기 위해 다시 제출할 수 없습니다. 다른 작업은 생성기 화면에서 새로 요청하세요.</p><button type="button" disabled={busy || receiptState==="checking"} onClick={refreshReceipt}>접수 상태 다시 확인</button></section>}
-    <form ref={inputFormRef} tabIndex={-1} aria-label="생성 입력" onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing")}>
+    <GeneratorSectionCard title="생성 입력" summary="프롬프트와 생성 설정" defaultOpen><form ref={inputFormRef} tabIndex={-1} aria-label="생성 입력" onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing")} aria-describedby={!profile || busy || review || handoffId || (receiptKey && receiptState!=="editing") ? inputLockId : undefined}>
       {profile?.guides && <section className="flux-guides"><h2>{profile.rolePrompt?"신체 비율 기준":"건물 배치 가이드"}</h2>
         <div className="flux-guides-toolbar">
         <label>가이드 검색 <input ref={guideSearchRef} value={guideQuery} onChange={e=>{setGuideQuery(e.target.value);setGuidePage(0);setSelectedGuide("");}}/></label>
@@ -357,17 +370,17 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
         <label>표정 <select value={form.prompt} onChange={e=>edit("prompt",e.target.value)}>{profile.expressions.map(item=><option value={item.id} key={item.id}>{item.label}</option>)}</select></label>
         <p>{profile.expressions.find(item=>item.id===form.prompt)?.text}<PromptWordCount text={profile.expressions.find(item=>item.id===form.prompt)?.text} label="기본 프롬프트"/></p>
         <button type="button" onClick={defaultFace}>기본 캐릭터 정면 얼굴 불러오기</button>
-      </> : <label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/><PromptWordCount text={form.prompt}/></label>}
+      </> : <><label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label><PromptWordCount text={form.prompt}/></>}
       <FluxToolFeedback loading={toolLoading} notice={toolNotice} error={toolError}/>
-      {service!=="flux-building" && <label>번역할 한국어 설명 <textarea value={form.translation_source_ko} onChange={e=>edit("translation_source_ko",e.target.value)}/><PromptWordCount text={form.translation_source_ko}/><small>입력하면 번역을 먼저 진행하고 번역문을 위 프롬프트 뒤에 추가합니다.</small></label>}
+      {service!=="flux-building" && <><label>번역할 한국어 설명 <textarea value={form.translation_source_ko} aria-describedby={translationHelpId} onChange={e=>edit("translation_source_ko",e.target.value)}/></label><PromptWordCount text={form.translation_source_ko}/><small id={translationHelpId}>입력하면 번역을 먼저 진행하고 번역문을 위 프롬프트 뒤에 추가합니다.</small></>}
       {profile?.rolePrompt && form.prompt.trim()===profile.rolePrompt.trim() && !form.translation_source_ko.trim() && <p role="status">현재 입력에는 신체 비율 참조 안내만 있습니다. 원하는 캐릭터 외형이나 자세를 추가할 수 있습니다.</p>}
       {!seamless && <section aria-label="참조 이미지"><p>{profile?.expressions?"얼굴 참조 PNG (1장)":"참조 PNG (최대 2장)"}</p><div className="reference-image-slots">
         {Array.from({length:profile?.expressions?1:2},(_,index)=><ReferenceImageInput key={index} label={profile?.expressions?"얼굴 참조 이미지":"참조 이미지 "+(index+1)}
           accept="image/png" maxBytes={3000000} source={files[index]} disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing") || (index>0 && !files[0])} describedBy={index===1 && !files[0] ? referenceOrderHelpId : undefined} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);setImagesChecking(checkingSlots.current.size>0);}}
           onChange={file=>{setGuideNotice("");setFiles(current=>{const next=[...current];if(file)next[index]=file;else next.splice(index,1);return next;});}}/>)}
       </div>{!profile?.expressions && !files[0] && <p id={referenceOrderHelpId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>}
-      {[["width","너비"],["height","높이"]].map(([key,label])=><label key={key}>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" aria-invalid={Boolean(numericIssues[key]) || undefined} aria-describedby={numericIssues[key] ? `${numericErrorId}-${key}` : undefined} value={form[key]} onChange={e=>edit(key,e.target.value)}/>{numericIssues[key] && <small id={`${numericErrorId}-${key}`}>{numericIssues[key]}</small>}</label>)}
-      {service==="flux-character" ? <label>생성 스텝 <input type="number" required min="1" max="50" aria-invalid={Boolean(numericIssues.steps) || undefined} aria-describedby={numericIssues.steps ? `${numericErrorId}-steps` : undefined} value={form.steps} onChange={e=>edit("steps",e.target.value)}/>{numericIssues.steps && <small id={`${numericErrorId}-steps`}>{numericIssues.steps}</small>}</label> : <p>생성 스텝: 16</p>}
+      {[["width","너비"],["height","높이"]].map(([key,label])=><div className="flux-number-field" key={key}><label>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" aria-invalid={Boolean(numericIssues[key]) || undefined} aria-describedby={numericIssues[key] ? `${numericErrorId}-${key}` : undefined} value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>{numericIssues[key] && <small id={`${numericErrorId}-${key}`}>{numericIssues[key]}</small>}</div>)}
+      {service==="flux-character" ? <div className="flux-number-field"><label>생성 스텝 <input type="number" required min="1" max="50" aria-invalid={Boolean(numericIssues.steps) || undefined} aria-describedby={numericIssues.steps ? `${numericErrorId}-steps` : undefined} value={form.steps} onChange={e=>edit("steps",e.target.value)}/></label>{numericIssues.steps && <small id={`${numericErrorId}-steps`}>{numericIssues.steps}</small>}</div> : <p>생성 스텝: 16</p>}
       <p>FLUX.3 Image Klein Distilled의 <a href="https://huggingface.co/black-forest-labs/flux-3-image-klein" target="_blank" rel="noreferrer">모델 카드</a> 권장값은 16스텝입니다.</p>
       <p>모델 카드는 구체적인 장면 설명을 권장합니다. 필요한 피사체, 구도, 배경과 조명을 프롬프트에 적어 주세요. 자동 프롬프트 확장은 사용하지 않습니다.</p>
       <SeedInput value={form.seed} max={4294967295} error={numericIssues.seed} onChange={value=>edit("seed",value)}/>
@@ -379,13 +392,13 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
         !form.prompt.trim() && !form.translation_source_ko.trim() && "프롬프트 또는 번역할 설명을 입력하세요.",
         ...Object.values(numericIssues)
       ]}>생성 요청 검토</ActionButton>
-    </fieldset></form>
+    </fieldset>{(!profile || busy || review || handoffId || (receiptKey && receiptState!=="editing")) && <p id={inputLockId} role="status">{!profile ? "생성기 설정을 확인하세요." : busy ? "요청을 처리하고 있습니다." : review ? "입력을 수정하려면 생성 요청 검토에서 입력 수정을 선택하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : "대화 접수 상태를 확인하세요."}</p>}</form></GeneratorSectionCard>
     {review && review.scope===previewScope && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>{profile?.expressions?"표정 프롬프트":"공용 화풍 적용 프롬프트"}</h2><pre className="generation-review-text" tabIndex={0} aria-label="검토할 프롬프트">{review.result.prompt}</pre><p><PromptWordCount text={review.result.prompt} label={review.result.translation ? "번역 전 프롬프트" : "최종 프롬프트"}/>{review.result.translation && " · 번역 후 최종 단어 수는 생성 시 확정됩니다."}</p>
       {review.result.translation && <p className="generation-review-text">생성 시 번역할 내용 · {review.result.translation}</p>}
-      <GpuQueueSummary/>{handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {profile?.label || "FLUX"} 생성을 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setReview(null);setHandoffReview(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,inputFormRef.current));}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"} disabledReason={!fluxModelReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""}/></section>}
+      <GpuQueueSummary/>{handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {profile?.label || "FLUX"} 생성을 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setReview(null);setHandoffReview(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(inputFormRef.current)));}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"} disabledReason={!fluxModelReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""}/></section>}
     {previewing && <p role="status">입력과 GPU 양도 여부를 확인하고 있습니다.</p>}
     {notice && <p role="status">{notice}</p>}
-    {profile && <fieldset ref={historyRef} className="flux-history-controls" disabled={busy || Boolean(review)}><legend className="generator-visually-hidden">생성 이력</legend><GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={(id,close)=><section ref={resultRef} tabIndex={-1} aria-label="선택한 FLUX 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} kind="flux" service={service} readJob={readJob} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/></section>}/></fieldset>}
+    {profile && <><fieldset ref={historyRef} className="flux-history-controls" disabled={busy || Boolean(review)} aria-describedby={busy || review ? historyLockId : undefined}><legend className="generator-visually-hidden">생성 이력</legend><GeneratorHistory card allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={(id,close)=><section ref={resultRef} tabIndex={-1} aria-label="선택한 FLUX 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} kind="flux" service={service} readJob={readJob} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/></section>}/></fieldset>{(busy || review) && <p id={historyLockId} role="status">{busy ? "요청을 처리하고 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}</>}
     <GeneratorJobResult selectionControls job="" kind="flux" service={service} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
   </article>;
 }

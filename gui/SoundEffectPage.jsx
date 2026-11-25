@@ -13,6 +13,9 @@ import MusicExamples from "./MusicExamples.jsx";
 import DownloadProgress from "./DownloadProgress.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import {openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
+import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
 import React,{useEffect,useId,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
@@ -20,7 +23,7 @@ import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {readGenerationProposal,audioProposalInputs} from "./generationProposal.mjs";
-import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import {validGenerationJobId} from "./generationJobId.mjs";
 import {ActiveGeneratorJobStatus} from "./ActiveGeneratorJob.jsx";
 
@@ -44,7 +47,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   const formRef=useRef(form);
   formRef.current=form;
   const tagCount=form?.prompt?.split(",").filter(tag=>tag.trim()).length || 0;
-  const [busy,setBusy]=useState(false),[notice,setNoticeState]=useState(""),[noticeError,setNoticeError]=useState(false),[model,setModel]=useState(null);
+  const [busy,setBusy]=useState(false),[notice,setNoticeState]=useState(""),[noticeError,setNoticeError]=useState(false),[model,setModel]=useState(null),[modelError,setModelError]=useState("");
   function setNotice(value,error=false){setNoticeError(error);setNoticeState(value);}
   const reviewEpoch=useRef(0),interactionRef=useRef({busy,review});
   interactionRef.current={busy,review};
@@ -57,7 +60,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   if(!confirmation.current)confirmation.current=createConfirmationGate();
   const reviewRef=useRef(null),reviewOrigin=useRef(null),reviewRequest=useRef(null),restoreFrame=useRef(null),promptRef=useRef(null),inputRegion=useRef(null),historyRegion=useRef(null),resultRegion=useRef(null),prepareRef=useRef(null),prepareDetails=useRef(null),prepareSummary=useRef(null);
   useEffect(()=>()=>{const request=reviewRequest.current;reviewRequest.current=null;request?.abort();if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);},[]);
-  const prepareReasonId=useId(),durationErrorId=useId();
+  const prepareReasonId=useId(),durationErrorId=useId(),inputLockId=useId(),historyLockId=useId(),tagCountId=useId();
   const prepareReason=busy ? "다른 요청을 처리하고 있습니다. 완료될 때까지 기다리세요." : review ? "현재 요청의 확인을 마치거나 취소하세요." : handoff.id ? "진행 중인 GPU 양도 요청을 확인하세요." : "";
   useEffect(()=>{if(!review)return;const origin=reviewOrigin.current;const frame=requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===origin) && reviewRef.current?.isConnected)reviewRef.current.focus();});return ()=>cancelAnimationFrame(frame);},[review]);
   useEffect(()=>{
@@ -73,7 +76,10 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     confirmation.current.cancel();setReview(null);
     handoff.clearReview();
     if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);
-    if(restore)restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(reviewEpoch.current===epoch && !reviewRequest.current)restoreLostFocus(document,(preparing ? (prepareDetails.current?.open ? prepareRef : prepareSummary) : promptRef).current);});
+    if(restore)restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(reviewEpoch.current===epoch && !reviewRequest.current){
+      const target=(preparing ? (prepareDetails.current?.open ? prepareRef : prepareSummary) : promptRef).current;
+      restoreLostFocus(document,visibleFocusTarget(target));
+    }});
   }
   async function readJob(id,{signal}={}){
     const formAtStart=formRef.current,reviewAtStart=reviewEpoch.current,focusAtStart=document.activeElement;
@@ -191,30 +197,40 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     }catch(error){setNotice(requestErrorMessage(error)+" · 생성 이력에서 접수 여부를 확인하세요.",true);}
     finally{handoff.clearReview();submitting.current=false;setBusy(false);setReview(null);}
   }
-  return <article className={"audio-generator-page"+(embedded ? "" : " audio-standalone")}>{!embedded && <nav aria-label="워크플로우 탐색"><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a></nav>}
+  return <article className={"audio-generator-page generator-page-common"+(embedded ? "" : " audio-standalone")}>{!embedded && <nav aria-label="워크플로우 탐색"><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a></nav>}
     <h1 className={embedded ? "embedded-page-title" : undefined}>{music?"HeartMuLa 음악 생성":"Dasheng 효과음 생성"}</h1>
-    {music ? <p>태그는 쉼표로 구분합니다. 원곡을 생성한 뒤 Demucs가 MR과 보컬을 분리합니다.</p> : <p>16kHz WAV · 길이 자동 예측 · <a href="https://huggingface.co/mispeech/Dasheng-AudioGen">Dasheng-AudioGen 모델과 Apache-2.0 라이선스</a></p>}
+    <GeneratorChangelog generator={service} card/>
+    <GeneratorSectionCard title="사용설명" summary="사용 방법과 제한 사항">{music ? <p>태그는 쉼표로 구분합니다. 가사·구간 태그와 최대 출력 시간을 입력하세요. 원곡 생성 후 Demucs가 MR과 보컬을 분리합니다.</p> : <p>원하는 효과음을 설명하고 반복 구조가 필요하면 선택하세요. 길이는 자동 예측하며 결과는 16kHz WAV입니다. <a href="https://huggingface.co/mispeech/Dasheng-AudioGen">모델과 라이선스</a></p>}<p>모델 준비를 확인하고 생성 요청을 검토한 뒤 접수하세요. 작업 상태와 결과는 생성 이력에서 확인할 수 있습니다.</p></GeneratorSectionCard>
+    <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}>
+      <ModelReadiness session={session} service={service} onStatus={setModel} onError={setModelError}/>
+      <details ref={prepareDetails}><summary ref={prepareSummary}>모델 다운로드·준비</summary>
+        <DownloadProgress service={service}/>
+        <button ref={prepareRef} disabled={Boolean(prepareReason)} aria-describedby={prepareReason ? prepareReasonId : undefined} onClick={reviewPreparation}>모델 준비 요청 검토</button>
+        {prepareReason && <p id={prepareReasonId}>{prepareReason}</p>}
+      </details>
+    </GeneratorSectionCard>
+    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRegion,id,setJob)}>
+      <AudioActiveStatus statusRef={activeErrorRef} retryRef={activeRetryRef} loading={activeLoading} notice={activeNotice} error={activeError} activeId={activeId} job={job} onOpen={event=>{activeOpenFocus.current=document.activeElement===event.currentTarget;setJob(activeId);}} onRetry={()=>{if(activePending.current)return;activePending.current=true;activeRetryFocus.current=document.activeElement===activeRetryRef.current;setActiveLoading(true);setActiveError("");retryActive(value=>value+1);}}/>
+    </ActiveGeneratorProgress>
     <GeneratorSectionNavigation inputRef={inputRegion} historyRef={historyRegion} resultRef={resultRegion} inputReady={Boolean(form)} resultReady={Boolean(job)} openOnNavigate/>
-    <details ref={prepareDetails}><summary ref={prepareSummary}>모델 다운로드·준비</summary>
-      <DownloadProgress service={service}/>
-      <button ref={prepareRef} disabled={Boolean(prepareReason)} aria-describedby={prepareReason ? prepareReasonId : undefined} onClick={reviewPreparation}>모델 준비 요청 검토</button>
-      {prepareReason && <p id={prepareReasonId}>{prepareReason}</p>}
-    </details><ModelReadiness session={session} service={service} onStatus={setModel}/><GeneratorChangelog generator={service}/>
     {!form && (inputError ? <div><p role="alert">{inputError}</p><button ref={inputRetryRef} type="button" onClick={()=>{if(inputPending.current)return;inputPending.current=true;inputRetryFocus.current=document.activeElement===inputRetryRef.current;setInputError("");retryInput(value=>value+1);}}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
-    {music && <fieldset className="audio-examples-controls" disabled={busy || Boolean(review) || Boolean(handoff.id) || !form}><legend className="generator-visually-hidden">음악 예제</legend><MusicExamples apply={request=>setForm(current=>({...current,...request}))}/></fieldset>}
     <AudioReviewPending busy={busy} review={review}/>
-    {form && <form ref={inputRegion} tabIndex={-1} aria-label={music ? "음악 생성 입력" : "효과음 생성 입력"} onSubmit={preview}><fieldset disabled={busy || Boolean(review) || Boolean(handoff.id)}>
+    <GeneratorSectionCard title="생성 입력" summary={music ? "음악 태그와 가사" : "효과음 설명과 설정"} defaultOpen>
+    {music && <fieldset className="audio-examples-controls" disabled={busy || Boolean(review) || Boolean(handoff.id) || !form} aria-describedby={busy || review || handoff.id || !form ? inputLockId : undefined}><legend className="generator-visually-hidden">음악 예제</legend><MusicExamples apply={request=>setForm(current=>({...current,...request}))}/></fieldset>}
+    {form && <form ref={inputRegion} tabIndex={-1} aria-label={music ? "음악 생성 입력" : "효과음 생성 입력"} onSubmit={preview}><fieldset disabled={busy || Boolean(review) || Boolean(handoff.id)} aria-describedby={busy || review || handoff.id ? inputLockId : undefined}>
       <legend className="generator-visually-hidden">{music?"음악 생성 입력":"효과음 생성 입력"}</legend>
-      <label>{music?"음악 태그":"효과음 설명"} <textarea ref={promptRef} required maxLength={4000} value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/>{music ? <small>태그 {tagCount}개</small> : <PromptWordCount text={form.prompt}/>}</label>
+      <label>{music?"음악 태그":"효과음 설명"} <textarea ref={promptRef} required maxLength={4000} value={form.prompt} aria-describedby={music ? tagCountId : undefined} onChange={e=>edit("prompt",e.target.value)}/></label>{music ? <small id={tagCountId}>태그 {tagCount}개</small> : <PromptWordCount text={form.prompt}/>}
       <SeedInput value={form.seed} max={4294967295} error={audioSeedValid(form.seed) ? "" : "0부터 4,294,967,295까지의 정수로 입력하세요."} onChange={value=>edit("seed",value)}/>
       {music ? <>
-        <label>가사·구간 태그 <textarea required maxLength={20000} value={form.lyrics} onChange={e=>edit("lyrics",e.target.value)}/><PromptWordCount text={form.lyrics}/></label>
-        <label>최대 출력 시간(초) <input type="number" min="5" max="300" step="any" required aria-invalid={!audioDurationValid(form.duration_seconds) || undefined} aria-describedby={!audioDurationValid(form.duration_seconds) ? durationErrorId : undefined} value={form.duration_seconds} onChange={e=>edit("duration_seconds",e.target.value)}/>{!audioDurationValid(form.duration_seconds) && <small id={durationErrorId}>5~300초로 입력하세요.</small>}</label>
+        <label>가사·구간 태그 <textarea required maxLength={20000} value={form.lyrics} onChange={e=>edit("lyrics",e.target.value)}/></label><PromptWordCount text={form.lyrics}/>
+        <div className="audio-duration-field"><label>최대 출력 시간(초) <input type="number" min="5" max="300" step="any" required aria-invalid={!audioDurationValid(form.duration_seconds) || undefined} aria-describedby={!audioDurationValid(form.duration_seconds) ? durationErrorId : undefined} value={form.duration_seconds} onChange={e=>edit("duration_seconds",e.target.value)}/></label>{!audioDurationValid(form.duration_seconds) && <small id={durationErrorId}>5~300초로 입력하세요.</small>}</div>
       </> : <label className="sound-loop"><input type="checkbox" checked={form.loop_request} onChange={e=>edit("loop_request",e.target.checked)}/>반복 구조 요청</label>}
       <label>이력 태그 <input value={form.tag} onChange={e=>edit("tag",e.target.value)}/></label>
       <ActionButton type="submit" reasons={audioInputIssues(form,music,model)}>생성 요청 검토</ActionButton>
     </fieldset></form>}
+    {(busy || review || handoff.id || !form) && <p id={inputLockId} role="status">{!form ? "기본 입력을 확인하세요." : busy ? "요청을 처리하고 있습니다." : review ? "입력을 수정하려면 생성 요청 검토에서 입력 수정을 선택하세요." : "진행 중인 GPU 양도 요청을 확인하세요."}</p>}
+    </GeneratorSectionCard>
     {review && <section ref={reviewRef} tabIndex={-1} aria-label="생성 요청 확인"><h2>{review.payload.action==="prepare"?"모델 다운로드·준비":"생성 요청 확인"}</h2>
       {review.payload.action==="generate" && <>
         <p>시드 {review.payload.seed} · {music ? `최대 출력 시간 ${review.payload.duration_seconds}초` : `반복 구조 ${review.payload.loop_request ? "요청" : "없음"}`}{review.payload.tag?.trim() && ` · 이력 태그 ${review.payload.tag.trim()}`}</p>
@@ -224,16 +240,16 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       <GpuQueueSummary/>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {music?"음악":"효과음"}을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={closeReview} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={review.payload.action==="generate" && !generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
-    <fieldset ref={historyRegion} className="audio-history-controls" disabled={busy || Boolean(review) || !form}>
+    <fieldset ref={historyRegion} className="audio-history-controls" disabled={busy || Boolean(review) || !form} aria-describedby={busy || review || !form ? historyLockId : undefined}>
       <legend className="generator-visually-hidden">생성 이력</legend>
-      <GeneratorHistory allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={(input,record)=>{
+      <GeneratorHistory card allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={(input,record)=>{
         if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.review)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
         if(record.formAtStart!==formRef.current)throw new Error("입력 조회 중 작성 내용이 변경되어 적용하지 않았습니다.");
         setForm(input);setNotice("저장된 생성 입력을 불러왔습니다.");if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.review && (document.activeElement===record.focusAtStart || document.activeElement===document.body) && promptRef.current?.isConnected && !promptRef.current.disabled)promptRef.current.focus();});
       }} renderResult={(id,close)=><section ref={resultRegion} tabIndex={-1} aria-label="선택한 오디오 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service={service} kind="audio" readJob={readJob} onDeleted={cleaned}/></section>}/>
     </fieldset>
+    {(busy || review || !form) && <p id={historyLockId} role="status">{!form ? "기본 입력을 확인한 뒤 이력을 사용할 수 있습니다." : busy ? "요청을 처리하고 있습니다." : "요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}
     <AudioNotice notice={notice} error={noticeError}/>
-    <AudioActiveStatus statusRef={activeErrorRef} retryRef={activeRetryRef} loading={activeLoading} notice={activeNotice} error={activeError} activeId={activeId} job={job} onOpen={event=>{activeOpenFocus.current=document.activeElement===event.currentTarget;setJob(activeId);}} onRetry={()=>{if(activePending.current)return;activePending.current=true;activeRetryFocus.current=document.activeElement===activeRetryRef.current;setActiveLoading(true);setActiveError("");retryActive(value=>value+1);}}/>
     <GeneratorJobResult selectionControls job="" service={service} kind="audio" onDeleted={cleaned}/>
   </article>;
 }

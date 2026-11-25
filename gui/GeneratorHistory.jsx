@@ -51,7 +51,7 @@ export default function GeneratorHistory(props){
 }
 
 function GeneratorHistoryForService({service, statusCommand, restore, inspectResult, openResult, renderResult, readJob, readJobWithSignal, allowPriority=false, onSelectedDeleted, card=false, resultId='', externalResultId='', onCloseResult, footer, directApply=true, toggleResult=false, emptyMessage='조회된 이력이 없습니다. 검색 조건을 바꾸거나 새 작업을 생성하세요.'}) {
-  const resultPanelId=useId(),searchErrorId=useId(),paginationHintId=useId();
+  const resultPanelId=useId(),searchErrorId=useId(),paginationHintId=useId(),busyId=useId();
   const detailsRef=useRef(null),selectedRef=useRef(null),resultPanelRef=useRef(null),focusOpenedResult=useRef(false),focusTimer=useRef(null),mounted=useRef(true);
   const [expanded,setExpanded]=useState(null);
   const [page,setPage]=useState(null);
@@ -228,8 +228,8 @@ function GeneratorHistoryForService({service, statusCommand, restore, inspectRes
   }
   return <details ref={detailsRef} className={`generator-history${card ? ' generator-section-card' : ''}`} onToggle={event=>{
     if(event.currentTarget.open && !page && !error && !resultId)perform(()=>list(0,query.trim()));}}><summary>{card ? <span className="generator-section-card-heading" role="heading" aria-level="2">생성 이력</span> : '생성 이력'}</summary>
-    {busy && !busyInSelection && <p role="status">이력 요청을 처리하고 있습니다.</p>}
-    <fieldset className={card ? 'generator-section-card-body' : undefined} disabled={busy}><div className="generator-history-toolbar">
+    {busy && !busyInSelection && <p id={busyId} role="status">이력 요청을 처리하고 있습니다.</p>}
+    <fieldset className={card ? 'generator-section-card-body' : undefined} disabled={busy} aria-describedby={busy ? busyId : undefined}><div className="generator-history-toolbar">
       <label>작업 ID 검색 <input ref={searchRef} value={query} maxLength={80} placeholder="ID 일부 입력" aria-describedby={error.startsWith("작업 ID 검색에는 영문") ? searchErrorId : undefined} aria-invalid={error.startsWith("작업 ID 검색에는 영문") || undefined} onChange={e=>{cancelLookup();setQuery(e.target.value);setError(value=>value.startsWith("작업 ID 검색에는 영문") ? "" : value);}} onKeyDown={e=>{if(e.key==="Enter" && !e.nativeEvent.isComposing){e.preventDefault();perform(()=>list(0,query.trim()));}}}/></label>
       <label>페이지당 이력 <select value={pageSize} onChange={e=>{const size=Number(e.target.value);perform(()=>list(0,query.trim(),size));}}>{[5,10,20,30].map(size=><option key={size} value={size}>{size}건</option>)}</select></label>
       <button type="button" onClick={()=>perform(()=>list(0,query.trim()))}>{busy?"조회 중…":page && query.trim()===filter?"이력 새로고침":"이력 조회"}</button>
@@ -262,7 +262,7 @@ function GeneratorHistoryForService({service, statusCommand, restore, inspectRes
               {(openResult || inspectResult) && (toggleResult || resultId!==record.id) && <button className="history-action-result" type="button" aria-expanded={toggleResult ? resultId===record.id : undefined} aria-controls={renderResult ? resultPanelId : undefined} onClick={()=>{if(openResult){if(toggleResult && resultId===record.id)onCloseResult?.();else {focusOpenedResult.current=true;openResult(record.id);}}else perform(()=>showResult(record.id));}}>{toggleResult ? (resultId===record.id ? "결과 접기" : "결과 펼치기") : "결과 조회"}<span className="generator-visually-hidden"> · 작업 ID {record.id}</span></button>}
               {restore && <button className="history-action-input" type="button" onClick={()=>perform(async()=>{if(directApply){const input=await read(record.id);if(input)await restore(input.request,input);}else await showInput(record.id);},"input")}>{directApply ? '입력 적용' : '입력값 불러오기'}<span className="generator-visually-hidden"> · 작업 ID {record.id}</span></button>}
             </div>
-            {busy && busyInSelection && <p className="history-action-detail" role="status">이력 요청을 처리하고 있습니다.</p>}
+            {busy && busyInSelection && <p id={busyId} className="history-action-detail" role="status">이력 요청을 처리하고 있습니다.</p>}
             {errorScope==="input" && error && <p role="alert">{error} · 입력 상태를 확인한 후 다시 시도하세요.</p>}
             {job?.id===record.id && <section ref={inputReviewRef} tabIndex={-1} aria-label="불러온 입력 확인" className="history-action-detail"><strong>불러온 입력 확인</strong>{historyInputSummary(job.request,service).length>0 && <p>저장 입력 · {historyInputSummary(job.request,service).join(" · ")}</p>}<SavedInputDetails request={job.request} details={historyInputDetails(job.request)}/>
               {restore && <button type="button" onClick={()=>perform(()=>restore(job.request,job),"input")}>확인한 입력 적용</button>}

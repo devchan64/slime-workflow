@@ -52,7 +52,7 @@ export default function WorldMap() {
   const [revision,setRevision]=useState(0);
   const [imageRevision,setImageRevision]=useState(0);
   const [zoom,setZoom]=useState(1);
-  const viewportHelpId=useId(),selectionHelpId=useId(),loadingId=useId();
+  const viewportHelpId=useId(),selectionHelpId=useId(),loadingId=useId(),zoomStatusId=useId();
   const viewport=useRef(null),selectRef=useRef(null),reloadRef=useRef(null),reloadPending=useRef(true),restoreReloadFocus=useRef(false),restoreMapFocus=useRef(false);
   useEffect(()=>{
     if(!loading && restoreReloadFocus.current){
@@ -108,11 +108,11 @@ export default function WorldMap() {
         {maps.map(node=><option key={node.id} value={node.id}>{labels.get(node.id)}</option>)}</select></label>
       {!selected && <p id={selectionHelpId} role="status">선택한 맵을 현재 목록에서 찾지 못했습니다. 목록에서 다른 맵을 선택하세요.</p>}
       <div className="ui-action-row" role="group" aria-label="월드맵 화면 조정">
-        <button type="button" aria-disabled={zoom<=.1} title={zoom<=.1 ? "최소 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.max(.1,v*.8))}>축소</button>
-        <button type="button" aria-disabled={zoom>=2} title={zoom>=2 ? "최대 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.min(2,v*1.25))}>확대</button>
+        <button type="button" aria-disabled={zoom<=.1} aria-describedby={zoom<=.1 ? zoomStatusId : undefined} title={zoom<=.1 ? "최소 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.max(.1,v*.8))}>축소</button>
+        <button type="button" aria-disabled={zoom>=2} aria-describedby={zoom>=2 ? zoomStatusId : undefined} title={zoom>=2 ? "최대 배율입니다." : undefined} onClick={()=>setZoom(v=>Math.min(2,v*1.25))}>확대</button>
         <button type="button" onClick={()=>setZoom(Math.max(.1,Math.min(1,viewport.current.clientWidth/width,innerHeight*.65/height)))}>전체 보기</button>
         <button type="button" disabled={!selected} aria-describedby={!selected ? selectionHelpId : undefined} onClick={()=>{const area=viewport.current;if(!area)return;area.scrollTo({left:x(selected)*zoom-area.clientWidth/2,top:y(selected)*zoom-area.clientHeight/2});area.scrollIntoView({block:"nearest"});area.focus({preventScroll:true});}}>선택 맵 보기</button>
-        <output aria-live="polite">확대 {Math.round(zoom*100)}%{zoom<=.1 ? " · 최소 배율" : zoom>=2 ? " · 최대 배율" : ""}</output>
+        <output id={zoomStatusId} aria-live="polite">확대 {Math.round(zoom*100)}%{zoom<=.1 ? " · 최소 배율" : zoom>=2 ? " · 최대 배율" : ""}</output>
       </div>
       <p id={viewportHelpId}>지도 영역에 초점을 두고 방향키로 스크롤할 수 있습니다. 맵은 목록이나 지도에서 선택하세요. 미리보기가 없으면 원본을 다시 불러와 재시도하세요.</p>
       <div ref={viewport} className="world-map-viewport" role="region" tabIndex={0} aria-label="월드맵 스크롤" aria-describedby={viewportHelpId}>

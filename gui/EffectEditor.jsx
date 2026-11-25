@@ -213,7 +213,7 @@ export function Alignment({detail,onDirtyChange,onBusyChange}){
 }
 
 export default function EffectEditor(){
-  const dirtyHelpId=useId(),selectionHelpId=useId();
+  const dirtyHelpId=useId(),selectionHelpId=useId(),pickerBusyId=useId();
   const [notice,setNotice]=useState("");
   const [effects,setEffects]=useState([]),[selected,select]=useState(""),[detail,setDetail]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[revision,reload]=useState(0);
@@ -251,13 +251,13 @@ export default function EffectEditor(){
     finally{clearTimeout(timeout);if(detailRequest.current===controller){detailRequest.current=null;setDetailLoading(false);setBusy(false);}}
   }
   const choices=choiceLabels(effects.map(item=>[item.name,item.id]));
-  return <article className="effect-editor-page"><h1>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy || editorBusy}><legend>이펙트 선택</legend>
+  return <article className="effect-editor-page"><h1>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy || editorBusy} aria-describedby={busy || editorBusy ? pickerBusyId : undefined}><legend>이펙트 선택</legend>
     <select ref={selectRef} aria-label="이펙트" aria-describedby={dirty ? dirtyHelpId : !effects.length ? selectionHelpId : undefined} disabled={dirty || !effects.length} value={selected} onChange={e=>{select(e.target.value);setDetail(null);}}>
       {selected && !effects.some(item=>item.id===selected) && <option value={selected}>{selected} · 현재 목록에 없음</option>}
       {!effects.length && <option value="">{busy ? "목록 조회 중…" : error ? "이펙트 목록 조회 실패" : "선택할 이펙트가 없습니다"}</option>}
       {choices.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select>
     <button ref={reloadRef} type="button" onClick={()=>{if(listPending.current || detailRequest.current || busy || editorBusy)return;listPending.current=true;setBusy(true);if(document.activeElement===reloadRef.current)restorePickerFocus.current="list";reload(n=>n+1);}}>목록 새로고침</button><button ref={loadRef} type="button" disabled={dirty || !effects.some(item=>item.id===selected)} aria-describedby={dirty ? dirtyHelpId : !effects.some(item=>item.id===selected) ? selectionHelpId : undefined} onClick={load}>선택 이펙트 불러오기</button>{!dirty && !effects.some(item=>item.id===selected) && <p id={selectionHelpId}>목록을 불러온 뒤 이펙트를 선택하세요.</p>}</fieldset>
-    {busy && <p role="status">{detailLoading ? "이펙트 상세를 불러오는 중입니다." : "이펙트 목록을 불러오는 중입니다."}</p>}
+    {(busy || editorBusy) && <p id={pickerBusyId} role="status">{busy ? detailLoading ? "이펙트 상세를 불러오는 중입니다." : "이펙트 목록을 불러오는 중입니다." : "이펙트 편집 요청을 처리하고 있습니다. 완료 후 선택할 수 있습니다."}</p>}
     {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
     {error && effects.length>0 && <p role="status">이전 조회의 목록{detail ? "과 열려 있는 상세를" : "을"} 유지합니다.</p>}
     {selected && !busy && !error && !effects.some(item=>item.id===selected) && <p role="status">선택한 이펙트가 현재 목록에 없습니다. 다른 이펙트를 선택할 수 있습니다.</p>}

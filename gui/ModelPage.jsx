@@ -174,7 +174,7 @@ export default function ModelPage() {
       {modelQuery && <button type="button" onClick={()=>{setModelQuery("");searchRef.current?.focus();}}>검색 지우기</button>}
       {selectedModel && <p>선택한 모델 · <strong>{selectedModel.label}</strong> <small>({selectedModel.id})</small></p>}
       <p role="status">{modelQuery.trim() ? `검색 결과 ${matchingModels.length}개 / 전체 ${models.length}개` : `등록 모델 ${models.length}개`}{service && searchTerms.length>0 && !matchingModels.some(model=>model.id===service) ? " · 현재 선택은 유지됩니다." : ""}</p>
-      {matchingModels.length>0 && <div role="group" aria-label="모델 목록" className="model-choice-list">
+      {matchingModels.length>0 && <div role="group" aria-label="모델 목록" aria-describedby={missingModel ? missingModelId : undefined} className="model-choice-list">
         {matchingModels.map(model=><button key={model.id} type="button" className="generator-history-select" aria-pressed={service===model.id} onClick={()=>chooseModel(model.id)}><span className="history-card-content"><span className="history-card-heading"><strong>{model.label}</strong>{service===model.id && <span>선택됨</span>}</span><small className="history-card-id">{model.id}</small></span></button>)}
       </div>}
       {modelQuery.trim() && matchingModels.length===0 && <p>일치하는 모델이 없습니다. 다른 이름이나 서비스 ID로 검색하세요.</p>}

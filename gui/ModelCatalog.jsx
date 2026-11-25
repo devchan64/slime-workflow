@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useId, useRef, useState} from 'react';
 import {managementCommand, untilAborted} from './managementCommand.js';
 import {requestErrorMessage} from './requestError.mjs';
 import {installationJobs, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification} from './modelCatalogSearch.mjs';
@@ -10,6 +10,7 @@ const manifestLabel = value => ({missing: '없음', read: '읽음', unavailable:
 const gib = bytes => `${(bytes / 1024 ** 3).toFixed(2)} GiB`;
 
 export default function ModelCatalog({onCompare}) {
+  const busyId=useId();
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -64,8 +65,8 @@ export default function ModelCatalog({onCompare}) {
   const visibleComponents=result ? sortCatalog(searchCatalog(result.components,query),order) : [];
   return <section className="model-catalog"><h2>모델 카탈로그</h2>
     <p>등록된 모델과 공유 구성요소, 아직 분류하지 않은 디렉터리를 확인합니다. 표시된 관계는 현재 등록된 정보이며 전체 의존성을 보장하지 않습니다.</p>
-    <button type="button" onClick={load} aria-disabled={busy}>{busy ? '카탈로그 조회 중…' : '카탈로그 조회'}</button>
-    {busy && <p role="status">카탈로그를 조회하고 있습니다.{result && ' 아래는 마지막 조회 결과입니다.'}</p>}
+    <button type="button" onClick={load} aria-disabled={busy} aria-describedby={busy ? busyId : undefined}>{busy ? '카탈로그 조회 중…' : '카탈로그 조회'}</button>
+    {busy && <p id={busyId} role="status">카탈로그를 조회하고 있습니다.{result && ' 아래는 마지막 조회 결과입니다.'}</p>}
     {error && <p role="alert">{error}{result && ' · 이전 조회 결과를 표시합니다.'}</p>}
     {result && <>
       {result.backup_error && <p role="status">{result.backup_error} 백업 존재 여부는 확인할 수 없습니다.</p>}

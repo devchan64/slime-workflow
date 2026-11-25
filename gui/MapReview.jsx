@@ -61,7 +61,7 @@ export default function MapReview(){
   const [importError,setImportError]=useState("");
   const [brushErrors,setBrushErrors]=useState([]);
   const [recovery,setRecovery]=useState(null);
-  const readRequest=useRef(null),importRequest=useRef(null),savingRef=useRef(false),cellFormRef=useRef(null),feedbackRef=useRef(null),restorePreviewFocus=useRef(false),importInputRef=useRef(null),restoreImportFocus=useRef(false),discardedRecovery=useRef(new Set());
+  const readRequest=useRef(null),importRequest=useRef(null),savingRef=useRef(false),cellFormRef=useRef(null),cellFocusOrigin=useRef(null),feedbackRef=useRef(null),feedbackFocusOrigin=useRef(null),restorePreviewFocus=useRef(false),importInputRef=useRef(null),restoreImportFocus=useRef(false),discardedRecovery=useRef(new Set());
   useEffect(()=>()=>{readRequest.current?.abort();importRequest.current?.abort();},[]);
   async function readMap(command,payload){
     const controller=new AbortController();readRequest.current=controller;let timedOut=false;
@@ -115,7 +115,7 @@ export default function MapReview(){
       catch(error){discardedRecovery.current.add(draft.map);storageError="탭 임시본을 삭제하지 못했습니다. 페이지를 다시 열면 이전 초안이 자동 복원될 수 있습니다. "+requestErrorMessage(error);}
       setCell(null);setSource(null);setDraft(null);setPreview(null);
       setPast([]);setFuture([]);setBrush("pan");setStorageFailed(false);setSaveUncertain(false);setStorageNotice(storageError);setFeedback("지도 원본을 다시 불러왔습니다.");
-    }catch(error){setFeedback(error.message);}
+    }catch(error){setFeedback(requestErrorMessage(error));}
     finally{setReading(false);}
   }
   function discardRecovery(){
@@ -125,7 +125,7 @@ export default function MapReview(){
       }
       sessionStorage.removeItem(storageKey(recovery.map));setRecovery(null);
       setFeedback("임시본을 삭제했습니다. 셀을 다시 조회해 현재 원본으로 시작하세요.");
-    }catch(error){setFeedback(error.message);}
+    }catch(error){setFeedback(requestErrorMessage(error));}
   }
   const storageKey=map=>"slime-map-editor-draft-v1:"+map;
   useEffect(()=>{
@@ -242,7 +242,7 @@ export default function MapReview(){
       if(!current){
         let raw;
         try{if(!discardedRecovery.current.has(map))raw=sessionStorage.getItem(storageKey(map));}
-        catch(error){setStorageNotice("탭 임시저장을 사용할 수 없습니다. "+error.message);}
+        catch(error){setStorageNotice("탭 임시저장을 사용할 수 없습니다. "+requestErrorMessage(error));}
         setRecovery(null);
         if(raw){
           setRecovery({map,raw});
@@ -262,13 +262,14 @@ export default function MapReview(){
       const {column,row}=selected;
       const nextCell={...originalCell,
         ...current.cells.find(item=>item.column===column && item.row===row)};
-      setCell(nextCell);setCellOriginal(nextCell);
+      cellFocusOrigin.current=focusAtStart;setCell(nextCell);setCellOriginal(nextCell);
       setFeedback("");
-      requestAnimationFrame(()=>{if(document.activeElement===focusAtStart || document.activeElement===document.body)cellFormRef.current?.focus({preventScroll:true});});
-    }catch(error){setFeedback(error.message);requestAnimationFrame(()=>{if(document.activeElement===focusAtStart || document.activeElement===document.body)feedbackRef.current?.focus();});}
+    }catch(error){feedbackFocusOrigin.current=focusAtStart;setFeedback(requestErrorMessage(error));requestAnimationFrame(()=>{if(document.activeElement===focusAtStart || document.activeElement===document.body)feedbackRef.current?.focus();});}
     finally{setReading(false);}
   }
   const [ready,setReady]=useState(false),[feedback,setFeedback]=useState("");
+  useEffect(()=>{if(reading || !cellFocusOrigin.current)return;const origin=cellFocusOrigin.current;cellFocusOrigin.current=null;if(document.activeElement===origin || document.activeElement===document.body)cellFormRef.current?.focus({preventScroll:true});},[reading,cell]);
+  useEffect(()=>{if(reading || !feedback || !feedbackFocusOrigin.current)return;const origin=feedbackFocusOrigin.current;feedbackFocusOrigin.current=null;if(document.activeElement===origin || document.activeElement===document.body)feedbackRef.current?.focus();},[reading,feedback]);
   useEffect(()=>{if(!reading && feedback && restorePreviewFocus.current){restorePreviewFocus.current=false;restoreLostFocus(document,feedbackRef.current);}},[reading,feedback]);
   useEffect(()=>{if(reading || !restoreImportFocus.current)return;restoreImportFocus.current=false;const target=importInputRef.current;if(target?.isConnected && !target.matches(':disabled'))restoreLostFocus(document,target);},[reading,importError]);
   const [loadError,setLoadError]=useState("");
@@ -352,7 +353,7 @@ export default function MapReview(){
   };
   async function exportImage(){
     try{setFeedback(await window.mapReviewExportImage());}
-    catch(error){setFeedback(error.message);}
+    catch(error){setFeedback(requestErrorMessage(error));}
   }
   function guardNavigation(event){
     const brushPending=field && (window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length);
@@ -379,7 +380,7 @@ export default function MapReview(){
     {feedback && <p ref={feedbackRef} className="map-review-feedback" role="status" tabIndex={-1}>{feedback}</p>}
     <MapBrushErrors errors={brushErrors} onDismiss={event=>{if(document.activeElement===event.currentTarget)document.getElementById("map-title")?.focus();setBrushErrors([]);}}/>
     {field && reading && <p id={saving ? "map-saving-status" : "map-reading-status"} role="status">{saving ? "지도 저장 결과를 확인하고 있습니다." : "지도 조회 또는 초안 처리를 진행하고 있습니다."}</p>}
-    {field && <fieldset disabled={!ready || reading} aria-describedby={reading ? (saving ? "map-saving-status" : "map-reading-status") : undefined}><legend>셀 검수</legend>
+    {field && <fieldset disabled={!ready || reading} aria-describedby={[!ready && "status",reading && (saving ? "map-saving-status" : "map-reading-status")].filter(Boolean).join(" ") || undefined}><legend>셀 검수</legend>
       {saveUncertain && <section aria-label="저장 결과 확인"><p>이전 저장 결과가 불확실합니다. 초안은 유지됩니다. 새로 검증하거나 원본 리비전을 조회해도 이전 저장의 완료 여부가 확인되는 것은 아닙니다.</p><button type="button" onClick={inspectSaveRevision}>현재 원본 리비전 확인</button></section>}
       <label><input type="checkbox" checked={editing} aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined} onChange={event=>{if(cellDirty){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}window.mapReviewEditingEnabled=event.target.checked;setEditing(event.target.checked);setBrush("pan");window.mapReviewSelectedCell=null;setCell(null);setCellOriginal(null);}}/>캐릭터 이동 대신 셀 선택</label>
       <p id="map-cell-selection-help">지도를 눌러 셀을 선택한 뒤 조회하거나, 아래 열·행을 입력해 바로 조회할 수 있습니다.</p>

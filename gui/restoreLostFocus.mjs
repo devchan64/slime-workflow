@@ -4,3 +4,12 @@ export function restoreLostFocus(document,target) {
   target.focus();
   return true;
 }
+
+/** 접힌 details 안의 대상은 화면에서 보이는 바깥쪽 접기 제목으로 대체한다. */
+export function visibleFocusTarget(target) {
+  let visible=target;
+  for(let node=target;node;node=node.parentElement) {
+    if(node.tagName==='DETAILS' && !node.open) visible=node.querySelector(':scope > summary') || visible;
+  }
+  return visible;
+}
