@@ -1,6 +1,6 @@
 import JobStatus from "./JobStatus.jsx";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
-import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import JobIdentifier from "./JobIdentifier.jsx";
 import RecordFolder from "./RecordFolder.jsx";
 import GenerationProgress from "./GenerationProgress.jsx";
@@ -89,7 +89,7 @@ export default function TranslationPage({embedded=false,session:embeddedSession=
     const restore=reviewRef.current?.contains(document.activeElement),epoch=reviewEpoch.current;
     setPending(null);
     if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);
-    if(restore)restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(epoch===reviewEpoch.current)restoreLostFocus(document,textRef.current);});
+    if(restore)restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(epoch===reviewEpoch.current)restoreLostFocus(document,visibleFocusTarget(textRef.current));});
   }
   async function submit(){
     if(!pending || sending.current || !generationReady(model))return;

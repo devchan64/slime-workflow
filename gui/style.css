@@ -161,6 +161,7 @@ article {position:relative;}
 .translation-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}
 .translation-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.translation-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.translation-request-review p {margin:.4rem 0}.translation-request-review ul {padding-left:1.3rem}.translation-request-review :is(p,li) {overflow-wrap:anywhere}.translation-review-text {white-space:pre-wrap}
 .fun-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}.fun-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.fun-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.fun-request-review p {margin:.4rem 0;line-height:1.5}.fun-review-prompt {white-space:pre-wrap}
+.fun-request-review:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .review-prompt {min-width:0;max-width:100%;overflow-wrap:anywhere}.review-prompt .fun-review-prompt {white-space:pre-wrap;overflow-wrap:anywhere}
 .generation-review-text {max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
 pre.generation-review-text {max-height:20rem;overflow:auto}
@@ -326,13 +327,14 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
   gap:.75rem;
 }
 .fun-control-page > form {display:block;margin:0;padding:0;max-width:none}
-.fun-control-page > form > fieldset,.fun-control-page > .fun-history {
+.fun-control-page > form > fieldset {
   min-width:0;
   margin:0;
   padding:clamp(.75rem,2vw,1rem);
   border:1px solid #484d50;
   border-radius:.6rem;
 }
+.fun-control-page > .fun-history,.fun-control-page .generator-section-card-body > form > fieldset {min-width:0;margin:0;padding:0;border:0}
 .fun-control-page > details,.fun-history > details {margin:0}
 .fun-control-page :is(.fun-source,.fun-field-group) {margin-inline:0;border:1px solid #484d50;border-radius:.5rem}
 .fun-control-page > section {min-width:0;overflow-wrap:anywhere}
@@ -470,6 +472,10 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .sprite-editor-page > h1 {flex:none;font-size:1.5rem}
 .sprite-editor-page :is(form,fieldset,section,details) {min-width:0;box-sizing:border-box;max-width:100%}
 .sprite-editor-page :is(h2,h3) {overflow-wrap:anywhere}
+.sprite-editor-page .sprite-canvas-controls {display:flex;flex-wrap:wrap;align-items:end;gap:.5rem}
+.sprite-editor-page .sprite-canvas-controls label {display:grid;gap:.3rem;min-width:0}
+.sprite-editor-page .sprite-canvas-controls select {max-width:100%;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.sprite-editor-page .sprite-frame-slider {display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin-block:.75rem}
 .sprite-frame-table {max-width:100%;min-width:0}
 .sprite-frame-table input {min-width:5rem;width:6rem}
 .world-map-connections {max-width:100%;min-width:0}
@@ -481,6 +487,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .world-map-review img {max-width:100%;height:auto}
 .world-map-thumbnail {max-width:256px}
 .world-map-review button[aria-disabled="true"] {opacity:.65;cursor:not-allowed}
+.map-review button[aria-disabled="true"] {opacity:.65;cursor:not-allowed}
 .world-map-selected-marker {stroke:var(--accent,#b5d8ff);stroke-width:3;pointer-events:none}
 .world-map-viewport svg a:focus-visible {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .world-map-select {display:grid;gap:.35rem;min-width:0;max-width:22rem}
@@ -950,6 +957,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 
 .dwpose-standalone.generator-page-common {width:min(100% - 2rem,var(--generator-page-width))}
 .dwpose-standalone.generator-page-common > fieldset {padding:var(--generator-fieldset-padding)}
+.dwpose-page.generator-page-common > .dwpose-workflow {display:grid;gap:1.25rem;border:0;margin:0;padding:0;min-width:0}
 
 .keyframe-placement-row {margin:.75rem 0;padding:.75rem;border:1px solid var(--line,#484d50);border-radius:.5rem;overflow-wrap:anywhere}
 .keyframe-placement-row p {margin:.35rem 0;color:var(--muted,#aeb7c3)}

@@ -234,7 +234,7 @@ export default function EffectEditor(){
     untilAborted(managementCommand("map-assets","effect-list",{},{signal:controller.signal}),controller.signal).then(result=>{
       if(!validEffectList(result))throw new Error("이펙트 목록 응답을 확인할 수 없습니다.");
       if(active){setEffects(result.effects);select(old=>old || result.effects[0]?.id || "");}
-    }).catch(problem=>{if(active)setError(problem?.name==="AbortError" ? "이펙트 목록 조회 시간이 초과됐습니다. 목록을 새로고침하세요." : problem instanceof TypeError ? "이펙트 목록 서버에 연결하지 못했습니다. 목록을 새로고침하세요." : problem?.message || "이펙트 목록을 불러오지 못했습니다. 목록을 새로고침하세요.");}).finally(()=>{clearTimeout(timeout);if(active){listPending.current=false;setBusy(false);}});
+    }).catch(problem=>{if(active)setError(problem?.name==="AbortError" ? "이펙트 목록 조회 시간이 초과됐습니다. 목록을 새로고침하세요." : problem instanceof TypeError ? "이펙트 목록 서버에 연결하지 못했습니다. 목록을 새로고침하세요." : problem?.message ? requestErrorMessage(problem) : "이펙트 목록을 불러오지 못했습니다. 목록을 새로고침하세요.");}).finally(()=>{clearTimeout(timeout);if(active){listPending.current=false;setBusy(false);}});
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[revision]);
   async function load(){
@@ -247,7 +247,7 @@ export default function EffectEditor(){
       const result=await untilAborted(managementCommand("map-assets","effect-load",{id:selected},{signal:controller.signal}),controller.signal);
       if(!validEffectDetail(result,selected))throw new Error("선택한 이펙트의 상세 응답을 확인할 수 없습니다.");
       if(detailRequest.current===controller){setDetail(result);setEditorVersion(value=>value+1);}
-    }catch(problem){if(detailRequest.current===controller)setError(problem?.name==="AbortError" ? "이펙트 조회 시간이 초과됐습니다. 다시 불러오세요." : problem instanceof TypeError ? "이펙트 서버에 연결하지 못했습니다. 다시 불러오세요." : problem?.message || "이펙트 상세를 불러오지 못했습니다. 다시 불러오세요.");}
+    }catch(problem){if(detailRequest.current===controller)setError(problem?.name==="AbortError" ? "이펙트 조회 시간이 초과됐습니다. 다시 불러오세요." : problem instanceof TypeError ? "이펙트 서버에 연결하지 못했습니다. 다시 불러오세요." : problem?.message ? requestErrorMessage(problem) : "이펙트 상세를 불러오지 못했습니다. 다시 불러오세요.");}
     finally{clearTimeout(timeout);if(detailRequest.current===controller){detailRequest.current=null;setDetailLoading(false);setBusy(false);}}
   }
   const choices=choiceLabels(effects.map(item=>[item.name,item.id]));

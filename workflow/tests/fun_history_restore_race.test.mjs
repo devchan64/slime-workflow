@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
+import {visibleFocusTarget} from '../../gui/restoreLostFocus.mjs';
 
 const source=readFileSync(new URL('../../gui/FunControlPage.jsx',import.meta.url),'utf8');
 const code=source.slice(source.indexOf('  async function readJob('),source.indexOf('  function cleaned('));
@@ -53,7 +54,7 @@ test('Fun Control 검토 취소는 새 검토와 사용자 이동 및 잠긴 입
  const code=source.slice(source.indexOf('  function cancelReview(){'),source.indexOf('  function renderResult('));
  for(const mode of ['lost','moved','review','disabled']){
   const body={},inside={},other={};let frame,focused=0;const target={isConnected:true,disabled:false,matches:()=>mode==='disabled',focus:()=>focused++};
-  const c=vm.createContext({document:{body,activeElement:inside},reviewRef:{current:{contains:node=>node===inside}},reviewEpoch:{current:1},reviewRequest:{current:null},restoreFrame:{current:null},formRef:{current:{querySelector:()=>target}},setPending:()=>{},setHandoffReview:()=>{},requestAnimationFrame:fn=>(frame=fn,1),cancelAnimationFrame:()=>{},restoreLostFocus:(doc,node)=>{if(doc.activeElement===doc.body && node.isConnected && !node.disabled)node.focus();}});
+  const c=vm.createContext({document:{body,activeElement:inside},reviewRef:{current:{contains:node=>node===inside}},reviewEpoch:{current:1},reviewRequest:{current:null},restoreFrame:{current:null},formRef:{current:{querySelector:()=>target}},setPending:()=>{},setHandoffReview:()=>{},requestAnimationFrame:fn=>(frame=fn,1),cancelAnimationFrame:()=>{},visibleFocusTarget,restoreLostFocus:(doc,node)=>{if(doc.activeElement===doc.body && node.isConnected && !node.disabled)node.focus();}});
   vm.runInContext(code+'\nthis.cancelReview=cancelReview;',c);c.cancelReview();c.document.activeElement=mode==='moved'?other:body;if(mode==='review')c.reviewEpoch.current++;frame();assert.equal(focused,mode==='lost'?1:0);
  }
 });

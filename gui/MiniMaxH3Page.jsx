@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import {generationProposalScope,readGenerationProposal} from "./generationProposal.mjs";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {useMinimaxReportReceipt,MinimaxReportStatus} from "./useMinimaxReportReceipt.jsx";
@@ -8,6 +8,7 @@ import {generationReady} from "./generationReady.mjs";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
 import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
 import GeneratorUsage from "./GeneratorUsage.jsx";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
@@ -26,6 +27,7 @@ import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 
 const service="minimax-h3-i2v";
 export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""}={}) {
+  const inputLockId=useId();
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [proposalScope,setProposalScope]=useState(null);
   const hasProposal=new URLSearchParams(location.search).has("proposal_job");
@@ -100,7 +102,7 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
   }
   function cancelReview(){
     const restore=reviewRef.current?.contains(document.activeElement);setPending(null);
-    if(restore)requestAnimationFrame(()=>{if(document.activeElement===document.body)formRef.current?.focus();});
+    if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(formRef.current)));
   }
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}>
     <GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
@@ -112,14 +114,14 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={setJob}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <GeneratorSectionCard title="생성 입력" summary="첫 이미지와 동작 지시" defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending}><legend className="generator-visually-hidden">생성 입력</legend>
+    <GeneratorSectionCard title="생성 입력" summary="첫 이미지와 동작 지시" defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
       <ReferenceImageInput label="첫 프레임 이미지" source={file} onSelectionStart={()=>imageVersion.current++} onCheckingChange={setChecking} onChange={setFile} disabled={busy || !!pending}/>
       <p>이미지에 흰 여백을 넣어 832×480 영상에 맞춥니다.</p>
-      <label>장면·동작 프롬프트<textarea required maxLength={8000} value={prompt} onChange={e=>{promptEdited.current=true;setPrompt(e.target.value);}}/><PromptWordCount text={prompt} final/></label>
+      <label>장면·동작 프롬프트<textarea required maxLength={8000} value={prompt} onChange={e=>{promptEdited.current=true;setPrompt(e.target.value);}}/></label><PromptWordCount text={prompt} final/>
       <SeedInput value={seed} max={2147483647} error={invalidSeed ? "0~2147483647의 정수를 입력하세요." : ""} onChange={value=>setSeed(value===""?"":Number(value))}/>
       <p>832×480 · 124프레임 · 24fps · 약 5.17초 · Turbo 8스텝. 480p 생성과 동작 품질은 별도 확인이 필요합니다.</p>
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
-    </fieldset></form></GeneratorSectionCard>
+    </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{busy ? "요청을 처리하고 있습니다. 잠시 기다려 주세요." : "입력을 수정하려면 생성 요청 검토에서 입력 수정을 선택하세요."}</p>}</form></GeneratorSectionCard>
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{file?.name} · 832×480 · 124프레임 · 24fps · Turbo 8스텝 · 시드 {pending.seed}</p><ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하세요." : ""} onCancel={cancelReview} onConfirm={submit}/></section>}
     <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority readJob={readSavedInput} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(n=>n+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(n=>n+1);}}/>} renderResult={(id,close)=><section ref={resultRef} tabIndex={-1}><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} readJob={currentId=>readSavedInput(currentId,false)}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>
   </article>;

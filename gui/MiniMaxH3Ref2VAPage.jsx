@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {generationProposalScope,readGenerationProposal} from "./generationProposal.mjs";
 import {generationReady} from "./generationReady.mjs";
@@ -8,6 +8,7 @@ import {videoData} from "./videoInputs.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
 import GeneratorUsage from "./GeneratorUsage.jsx";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
@@ -27,6 +28,7 @@ import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 
 const service="minimax-h3-ref2va";
 export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSession=""}={}){
+  const inputLockId=useId();
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [prompt,setPrompt]=useState(""),[seed,setSeed]=useState(45),[file,setFile]=useState(null);
   const [model,setModel]=useState(null),[modelError,setModelError]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState("");
@@ -84,7 +86,7 @@ export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSess
   }
   function cancelReview(){
     const restore=reviewRef.current?.contains(document.activeElement);setPending(null);
-    if(restore)requestAnimationFrame(()=>{if(document.activeElement===document.body)formRef.current?.focus();});
+    if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(formRef.current)));
   }
   async function readSavedInput(id,{signal}={}){
     const version=editVersion.current;
@@ -109,17 +111,17 @@ export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSess
     <GeneratorSectionCard title="모델 준비" summary={modelError ? '상태 조회 실패' : !model ? '상태 확인 중' : generationReady(model) ? '준비 완료' : '준비 필요'}><ModelReadiness service={service} session={session} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={revision+':'+job} onOpenResult={setJob}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <GeneratorSectionCard title="편집 입력" summary="원본 영상과 편집 지시" defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} onSubmit={review}><fieldset disabled={busy || !!pending}>
+    <GeneratorSectionCard title="편집 입력" summary="원본 영상과 편집 지시" defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}>
       <legend className="generator-visually-hidden">영상 편집 입력</legend>
       <label>원본 MP4<input ref={videoInputRef} type="file" accept="video/mp4" onChange={choose}/></label>
       <p>{'832×480 · 24fps · 정확히 124프레임 · 최대 27MiB'+(file ? ' · 선택: '+file.name : '')+'. 입력 조건은 접수 시 검증합니다.'}</p>
       {file && <button type="button" onClick={removeVideo}>원본 영상 제거</button>}
       <InputVideoPreview file={file} label="원본 영상"/>
-      <label>편집 프롬프트<textarea required maxLength={8000} value={prompt} onChange={event=>{editVersion.current++;promptEdited.current=true;setPrompt(event.target.value);}}/><PromptWordCount text={prompt} final/></label>
+      <label>편집 프롬프트<textarea required maxLength={8000} value={prompt} onChange={event=>{editVersion.current++;promptEdited.current=true;setPrompt(event.target.value);}}/></label><PromptWordCount text={prompt} final/>
       <SeedInput value={seed} max={2147483647} error={invalidSeed ? '0~2147483647의 정수를 입력하세요.' : ''} onChange={value=>{editVersion.current++;setSeed(value===''?'':Number(value));}}/>
       <p>출력 832×480 · 124프레임 · 24fps · Turbo 8스텝. 원본 오디오는 유지되지 않습니다.</p>
       <ActionButton type="submit" reasons={reasons}>편집 요청 검토</ActionButton>
-    </fieldset></form></GeneratorSectionCard>
+    </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{busy ? "요청을 처리하고 있습니다. 잠시 기다려 주세요." : "입력을 수정하려면 편집 요청 검토에서 입력 수정을 선택하세요."}</p>}</form></GeneratorSectionCard>
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="편집 요청 확인"><h2>편집 요청 확인</h2><GpuQueueSummary/><p>{file?.name} · 832×480 · 124프레임 · 24fps · 8스텝 · 시드 {pending.seed}</p><ReviewPrompt label="편집 프롬프트" text={pending.prompt}/><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? '모델 준비 상태를 확인하세요.' : ''} onCancel={cancelReview} onConfirm={submit}/></section>}
     <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card readJobWithSignal={readSavedInput} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob('')} onSelectedDeleted={(id,message)=>{if(job===id)setJob('');setNotice(message);setRevision(n=>n+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob('');setNotice(message);setRevision(n=>n+1);}}/>} renderResult={(id,close)=><section ref={resultRef} tabIndex={-1}><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} readJobWithSignal={readSavedInput}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>
   </article>;

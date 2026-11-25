@@ -1,4 +1,4 @@
-import React,{useRef,useState} from "react";
+import React,{useId,useRef,useState} from "react";
 import AnimateInputs from "./AnimateInputs.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import GeneratorJobResult from "./GeneratorJobResult.jsx";
@@ -34,14 +34,15 @@ export default function AnimatePage({embedded=false,session:embeddedSession=""}=
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [saved,setSaved]=useState(null);
   const [model,setModel]=useState(null),[loraModel,setLoraModel]=useState(null),[interacting,setInteracting]=useState(false);
+  const historyLockId=useId();
   const [modelError,setModelError]=useState(""),[loraError,setLoraError]=useState("");
   const inputRef=useRef(null);
   const historyRef=useRef(null);
   const resultRef=useRef(null);
   const inputRevision=useRef(0),attachmentChecking=useRef(false);
   async function readHistory(id){
-    const revisionAtStart=inputRevision.current,checkingAtStart=attachmentChecking.current;
-    return {...await readJob(id),revisionAtStart,checkingAtStart};
+    const revisionAtStart=inputRevision.current,checkingAtStart=attachmentChecking.current,focusAtStart=document.activeElement;
+    return {...await readJob(id),revisionAtStart,checkingAtStart,focusAtStart};
   }
   const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
@@ -55,14 +56,15 @@ export default function AnimatePage({embedded=false,session:embeddedSession=""}=
       <ModelReadiness session={session} service={service} manage onStatus={setModel} onError={setModelError}/><DownloadProgress service={service}/>
       <h3>선택 LoRA</h3><ModelReadiness session={session} service="wan22-animate2-lightx2v" manage onStatus={setLoraModel} onError={setLoraError}/><DownloadProgress service="wan22-animate2-lightx2v"/>
     </GeneratorSectionCard>
+    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     <GeneratorSectionCard title="생성 입력" summary="참조 이미지와 동작 영상 · 16fps" defaultOpen>
       <section ref={inputRef} tabIndex={-1} aria-label="동작 전사 입력" onChangeCapture={()=>{inputRevision.current++;}}><AnimateInputs saved={saved} onSelectionStart={()=>{inputRevision.current++;}} onJob={openResult} session={session} model={model} loraModel={loraModel} onInteractionChange={setInteracting} onAttachmentCheckingChange={value=>{attachmentChecking.current=value;}}/></section>
     </GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
-    <fieldset ref={historyRef} disabled={interacting}><GeneratorHistory card allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} service={service} readJob={readHistory}
-      restore={(request,record)=>{if(record.checkingAtStart || attachmentChecking.current || record.revisionAtStart!==inputRevision.current)throw new Error("첨부 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");setSaved(record);requestAnimationFrame(()=>inputRef.current?.focus());}}
+    <fieldset ref={historyRef} disabled={interacting} aria-label="생성 이력" aria-describedby={interacting ? historyLockId : undefined}><GeneratorHistory card allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} service={service} readJob={readHistory}
+      restore={(request,record)=>{if(record.checkingAtStart || attachmentChecking.current || record.revisionAtStart!==inputRevision.current)throw new Error("첨부 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");setSaved(record);const card=inputRef.current?.closest("details");if(card)card.open=true;requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===record.focusAtStart)inputRef.current?.focus();});}}
       footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}
       renderResult={(id,close)=><section ref={resultRef} tabIndex={-1} aria-label="선택한 Animate-2 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service={service} readJob={readJob} controls={false} onDeleted={cleaned}/></section>}/></fieldset>
+    {interacting && <p id={historyLockId} role="status">요청 처리를 마치거나 생성 요청 검토를 취소하면 이력을 사용할 수 있습니다.</p>}
     {notice && <p role="status">{notice}</p>}
   </article>;
 }

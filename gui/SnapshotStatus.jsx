@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export default function SnapshotStatus(){
   const [message,setMessage]=useState("에셋 원장 동기화 상태 조회 중…");
@@ -20,7 +21,7 @@ export default function SnapshotStatus(){
         if(pending && failed)parts.push(latestSnapshot.error || "작업자 응답 기한 만료");
         if(latestSnapshot?.finishedAt)parts.push("최근 처리 "+latestSnapshot.finishedAt);
         if(active)setMessage(parts.join(" · "));
-      }catch(error){if(active)setMessage(error?.name==="AbortError" ? "에셋 원장 상태 조회 시간이 초과됐습니다. 다시 확인합니다." : "에셋 원장 상태 조회 실패 · "+(error instanceof TypeError ? "서버 연결을 확인하세요." : error.message));}
+      }catch(error){if(active)setMessage(error?.name==="AbortError" ? "에셋 원장 상태 조회 시간이 초과됐습니다. 다시 확인합니다." : "에셋 원장 상태 조회 실패 · "+(error instanceof TypeError ? "서버 연결을 확인하세요." : requestErrorMessage(error)));}
       finally{clearTimeout(timeout);}
       if(active)timer=setTimeout(refresh,5000);
     }

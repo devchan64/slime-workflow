@@ -343,8 +343,12 @@ function fitReviewMapCamera(currentCornerPoints,currentTopMargin){
 }
 function updateReviewZoomControls(){
  document.querySelector('#zoom-level').textContent=Math.round(currentScaleValue*100)+'%';
- if(document.querySelector('#zoom-in'))document.querySelector('#zoom-in').disabled=currentScaleValue>=MAX_MAP_SCALE;
- if(document.querySelector('#zoom-out'))document.querySelector('#zoom-out').disabled=currentScaleValue<=MIN_MAP_SCALE;
+ for(const [id,limited,help] of [['zoom-in',currentScaleValue>=MAX_MAP_SCALE,'zoom-maximum-help'],['zoom-out',currentScaleValue<=MIN_MAP_SCALE,'zoom-minimum-help']]){
+  const button=document.getElementById(id);if(!button)continue;
+  if(!document.getElementById(help)){const description=document.createElement('span');description.id=help;description.hidden=true;description.textContent=id==='zoom-in'?'최대 배율입니다.':'최소 배율입니다.';button.after(description);}
+  if(limited){button.setAttribute('aria-disabled','true');button.setAttribute('aria-describedby',`zoom-level ${help}`);}
+  else{button.removeAttribute('aria-disabled');button.removeAttribute('aria-describedby');}
+ }
 }
 function renderSharedReviewMap(currentFitRequested,currentOptionOverrides={}){
  if(isFieldMapReview&&(!currentFieldFrame||currentFieldFrame.options.rotation!==currentCameraRotation))currentFieldFrame=createFieldReviewFrame(currentMapRecord,currentCameraRotation);
@@ -470,7 +474,7 @@ window.mapReviewCameraControls=(currentActionName)=>{
 };
 for(const currentActionName of Object.keys(currentCameraActions)){
  const currentActionElement=document.getElementById(currentActionName);
- if(currentActionElement)currentActionElement.onclick=()=>window.mapReviewCameraControls(currentActionName);
+ if(currentActionElement)currentActionElement.onclick=()=>{if(currentActionElement.getAttribute('aria-disabled')==='true')return;window.mapReviewCameraControls(currentActionName);};
 }
 
 // 표준 UI는 상태만 전달하고 모든 렌더링·시점 갱신은 브라우저에서 수행한다.

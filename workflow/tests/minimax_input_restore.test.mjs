@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {validVideoJobId} from '../../gui/videoJobId.mjs';
+import {restoreLostFocus,visibleFocusTarget} from '../../gui/restoreLostFocus.mjs';
 
 const source=readFileSync(new URL('../../gui/MiniMaxH3Page.jsx',import.meta.url),'utf8');
 const code=source.slice(source.indexOf('  async function readSavedInput('),source.indexOf('  function restoreSavedInput('));
@@ -89,8 +90,20 @@ test('MiniMax 검토 취소는 사라진 초점만 입력 영역으로 복구한
  const code=source.slice(source.indexOf('  function cancelReview()'),source.indexOf('  return <article'));
  for(const moved of [false,true]){
   const body={},close={},other={};let frame,focused=0,pending=true;const document={body,activeElement:close};
-  const context=vm.createContext({document,reviewRef:{current:{contains:node=>node===close}},formRef:{current:{focus:()=>focused++}},setPending:value=>pending=value,requestAnimationFrame:fn=>frame=fn});
+  const context=vm.createContext({document,restoreLostFocus,visibleFocusTarget,reviewRef:{current:{contains:node=>node===close}},formRef:{current:{isConnected:true,focus:()=>focused++}},setPending:value=>pending=value,requestAnimationFrame:fn=>frame=fn});
   vm.runInContext(code,context);context.cancelReview();document.activeElement=moved?other:body;frame();assert.equal(pending,null);assert.equal(focused,moved?0:1);
+ }
+});
+
+test('MiniMax 영상 검토 취소는 접힌 입력 카드의 제목으로 초점을 복구한다',()=>{
+ for(const file of ['MiniMaxH3Page.jsx','MiniMaxH3Ref2VAPage.jsx']){
+  const source=readFileSync(new URL('../../gui/'+file,import.meta.url),'utf8');
+  const start=source.indexOf('  function cancelReview()'),end=source.indexOf('\n  }',start);
+  let frame,focused='';const body={},close={},document={body,activeElement:close};
+  const summary={isConnected:true,focus:()=>focused='summary'};
+  const form={isConnected:true,focus:()=>focused='form',parentElement:{tagName:'DETAILS',open:false,querySelector:()=>summary}};
+  const context=vm.createContext({document,restoreLostFocus,visibleFocusTarget,reviewRef:{current:{contains:node=>node===close}},formRef:{current:form},setPending:()=>{},requestAnimationFrame:fn=>frame=fn});
+  vm.runInContext(source.slice(start,end+4),context);context.cancelReview();document.activeElement=body;frame();assert.equal(focused,'summary',file);
  }
 });
 

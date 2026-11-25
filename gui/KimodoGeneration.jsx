@@ -29,7 +29,7 @@ function decodeReferences(rows){
 }
 
 export function KimodoPromptField({value,onChange,reason,reasonId,segmentHelp,segmentMismatch=false}){
-  return <><label>동작 설명 <textarea required maxLength={2000} value={value} aria-describedby={[segmentHelp,reason && reasonId].filter(Boolean).join(' ') || undefined} aria-invalid={Boolean(reason || segmentMismatch) || undefined} onChange={e=>onChange(e.target.value)}/><PromptWordCount text={value}/></label>{reason && <p id={reasonId}>{reason}</p>}</>;
+  return <><label>동작 설명 <textarea required maxLength={2000} value={value} aria-describedby={[segmentHelp,reason && reasonId].filter(Boolean).join(' ') || undefined} aria-invalid={Boolean(reason || segmentMismatch) || undefined} onChange={e=>onChange(e.target.value)}/></label><PromptWordCount text={value}/>{reason && <p id={reasonId}>{reason}</p>}</>;
 }
 
 export function KimodoInputSummary({inputs,references,placement,bundle,directions,frameInvalid=false,generationMode="single",segmentCount=0,segmentFrames=[]}){

@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
-import {restoreLostFocus} from '../../gui/restoreLostFocus.mjs';
+import {restoreLostFocus,visibleFocusTarget} from '../../gui/restoreLostFocus.mjs';
 
 test('DWPose 검토 지연은 중복을 막고 시간 초과 뒤 재시도한다',async()=>{
  const source=readFileSync(new URL('../../gui/DwposePage.jsx',import.meta.url),'utf8');
@@ -45,7 +45,7 @@ test('DWPose 검토 취소는 검토 영역에서 잃은 초점만 복구한다'
  const code=source.slice(source.indexOf('  function closeReview()'),source.indexOf('  function cleaned(',source.indexOf('  function closeReview()')));
  for(const scenario of ['lost','moved','outside','new-review']){
   let frame,focused=0;const body={},inside={},other={},document={body,activeElement:scenario==='outside'?other:inside},reviewEpoch={current:0};
-  const context=vm.createContext({document,restoreLostFocus,reviewEpoch,reviewRequest:{current:null},reviewRef:{current:{contains:value=>value===inside}},reviewButtonRef:{current:{isConnected:true,focus:()=>focused++}},focusFrame:{current:null},setPending:()=>{},handoff:{clearReview:()=>{}},cancelAnimationFrame:()=>{},requestAnimationFrame:fn=>(frame=fn,1)});
+  const context=vm.createContext({document,restoreLostFocus,visibleFocusTarget,reviewEpoch,reviewRequest:{current:null},reviewRef:{current:{contains:value=>value===inside}},reviewButtonRef:{current:{isConnected:true,focus:()=>focused++}},focusFrame:{current:null},setPending:()=>{},handoff:{clearReview:()=>{}},cancelAnimationFrame:()=>{},requestAnimationFrame:fn=>(frame=fn,1)});
   vm.runInContext(code,context);context.closeReview();document.activeElement=['lost','new-review'].includes(scenario)?body:other;if(scenario==='new-review')reviewEpoch.current++;frame?.();assert.equal(focused,scenario==='lost'?1:0,scenario);
  }
 });
@@ -100,7 +100,7 @@ test('DWPose 이력 복원은 이동한 초점과 새 검토를 방해하지 않
  for(const scenario of ['lost','moved','review']){
   let frame,focused=0;const body={},origin={},other={},document={body,activeElement:origin},file={},inputRef={current:{file,hands:false,face:false}},reviewEpoch={current:0};
   const record={reviewAtStart:0,inputAtStart:inputRef.current,imageAtStart:0,checkingAtStart:false,focusAtStart:origin,file:{}};
-  const context=vm.createContext({document,inputRef,reviewEpoch,reviewRequest:{current:null},interactionRef:{current:{busy:false,pending:null}},imageChecking:{current:false},imageSelectionRevision:{current:0},focusFrame:{current:null},handsRef:{current:{isConnected:true,focus:()=>focused++}},setFile:()=>{},setHands:()=>{},setFace:()=>{},setNotice:()=>{},cancelAnimationFrame:()=>{},requestAnimationFrame:fn=>(frame=fn,1)});
+  const context=vm.createContext({document,formRegion:{current:null},inputRef,reviewEpoch,reviewRequest:{current:null},interactionRef:{current:{busy:false,pending:null}},imageChecking:{current:false},imageSelectionRevision:{current:0},focusFrame:{current:null},handsRef:{current:{isConnected:true,focus:()=>focused++}},setFile:()=>{},setHands:()=>{},setFace:()=>{},setNotice:()=>{},cancelAnimationFrame:()=>{},requestAnimationFrame:fn=>(frame=fn,1)});
   vm.runInContext(code,context);context.restore({pose_include_hands:false,pose_include_face:false},record);document.activeElement=scenario==='moved'?other:body;if(scenario==='review')reviewEpoch.current++;frame();assert.equal(focused,scenario==='lost'?1:0,scenario);
  }
 });
@@ -109,7 +109,7 @@ test('DWPose 이력 입력을 연속 적용하면 이전 조회가 첫 복원을
  const source=readFileSync(new URL('../../gui/DwposePage.jsx',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('  function restore('),source.indexOf('  async function review()',source.indexOf('  function restore(')));
  const file={},inputRef={current:{file,hands:false,face:false}},record={reviewAtStart:0,inputAtStart:inputRef.current,imageAtStart:0,checkingAtStart:false,focusAtStart:null,file:{}};
- let applied=0;const context=vm.createContext({document:{activeElement:null,body:{}},inputRef,reviewEpoch:{current:0},reviewRequest:{current:null},interactionRef:{current:{busy:false,pending:null}},imageChecking:{current:false},imageSelectionRevision:{current:0},focusFrame:{current:null},handsRef:{current:null},setFile:()=>applied++,setHands:()=>{},setFace:()=>{},setNotice:()=>{},cancelAnimationFrame:()=>{},requestAnimationFrame:()=>1});
+ let applied=0;const context=vm.createContext({document:{activeElement:null,body:{}},formRegion:{current:null},inputRef,reviewEpoch:{current:0},reviewRequest:{current:null},interactionRef:{current:{busy:false,pending:null}},imageChecking:{current:false},imageSelectionRevision:{current:0},focusFrame:{current:null},handsRef:{current:null},setFile:()=>applied++,setHands:()=>{},setFace:()=>{},setNotice:()=>{},cancelAnimationFrame:()=>{},requestAnimationFrame:()=>1});
  vm.runInContext(code,context);context.restore({pose_include_hands:true,pose_include_face:false},record);assert.throws(()=>context.restore({pose_include_hands:false,pose_include_face:false},record),/입력이 변경/);assert.equal(applied,1);
 });
 

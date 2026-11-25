@@ -1,7 +1,7 @@
 import {generationReady} from "./generationReady.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import ReviewPrompt from "./ReviewPrompt.jsx";
-import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
 import useGpuHandoff from "./useGpuHandoff.js";
 import ActionButton from "./ActionButton.jsx";
@@ -61,6 +61,8 @@ function SavedVaceInputs({id}){
 }
 export default function VacePage({embedded=false,session:embeddedSession=""}={}){
   const frameErrorId=useId();
+  const inputLockId=useId();
+  const historyLockId=useId();
   const frameLimitErrorId=useId();
   const settingErrorId=useId();
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
@@ -233,7 +235,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     {!template && !templateError && <p role="status">생성 입력을 불러오는 중입니다.</p>}
     {!template && templateError && <button ref={templateRetryRef} type="button" onClick={()=>{templateRetryFocus.current=true;retryTemplate(value=>value+1);}}>생성 입력 다시 불러오기</button>}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
-    {template && values && <GeneratorSectionCard title="생성 입력" summary={template.modes.find(mode=>mode.id===values.mode)?.label || "설정 확인"} defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending || Boolean(handoff.id)}><legend className="generator-visually-hidden">생성 입력</legend>
+    {template && values && <GeneratorSectionCard title="생성 입력" summary={template.modes.find(mode=>mode.id===values.mode)?.label || "설정 확인"} defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending || Boolean(handoff.id)} aria-describedby={busy || pending || handoff.id ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
       {sourceJob && <div><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></div>}
       <div className="vace-input-group"><h2>입력 자료</h2><p className="vace-group-help">생성 방식과 필요한 참조 자료를 선택하세요.</p>
       <label>생성 모드<select value={values.mode} onChange={e=>field("mode",e.target.value)}>{template.modes.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
@@ -244,15 +246,15 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       })}
       </div><div className="vace-input-group"><h2>장면 지시</h2><p className="vace-group-help">인물·동작·카메라를 설명하세요.</p>
       {["prompt","negative_prompt"].map(key=>{
-        return <label key={key}>{key==="prompt"?"장면·동작 프롬프트":"부정 프롬프트 (선택)"}<textarea maxLength={8000} required={key==="prompt"} value={values[key]} onChange={e=>field(key,e.target.value)}/><PromptWordCount text={values[key]} final/></label>;
+        return <React.Fragment key={key}><label>{key==="prompt"?"장면·동작 프롬프트":"부정 프롬프트 (선택)"}<textarea maxLength={8000} required={key==="prompt"} value={values[key]} onChange={e=>field(key,e.target.value)}/></label><PromptWordCount text={values[key]} final/></React.Fragment>;
       })}
       </div><div className="vace-input-group"><h2>생성 설정</h2><p className="vace-group-help">출력 길이와 생성 값을 확인하세요.</p><div className="vace-settings-grid">
       <label>모델<select value={values.model_profile || "official-bf16-resident-v1"} onChange={e=>{setModel(null);field("model_profile",e.target.value);}}><option value="official-bf16-resident-v1">공식 BF16</option><option value="q8-gguf-resident-v1">Q8_0 GGUF · 실험</option></select></label>
       {values.model_profile==="q8-gguf-resident-v1" && <p>Q8 전문가 파일 준비 및 실제 ROCm 실행 검증이 필요합니다. <a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-vace-q8",...(session?{session}:{})})}>Q8 모델 준비</a></p>}
       <label>LoRA<select value={values.lora_mode || "none"} onChange={e=>{const mode=e.target.value,previous=values.lora_mode || "none",usesLightning=m=>["lightning","fighting_lightning"].includes(m);if(!usesLightning(previous) && usesLightning(mode))nonLoraSettings.current={steps:values.steps,guidance_scale:values.guidance_scale,flow_shift:values.flow_shift};const restored=usesLightning(previous) && !usesLightning(mode) ? nonLoraSettings.current : null;if(restored)nonLoraSettings.current=null;setValues(old=>({...old,lora_mode:mode,...(usesLightning(mode)?{steps:4,guidance_scale:1,flow_shift:5}:restored || {})}));}}><option value="none">사용 안 함</option><option value="fighting">격투만 · 실험</option><option value="lightning">Lightning만 · 실험</option><option value="fighting_lightning">격투 + Lightning · 실험</option></select></label>
-      {["fighting","fighting_lightning"].includes(values.lora_mode) && <label>격투 LoRA 강도<input type="number" min="0" max="2" step="any" required aria-invalid={invalidFightingStrength || undefined} aria-describedby={invalidFightingStrength ? `${settingErrorId}-fighting` : undefined} value={fightingStrength} onChange={e=>field("fighting_strength",e.target.value===""?"":Number(e.target.value))}/>{invalidFightingStrength && <small className="vace-field-error" id={`${settingErrorId}-fighting`}>0보다 크고 2 이하로 입력하세요.</small>}</label>}
+      {["fighting","fighting_lightning"].includes(values.lora_mode) && <div><label>격투 LoRA 강도<input type="number" min="0" max="2" step="any" required aria-invalid={invalidFightingStrength || undefined} aria-describedby={invalidFightingStrength ? `${settingErrorId}-fighting` : undefined} value={fightingStrength} onChange={e=>field("fighting_strength",e.target.value===""?"":Number(e.target.value))}/></label>{invalidFightingStrength && <small className="vace-field-error" id={`${settingErrorId}-fighting`}>0보다 크고 2 이하로 입력하세요.</small>}</div>}
       {numericSettings.map(([key,label,min,max,step])=>
-        <label key={key}>{label}<input type="number" required min={min} max={max} step={step} aria-invalid={(key==="frames" ? invalidFrameValue || invalidFrames : invalidSettings[key]) || undefined} aria-describedby={key==="frames" ? [invalidFrameValue && frameErrorId,invalidFrames && frameLimitErrorId].filter(Boolean).join(" ") || undefined : invalidSettings[key] ? `${settingErrorId}-${key}` : undefined} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/>{key==="frames" && invalidFrameValue && <small className="vace-field-error" id={frameErrorId}>5~129 사이에서 4프레임 간격으로 입력하세요. 예: 5, 9, 13.</small>}{invalidSettings[key] && <small className="vace-field-error" id={`${settingErrorId}-${key}`}>{min}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</label>)}
+        <div key={key}><label>{label}<input type="number" required min={min} max={max} step={step} aria-invalid={(key==="frames" ? invalidFrameValue || invalidFrames : invalidSettings[key]) || undefined} aria-describedby={key==="frames" ? [invalidFrameValue && frameErrorId,invalidFrames && frameLimitErrorId].filter(Boolean).join(" ") || undefined : invalidSettings[key] ? `${settingErrorId}-${key}` : undefined} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/></label>{key==="frames" && invalidFrameValue && <small className="vace-field-error" id={frameErrorId}>5~129 사이에서 4프레임 간격으로 입력하세요. 예: 5, 9, 13.</small>}{invalidSettings[key] && <small className="vace-field-error" id={`${settingErrorId}-${key}`}>{min}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</div>)}
       </div>{frameLimit!==null && <p>입력에 사용할 수 있는 최대 출력 길이 {frameLimit}프레임 <button type="button" onClick={()=>field("frames",frameLimit)}>최대 프레임 적용</button></p>}
       {invalidFrames && <p id={frameLimitErrorId} role="alert">출력 프레임이 입력 영상보다 깁니다. {frameLimit}프레임 이하로 줄이세요.</p>}
       {values.lora_mode==="fighting" && <p>격투 LoRA는 High 전문가에 적용합니다. Lightning 없이 일반 스텝·CFG·shift를 사용하며 동작 품질은 검수해야 합니다. <a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-fighting-lora",...(session?{session}:{})})}>격투 LoRA 준비</a></p>}
@@ -274,7 +276,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
         missingVideoInfo && "영상 정보를 확인하세요.",
         invalidFrames && "출력 프레임 수를 입력 영상에 맞게 조정하세요."
       ]}>생성 요청 검토</ActionButton>
-    </fieldset></form></GeneratorSectionCard>}
+    </fieldset>{(busy || pending || handoff.id) && <p id={inputLockId} role="status">{busy ? "요청을 처리하고 있습니다. 잠시 기다려 주세요." : pending ? "입력을 수정하려면 생성 요청 검토에서 입력 수정을 선택하세요." : "GPU 양도 요청 상태를 확인하거나 닫은 뒤 입력할 수 있습니다."}</p>}</form></GeneratorSectionCard>}
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/>
       <p>{template.modes.find(mode=>mode.id===pending.mode)?.label || pending.mode} · {pending.frames}프레임 · 16fps · {(pending.frames/16).toFixed(2)}초 · {pending.steps}스텝 · 시드 {pending.seed}</p>
       <p>Flow shift {pending.flow_shift} · CFG {pending.guidance_scale} · 조건 강도 {pending.reference_strength}</p>
@@ -284,10 +286,11 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       {attachments.map(key=><p key={key}>{labels[key]} · {files[key]?.name || "선택됨"} · {videoInfo[key]?.summary || "영상 정보 확인 불가"}</p>)}{pending.mode==="video_edit" && <p>마스크의 편집·보존 영역은 접수 시 추가 검증합니다.</p>}
       <ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><ReviewPrompt label="부정 프롬프트" text={pending.negative_prompt}/>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
-      <GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setPending(null);handoff.clearReview();if(restore)requestAnimationFrame(()=>restoreLostFocus(document,formRef.current?.querySelector("textarea")));}} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
-    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending}><GeneratorHistory card directApply allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected){node.focus();node.scrollIntoView({block:'start'});}});}}} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
+      <GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setPending(null);handoff.clearReview();if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(formRef.current?.querySelector("textarea"))));}} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
+    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending} aria-label="생성 이력" aria-describedby={busy || pending ? historyLockId : undefined}><GeneratorHistory card directApply allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJob={readJob} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected){node.focus();node.scrollIntoView({block:'start'});}});}}} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
       {(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}
     </MediaJobResult></section>}/></fieldset>
+    {(busy || pending) && <p id={historyLockId} role="status">{busy ? "요청 처리 후 이력을 사용할 수 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}
     {notice && <p role="status">{notice}</p>}
   </article>;
 }

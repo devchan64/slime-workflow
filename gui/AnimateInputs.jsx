@@ -17,7 +17,7 @@ import {validAnimateVideoInfo} from "./videoFrameLimit.mjs";
 import {prepareAnimatePreview} from "./animatePreview.mjs";
 
 export default function AnimateInputs({saved,onSelectionStart,onJob,session,model,loraModel,onInteractionChange,onAttachmentCheckingChange}) {
-  const videoHelpId=useId(),videoErrorId=useId(),frameErrorId=useId(),stepErrorId=useId();
+  const videoHelpId=useId(),videoErrorId=useId(),frameErrorId=useId(),stepErrorId=useId(),inputLockId=useId();
   const [prompt,setPrompt]=useState(saved?.request.prompt ?? "");
   const [seed,setSeed]=useState(saved?.request.seed ?? "42");
   const [reference,setReference]=useState(saved?.reference ?? null);
@@ -118,7 +118,7 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
     finally{sending.current=false;setBusy(false);}
   }
   return (
-    <><form ref={formRef} tabIndex={-1} aria-label="캐릭터 동작 전사 입력" onSubmit={review}><fieldset className="animate-inputs" disabled={busy || Boolean(pending)}><legend className="generator-visually-hidden">캐릭터 동작 전사 입력</legend>
+    <><form ref={formRef} tabIndex={-1} aria-label="캐릭터 동작 전사 입력" onSubmit={review}><fieldset className="animate-inputs" disabled={busy || Boolean(pending)} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">캐릭터 동작 전사 입력</legend>
       <div className="generator-input-group"><h2>입력 자료</h2><p className="generator-group-help">움직일 캐릭터와 동작의 원본 영상을 선택하세요.</p>
       {saved && <div className="generator-source-job"><span>불러온 원본 작업</span> <JobIdentifier id={saved.id} compact/></div>}
       <div className="generator-attachments">
@@ -137,16 +137,15 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
       <p><PromptWordCount text={prompt} final/> · 원문 그대로 전달</p>
       </div>
       <div className="generator-input-group"><h2>생성 설정</h2><p className="generator-group-help">출력 길이와 가속 방식을 선택하세요.</p><div className="generator-settings-grid">
-      <label>프레임<input type="number" min={5} max={81} step={4} aria-invalid={invalidFrames || exceedsVideo || undefined} aria-describedby={invalidFrames || exceedsVideo ? frameErrorId : undefined} value={frames} onChange={event=>setFrames(event.target.value)}/>{(invalidFrames || exceedsVideo) && <small id={frameErrorId}>{invalidFrames ? "5~81 사이에서 4프레임 간격으로 입력하세요." : `입력 영상은 최대 ${videoInfo.maximum_frames}프레임까지 지원합니다.`}</small>}</label>
+      <div><label>프레임<input type="number" min={5} max={81} step={4} aria-invalid={invalidFrames || exceedsVideo || undefined} aria-describedby={invalidFrames || exceedsVideo ? frameErrorId : undefined} value={frames} onChange={event=>setFrames(event.target.value)}/></label>{(invalidFrames || exceedsVideo) && <small id={frameErrorId}>{invalidFrames ? "5~81 사이에서 4프레임 간격으로 입력하세요." : `입력 영상은 최대 ${videoInfo.maximum_frames}프레임까지 지원합니다.`}</small>}</div>
       <label>가속 LoRA<select value={lora} onChange={event=>{const value=event.target.value;setLora(value);setSteps(value==='lightx2v' ? 6 : 40);}}><option value="none">사용 안 함 · Base</option><option value="lightx2v">LightX2V · 6스텝</option></select></label>
-      <label>스텝<input type="number" min={2} max={50} aria-invalid={invalidSteps || undefined} aria-describedby={invalidSteps ? stepErrorId : undefined} value={steps} onChange={event=>setSteps(event.target.value)}/>{invalidSteps && <small id={stepErrorId}>2~50의 정수를 입력하세요.</small>}</label>
+      <div><label>스텝<input type="number" min={2} max={50} aria-invalid={invalidSteps || undefined} aria-describedby={invalidSteps ? stepErrorId : undefined} value={steps} onChange={event=>setSteps(event.target.value)}/></label>{invalidSteps && <small id={stepErrorId}>2~50의 정수를 입력하세요.</small>}</div>
       <SeedInput value={seed} max={2147483647} error={invalidSeed ? "0~2147483647의 정수를 입력하세요." : ""} onChange={setSeed}/>
       </div>{!invalidFrames && !exceedsVideo && <p>출력 16fps · 예상 재생 길이 {(frameNumber/16).toFixed(2)}초</p>}
       <p>{lora === 'lightx2v' ? 'LightX2V 강도 1 · LCM · shift 5 · CFG 1 · 생성 품질 검증 필요' : '공식 Base BF16 · 공식 스케줄러 및 CFG'} · AMD ROCm GPU 연산</p>
       </div>
       <ActionButton type="submit" reasons={reviewReasons}>생성 요청 검토</ActionButton>
-    </fieldset></form>
-    {busy && !pending && <p role="status">입력과 GPU 양도 여부를 확인하고 있습니다.</p>}
+    </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{busy ? "요청을 처리하고 있습니다. 잠시 기다려 주세요." : "입력을 수정하려면 생성 요청 검토에서 입력 수정을 선택하세요."}</p>}</form>
     {pending && sameScope(pendingScope.current,currentReviewScope.current) && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{pending.frames}프레임 · 16fps · {pending.steps}스텝 · 시드 {pending.seed} · {pending.lora_mode==='lightx2v' ? 'LightX2V 강도 1 · CFG 1 · shift 5 · LCM' : 'Base'}</p><ReviewPrompt label="캐릭터 외형·배경 설명" text={pending.prompt}/>{handoff.review && <p>동의하면 진행 중인 대화가 끝난 뒤 대화 모델을 해제하고, 생성 후 다시 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{const focused=document.activeElement;pendingScope.current=null;setPending(null);handoff.clearReview();requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===focused)formRef.current?.focus();});}} onConfirm={submit} confirmLabel={handoff.review ? '해제·생성·재적재에 동의' : undefined} disabledReason={!generationReady(model) ? '기본 모델 준비 상태를 확인하세요.' : pending.lora_mode==='lightx2v' && !loraModel?.ready ? 'LightX2V LoRA를 먼저 준비하세요.' : ''}/></section>}
     {error && <p role="alert">{error}</p>}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service="wan22-animate2" status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}</>

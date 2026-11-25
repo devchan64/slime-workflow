@@ -57,7 +57,7 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReference
     <p role="status">{previewStatus}</p>
     <button type="button" onClick={togglePlayback}>{playing?"정지":"재생"}</button>
     {playing && <p id={playbackHelpId} role="status">재생을 정지하면 캔버스 편집과 프레임 선택을 사용할 수 있습니다.</p>}
-    <fieldset disabled={playing} aria-describedby={playing ? playbackHelpId : undefined}><legend>캔버스 편집</legend>
+    <fieldset className="sprite-canvas-controls" disabled={playing} aria-describedby={playing ? playbackHelpId : undefined}><legend>캔버스 편집</legend>
       <label>편집 도구<select value={mode} onChange={e=>setMode(e.target.value)}>
         <option>크롭</option><option>배치 앵커</option><option>머리 기준</option></select></label>
       <label>반영 대상<select value={target} onChange={e=>setTarget(e.target.value)}>
@@ -70,7 +70,7 @@ function SpritePreview({rows,image,bounds,fps,original,onEdit,canvas,onReference
       <button type="button" onClick={()=>apply("discard")}>드래그 취소</button>
       {notice?.rows===rows && <p role="status">{notice.message}</p>}
     </fieldset>
-    <label>정지 프레임 {frame}<input type="range" min="1" max={rows.length} disabled={playing} aria-describedby={playing ? playbackHelpId : undefined} value={frame}
+    <label className="sprite-frame-slider">정지 프레임 <span aria-hidden="true">{frame}</span><input type="range" min="1" max={rows.length} aria-valuetext={`${frame} / ${rows.length} 프레임`} disabled={playing} aria-describedby={playing ? playbackHelpId : undefined} value={frame}
       onChange={e=>setFrame(Number(e.target.value))}/></label>
     {original?.animation?.clips?.length>0 && <label>검수 동작<select value={clip} onChange={e=>selectClip(e.target.value)}>
       <option value="">전체 시트</option>{original.animation.clips.map(item=><option key={item.clipId} value={item.clipId}>{item.action} · {item.direction}</option>)}</select></label>}

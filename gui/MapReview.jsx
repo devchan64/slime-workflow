@@ -368,6 +368,7 @@ export default function MapReview(){
       <div className="ui-action-row" role="group" aria-label="지도 시점">
         {[["zoom-out","축소"],["zoom-in","확대"],["actual-size","사람 중심 · 100%"],["fit","전체 보기"]].map(([id,label])=><button key={id} id={id}>{label}</button>)}
         <output id="zoom-level" aria-live="polite"/>
+        <span id="zoom-minimum-help" className="generator-visually-hidden">최소 배율입니다.</span><span id="zoom-maximum-help" className="generator-visually-hidden">최대 배율입니다.</span>
       </div>
       <div className="map-display-options" role="group" aria-label="지도 표시 옵션">
       {[["show-character","기본 캐릭터",true],["show-safe-boundary","결계탑 · 결계 오러",true],["edges","메시 경계",false],["tile-edges","타일 경계",false],["blocked-areas","이동금지 영역",false]].map(([id,label,checked])=>
