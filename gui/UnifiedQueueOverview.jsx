@@ -17,7 +17,7 @@ export default function UnifiedQueueOverview(props){
   return <QueueForSession key={props.session} {...props}/>;
 }
 
-function QueueForSession({session,call,running,completed,ready,failures=[],refreshRef,onRefresh,editRequest,localQueue,extraPending,other}){
+function QueueForSession({session,call,running=[],completed=[],ready,failures=[],refreshRef,onRefresh,editRequest,localQueue=[],extraPending=[],other=[]}){
   const [page,setPage]=useState(0),[size,setSize]=useState(5);
   const [snapshot,setSnapshot]=useState(null),[error,setError]=useState(""),[filter,setFilter]=useState("all"),[revision,refresh]=useState(0);
   const [checkedAt,setCheckedAt]=useState(null),[checking,setChecking]=useState(true);
@@ -63,12 +63,15 @@ function QueueForSession({session,call,running,completed,ready,failures=[],refre
   const failedSources=[...failures,["공용 대기열",error,Boolean(current)]].filter(([,reason])=>reason);
   const currentPage=Math.min(page,Math.max(0,Math.ceil(entries.length/size)-1));
   return <section className="panel unified-queue-overview" aria-label="작업 일정 목록">
+    <div className="schedule-toolbar">
     <label className="queue-state-filter">작업 상태
       <select value={filter} onChange={event=>{setFilter(event.target.value);setPage(0);}}>
         <option value="all">전체</option>
         {groups.map(([key,label])=><option key={key} value={key}>{label}</option>)}
       </select>
     </label>
+      <button ref={refreshRef} type="button" disabled={checking} aria-disabled={checking} onClick={()=>{refresh(n=>n+1);onRefresh();}}>새로고침</button>
+    </div>
     {failedSources.length>0 && <details className="schedule-query-error">
       <summary><span role="status">조회 실패 · {failedSources.map(([label])=>label).join(", ")}</span></summary>
       <ul>{failedSources.map(([label,reason,stale])=><li key={label}><strong>{label}</strong> · {reason} {stale && "마지막 조회 결과를 표시합니다."}</li>)}</ul>
@@ -78,9 +81,9 @@ function QueueForSession({session,call,running,completed,ready,failures=[],refre
     {ready && !error && current && !entries.length && <p>표시할 작업이 없습니다.</p>}
     <ul className="queue-entries">{entries.slice(currentPage*size,(currentPage+1)*size).map(({key,label,item})=>
       <li key={key}><small>{label}</small>{item}</li>)}</ul>
-    {entries.length>5 && <QueuePagination page={currentPage} size={size} total={entries.length} label="작업 일정 페이지" onPage={setPage} onSize={value=>{setSize(value);setPage(0);}}/>}
+    <QueuePagination sizes={[3,5,10]} page={currentPage} size={size} total={entries.length} label="작업 일정 페이지" onPage={setPage} onSize={value=>{setSize(value);setPage(0);}}/>
     <footer><small>5초마다 갱신{checkedAt && <> · 최근 조회 <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleTimeString("ko-KR")}</time></>}</small>
-      <button ref={refreshRef} type="button" disabled={checking} onClick={()=>{refresh(n=>n+1);onRefresh();}}>새로고침</button></footer>
+    </footer>
     {current && rows.length>0 && <small>{current.note}</small>}
   </section>;
 }

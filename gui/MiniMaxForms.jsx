@@ -62,19 +62,27 @@ export default function MiniMaxForms({session,initialFormId=''}) {
   const dirty=selected && (prompt!==selected.request.prompt || seed!==String(selected.request.seed ?? '') ||
     (selected.service==='minimax-h3-image' && size!==selected.request.width+'x'+selected.request.height) || !!file);
   const Fields=selected && Object.hasOwn(editors,selected.service) && editors[selected.service];
-  return <section aria-label="저장된 접수폼">
+  return <section className="minimax-review" aria-label="저장된 접수폼">
     <p>폼 ID · <code>{initialFormId}</code></p>
     {busy && !selected && <p role="status">접수폼 조회 중…</p>}
     {error && <div role="alert">{error} <button type="button" disabled={busy} onClick={()=>open(initialFormId)}>다시 조회</button></div>}
     {notice && <p role="status">{notice}</p>}
     {selected && !Fields && <p role="alert">지원되지 않는 생성기입니다. {selected.service}</p>}
-    {Fields && <form onSubmit={save}><h3>{selected.service==='minimax-h3-image'?'이미지':'영상'} 접수폼 · v{selected.revision}</h3><p>상태: {formStateLabel(selected.state,selected.receipt_state)}{selected.job_id && ' · 작업 '+selected.job_id}</p>
+    {Fields && <><h3>{selected.service==='minimax-h3-image'?'이미지':'영상'} 접수폼 · v{selected.revision}</h3>
+      <p>{formStateLabel(selected.state,selected.receipt_state)}{selected.job_id && <> · 작업 <code>{selected.job_id}</code></>}</p>
+      {selected.state!=='editing' ? <dl className="minimax-snapshot">
+        <dt>프롬프트</dt><dd>{selected.request.prompt}</dd>
+        <dt>크기</dt><dd>{selected.request.width}×{selected.request.height}</dd>
+        <dt>시드</dt><dd>{selected.request.seed ?? '미지정'}</dd>
+        <dt>스텝</dt><dd>{selected.request.steps}</dd>
+        {selected.service==='minimax-h3-i2v' && <><dt>프레임</dt><dd>{selected.request.frames}</dd><dt>참조 이미지</dt><dd>{selected.request.images?.length ? '첨부됨' : '첨부 필요'}</dd></>}
+      </dl> : <form onSubmit={save}>
       {dirty && <p role="status">저장하지 않은 수정 내용이 있습니다. 대화로 접수하기 전에 폼 수정 저장을 눌러 주세요.</p>}
       <fieldset disabled={busy || selected.state!=='editing'}><label>프롬프트<textarea required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
       <SeedInput value={seed} max={seedMax} error={invalidSeed ? `0~${seedMax}의 정수를 입력하세요.` : ""} onChange={setSeed}/>
       <Fields {...{selected,size,setSize,file,setFile,setChecking,busy}}/>
       <p>설정: {selected.request.steps}스텝{selected.request.frames && ' · '+selected.request.frames+'프레임'}{selected.service==='minimax-h3-i2v' && ' · '+selected.request.width+'×'+selected.request.height}</p>
       <button type="submit" disabled={checking}>{checking?'이미지 확인 중':'폼 수정 저장'}</button></fieldset>
-      {selected.state!=='editing' && <p>현재 상태에서는 폼을 수정할 수 없습니다. 접수 상태를 확인해 주세요.</p>}</form>}
+      </form>}</>}
   </section>;
 }

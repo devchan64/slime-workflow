@@ -241,6 +241,12 @@ function ScheduleStepControls({step,session,onRefresh}){
       <MediaJobResult service={step.generator} id={step.source_job_id} kind={step.source_kind==="flux_proposal"?"flux":"video"} folderLink/>)}
   </>;
 }
+function completedMessages(messages){
+  return messages.filter(m=>m.job_id && m.job?.status?.status==="completed").reverse().map(m=>({
+    id:m.job_id,kind:m.report_job_id ? "검수 보고서" : "대화 요청",text:m.text
+  }));
+}
+
 function ChatQueuePanel({session,children,openDetails,messages}){
   const [data,setData]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0),[stopJobs,setStopJobs]=useState(()=>new Set()),[stopNotices,setStopNotices]=useState({});
   const editKey="hermes-queue-edit-"+session;
@@ -305,9 +311,33 @@ function ChatQueuePanel({session,children,openDetails,messages}){
     step,id:step.source_job_id || step.request_id,kind:step.generator || "생성 작업",text:step.step_id || step.generator
   }));
   const running=scheduleRows("running");
-  const completed=[...scheduleRows("completed"),...(messages || []).filter(m=>m.job_id && m.job?.status?.status==="completed").map(m=>({
-    id:m.job_id,kind:m.report_job_id ? "검수 보고서" : "대화 요청",text:m.text
-  }))];
+  const [older,setOlder]=useState([]),[historyError,setHistoryError]=useState("");
+  const snapshot=data?.snapshot,offset=data?.next_offset;
+  useEffect(()=>{
+    if(!snapshot)return;
+    const controller=new AbortController();
+    let active=true;
+    async function readOlder(){
+      const rows=[];
+      try{
+        let cursor=offset;
+        while(cursor!=null){
+          const scope={snapshot,offset:cursor};
+          const deadline=setTimeout(()=>controller.abort(),15000);
+          let page;
+          try{page=await callUntilAborted("session-view",{session_id:session,limit:20,...scope},controller.signal);}
+          finally{clearTimeout(deadline);}
+          if(!validSessionViewPage(page,session,scope,20))throw Error("완료 이력 응답 오류");
+          rows.push(...completedMessages(page.messages));
+          cursor=page.next_offset;
+        }
+        if(active){setOlder(rows);setHistoryError("");}
+      }catch(problem){if(active)setHistoryError(requestErrorMessage(problem));}
+    }
+    readOlder();
+    return ()=>{active=false;controller.abort();};
+  },[session,snapshot,offset,revision]);
+  const completed=[...scheduleRows("completed"),...completedMessages(data?.messages || messages || []),...older];
   function records(rows){
     return Array.from(new Map(rows.map(row=>[row.kind+row.id,row])).values()).map(row=><details key={row.kind+row.id} className="queue-record">
       <summary><strong>{row.kind}</strong> · <code>{row.id}</code></summary><p>{row.text}</p>{row.step ? <><p>{sessionQueueStateLabel(statusLabels,row.step.source_state || row.step.state)}</p><ScheduleStepControls step={row.step} session={session} onRefresh={()=>refresh(n=>n+1)}/></> : <a href={jobLink(row.id,session)}>작업 상세 보기</a>}
@@ -322,7 +352,7 @@ function ChatQueuePanel({session,children,openDetails,messages}){
     {data.chat_active.status==="running" && (data.chat_active.control_ready ? <LiveInstructionForm key={data.chat_active.job_id} session={session} job={data.chat_active.job_id} receipts={data.live_instructions} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/> : <p>실행 중 지시 전달 경로가 준비되지 않았습니다. 준비 중이거나 이전 방식으로 시작된 작업일 수 있습니다.</p>)}{["running","queued"].includes(data.chat_active.status) && <button type="button" aria-disabled={stopJobs.has(data.chat_active.job_id) || Boolean(error)} onClick={stopCurrent}>{stopJobs.has(data.chat_active.job_id)?"중단 요청 중":"지시 중단"}</button>}{stopNotices[data.chat_active.job_id] && <p role="status">{stopNotices[data.chat_active.job_id]}</p>}
   </details>);
   return <section className="chat-queue-panel" aria-label="작업 일정">
-    <UnifiedQueueOverview session={session} call={call} refreshRef={queueRefreshRef} onRefresh={()=>refresh(n=>n+1)} editRequest={renderEdit} localQueue={data?.chat_queue || []} extraPending={extraPending} other={records(scheduleRows("other"))} running={activeRows} completed={records(completed)} failures={[["대화 요청",error,Boolean(data)],["생성 작업",workflowError,Boolean(workflow)]]} ready={Boolean(data && workflow && !error && !workflowError)}/>
+    <UnifiedQueueOverview session={session} call={call} refreshRef={queueRefreshRef} onRefresh={()=>refresh(n=>n+1)} editRequest={renderEdit} localQueue={data?.chat_queue || []} extraPending={extraPending} other={records(scheduleRows("other"))} running={activeRows} completed={records(completed)} failures={[["완료 이력",historyError,Boolean(older.length)],["대화 요청",error,Boolean(data)],["생성 작업",workflowError,Boolean(workflow)]]} ready={Boolean(data && workflow && !error && !workflowError)}/>
 
 
     {editStorageError && editingItem && <p role="alert">편집 내용을 이 탭에 보관하지 못했습니다. 패널을 닫기 전에 내용을 복사하세요. <CopyTextButton value={editingItem.text} label="대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/></p>}
@@ -497,10 +527,10 @@ function Message() {
     {meta.queueMessage && <p role="status">{meta.queueMessage}</p>}
     {copyText.trim() && !meta.formId && meta.status!=="failed" && <CopyTextButton value={copyText} label={message.role==="user" ? "사용자 메시지 복사" : "헤르메스 메시지 복사"} buttonLabel="메시지 복사"/>}
     {meta.status && <div className="conversation-job-footer">
-      <small className="conversation-job-identity"><span>{sessionQueueStateLabel(statusLabels,meta.status)}</span>{meta.job && <>
+      <div className="conversation-job-identity" role="group" aria-label="작업 정보"><span>{sessionQueueStateLabel(statusLabels,meta.status)}</span>{meta.job && <>
         <a href={jobLink(meta.job,meta.session)}>{meta.job}</a>
         <CopyTextButton value={meta.job} label="헤르메스 작업 ID 복사" buttonLabel="ID 복사"/>
-      </>}</small>
+      </>}</div>
       {message.role==="assistant" && meta.job && ["running","queued"].includes(meta.status) && <StopConversationJob key={meta.job} job={meta.job}/>}
     </div>}
   </MessagePrimitive.Root>;
