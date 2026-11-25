@@ -62,6 +62,9 @@ import ResultTable from "./ResultTable.jsx";
 import WorldMap from "./WorldMap.jsx";
 import GpuPanel from "./GpuPanel.jsx";
 import {GpuHandoffDisclosure} from "./GpuHandoffHistory.jsx";
+import WorkflowResults from "./WorkflowResults.jsx";
+import QueuePriority from "./QueuePriority.jsx";
+import WriterResult from "./WriterResult.jsx";
 import QueuePanel from "./QueuePanel.jsx";
 import UnifiedQueueOverview from "./UnifiedQueueOverview.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
@@ -227,6 +230,17 @@ function CurrentQueueCommand({data,session}){
     <a href={jobLink(active.job_id,session)}>현재 작업 상세 보기</a>
   </div>;
 }
+function ScheduleStepControls({step,session,onRefresh}){
+  const [run,setRun]=useState(""),[direct,setDirect]=useState(false);
+  return <>
+    {step.run_id ? <button type="button" aria-expanded={Boolean(run)} onClick={()=>setRun(run ? "" : step.run_id)}>상태·결과 {run ? "닫기" : "보기"}</button> :
+      step.source_job_id && <button type="button" aria-expanded={direct} onClick={()=>setDirect(!direct)}>결과 {direct ? "닫기" : "보기"}</button>}
+    {step.state==="submitting" && step.source_state==="queued" && <QueuePriority step={step} call={call}/>}
+    {run && <WorkflowResults session={session} run={run} openRun={setRun} call={call} close={()=>setRun("")}/>}
+    {direct && (step.source_kind==="writer_proposal" ? <WriterResult id={step.source_job_id} onDeleted={()=>{setDirect(false);onRefresh();}}/> :
+      <MediaJobResult service={step.generator} id={step.source_job_id} kind={step.source_kind==="flux_proposal"?"flux":"video"} folderLink/>)}
+  </>;
+}
 function ChatQueuePanel({session,children,openDetails,messages}){
   const [data,setData]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0),[stopJobs,setStopJobs]=useState(()=>new Set()),[stopNotices,setStopNotices]=useState({});
   const editKey="hermes-queue-edit-"+session;
@@ -287,8 +301,8 @@ function ChatQueuePanel({session,children,openDetails,messages}){
     load();return ()=>{active=false;clearTimeout(timer);controller?.abort();};
   },[session]);
   const steps=[...(workflow?.steps || []),...(workflow?.direct_jobs || [])];
-  const scheduleRows=state=>steps.filter(step=>(step.source_state || step.state)===state).map(step=>({
-    id:step.source_job_id || step.request_id,kind:step.generator || "생성 작업",text:step.step_id || step.generator
+  const scheduleRows=state=>steps.filter(step=>state==="other" ? !["running","completed"].includes(step.source_state || step.state) : (step.source_state || step.state)===state).map(step=>({
+    step,id:step.source_job_id || step.request_id,kind:step.generator || "생성 작업",text:step.step_id || step.generator
   }));
   const running=scheduleRows("running");
   const completed=[...scheduleRows("completed"),...(messages || []).filter(m=>m.job_id && m.job?.status?.status==="completed").map(m=>({
@@ -296,26 +310,28 @@ function ChatQueuePanel({session,children,openDetails,messages}){
   }))];
   function records(rows){
     return Array.from(new Map(rows.map(row=>[row.kind+row.id,row])).values()).map(row=><details key={row.kind+row.id} className="queue-record">
-      <summary><strong>{row.kind}</strong> · <code>{row.id}</code></summary><p>{row.text}</p>
+      <summary><strong>{row.kind}</strong> · <code>{row.id}</code></summary><p>{row.text}</p>{row.step ? <><p>{sessionQueueStateLabel(statusLabels,row.step.source_state || row.step.state)}</p><ScheduleStepControls step={row.step} session={session} onRefresh={()=>refresh(n=>n+1)}/></> : <a href={jobLink(row.id,session)}>작업 상세 보기</a>}
     </details>);
   }
+  function renderEdit(item){return <ChatQueueItem item={item} savedEdit={editingItem?.request_id===item.request_id ? editingItem : null} unavailable={Boolean(error)} mutationLocked={Boolean(pendingUpdate)} disableEdit={Boolean(editingItem && editingItem.request_id!==item.request_id)} onEditing={rememberEdit} onChange={sendUpdate}/>;}
   const activeRows=records(running);
-  if(data?.chat_active?.status==="running")activeRows.unshift(<details key={data.chat_active.job_id} className="queue-record">
+  const extraPending=[];
+  if(data?.chat_active)(data.chat_active.status==="running" ? activeRows : extraPending).unshift(<details key={data.chat_active.job_id} className="queue-record">
     <summary><strong>대화 요청</strong> · <code>{data.chat_active.job_id}</code></summary>
-    <CurrentQueueCommand data={data} session={session}/>
+    {data.chat_active.status==="running" ? <CurrentQueueCommand data={data} session={session}/> : <p>{data.chat_active.prompt}</p>}
+    {data.chat_active.status==="running" && (data.chat_active.control_ready ? <LiveInstructionForm key={data.chat_active.job_id} session={session} job={data.chat_active.job_id} receipts={data.live_instructions} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/> : <p>실행 중 지시 전달 경로가 준비되지 않았습니다. 준비 중이거나 이전 방식으로 시작된 작업일 수 있습니다.</p>)}{["running","queued"].includes(data.chat_active.status) && <button type="button" aria-disabled={stopJobs.has(data.chat_active.job_id) || Boolean(error)} onClick={stopCurrent}>{stopJobs.has(data.chat_active.job_id)?"중단 요청 중":"지시 중단"}</button>}{stopNotices[data.chat_active.job_id] && <p role="status">{stopNotices[data.chat_active.job_id]}</p>}
   </details>);
   return <section className="chat-queue-panel" aria-label="작업 일정">
-    <UnifiedQueueOverview session={session} call={call} running={activeRows} completed={records(completed)} failures={[["대화 요청",error,Boolean(data)],["생성 작업",workflowError,Boolean(workflow)]]} ready={Boolean(data && workflow && !error && !workflowError)}/>
-    <details open={openDetails}><summary>상세 및 제어</summary>
-    <div className="chat-queue-header"><small>{data?.checkedAt && "최근 조회 · "+data.checkedAt.toLocaleTimeString("ko-KR")}</small><button ref={queueRefreshRef} type="button" onClick={()=>refresh(n=>n+1)}>새로고침</button></div>
+    <UnifiedQueueOverview session={session} call={call} refreshRef={queueRefreshRef} onRefresh={()=>refresh(n=>n+1)} editRequest={renderEdit} localQueue={data?.chat_queue || []} extraPending={extraPending} other={records(scheduleRows("other"))} running={activeRows} completed={records(completed)} failures={[["대화 요청",error,Boolean(data)],["생성 작업",workflowError,Boolean(workflow)]]} ready={Boolean(data && workflow && !error && !workflowError)}/>
+
+
     {editStorageError && editingItem && <p role="alert">편집 내용을 이 탭에 보관하지 못했습니다. 패널을 닫기 전에 내용을 복사하세요. <CopyTextButton value={editingItem.text} label="대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/></p>}
     {pendingUpdate && <section ref={pendingPanelRef} className="chat-queued-item" aria-label="대기 요청 변경 확인"><strong>대기 요청 변경 확인 필요</strong><p>{pendingUpdate.cancel?"대기 취소":"대기 요청 수정"} · {pendingUpdate.request_id}</p>{pendingUpdate.prompt && <><ChatQueuePrompt text={pendingUpdate.prompt}/><CopyTextButton value={pendingUpdate.prompt} label="확인할 수정 내용 복사" buttonLabel="수정 내용 복사"/></>}<div className="chat-queue-actions"><button type="button" aria-disabled={updateBusy} onClick={()=>sendUpdate()}>{updateBusy?"확인 중":"같은 요청 다시 확인"}</button><button type="button" aria-disabled={updateBusy} onClick={checkUpdate}>현재 상태 확인</button></div></section>}
     {updateNotice && <p role="status">{updateNotice}</p>}
     {!data && error && editingItem && <section className="chat-queued-item" aria-label="복원된 대기 요청 편집 내용"><strong>이 탭에 보관된 편집 내용</strong><p>대기열 상태를 확인할 때까지 저장할 수 없습니다. 내용을 복사하거나 연결 후 다시 확인하세요.</p><textarea aria-label="복원된 대기 요청 수정" value={editingItem.text} onChange={event=>rememberEdit({...editingItem,text:event.target.value})}/>{editingItem.text && <CopyTextButton value={editingItem.text} label="복원된 대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/>}<button type="button" onClick={()=>rememberEdit(null)}>편집 내용 지우기</button></section>}
-    {data && <><h3>현재 요청</h3>{data.chat_active ? <article className="chat-queue-current"><strong>{sessionQueueStateLabel(statusLabels,data.chat_active.status)}</strong><ChatQueuePrompt key={data.chat_active.job_id} text={data.chat_active.prompt}/><JobIdentifier id={data.chat_active.job_id} label="채팅 작업 ID" compact/><a href={jobLink(data.chat_active.job_id,session)}>작업 상세 보기</a>{data.chat_active.status==="running" && (data.chat_active.control_ready ? <LiveInstructionForm key={data.chat_active.job_id} session={session} job={data.chat_active.job_id} receipts={data.live_instructions} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/> : <p>실행 중 지시 전달 경로가 준비되지 않았습니다. 준비 중이거나 이전 방식으로 시작된 작업일 수 있습니다.</p>)}{["running","queued"].includes(data.chat_active.status) && <button type="button" aria-disabled={stopJobs.has(data.chat_active.job_id) || Boolean(error)} onClick={stopCurrent}>{stopJobs.has(data.chat_active.job_id)?"중단 요청 중":"지시 중단"}</button>}{stopNotices[data.chat_active.job_id] && <p role="status">{stopNotices[data.chat_active.job_id]}</p>}</article> : <p>실행 중인 채팅 요청이 없습니다.</p>}
-      <h3>대기 중인 요청 · {data.chat_queue.length}</h3>{!data.chat_queue.length && <p>대기 중인 요청이 없습니다. 이 세션에서 요청이 실행되는 동안 새 메시지를 보내면 대기열에 추가되고, 앞선 요청이 끝난 뒤 순서대로 실행됩니다.</p>}{[...data.chat_queue,...(editingItem && !data.chat_queue.some(item=>item.request_id===editingItem.request_id) ? [{...editingItem,state:"departed"}] : [])].map((item,index)=><div key={item.request_id}><small>{item.state==="departed"?"대기열에서 사라진 요청의 편집 내용":"대기 순서 · "+(index+1)}</small><ChatQueueItem item={item} savedEdit={editingItem?.request_id===item.request_id ? editingItem : null} unavailable={Boolean(error)} mutationLocked={Boolean(pendingUpdate)} disableEdit={Boolean(editingItem && editingItem.request_id!==item.request_id)} onEditing={rememberEdit} onChange={sendUpdate}/></div>)}<LiveInstructionReceipts rows={data.live_instructions} session={session} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/></>}
-    {children}
-  </details>
+    {editingItem && data && !data.chat_queue.some(item=>item.request_id===editingItem.request_id) && renderEdit({...editingItem,state:"departed"})}
+    {data?.live_instructions?.length>0 && <details><summary>지시 전달 내역</summary><LiveInstructionReceipts rows={data.live_instructions} session={session} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/></details>}
+    {openDetails && children}
   </section>;
 }
 const fluxResultImagePath = /^\/flux-[a-z0-9-]+-generator\/jobs\/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}\/result\.png$/;
@@ -586,7 +602,6 @@ function App() {
     setSessionQuery("");setListRequest({offset:0,query:""});
   }
   const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
-  const queueFilterCache=useRef({});
   const [historyPage,setHistoryPage]=useState(null);
   const [viewError,setViewError]=useState("");
   const [viewLoading,setViewLoading]=useState(false);
@@ -677,17 +692,6 @@ function App() {
     const frame=requestAnimationFrame(()=>{const node=document.querySelector('[data-job-id="'+targetProposal+'"]');if(node){node.scrollIntoView({block:"center",behavior:"smooth"});node.focus({preventScroll:true});setTargetProposal("");}});
     return ()=>cancelAnimationFrame(frame);
   },[targetProposal,view]);
-  function openQueueMessage(step){
-    const form=/^[a-f0-9]{32}$/.test(step.form_id || "");
-    const proposal=/^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}$/.test(step.proposal_job_id || "");
-    if((!form && !proposal) || !/^[a-f0-9]{64}$/.test(step.message_snapshot) || !Number.isInteger(step.message_offset) || step.message_offset<0)return false;
-    if(view.snapshot!==step.message_snapshot)return false;
-    const offset=Math.floor(step.message_offset/CONVERSATION_PAGE_SIZE)*CONVERSATION_PAGE_SIZE;
-    if(form)setTargetForm(step.form_id);else setTargetProposal(step.proposal_job_id);
-    setQueue(null);
-    if(!(view.messages || []).some(message=>form ? message.form_id===step.form_id : message.job_id===step.proposal_job_id))changeHistory(offset ? {offset,snapshot:step.message_snapshot} : null);
-    return true;
-  }
   function changeHistory(page) {
     setError("");
     setViewError("");
@@ -823,6 +827,18 @@ function App() {
   }
   function closeGenerator(){setGeneratorPanel(null);toolToggle.current?.focus();}
   function closeGpu(){setShowGpu(false);gpuToggle.current?.focus();}
+  function openMinimaxForm(formId){setShowGpu(false);setQueue(null);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setMinimaxFormTarget(formId);setSearchMode('minimax-forms');setShowTools(true);}
+  const lastFormReply=useRef(null);
+  useEffect(()=>{
+    if(view.id!==session || view.offset>0 || historyPage)return;
+    const latest=view.messages?.at(-1);
+    const completed=latest?.job?.status?.status==="completed";
+    const previous=lastFormReply.current;
+    lastFormReply.current={session,id:latest?.job_id,completed};
+    if(!previous || previous.session!==session || !completed || (previous.id===latest.job_id && previous.completed))return;
+    const target=/^접수폼 열기 · ([a-f0-9]{32})$/m.exec(latest.job.final_response || "");
+    if(target)openMinimaxForm(target[1]);
+  },[session,view,historyPage]);
   function closeQueue(){setQueue(null);queueToggle.current?.focus();}
   function openKimodo(inputs=null) {
     if(showTools)closeTools();
@@ -912,7 +928,7 @@ function App() {
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1></header>
 
 
-    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openMinimaxForm:formId=>{setShowGpu(false);setQueue(null);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setMinimaxFormTarget(formId);setSearchMode('minimax-forms');setShowTools(true);},openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory} refreshPending={()=>retryView(n=>n+1)}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
+    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openMinimaxForm,openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory} refreshPending={()=>retryView(n=>n+1)}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
 
     <form onSubmit={e=>{e.preventDefault();send()}}>
     {session && view.context && <details name="composer-popover" className="composer-context"><summary>대화 문맥{view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}{view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) && " · 정리 진행 중"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
@@ -1002,7 +1018,7 @@ function App() {
       </>}
       {queue && session && !showTools && !showGpu && <ChatQueuePanel key={session} session={session} messages={view.id===session ? view.messages : []} openDetails={Boolean(queue.run)}
         >
-        <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} filterCache={queueFilterCache} call={call} openMessage={openQueueMessage} choose={appendSelection}/>
+        <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call}/>
       </ChatQueuePanel>}
       {mountedGenerators.map(id=>{const Generator=embeddedGenerators[id];return <div key={id} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!==id} className="embedded-generator"><Generator embedded session={session}/></div>;})}
       {kimodoMounted && <div hidden={!showKimodo || showTools || showGpu || Boolean(queue) || Boolean(generatorPanel)} className="embedded-generator"><KimodoPage key={session+":"+kimodoRevision} embedded session={session} initialInputs={currentFormInputs ? kimodoProposal : null} onChoose={(label,value)=>{edit([draft,label+" "+value].filter(Boolean).join("\n"));text.current?.focus();}}/></div>}

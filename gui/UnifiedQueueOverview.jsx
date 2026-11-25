@@ -17,7 +17,7 @@ export default function UnifiedQueueOverview(props){
   return <QueueForSession key={props.session} {...props}/>;
 }
 
-function QueueForSession({session,call,running,completed,ready,failures=[]}){
+function QueueForSession({session,call,running,completed,ready,failures=[],refreshRef,onRefresh,editRequest,localQueue,extraPending,other}){
   const [page,setPage]=useState(0),[size,setSize]=useState(5);
   const [snapshot,setSnapshot]=useState(null),[error,setError]=useState(""),[filter,setFilter]=useState("all"),[revision,refresh]=useState(0);
   const [checkedAt,setCheckedAt]=useState(null),[checking,setChecking]=useState(true);
@@ -49,10 +49,15 @@ function QueueForSession({session,call,running,completed,ready,failures=[]}){
       {row.wait_reason && <p>{row.wait_reason}</p>}
       {row.kind==="chat" && !row.indexed && <p>공용 접수 확인 중</p>}
       <JobIdentifier id={row.id} label={row.kind==="chat" ? "요청 ID" : "작업 ID"} compact/>
+      {row.kind==="chat" && row.own_session && localQueue.filter(item=>item.request_id===row.id).map(item=><React.Fragment key={item.request_id}>{editRequest(item)}</React.Fragment>)}
       </details>
     );
   });
-  const groups=[["running","진행 중",running],["pending","다음 후보",pending],["completed","완료",completed]];
+  for(const item of localQueue){
+    if(rows.some(row=>row.kind==="chat" && row.own_session && row.id===item.request_id))continue;
+    pending.push(<details key={item.request_id}><summary>이 대화 요청 · {item.request_id}</summary>{editRequest(item)}</details>);
+  }
+  const groups=[["running","진행 중",running],["pending","다음 후보",[...extraPending,...pending]],["completed","완료",completed],...(other.length ? [["other","기타 상태",other]] : [])];
   const entries=groups.filter(([key])=>filter==="all" || filter===key)
     .flatMap(([key,label,items])=>items.map(item=>({key:key+":"+item.key,label,item})));
   const failedSources=[...failures,["공용 대기열",error,Boolean(current)]].filter(([,reason])=>reason);
@@ -75,7 +80,7 @@ function QueueForSession({session,call,running,completed,ready,failures=[]}){
       <li key={key}><small>{label}</small>{item}</li>)}</ul>
     {entries.length>5 && <QueuePagination page={currentPage} size={size} total={entries.length} label="작업 일정 페이지" onPage={setPage} onSize={value=>{setSize(value);setPage(0);}}/>}
     <footer><small>5초마다 갱신{checkedAt && <> · 최근 조회 <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleTimeString("ko-KR")}</time></>}</small>
-      <button type="button" disabled={checking} onClick={()=>refresh(n=>n+1)}>새로고침</button></footer>
+      <button ref={refreshRef} type="button" disabled={checking} onClick={()=>{refresh(n=>n+1);onRefresh();}}>새로고침</button></footer>
     {current && rows.length>0 && <small>{current.note}</small>}
   </section>;
 }
