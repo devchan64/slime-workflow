@@ -33,7 +33,9 @@ class MiniMaxH3ImageTests(unittest.TestCase):
         result = validate_request({**self.request, 'width': 512, 'height': 512})
         self.assertEqual((result['width'], result['height']), (512, 512))
         verify_saved_request(result)
-        for changes in ({'steps': 8}, {'width': 1040}, {'width': 480}, {'images': ['not-an-image']},
+        landscape = validate_request({**self.request, 'width': 832, 'height': 480})
+        self.assertEqual((landscape['width'], landscape['height']), (832, 480))
+        for changes in ({'steps': 8}, {'width': 1040}, {'width': 448}, {'images': ['not-an-image']},
                         {'seed': -1}, {'prompt': '  '}):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 validate_request({**self.request, **changes})

@@ -122,6 +122,13 @@ def advance_report(directory, service, dispatch, sessions):
     if record["state"] in ("completed", "failed"):
         return
     status = json.loads((directory / "status.json").read_text())
+    origin = record.get("origin")
+    if origin and not record.get("receipt_delivered"):
+        check_recipient(origin, service, directory.name, sessions)
+        sessions.append_result_notice(origin["session_id"], "queued_"+origin["request_id"],
+                                      f"{service} 이미지 생성 대기열에 등록했습니다. 작업 ID: {directory.name}")
+        record["receipt_delivered"] = True
+        write_record_atomically(path, record)
     if status.get("status") != "completed":
         return
     if record.get("origin") is None and not record.get("origin_checked"):

@@ -8,6 +8,11 @@ import RecoverableImage from "./RecoverableImage.jsx";
 import {readLocalImageBase64} from "./readLocalImage.mjs";
 import {imageRetryUrl} from "./imageRetryUrl.mjs";
 
+export function buildingCatalogError(problem){
+  const message=requestErrorMessage(problem);
+  return message.includes("SLIME_CONTENT_SERVICE_ORIGIN") ? "콘텐츠 서비스 주소가 설정되지 않았거나 유효하지 않습니다. 서비스 설정을 확인하세요." : message;
+}
+
 const fields=[
   ["anchorX","앵커 X",0,16],["anchorY","앵커 Y",0,16],
   ["displayWidthAdjustment","가로 크기 보정 (px)",-2048,2048,1],
@@ -180,6 +185,7 @@ export function BuildingAssetList({assets,selected,disabled,disabledReason,onSel
 }
 
 export default function BuildingEditor(){
+  const busyId=useId(),dirtyId=useId(),loadingId=useId();
   const [catalog,setCatalog]=useState(null),[selected,setSelected]=useState("");
   const [error,setError]=useState(""),[revision,reload]=useState(0);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
@@ -204,7 +210,7 @@ export default function BuildingEditor(){
         setCatalog(result);setCatalogVersion(value=>value+1);setCheckedAt(new Date());
         setSelected(previous=>previous || result.assets[0]?.texture || "");
       }
-    }).catch(problem=>{if(active)setError(timedOut ? "건물 목록 조회 시간이 초과됐습니다. 다시 읽어 주세요." : requestErrorMessage(problem));}).finally(()=>{clearTimeout(timeout);if(active)setLoading(false);});
+    }).catch(problem=>{if(active)setError(timedOut ? "건물 목록 조회 시간이 초과됐습니다. 다시 읽어 주세요." : buildingCatalogError(problem));}).finally(()=>{clearTimeout(timeout);if(active)setLoading(false);});
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[revision]);
   const unavailable=loading || Boolean(error);
@@ -223,13 +229,13 @@ export default function BuildingEditor(){
   }
   const image=id=>"/management/assistant/building-image/"+encodeURIComponent(id);
   return <article className="building-editor-page"><h1>건물 에셋 관리</h1>
-    <button ref={reloadButton} type="button" disabled={busy || dirty || loading} onClick={()=>refreshCatalog(document.activeElement===reloadButton.current)}>{loading ? "건물 목록 조회 중…" : "건물 목록 다시 읽기"}</button>
-    {busy && <p role="status">건물 요청을 처리하고 있습니다.</p>}
-    {dirty && <p role="status">저장하지 않은 건물 속성이 있습니다. 저장하거나 편집을 취소한 뒤 목록을 다시 읽거나 다른 건물을 선택하세요.</p>}
+    <button ref={reloadButton} type="button" disabled={busy || dirty || loading} aria-describedby={[busy && busyId,dirty && dirtyId,loading && loadingId].filter(Boolean).join(" ") || undefined} onClick={()=>refreshCatalog(document.activeElement===reloadButton.current)}>{loading ? "건물 목록 조회 중…" : "건물 목록 다시 읽기"}</button>
+    {busy && <p id={busyId} role="status">건물 요청을 처리하고 있습니다.</p>}
+    {dirty && <p id={dirtyId} role="status">저장하지 않은 건물 속성이 있습니다. 저장하거나 편집을 취소한 뒤 목록을 다시 읽거나 다른 건물을 선택하세요.</p>}
     {notice && <p role="status">{notice}</p>}
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
     {error && <p ref={catalogError} tabIndex={-1} role="alert">{error}{catalog && " 아래는 마지막 조회 결과이며, 다시 확인하기 전에는 변경할 수 없습니다."}</p>}
-    {loading && catalog && <p role="status">목록 조회 중입니다. 아래는 마지막 조회 결과입니다.</p>}
+    {loading && <p id={loadingId} role="status">{catalog ? "목록 조회 중입니다. 아래는 마지막 조회 결과입니다." : "건물 목록을 읽고 있습니다."}</p>}
     {catalog ? <><h2 ref={listHeading} tabIndex={-1}>건물 목록</h2><p>건물 {catalog.assets.length}종 · DB 세대 {catalog.generation}</p>
       <BuildingRegistration generation={catalog.generation} busy={busy || dirty || unavailable} disabledReason={busy ? "건물 요청이 끝날 때까지 기다리세요." : dirty ? "변경한 건물 속성을 저장하거나 편집을 취소하세요." : loading ? "건물 목록 확인이 끝날 때까지 기다리세요." : error ? "건물 목록을 다시 확인한 뒤 등록하세요." : ""} setBusy={setBusy} onRegistered={id=>{
         setNotice(id+" 등록 완료");setSelected(id);refreshCatalog(document.activeElement===document.body);
@@ -237,7 +243,7 @@ export default function BuildingEditor(){
       {!catalog.assets.length && <p>등록된 건물이 없습니다.</p>}
       {selected && !building && <p role="status">선택한 건물을 현재 목록에서 찾지 못했습니다. 다른 건물을 선택하세요.</p>}
       <BuildingAssetList assets={catalog.assets} selected={selected} disabled={busy || dirty || loading} disabledReason={busy ? "건물 요청이 끝날 때까지 기다리세요." : dirty ? "변경한 건물 속성을 저장하거나 편집을 취소하세요." : loading ? "건물 목록 확인이 끝날 때까지 기다리세요." : ""} onSelect={setSelected} image={image}/>
-    </> : !error && <p role="status">건물 목록을 읽고 있습니다.</p>}
+    </> : null}
     {building && <section><h2>{building.texture}</h2>
       <RecoverableImage key={selected+":"+catalogVersion} src={image(selected)} name={selected}/>
       <p>{building.width}×{building.height} px · 앵커 X {building.properties.anchorX} · Y {building.properties.anchorY}</p>

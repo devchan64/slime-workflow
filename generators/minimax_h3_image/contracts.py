@@ -39,8 +39,8 @@ def validate_request(request):
     expected = request.pop('expected_prompt_sha256', None)
     if expected is not None and (not isinstance(expected, str) or len(expected) != 64):
         raise ValueError('프롬프트 확인값 오류')
-    result = validate_three_reference_request(request, allowed_inference_steps=(6,), maximum_reference_count=0,
-                                              minimum_output_size=512, maximum_output_size=2048)
+    result = validate_three_reference_request(request, allowed_inference_steps=(6,), maximum_reference_count=2,
+                                              minimum_output_size=480, maximum_output_size=2048)
     if result['width'] % 32 or result['height'] % 32:
         raise ValueError('출력 너비와 높이는 32의 배수여야 합니다.')
     user_prompt = result['prompt'].strip()

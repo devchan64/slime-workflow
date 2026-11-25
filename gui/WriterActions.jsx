@@ -31,7 +31,7 @@ export function WriterWorkspaceState({workspace,stale}){
   return <p role="status">{!workspace.configured?"먼저 문서 폴더를 연결하세요.":!workspace.ready?"실행 환경을 준비하세요.":!workspace.trained?"문서를 학습해 검색 색인을 만드세요.":"작성과 중복 검토를 요청할 수 있습니다."}</p>;
 }
 
-export default function WriterActions({session="",onAccepted,onWorkspace,onHistory,initialPrompt="",proposedMode="",proposalScope=null}) {
+export default function WriterActions({session="",onAccepted,onWorkspace,onHistory,onState,initialPrompt="",proposedMode="",proposalScope=null,hideLegend=false}) {
   const [workspace,setWorkspace]=useState(null);
   const [revision,refresh]=useState(0);
   const [prompt,setPrompt]=useState(initialPrompt);
@@ -40,6 +40,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,onHisto
   const [stateError,setStateError]=useState("");
   const [stateChecking,setStateChecking]=useState(true);
   const [stateCheckedAt,setStateCheckedAt]=useState(null);
+  useEffect(()=>{onState?.({workspace,checking:stateChecking,error:stateError,checkedAt:stateCheckedAt});},[onState,workspace,stateChecking,stateError,stateCheckedAt]);
   const [review,setReview]=useState(null);
   const [proposalId,setProposalId]=useState(''),[proposalReceipt,setProposalReceipt]=useState(proposalScope?'checking':'editing');
   const [receiptChecking,setReceiptChecking]=useState(false);
@@ -168,7 +169,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,onHisto
   {uncertain && <WriterUncertainReceipt onHistory={onHistory} onClear={()=>{sessionStorage.removeItem(uncertaintyKey);setUncertain(false);}}/>}
   {proposalScope && proposalReceipt!=='editing' && <section role="status"><p>제안 접수 상태: {receiptChecking || proposalReceipt==='checking'?'확인 중':proposalReceipt==='accepted'?'접수 확인됨':'확인 필요'}. 같은 제안은 다시 접수하지 않습니다.</p><button type="button" disabled={!proposalId || busy || receiptChecking} onClick={()=>checkProposalReceipt(proposalId).catch(problem=>{if(mounted.current){setProposalReceipt('unknown');setError(requestErrorMessage(problem));}})}>접수 상태 다시 확인</button></section>}
   {lockReason && <p id={lockId} role="status">{lockReason}</p>}
-  <fieldset disabled={Boolean(lockReason)} aria-describedby={lockReason ? lockId : undefined}><legend>작가 작업 요청</legend>
+  <fieldset disabled={Boolean(lockReason)} aria-describedby={lockReason ? lockId : undefined}><legend className={hideLegend ? "generator-visually-hidden" : undefined}>작가 작업 요청</legend>
     <button type="button" aria-disabled={stateChecking} aria-describedby={stateChecking ? stateCheckId : undefined} onClick={()=>{if(statePending.current)return;setError("");reload();}}>준비 상태 새로고침</button>
     {stateChecking && <p id={stateCheckId} role="status">작업 준비 상태를 확인하고 있습니다.{workspace && " 아래는 마지막 조회 결과입니다."}</p>}
     {stateError && <p role="alert">작업 준비 상태를 확인하지 못했습니다 · {stateError}{workspace && " · 표시된 상태는 마지막으로 확인한 정보입니다."}</p>}
@@ -185,7 +186,7 @@ export default function WriterActions({session="",onAccepted,onWorkspace,onHisto
     <p>중복 검토 범위를 비우면 전체 색인을 검사합니다.</p>
     {error && <p role="alert">{error}</p>}
   </fieldset>
-  {review && <section ref={reviewRef} tabIndex={-1} aria-label="작가 작업 확인"><h2>{review.handoff?"작가 작업과 GPU 양도 확인":"작가 작업 확인"}</h2>
+  {review && <section ref={reviewRef} tabIndex={-1} className="fun-request-review writer-request-review" aria-label="작가 작업 확인"><h2>{review.handoff?"작가 작업과 GPU 양도 확인":"작가 작업 확인"}</h2>
     <p>문서 작업공간 · {review.documentRoot || "확인 불가"}</p><p>색인·작업 기록 · {review.stateRoot || "확인 불가"}</p><p>작업 · {({prepare:"환경 준비",learn:"문서 색인 갱신",write:"작성 제안",deduplicate:"중복 검토"})[review.bound.request.mode]}</p>
     {review.bound.request.prompt && <ReviewPrompt label="요청 내용" text={review.bound.request.prompt}/>}
     <p>{review.handoff && "동의하면 현재 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 위 작업을 실행합니다. 작업 종료 후 Qwen 3.8을 다시 적재합니다. "}작성 제안은 문서에 자동 적용하지 않습니다.</p>

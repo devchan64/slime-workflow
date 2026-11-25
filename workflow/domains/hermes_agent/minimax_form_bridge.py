@@ -2,7 +2,7 @@
 import json
 import socket
 
-from workflow.domains.hermes_agent.minimax_form_action import apply_requested_form_update, submit_requested_form
+from workflow.domains.hermes_agent.minimax_form_action import apply_requested_form_update, submit_requested_form, confirm_question_handoff
 
 MAX_REQUEST = 40000
 MAX_RESPONSE = 4096
@@ -23,6 +23,8 @@ def handle_form_connection(client, session_id, user_prompt, dispatch):
             payload = parse_management_request_json(data[:-1])
             if isinstance(payload, dict) and payload.get('operation') == 'submit':
                 result = submit_requested_form(session_id, user_prompt, {key:value for key,value in payload.items() if key != 'operation'}, dispatch)
+            elif isinstance(payload, dict) and payload.get('operation') == 'confirm-handoff':
+                result = confirm_question_handoff(session_id, user_prompt, {key:value for key,value in payload.items() if key != 'operation'}, dispatch)
             else:
                 result = apply_requested_form_update(session_id, user_prompt, payload, dispatch)
         except (OSError, RuntimeError, ValueError, TypeError, KeyError):

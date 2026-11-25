@@ -4,6 +4,7 @@ import {readBuildingSessionReceipts} from "./buildingProposalProtocol.mjs";
 import ResultTable from "./ResultTable.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export function BuildingReceiptEmptyState({session,page,busy,error,rowCount}){
   if(!session || busy || error)return null;
@@ -34,7 +35,10 @@ function BuildingSessionReceiptsForSession({session}){
       const result=await untilAborted(readBuildingSessionReceipts(command,session,offset,snapshot),controller.signal);
       if(focus.current)focus.current.success=true;
       setRows(result.rows);setPage(result.page);setCheckedAt(new Date());setStale(false);
-    }catch(problem){if(!controller.signal.aborted || timedOut){setStale(true);setError((timedOut ? "대화 접수 이력 조회 시간이 초과됐습니다." : problem.message || "대화 접수 이력을 확인할 수 없습니다.")+(page ? " 이전 조회 결과를 표시합니다. 다시 조회하세요." : ""));}}
+    }catch(problem){if(!controller.signal.aborted || timedOut){
+      const message=timedOut ? "대화 접수 이력 조회 시간이 초과됐습니다." : requestErrorMessage(problem);
+      setStale(true);setError(message+(page ? " 이전 조회 결과를 표시합니다." : "")+(/다시\s*(?:조회|시도|확인)/.test(message) ? "" : " 다시 조회하세요."));
+    }}
     finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
   }
   return <section aria-label="대화 에셋 변경 접수"><h3 ref={heading} tabIndex={-1} className="operations-focus">대화 에셋 변경 접수</h3>

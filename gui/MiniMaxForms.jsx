@@ -8,7 +8,7 @@ import {formStateLabel} from './minimaxFormState.mjs';
 const formError=(problem,fallback)=>problem?.name==='AbortError' ? '요청 시간이 초과됐습니다.' : problem instanceof TypeError ? '서버에 연결할 수 없습니다. 연결 상태를 확인하세요.' : (problem?.message || fallback);
 
 function ImageFields({selected,size,setSize,references,setReferences,setReferenceChecking,busy}){
-  return <><label>이미지 크기<select value={size} onChange={event=>setSize(event.target.value)}><option value="512x512">512×512</option><option value="1024x1024">1024×1024</option>{!['512x512','1024x1024'].includes(selected.request.width+'x'+selected.request.height) && <option value={selected.request.width+'x'+selected.request.height}>{selected.request.width}×{selected.request.height} · 저장된 설정</option>}</select></label>
+  return <><label>이미지 크기<select value={size} onChange={event=>setSize(event.target.value)}><option value="832x480">832×480</option><option value="512x512">512×512</option><option value="1024x1024">1024×1024</option>{!['832x480','512x512','1024x1024'].includes(selected.request.width+'x'+selected.request.height) && <option value={selected.request.width+'x'+selected.request.height}>{selected.request.width}×{selected.request.height} · 저장된 설정</option>}</select></label>
     <p>참조 PNG (최대 2장)</p>{[0,1].map(index=><ReferenceImageInput key={index} label={'참조 이미지 '+(index+1)} source={references[index]} accept="image/png" maxBytes={3000000} disabled={busy || (index===1 && !references[0])} onCheckingChange={value=>setReferenceChecking(previous=>{const next=[...previous];next[index]=value;return next;})} onChange={value=>setReferences(previous=>{const next=[...previous];next[index]=value;if(index===0 && !value)next[1]=null;return next;})}/>)}
   </>;
 }
@@ -50,7 +50,7 @@ export default function MiniMaxForms({session,initialFormId=''}) {
       const request={...selected.request,prompt:prompt.trim(),seed:number};
       if(request.prompt!==selected.request.prompt)delete request.expected_prompt_sha256;
       if(selected.service==='minimax-h3-image'){
-        const allowed=['512x512','1024x1024',selected.request.width+'x'+selected.request.height];
+        const allowed=['832x480','512x512','1024x1024',selected.request.width+'x'+selected.request.height];
         if(!allowed.includes(size))throw Error('이미지 크기를 다시 확인하세요.');
         [request.width,request.height]=size.split('x').map(Number);
         request.images=await Promise.all(references.filter(Boolean).map(value=>typeof value==='string' ? value.split(',')[1] : imageBase64(value)));

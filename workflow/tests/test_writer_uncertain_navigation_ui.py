@@ -22,6 +22,9 @@ class WriterUncertainNavigationUiTests(unittest.TestCase):
                     self.assertIn('이전 작가 작업의 접수 여부가 확인되지 않았습니다',markup)
                     if filename=='SourceHistory.jsx':
                         self.assertIn('writer-agent 이력과 작업</legend>',markup)
+                        self.assertIn('<legend>작가 작업 요청</legend>',markup)
+                    else:
+                        self.assertIn('<legend class="generator-visually-hidden">작가 작업 요청</legend>',markup)
 
 
 if __name__=='__main__':

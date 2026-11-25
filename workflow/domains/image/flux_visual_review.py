@@ -40,7 +40,7 @@ def resolve_visual_model(root=MODEL_ROOT):
     return fallback()
 
 
-def observe(path, expected_hash):
+def observe(path, expected_hash, reference=None, reference_hash=None):
     import torch
     from PIL import Image
     from transformers import AutoModelForImageTextToText, AutoProcessor
@@ -55,9 +55,21 @@ def observe(path, expected_hash):
     processor = AutoProcessor.from_pretrained(model_dir, local_files_only=True)
     model = AutoModelForImageTextToText.from_pretrained(model_dir, local_files_only=True, dtype=torch.float32).eval()
     question = "Describe the visible image. Identify the main subject, number, colors, background, composition and art style. Describe only what you can see."
-    messages = [{"role":"user", "content":[{"type":"image"}, {"type":"text", "text":question}]}]
+    images = [image]
+    if reference is not None:
+        data = reference.read_bytes()
+        if hashlib.sha256(data).hexdigest() != reference_hash:
+            raise ValueError("검수할 참조 이미지 해시 불일치")
+        with Image.open(io.BytesIO(data), formats=["PNG"]) as source:
+            images.insert(0, source.convert("RGB"))
+        question = ("Image 1 is the reference and image 2 is the generated result. Compare their visible subjects, "
+                    "poses and composition. If a sword is visible, for each image identify the hand touching the grip, "
+                    "where the other hand is, and where the blade tip is relative to the grip in screen coordinates. "
+                    "Say unclear when contact or endpoints are obscured.")
+    content = [{"type":"image"} for _ in images] + [{"type":"text","text":question}]
+    messages = [{"role":"user","content":content}]
     prompt = processor.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
-    inputs = processor(text=prompt, images=[image], return_tensors="pt",
+    inputs = processor(text=prompt, images=images, return_tensors="pt",
                        do_image_splitting=False, size={"longest_edge":512})
     with torch.inference_mode():
         tokens = model.generate(**inputs, max_new_tokens=180, do_sample=False)
@@ -68,4 +80,4 @@ def observe(path, expected_hash):
 
 
 if __name__ == "__main__":
-    print(json.dumps(observe(Path(sys.argv[1]), sys.argv[2]), ensure_ascii=False))
+    print(json.dumps(observe(Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3]) if len(sys.argv)>3 else None, sys.argv[4] if len(sys.argv)>3 else None), ensure_ascii=False))

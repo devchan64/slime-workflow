@@ -86,7 +86,16 @@ def sync_snapshot(model, job_id, *, roots=None, progress=None, model_info=None, 
         if _identity(source.stat()) != _identity(before):
             raise ValueError('백업 중 원본 파일이 교체됐습니다: ' + relative)
         with destination.open('rb') as reader:
-            copied_hash = hashlib.file_digest(reader, 'sha256').hexdigest()
+            copied_digest = hashlib.sha256()
+            verified_bytes = 0
+            if phase:
+                phase('백업 사본 해시 확인', relative, verified_bytes, before.st_size)
+            for chunk in iter(lambda: reader.read(8 * 1024 * 1024), b''):
+                copied_digest.update(chunk)
+                verified_bytes += len(chunk)
+                if phase:
+                    phase('백업 사본 해시 확인', relative, verified_bytes, before.st_size)
+            copied_hash = copied_digest.hexdigest()
         if copied_hash != digest.hexdigest():
             raise ValueError('백업 파일의 SHA-256이 일치하지 않습니다: ' + relative)
         files.append({'path': relative, 'size': before.st_size, 'source_mtime_ns': before.st_mtime_ns,

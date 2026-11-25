@@ -12,6 +12,22 @@ from workflow.common.model_backup_sync import sync_snapshot
 
 
 class CatalogBackupTargetTest(unittest.TestCase):
+    def test_new_snapshot_reports_copy_verification_progress(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'local', root/'backup'
+            model = source/'example'
+            model.mkdir(parents=True)
+            backup.mkdir()
+            data = b'verify copied snapshot'
+            (model/'weights').write_bytes(data)
+            phases = []
+            result = sync_snapshot('example', 'c'*32, roots=(source, backup, None),
+                                   phase=lambda stage, path, done, total: phases.append((stage, path, done, total)))
+            self.assertEqual(result['verification'], 'sha256_after_copy')
+            self.assertIn(('백업 사본 해시 확인', 'weights', 0, len(data)), phases)
+            self.assertIn(('백업 사본 해시 확인', 'weights', len(data), len(data)), phases)
+
     def test_relocated_audio_catalog_snapshots_restore_model_files(self):
         for name, directory in (('catalog-heartmula', 'heartmula-oss-3b'),
                                 ('catalog-dasheng-audiogen', 'dasheng-audiogen')):

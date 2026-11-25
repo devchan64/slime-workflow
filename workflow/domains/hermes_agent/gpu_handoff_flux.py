@@ -34,11 +34,14 @@ class FluxHandoffAdapter(KimodoHandoffAdapter):
         identifier = record['id']
         return identifier if re.fullmatch(r'flux_[a-f0-9]{64}', identifier) else _derived_id('handoff_', identifier)
 
+    def generation_input(self, record):
+        return record['target_request']
+
     def lookup_target(self, record):
         service = record['service']
         self.validate_service(service)
         request_id = self.target_request_id(record)
-        data = json.dumps({'service':service, 'request':record['target_request']}, ensure_ascii=False,
+        data = json.dumps({'service':service, 'request':self.generation_input(record)}, ensure_ascii=False,
                           sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
         digest = hashlib.sha256(data).hexdigest()
         with self.store.hold_delegation_storage_lock():
@@ -60,7 +63,7 @@ class FluxHandoffAdapter(KimodoHandoffAdapter):
         service = record['service']
         self.validate_service(service)
         request_id = self.target_request_id(record)
-        data = json.dumps({'service':service, 'request':record['target_request']}, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+        data = json.dumps({'service':service, 'request':self.generation_input(record)}, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
         digest = hashlib.sha256(data).hexdigest()
         with self.store.hold_delegation_storage_lock():
             path = self.store.resolve_delegation_record_path(request_id)

@@ -91,7 +91,7 @@ function SearchResults({query,choose,add,disabled,disabledReason,sectionRef}){
 export default function KeyframeCatalog({query,choose,apply,initialFrames="",initialRows=[]}){
   const [rows,setRows]=useState(initialRows),[frames,setFrames]=useState(initialFrames);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[review,setReview]=useState(null);
-  const duplicateErrorId=useId(),duplicateFrames=duplicateKeyframeFrames(rows);
+  const duplicateErrorId=useId(),validationBusyId=useId(),duplicateFrames=duplicateKeyframeFrames(rows);
   const placementRef=useRef(null),searchRef=useRef(null),focusPlacement=useRef(null),focusRemoval=useRef(null),validationRequest=useRef(null),inputRevision=useRef(0),validateButton=useRef(null),validationError=useRef(null),validationResult=useRef(null),restoreValidationFocus=useRef(false);
   useEffect(()=>()=>{const request=validationRequest.current;validationRequest.current=null;request?.abort();},[]);
   useEffect(()=>{if(rows.length && focusPlacement.current){const origin=focusPlacement.current;focusPlacement.current=null;if(document.activeElement===document.body || document.activeElement===origin){placementRef.current?.focus({preventScroll:true});placementRef.current?.scrollIntoView({block:"start",inline:"nearest"});}}},[rows]);
@@ -128,7 +128,7 @@ export default function KeyframeCatalog({query,choose,apply,initialFrames="",ini
       focusPlacement.current=document.activeElement===event.currentTarget ? event.currentTarget : null;
       edit([{id:standingPose,frame:1},{id:standingPose,frame:frames}]);
     }}>첫 프레임과 마지막 프레임에 기본 서기 자세 배치</ActionButton>}
-    {rows.length>0 && <form ref={placementRef} className="keyframe-placement-form" tabIndex={-1} aria-label="출력 프레임 배치" onSubmit={validate}><fieldset disabled={busy}><legend>출력 프레임 배치</legend>
+    {rows.length>0 && <form ref={placementRef} className="keyframe-placement-form" tabIndex={-1} aria-label="출력 프레임 배치" onSubmit={validate}><fieldset disabled={busy} aria-describedby={busy ? validationBusyId : undefined}><legend>출력 프레임 배치</legend>
       <label>총 출력 프레임 수 (30~300)<input type="number" required min="30" max="300" value={frames}
         onChange={e=>{inputRevision.current++;setFrames(e.target.value);setReview(null);setError("");}}/></label>
       {rows.map((row,index)=><div key={index} className="keyframe-placement-row"><strong>{row.tag || "키프레임"}</strong><p>ID · <code>{row.id}</code></p><label>출력 프레임
@@ -136,7 +136,7 @@ export default function KeyframeCatalog({query,choose,apply,initialFrames="",ini
           onChange={e=>edit(rows.map((item,i)=>i===index?{...item,frame:e.target.value}:item))}/></label>
         <button type="button" aria-label={`${row.tag || "키프레임"} ${row.id} · 출력 프레임 ${row.frame || "미입력"} · 배치 삭제`} onClick={event=>{focusRemoval.current=document.activeElement===event.currentTarget ? event.currentTarget : null;edit(rows.filter((_,i)=>i!==index));}}>삭제</button></div>)}
       {duplicateFrames.size>0 && <p id={duplicateErrorId} role="alert">출력 프레임은 중복할 수 없습니다. 각 키프레임에 서로 다른 프레임을 지정하세요.</p>}
-      <button ref={validateButton} type="submit" disabled={duplicateFrames.size>0} aria-describedby={duplicateFrames.size>0 ? duplicateErrorId : undefined}>원본과 배치 검증</button>
+      <button ref={validateButton} type="submit" disabled={duplicateFrames.size>0} aria-describedby={[duplicateFrames.size>0 && duplicateErrorId,busy && validationBusyId].filter(Boolean).join(" ") || undefined}>원본과 배치 검증</button>
       {error && <p ref={validationError} tabIndex={-1} role="alert">{error}</p>}
       {review && <><p ref={validationResult} tabIndex={-1} role="status">{review.placements.length}개 배치 검증 완료 · {review.note}</p>
         <ResultTable table={{title:"검증된 키프레임 배치",columns:["출력 프레임","키프레임 ID"],
@@ -144,6 +144,6 @@ export default function KeyframeCatalog({query,choose,apply,initialFrames="",ini
         <button type="button" onClick={()=>apply ? apply(Number(frames),review) :
           choose("Kimodo 키프레임 배치",JSON.stringify({frames:Number(frames),keyframes:review.placements}))}>
           {apply?"생성 폼에 배치 적용":"검증한 배치를 대화 입력에 추가"}</button></>}
-    </fieldset>{busy && <p role="status">키프레임 원본과 배치를 확인하고 있습니다.</p>}</form>}
+    </fieldset>{busy && <p id={validationBusyId} role="status">키프레임 원본과 배치를 확인하고 있습니다.</p>}</form>}
   </>;
 }

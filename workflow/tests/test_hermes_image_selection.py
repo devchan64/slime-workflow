@@ -6,6 +6,18 @@ from workflow.domains.hermes_agent.image_selection import select_image_proposal
 
 
 class ImageSelectionTests(unittest.TestCase):
+    def test_question_block_before_proposal_preserves_generator_selection(self):
+        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_image_proposal
+        question = {'questions':[{'title':'이미지 생성을 진행할까요?', 'options':['승인','거절']}]}
+        proposal = {'prompt':'a house','width':512,'height':512,'seed':42,'explicit_service':False}
+        answer = ('검토해 주세요.\nHERMES_QUESTION_FORM\n'+json.dumps(question,ensure_ascii=False)
+                  +'\nEND_HERMES_QUESTION_FORM\nHERMES_IMAGE_PROPOSAL\n'+json.dumps(proposal)
+                  +'\nEND_HERMES_IMAGE_PROPOSAL')
+        result = select_image_proposal(parse_hermes_image_proposal(answer),
+                                       {'image_selection_version':1,'minimax_preferred':True,'prompt':'이미지 생성'})
+        self.assertEqual(result['service'], 'minimax-h3-image')
+        self.assertEqual(result['seed'], 42)
+
     def test_validation_uses_selected_generator(self):
         from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_image_proposal
         proposal = {'prompt':'가'*6100, 'width':512, 'height':512, 'seed':42, 'explicit_service':False}
@@ -37,6 +49,17 @@ class ImageSelectionTests(unittest.TestCase):
         self.assertEqual(select_image_proposal(explicit,{**self.request,'prompt':'미니맥스로 집 이미지'})['service'],'minimax-h3-image')
         with self.assertRaises(ValueError): select_image_proposal(self.proposal,{**self.request,'prompt':'FLUX로 집 이미지'})
         with self.assertRaises(ValueError): select_image_proposal({**self.proposal,'width':512,'explicit_service':True},{**self.request,'prompt':'미니맥스로 집'})
+
+    def test_report_context_does_not_become_explicit_user_choice(self):
+        request = {**self.request, 'context': {'messages': [
+            {'role': 'user', 'content': 'MiniMax 자동 검수 보고서 · minimax-h3-image'},
+            {'role': 'assistant', 'content': '보고서 결과입니다.'},
+        ]}}
+        self.assertEqual(select_image_proposal(self.proposal, request)['service'], 'minimax-h3-image')
+        self.assertEqual(select_image_proposal({**self.proposal, 'explicit_service': True},
+                         {**request, 'prompt': 'FLUX로 생성해줘'})['service'], 'flux-image')
+        with self.assertRaises(ValueError):
+            select_image_proposal({**self.proposal, 'explicit_service': True}, request)
 
     def test_unsupported_and_old_records_keep_flux(self):
         small = {**self.proposal,'width':512,'height':512}

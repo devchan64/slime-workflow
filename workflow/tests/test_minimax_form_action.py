@@ -1,9 +1,74 @@
 import unittest
 from unittest.mock import Mock
-from workflow.domains.hermes_agent.minimax_form_action import apply_requested_form_update, submit_requested_form
+from workflow.domains.hermes_agent.minimax_form_action import apply_requested_form_update, submit_requested_form, confirm_question_handoff
 
 
 class MiniMaxFormActionTests(unittest.TestCase):
+    def test_question_answer_cannot_submit_another_form_or_revision(self):
+        session, form = 'a'*32, 'b'*32
+        snapshot={'session_id':session,'form_id':form,'revision':3,'state':'editing','service':'minimax-h3-image','request':{'prompt':'집','images':[]}}
+        dispatch = Mock(side_effect=lambda command, payload: snapshot if command=='hermes-minimax-form-read' else {'resident':{'state':'not_found'}} if command=='hermes-resident-status' else {'state':'unknown'})
+        prompt = f'질문 작업 2026-11-25_22-30-44-0d6a944f에 대한 답변:\n대상 폼 ID: {form}\n대상 폼 버전: 3\n1. 접수할까요?\n답변: 대기열에 접수해줘'
+        payload = {'form_id':form,'revision':3}
+        self.assertEqual(submit_requested_form(session,prompt,payload,dispatch)['state'],'unknown')
+        for changed in ({'form_id':'c'*32,'revision':3},{'form_id':form,'revision':4}):
+            with self.assertRaises(ValueError): submit_requested_form(session,prompt,changed,dispatch)
+        with self.assertRaises(ValueError): submit_requested_form(session,prompt+'\n대상 폼 버전: 잘못됨',payload,dispatch)
+        for answer in ('거절','접수하지 마세요'):
+            rejected = prompt.replace('1. 접수할까요?\n답변: 대기열에 접수해줘', f'1. 대기열에 접수해 주세요.\n답변: {answer}')
+            with self.assertRaises(ValueError): submit_requested_form(session,rejected,payload,dispatch)
+        with self.assertRaises(ValueError):
+            submit_requested_form(session,prompt+'\n답변 계속: 취소',payload,dispatch)
+        self.assertEqual(dispatch.call_count,3)
+
+    def test_bound_approval_respects_resident_gpu_handoff(self):
+        session,form='a'*32,'b'*32
+        prompt=f'질문 작업 2026-11-25_22-30-44-0d6a944f에 대한 답변:\n대상 폼 ID: {form}\n대상 폼 버전: 3\n1. 생성할까요?\n답변: 승인'
+        payload={'form_id':form,'revision':3}
+        snapshot={'session_id':session,'form_id':form,'revision':3,'state':'editing','service':'minimax-h3-image',
+                  'source_job_id':'2026-11-25_22-30-44-0d6a944f','request':{'prompt':'집','images':[]}}
+        def preview(command,payload):
+            if command=='hermes-resident-status':return {'resident':{'state':'ready'},'resident_id':'resident_123'}
+            if command=='hermes-minimax-form-read':return snapshot
+            if command=='hermes-gpu-handoff-preview':return {'review_hash':'d'*64}
+            raise AssertionError(command)
+        ready=Mock(side_effect=preview)
+        self.assertEqual(submit_requested_form(session,prompt,payload,ready),
+                         {'state':'requires_gpu_handoff','form_id':form,'revision':3,'resident_id':'resident_123','review_hash':'d'*64})
+        self.assertEqual([call.args[0] for call in ready.call_args_list],['hermes-minimax-form-read','hermes-resident-status','hermes-gpu-handoff-preview'])
+        absent=Mock(side_effect=lambda command, payload: snapshot if command=='hermes-minimax-form-read' else {'resident':{'state':'not_found'}} if command=='hermes-resident-status' else {'state':'unknown'})
+        self.assertEqual(submit_requested_form(session,prompt,payload,absent)['state'],'unknown')
+        self.assertEqual(absent.call_args_list[2].args,('hermes-minimax-form-submit',{'session_id':session,**payload}))
+        for changed in ({'form_id':form,'revision':4},{'form_id':'c'*32,'revision':3}):
+            with self.assertRaises(ValueError): submit_requested_form(session,prompt,changed,absent)
+        snapshot['request']={'prompt':'참조 이미지와 동일한 캐릭터','images':[]}
+        with self.assertRaisesRegex(ValueError,'참조 PNG'):
+            submit_requested_form(session,prompt,payload,absent)
+
+    def test_handoff_requires_fresh_bound_snapshot_and_separate_consent(self):
+        session,form='a'*32,'b'*32;job='2026-11-25_22-30-44-0d6a944f';review='d'*64;resident='resident_123'
+        payload={'form_id':form,'revision':3,'resident_id':resident,'review_hash':review}
+        prompt=(f'질문 작업 {job}에 대한 답변:\n대상 폼 ID: {form}\n대상 폼 버전: 3\n'
+                f'상주 모델 ID: {resident}\nGPU 양도 검토: {review}\n1. GPU 양도를 진행할까요?\n답변: GPU 양도에 동의')
+        snapshot={'session_id':session,'form_id':form,'revision':3,'state':'editing','service':'minimax-h3-image','source_job_id':job,'request':{'prompt':'집','images':[]}}
+        def gateway(command,value):
+            if command=='hermes-minimax-form-read':return snapshot
+            if command=='hermes-resident-status':return {'resident_id':resident,'resident':{'state':'ready'}}
+            if command=='hermes-gpu-handoff-approve':return {'id':value['request_id'],'state':'approved','revision':1}
+            raise AssertionError(command)
+        dispatch=Mock(side_effect=gateway)
+        self.assertEqual(confirm_question_handoff(session,prompt,payload,dispatch)['state'],'approved')
+        approved=dispatch.call_args_list[-1].args[1]
+        self.assertTrue(approved['confirmed']);self.assertEqual(approved['review_hash'],review)
+        self.assertEqual(approved['request'],{'form_id':form,'revision':3,'request':snapshot['request']})
+        before=dispatch.call_count
+        for text in (prompt.replace('답변: GPU 양도에 동의','답변: 거절'),prompt+'\n취소',prompt.replace(review,'e'*64)):
+            with self.assertRaises(ValueError):confirm_question_handoff(session,text,payload,dispatch)
+        self.assertEqual(dispatch.call_count,before)
+        snapshot['revision']=4
+        with self.assertRaises(ValueError):confirm_question_handoff(session,prompt,payload,dispatch)
+        self.assertEqual(dispatch.call_count,before+1)
+
     def test_submit_requires_explicit_current_turn_and_preserves_unknown(self):
         session, form = 'a'*32, 'b'*32
         payload = {'form_id':form,'revision':3}

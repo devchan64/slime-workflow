@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {restoreLostFocus} from '../../gui/restoreLostFocus.mjs';
 
 test('생성 검토 취소는 사라진 초점만 복구하고 사용자가 옮긴 초점은 유지한다',()=>{
- for(const file of ['FunControlPage.jsx','VacePage.jsx','TranslationPage.jsx','KimodoGeneration.jsx','FluxImagePage.jsx']){
+ for(const file of ['VacePage.jsx','KimodoGeneration.jsx','FluxImagePage.jsx']){
   const source=readFileSync(new URL('../../gui/'+file,import.meta.url),'utf8');
   const start=source.indexOf('onCancel={()=>{const restore=');
   const end=source.indexOf('}} onConfirm=',start);
@@ -18,6 +18,22 @@ test('생성 검토 취소는 사라진 초점만 복구하고 사용자가 옮�
    const context=vm.createContext({document,restoreLostFocus,requestAnimationFrame:fn=>frame=fn,reviewRef:review,reviewSectionRef:review,formRef:{current:{querySelector:()=>target}},inputFormRef:{current:target},textRef:{current:target},reviewButtonRef:{current:target},setPending:()=>{},setReview:()=>{},setHandoffReview:()=>{},handoff:{clearReview:()=>{}}});
    vm.runInContext('('+code+')()',context);document.activeElement=moved?other:body;frame();
    assert.equal(focused,moved?0:1,file);
+  }
+ }
+});
+
+test('Fun Control과 번역 검토 취소는 초점 이동과 새 검토를 존중한다',()=>{
+ for(const file of ['FunControlPage.jsx','TranslationPage.jsx']){
+  const source=readFileSync(new URL('../../gui/'+file,import.meta.url),'utf8');
+  const start=source.indexOf('  function cancelReview()'),end=source.indexOf('\n  }',start);
+  const code=file==='FunControlPage.jsx' ? source.slice(start,source.indexOf('\n',start)) : source.slice(start,end+4);
+  assert.ok(start>=0 && code.includes('restoreLostFocus'),file);
+  for(const scenario of ['lost','moved','new-review']){
+   let frame,focused=0;const body={},button={},other={},document={body,activeElement:button},epoch={current:1};
+   const target={isConnected:true,disabled:false,matches:()=>false,focus:()=>focused++};
+   const context=vm.createContext({document,restoreLostFocus,reviewRef:{current:{contains:node=>node===button}},reviewEpoch:epoch,reviewRequest:{current:null},restoreFrame:{current:null},formRef:{current:{querySelector:()=>target}},textRef:{current:target},setPending:()=>{},setHandoffReview:()=>{},cancelAnimationFrame:()=>{},requestAnimationFrame:fn=>(frame=fn,1)});
+   vm.runInContext(code,context);context.cancelReview();document.activeElement=scenario==='moved'?other:body;if(scenario==='new-review')epoch.current++;frame?.();
+   assert.equal(focused,scenario==='lost'?1:0,`${file} ${scenario}`);
   }
  }
 });

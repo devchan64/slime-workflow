@@ -8,6 +8,28 @@ from workflow.domains.hermes_agent.minimax_form_store import MiniMaxFormStore
 
 
 class MiniMaxFormCommandsTests(unittest.TestCase):
+    def test_question_approval_does_not_submit_a_form_edited_after_the_question(self):
+        from workflow.domains.hermes_agent.minimax_form_action import submit_requested_form
+        with tempfile.TemporaryDirectory() as directory:
+            forms=MiniMaxFormStore(Path(directory)/'forms.sqlite3')
+            session,form,job='a'*32,'b'*32,'2026-11-24_22-01-26-b482d868'
+            forms.create(session,form,'minimax-h3-image',job,{'prompt':'원래 입력'})
+            forms.save(session,form,1,{'prompt':'수정된 입력'})
+            sessions,receipts,manager=Mock(),Mock(),Mock()
+            receipts.read_service_delegation.return_value={'state':'not_found'}
+            generation=Mock()
+            def dispatch(command,payload):
+                if command=='hermes-resident-status': return {'resident':{'state':'not_found'}}
+                return execute_minimax_form_command(command,payload,sessions=sessions,read_job=Mock(),
+                                                    dispatch=generation,forms=forms,receipts=receipts)
+            answer=(f'질문 작업 {job}에 대한 답변:\n대상 폼 ID: {form}\n대상 폼 버전: 1\n'
+                    '1. 이 입력으로 생성할까요?\n답변: 승인')
+            with patch('workflow.domains.hermes_agent.minimax_form_commands.resolve_proposal',return_value=({},manager)):
+                with self.assertRaisesRegex(ValueError,'변경되었거나'):
+                    submit_requested_form(session,answer,{'form_id':form,'revision':1},dispatch)
+            self.assertEqual(forms.read(session,form)['state'],'editing')
+            generation.assert_not_called()
+
     def test_indeterminate_or_rejected_legacy_receipt_is_not_editable(self):
         with tempfile.TemporaryDirectory() as directory:
             forms = MiniMaxFormStore(Path(directory)/'forms.sqlite3')

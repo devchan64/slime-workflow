@@ -20,7 +20,10 @@ for(const label of ['백업과 비교','모델 메타정보','SHA-256 검증 시
   const tag=html.match(new RegExp('<button[^>]*>'+label+'<\\/button>'))[0];
   assert.match(tag,/disabled=""/);assert.ok(tag.includes('aria-describedby="'+id+'"'));
 }
-assert.equal((html.match(/모델 목록을 불러오는 중입니다[.]/g)||[]).length,1);"""
+assert.equal((html.match(/모델 목록을 불러오는 중입니다[.]/g)||[]).length,1);
+const loading=html.match(/<p id="([^"]+)" role="status">모델과 백업 목록을 확인하고 있습니다[.]<\\/p>/)[1];
+const refresh=html.match(/<button[^>]*>모델 목록 조회 중…<\\/button>/)[0];
+assert.ok(refresh.includes('aria-describedby="'+loading+'"'));"""
             subprocess.run(['node', '-e', script, str(bundle)], cwd=gui, check=True, capture_output=True, text=True, env={**os.environ, 'NODE_PATH': str(gui / 'node_modules')})
 
 

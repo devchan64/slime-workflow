@@ -41,11 +41,12 @@ export function BillboardNumericField({label,value,required,error,onChange}){
 export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}}){
   const [source,setSource]=useState(null),[edits,setEdits]=useState({}),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
-  const readRequest=useRef(null),saving=useRef(false),reviewRef=useRef(null),reviewTrigger=useRef(null),loadButton=useRef(null),restoreLoadFocus=useRef(false),restoreReviewFocus=useRef(false);
+  const readRequest=useRef(null),saving=useRef(false),reviewRef=useRef(null),reviewTrigger=useRef(null),saveButton=useRef(null),restoreSaveFocus=useRef(false),loadButton=useRef(null),restoreLoadFocus=useRef(false),restoreReviewFocus=useRef(false);
   const placementReasonId=useId(),reloadReasonId=useId(),busyReasonId=useId(),heightErrorId=useId(),columnsErrorId=useId(),rowsErrorId=useId(),shadowColumnErrorId=useId(),shadowRowErrorId=useId(),scaleXErrorId=useId(),scaleYErrorId=useId(),anchorXErrorId=useId(),anchorYErrorId=useId(),emptyErrorId=useId();
   useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus({preventScroll:true});},[review]);
   useEffect(()=>{if(!busy && restoreLoadFocus.current){restoreLoadFocus.current=false;if(document.activeElement===document.body && loadButton.current && !loadButton.current.disabled)loadButton.current.focus({preventScroll:true});}},[busy,source,notice,edits]);
   useEffect(()=>{if(!busy && restoreReviewFocus.current){restoreReviewFocus.current=false;if(notice && document.activeElement===document.body && reviewTrigger.current?.isConnected && !reviewTrigger.current.disabled)reviewTrigger.current.focus({preventScroll:true});}},[busy,notice,review]);
+  useEffect(()=>{if(!busy && restoreSaveFocus.current){restoreSaveFocus.current=false;if(review && document.activeElement===document.body && saveButton.current?.isConnected && !saveButton.current.disabled)saveButton.current.focus({preventScroll:true});}},[busy,review,notice]);
   useEffect(()=>()=>readRequest.current?.abort(),[]);
   async function read(command,payload){
     const controller=new AbortController();readRequest.current=controller;let timedOut=false;
@@ -96,6 +97,7 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
   }
   async function save(){
     if(saving.current || !review)return;
+    restoreSaveFocus.current=document.activeElement===saveButton.current;
     saving.current=true;
     setBusy(true);setNotice("");
     try{
@@ -103,7 +105,7 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
         token:review.result.token,review_sha256:review.result.review_sha256});
       if(record.state!=="completed" || !record.saved)throw new Error("저장 결과 확인 필요 · 접수 "+review.id);
       setReview(null);setSource(null);setEdits({});onDirtyChange(false);setNotice(billboardSaveNotice(record,review.id));
-    }catch(problem){setNotice(problem.message);}
+    }catch(problem){setNotice(`저장 결과를 확인하지 못했습니다. 다시 저장하기 전에 접수 ID ${review.id}를 기록하고 원본과 이력을 확인하세요. · ${problem?.message ? requestErrorMessage(problem) : "오류 내용이 제공되지 않았습니다."}`);}
     finally{saving.current=false;setBusy(false);}
   }
   const hasEdits=Object.keys(edits).length>0;
@@ -125,8 +127,8 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
       <label className="billboard-checkbox"><input type="checkbox" checked={properties.billboardBlocksMovement ?? false} onChange={e=>edit("billboardBlocksMovement",e.target.checked)}/>통행 차단</label></div>
       <BillboardGroundPreview source={source} edits={edits}/>
       <ActionButton type="submit" reasons={[!source.initial && !hasEdits && "변경한 속성이 없습니다.",Object.keys(labels).filter(key=>!key.startsWith("billboard")).some(key=>fieldError(key)) && "숫자 속성의 입력을 확인하세요."]}>변경 검토</ActionButton>
-      {review && <section ref={reviewRef} tabIndex={-1} aria-label="빌보드 속성 변경 확인"><BillboardReviewSummary result={review.result}/>
-        <button type="button" onClick={save}>검토한 속성 저장</button><button type="button" onClick={()=>{const focused=document.activeElement;setReview(null);requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}}>취소</button></section>}
+      {review && <section ref={reviewRef} tabIndex={-1} className="ui-focus-target" aria-label="빌보드 속성 변경 확인"><BillboardReviewSummary result={review.result}/>
+        <button ref={saveButton} type="button" onClick={save}>검토한 속성 저장</button><button type="button" onClick={()=>{const focused=document.activeElement;setReview(null);requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}}>취소</button></section>}
     </fieldset></form>}
     {source && !source.initial && !hasEdits && <BillboardCrop key={source.revision} source={source} busy={busy} setBusy={setBusy}
       onSaved={({restoreFocus}={})=>{restoreLoadFocus.current=Boolean(restoreFocus);setSource(null);setReview(null);setNotice("원본 크롭 저장 완료");onCrop();}}/>}

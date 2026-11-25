@@ -26,7 +26,7 @@ export default function BillboardCatalog({choose}){
   const [lifecycleActive,setLifecycleActive]=useState(false);
   const [selected,select]=useState(null),[error,setError]=useState("");
   const detailRef=useRef(null),triggerRef=useRef(null),searchRef=useRef(null),resultsRef=useRef(null),errorRef=useRef(null),restoreSearchFocus=useRef(false),focusEpoch=useRef(0);
-  const editingReasonId=useId(),lifecycleReasonId=useId();
+  const editingReasonId=useId(),lifecycleReasonId=useId(),loadingId=useId(),pageReasonId=useId();
   const locked=editingProperties || lifecycleActive;
   const lockDescription=[editingProperties && editingReasonId,lifecycleActive && lifecycleReasonId].filter(Boolean).join(" ") || undefined;
   useEffect(()=>()=>{focusEpoch.current++;},[]);
@@ -60,6 +60,7 @@ export default function BillboardCatalog({choose}){
   }
   const resultsStale=!!page && displayedRequest!==request;
   const filtersChanged=query!==(request.query || "") || category!==(request.category || "");
+  const pageReason=loading ? "조회가 끝나면 페이지를 이동할 수 있습니다." : resultsStale ? "목록을 다시 검색한 뒤 페이지를 이동하세요." : filtersChanged ? "변경된 검색 조건으로 검색한 뒤 페이지를 이동하세요." : "";
   const DetailHeading=choose ? "h3" : "h2";
   return <section className={"billboard-catalog"+(!choose ? " billboard-standalone" : "")}>{choose ? <h2>공용 빌보드 에셋</h2> : <h1>공용 빌보드 에셋</h1>}
     <fieldset disabled={locked} style={{border:0,padding:0,margin:0}}><BillboardRegistration onSaved={()=>setRequest({...request,offset:0})}/></fieldset>
@@ -68,19 +69,20 @@ export default function BillboardCatalog({choose}){
     <form className="billboard-search" onSubmit={search}><label>분류<select value={category} onChange={e=>setCategory(e.target.value)}>
       <option value="">전체</option>{Object.entries(categories).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
       <label>이름·ID·모델링 설명·사용 맵<input maxLength={100} value={query} onChange={e=>setQuery(e.target.value)}/></label>
-      <button ref={searchRef} disabled={loading || locked} aria-describedby={lockDescription}>{loading?"조회 중…":"빌보드 검색"}</button></form>
+      <button ref={searchRef} disabled={loading || locked} aria-describedby={[lockDescription,loading && loadingId].filter(Boolean).join(" ") || undefined}>{loading?"조회 중…":"빌보드 검색"}</button></form>
     {filtersChanged && page && <p role="status">검색 조건이 변경되었습니다. 아래는 이전 조건의 결과입니다. 빌보드 검색을 눌러 적용하세요.</p>}
-    {resultsStale && <p role="status">{loading?"새 결과를 조회하고 있습니다. 아래는 이전 조회 결과입니다.":"조회에 실패했습니다. 아래는 이전 조회 결과입니다. 다시 검색해 주세요."}</p>}
+    {loading && <p id={loadingId} role="status">{page ? "새 결과를 조회하고 있습니다. 아래는 이전 조회 결과입니다." : "카탈로그 조회 중…"}</p>}
+    {resultsStale && !loading && <p role="status">조회에 실패했습니다. 아래는 이전 조회 결과입니다. 다시 검색해 주세요.</p>}
     {page?.storage==="database" && <SnapshotStatus/>}
     {notice && <p role="status">{notice}</p>}
     {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
-    {!page && !error && <p role="status">카탈로그 조회 중…</p>}
+    {page && pageReason && (page.offset>0 || page.next_offset!=null) && <p id={pageReasonId}>{pageReason}</p>}
     {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><ResultTable table={{title:"검색 결과",emptyMessage:page.total ? "현재 페이지에 표시할 빌보드가 없습니다. 이전 페이지를 확인하세요." : "조회한 조건에 맞는 빌보드가 없습니다.",summary:page.total+"종"+(page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""),columns:["이름","에셋 ID","분류"],
-      rows:page.items.map(asset=>[<button type="button" aria-label={asset.name+" · "+asset.id} aria-describedby={locked && selected?.id!==asset.id ? lockDescription : undefined} disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{focusEpoch.current++;triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
+      rows:page.items.map(asset=>[<button type="button" aria-label={asset.name+" · "+asset.id} aria-describedby={[locked && selected?.id!==asset.id && lockDescription,loading && loadingId].filter(Boolean).join(" ") || undefined} disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{focusEpoch.current++;triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
           width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,billboardCategoryLabel(categories,asset.category)])}}/></div>
-      {page.offset>0 && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} onClick={event=>movePage(Math.max(0,page.offset-page.limit),event)}>이전 페이지</button>}
-      {page.next_offset!=null && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} onClick={event=>movePage(page.next_offset,event)}>다음 페이지</button>}</>}
-    {selected && <section ref={detailRef} tabIndex={-1} aria-label="선택한 빌보드 상세"><button type="button" disabled={locked} onClick={closeDetail}>상세 닫기</button><DetailHeading>{selected.name}</DetailHeading>
+      {page.offset>0 && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} aria-describedby={[lockDescription,pageReason && pageReasonId].filter(Boolean).join(" ") || undefined} onClick={event=>movePage(Math.max(0,page.offset-page.limit),event)}>이전 페이지</button>}
+      {page.next_offset!=null && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} aria-describedby={[lockDescription,pageReason && pageReasonId].filter(Boolean).join(" ") || undefined} onClick={event=>movePage(page.next_offset,event)}>다음 페이지</button>}</>}
+    {selected && <section ref={detailRef} tabIndex={-1} aria-label="선택한 빌보드 상세"><button type="button" disabled={locked} aria-describedby={lockDescription} onClick={closeDetail}>상세 닫기</button><DetailHeading>{selected.name}</DetailHeading>
       {page && !page.items.some(item=>item.id===selected.id) && <p role="status">열린 빌보드는 현재 검색 결과에 없습니다. 마지막으로 선택한 상세를 유지합니다.</p>}
       <RecoverableImage key={selected.id+":"+imageRevision} src={imageUrl(selected.id)+"?r="+imageRevision} name={selected.name}/>
       <p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>

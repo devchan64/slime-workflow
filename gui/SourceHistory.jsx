@@ -23,7 +23,7 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const [notice,setNotice]=useState("");
-  const busyId=useId();
+  const busyId=useId(),filterChangedId=useId();
   const request=useRef(null),controllerRef=useRef(null);
   const resultRef=useRef(null),resultTrigger=useRef(null),resultFocusFrame=useRef(null);
   const listRef=useRef(null),focusList=useRef(false),failedPageTrigger=useRef(null),searchRef=useRef(null);
@@ -54,7 +54,7 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
       const result=await untilAborted(managementCommand("hermes-agent",source.command,payload,{signal:controller.signal}),controller.signal);
       if(!validSourceHistoryPage(result,source.service,offset,snapshot))throw new Error("이력 페이지를 확인할 수 없습니다. 다시 조회하세요.");
       if(request.current.isCurrent(token)){const unchanged=selectionEpoch.current===selectionAtStart;focusList.current=navigate && unchanged;setPage(result);setReceivedAt(new Date());setFilter(payload.query);}
-    } catch(problem) {if(request.current.isCurrent(token)){failedPageTrigger.current=navigate ? trigger : null;setError((timedOut ? "이력 조회 시간이 초과됐습니다. 다시 조회하세요." : problem instanceof TypeError ? "이력 서버에 연결하지 못했습니다. 연결 상태를 확인한 후 다시 조회하세요." : problem.message)+(page ? " · 이전 조회 결과를 유지합니다." : ""));}}
+    } catch(problem) {if(request.current.isCurrent(token)){failedPageTrigger.current=navigate ? trigger : null;setError((timedOut ? "이력 조회 시간이 초과됐습니다. 다시 조회하세요." : problem instanceof TypeError ? "이력 서버에 연결하지 못했습니다. 연결 상태를 확인한 후 다시 조회하세요." : problem?.message || "이력을 조회하지 못했습니다. 다시 조회하세요.")+(page ? " · 이전 조회 결과를 유지합니다." : ""));}}
     finally {clearTimeout(timeout);if(controllerRef.current===controller)controllerRef.current=null;if(request.current.isCurrent(token))setBusy(false);}
   }
   function cleaned(message){setNotice(message);selectJob("");load(0,undefined,false,null,filter);}
@@ -66,7 +66,7 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
     <button onClick={event=>load(0,undefined,true,event.currentTarget)}>{busy?"조회 중…":"이력 조회"}</button>
     {query && <button type="button" onClick={()=>{request.current.invalidate();controllerRef.current?.abort();setQuery("");setError("");searchRef.current?.focus();}}>검색어 지우기</button>}
     {error && <p role="alert">{error}</p>}
-    {page && query.trim()!==filter && <p role="status">검색어가 변경되었습니다. 아래는 이전 검색 결과입니다. 이력 조회를 눌러 적용하세요.</p>}
+    {page && query.trim()!==filter && <p id={filterChangedId} role="status">검색어가 변경되었습니다. 아래는 이전 검색 결과입니다. 이력 조회를 눌러 적용하세요.</p>}
     {notice && <p role="status">{notice}</p>}
     {page && <>
       <section ref={listRef} tabIndex={-1} aria-label={source.service+" 생성 이력"}><strong>{label} 생성 이력</strong>
@@ -93,8 +93,8 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
           <button onClick={()=>choose(source.service+" 생성 결과",selectedJob)}>이 결과를 대화 입력에 추가</button>}
       </MediaJobResult><button type="button" onClick={closeResult}>결과 닫기</button></div>}
       <p>{page.note}</p>
-      {page.offset>0 && <button disabled={query.trim()!==filter} onClick={event=>load(Math.max(0,page.offset-10),page.snapshot,true,event.currentTarget)}>이전 이력</button>}
-      {page.next_offset!=null && <button disabled={query.trim()!==filter} onClick={event=>load(page.next_offset,page.snapshot,true,event.currentTarget)}>다음 이력</button>}
+      {page.offset>0 && <button disabled={query.trim()!==filter} aria-describedby={query.trim()!==filter ? filterChangedId : undefined} onClick={event=>load(Math.max(0,page.offset-10),page.snapshot,true,event.currentTarget)}>이전 이력</button>}
+      {page.next_offset!=null && <button disabled={query.trim()!==filter} aria-describedby={query.trim()!==filter ? filterChangedId : undefined} onClick={event=>load(page.next_offset,page.snapshot,true,event.currentTarget)}>다음 이력</button>}
     </>}
     {kimodo && (selectedJob ? <div ref={resultRef} tabIndex={-1} aria-label="선택한 이력 결과"><button type="button" onClick={closeResult}>결과 닫기</button><KimodoFrames key={selectedJob} id={selectedJob} choose={choose} onDeleted={cleaned}/><button type="button" onClick={closeResult}>결과 닫기</button></div> :
       <HistoryCleanup service="kimodo" onDeleted={cleaned}/>)}
@@ -115,7 +115,7 @@ export default function SourceHistory({choose, session, tools=[]}) {
     untilAborted(fetch("/management/assistant/history-services",{signal:controller.signal})
       .then(response=>{if(!response.ok)throw new Error("생성기 목록을 조회할 수 없습니다.");return response.json();}),controller.signal)
       .then(rows=>{if(!Array.isArray(rows) || rows.some(row=>!row || typeof row.service!=="string" || typeof row.command!=="string"))throw new Error("생성기 목록 형식을 확인할 수 없습니다.");if(!controller.signal.aborted){const ordered=orderHistorySources(rows);setSources(ordered);select(current=>ordered.some(row=>row.service===current) ? current : ordered[0]?.service || "");}})
-      .catch(problem=>{if(active)setError(timedOut ? "이력 서비스 조회 시간이 초과됐습니다. 다시 시도하세요." : problem instanceof TypeError ? "이력 서비스에 연결하지 못했습니다. 연결 상태를 확인하세요." : problem.message);})
+      .catch(problem=>{if(active)setError(timedOut ? "이력 서비스 조회 시간이 초과됐습니다. 다시 시도하세요." : problem instanceof TypeError ? "이력 서비스에 연결하지 못했습니다. 연결 상태를 확인하세요." : problem?.message || "이력 서비스를 조회하지 못했습니다. 다시 시도하세요.");})
       .finally(()=>{clearTimeout(timeout);if(active)setLoading(false);});
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[attempt]);

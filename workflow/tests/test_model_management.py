@@ -478,13 +478,17 @@ class ModelManagementTest(unittest.TestCase):
                             '--platform=node', '--format=cjs', '--external:react', '--external:react-dom', '--outfile='+str(bundle)],
                            cwd=gui, check=True, capture_output=True, text=True)
             script = """const React=require('react'), server=require('react-dom/server');
-              const {InventoryContents}=require(process.argv[1]);
+              const {InventoryContents,InventoryFiles}=require(process.argv[1]);
               const inventory={files:[{path:'sample/a.json',bytes:2},{path:'sample/z.safetensors',bytes:5}],count:2,total_bytes:7,incomplete:true};
               process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory})));
               process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory:{files:[],count:0,total_bytes:0,incomplete:true}})));
-              process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory:{files:[],count:0,total_bytes:0,incomplete:false}})));"""
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory:{files:[],count:0,total_bytes:0,incomplete:false}})));
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(InventoryContents,{inventory:{files:[],count:2,total_bytes:7,incomplete:true,truncated:true}})));
+              const loading=server.renderToStaticMarkup(React.createElement(InventoryFiles,{service:'example'}));
+              const id=loading.match(/aria-describedby="([^"]+)"/)[1];
+              if(!loading.includes('id="'+id+'" role="status"'))throw Error('조회 중 설명 연결 실패');"""
             rendered = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True, env={**os.environ, 'NODE_PATH':str(gui/'node_modules')})
-        for expected in ('파일 2개', '7바이트', '일부 저장 위치 확인 실패', 'sample/z.safetensors', '해시 검증 결과가 아닙니다', '확인된 파일이 없습니다. 일부 저장 위치를 확인하지 못했습니다.', '저장된 모델 파일이 없습니다.', 'aria-label="저장된 모델 파일"'):
+        for expected in ('파일 2개', '7바이트', '일부 저장 위치 확인 실패', 'sample/z.safetensors', '해시 검증 결과가 아닙니다', '확인된 파일이 없습니다. 일부 저장 위치를 확인하지 못했습니다.', '저장된 모델 파일이 없습니다.', '확인된 파일은 있지만 표시할 목록이 없습니다.', 'aria-label="저장된 모델 파일"'):
             self.assertIn(expected, rendered)
 
     def test_retired_qwen_2512_is_not_in_model_management(self):

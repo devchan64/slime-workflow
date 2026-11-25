@@ -166,7 +166,7 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
       const record=await managementCommand("character-animation",gif?"sheet-gif":"sheet-export",payload);
       if(!record.id || (gif?!record.gif:!record.image || !record.coordinates))throw new Error("내보내기 결과를 확인할 수 없습니다.");
       setResult(record);
-    }catch(problem){setError(problem.message);}
+    }catch(problem){setError(requestErrorMessage(problem));}
     finally{setBusy(false);}
   }
   async function save(){
@@ -232,25 +232,25 @@ export function gridEdges(size,count){
   });
 }
 
-function SpriteChangeConfirmation({label,children,busy=false,onConfirm,onCancel,confirmLabel,cancelLabel,returnFocus}){
+function SpriteChangeConfirmation({label,children,busy=false,onConfirm,onCancel,confirmLabel,cancelLabel,returnFocus,descriptionId}){
   const container=useRef(null),trigger=useRef(null);
   useEffect(()=>{trigger.current=returnFocus || document.activeElement;container.current?.focus({preventScroll:true});},[]);
   function cancel(){
     const focused=document.activeElement;onCancel();
     requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && trigger.current?.isConnected)trigger.current.focus();});
   }
-  return <section ref={container} tabIndex={-1} className="ui-focus-target" aria-label={label}><p>{children}</p>
+  return <section ref={container} tabIndex={-1} className="ui-focus-target" aria-label={label}><p id={descriptionId}>{children}</p>
     <button type="button" disabled={busy} onClick={onConfirm}>{confirmLabel}</button><button type="button" disabled={busy} onClick={cancel}>{cancelLabel}</button></section>;
 }
 
-export function GridReplaceConfirmation({dimensions,onConfirm,onCancel,returnFocus}){
-  return <SpriteChangeConfirmation label="프레임 재분할 확인" onConfirm={onConfirm} onCancel={onCancel} returnFocus={returnFocus} confirmLabel="다시 나누기 확인" cancelLabel="취소">{dimensions}로 다시 나누면 현재 프레임 편집 내용이 사라집니다.</SpriteChangeConfirmation>;
+export function GridReplaceConfirmation({dimensions,onConfirm,onCancel,returnFocus,descriptionId}){
+  return <SpriteChangeConfirmation label="프레임 재분할 확인" onConfirm={onConfirm} onCancel={onCancel} returnFocus={returnFocus} descriptionId={descriptionId} confirmLabel="다시 나누기 확인" cancelLabel="취소">{dimensions}로 다시 나누면 현재 프레임 편집 내용이 사라집니다.</SpriteChangeConfirmation>;
 }
 
 function GridEditor({detail,size,onSaved}){
   const [columns,setColumns]=useState(detail.layout?.columns ?? 4),[rows,setRows]=useState(detail.layout?.rows ?? 2);
   const [grid,setGrid]=useState(null),[pending,setPending]=useState(null),[error,setError]=useState("");
-  const changeTrigger=useRef(null),columnsError=useId(),rowsError=useId();
+  const changeTrigger=useRef(null),columnsError=useId(),rowsError=useId(),confirmId=useId();
   const invalidColumns=invalidSpriteGridCount(columns),invalidRows=invalidSpriteGridCount(rows);
   const invalidGrid=!invalidColumns && !invalidRows && size && invalidSpriteGrid(columns,rows,size);
   function split(event){
@@ -271,12 +271,12 @@ function GridEditor({detail,size,onSaved}){
     if(grid){changeTrigger.current=document.activeElement;setPending(next);}else setGrid(next);
     setError("");
   }
-  return <><form onSubmit={split}><fieldset disabled={!!pending}><legend>원본 시트 분할</legend>
+  return <><form onSubmit={split}><fieldset disabled={!!pending} aria-describedby={pending?confirmId:undefined}><legend>원본 시트 분할</legend>
     <label>원본 열<input type="number" min="1" max="128" required aria-invalid={invalidColumns || undefined} aria-describedby={invalidColumns ? columnsError : undefined} value={columns} onChange={e=>setColumns(e.target.value)}/>{invalidColumns && <small id={columnsError}>1~128의 정수를 입력하세요.</small>}</label>
     <label>원본 행<input type="number" min="1" max="128" required aria-invalid={invalidRows || undefined} aria-describedby={invalidRows ? rowsError : undefined} value={rows} onChange={e=>setRows(e.target.value)}/>{invalidRows && <small id={rowsError}>1~128의 정수를 입력하세요.</small>}</label>
     <ActionButton type="submit" reasons={[!size && "원본 이미지가 열리면 나눌 수 있습니다.",(invalidColumns || invalidRows) && "원본 열과 행을 확인하세요.",invalidGrid && "최대 128프레임이며 각 셀은 최소 1픽셀이어야 합니다."]}>프레임 나누기</ActionButton>
     {error && <p role="alert">{error}</p>}</fieldset></form>
-    {pending && <GridReplaceConfirmation dimensions={pending.key} returnFocus={changeTrigger.current} onConfirm={()=>{setGrid(pending);setPending(null);}} onCancel={()=>setPending(null)}/>}
+    {pending && <GridReplaceConfirmation dimensions={pending.key} returnFocus={changeTrigger.current} descriptionId={confirmId} onConfirm={()=>{setGrid(pending);setPending(null);}} onCancel={()=>setPending(null)}/>}
     {grid && <FrameEditor key={grid.key+"/"+grid.revision} frames={grid.frames} image={detail.image} original={detail} onSaved={onSaved}/>}</>;
 }
 
@@ -299,8 +299,8 @@ function Sheet({path,source,focusFrom,region}){
     }).catch(problem=>{if(active)setError(timedOut ? "시트 조회 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[path,source,saved,revision]);
-  return <section ref={region} tabIndex={-1} aria-label="원본 시트" aria-busy={!detail && !error}>{saved && <p role="status">원본 갱신 완료 · {saved.path} · 기록 {saved.id}</p>}
-    {error?<div role="alert"><p>{error}</p><button ref={retryButton} type="button" onClick={()=>{if(document.activeElement===retryButton.current)region.current?.focus();retry(value=>value+1);}}>원본 시트 다시 불러오기</button></div>:detail?<SheetView path={path} detail={detail} onSaved={record=>{
+  return <section ref={region} tabIndex={-1} className="ui-focus-target" aria-label="원본 시트" aria-busy={!detail && !error}>{saved && <p role="status">원본 갱신 완료 · {saved.path} · 기록 {saved.id}</p>}
+    {error?<div><p role="alert">{error}</p><button ref={retryButton} type="button" onClick={()=>{if(document.activeElement===retryButton.current)region.current?.focus();retry(value=>value+1);}}>원본 시트 다시 불러오기</button></div>:detail?<SheetView path={path} detail={detail} onSaved={record=>{
       setDetail(null);setSaved(record);
     }}/>:<p role="status">원본 시트를 불러오는 중…</p>}</section>;
 }
@@ -308,11 +308,12 @@ function Sheet({path,source,focusFrom,region}){
 function AutoCrop({image,size,onApply}){
   const [padding,setPadding]=useState(30),[busy,setBusy]=useState(false);
   const [candidate,setCandidate]=useState(null),[error,setError]=useState("");
-  const request=useRef(null),paddingErrorId=useId();
+  const request=useRef(null),detectButton=useRef(null),paddingErrorId=useId(),busyId=useId();
   const invalidPadding=String(padding).trim()==="" || !Number.isInteger(Number(padding)) || Number(padding)<0 || Number(padding)>500;
   useEffect(()=>()=>request.current?.abort(),[]);
   async function detect(event){
     event.preventDefault();if(request.current || !size || invalidPadding)return;
+    const restoreFocus=document.activeElement===detectButton.current;
     const controller=new AbortController();request.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setCandidate(null);setError("");
@@ -320,21 +321,21 @@ function AutoCrop({image,size,onApply}){
       const result=await untilAborted(managementCommand("character-animation","sheet-auto",{image,padding:Number(padding)},{signal:controller.signal}),controller.signal);
       if(!controller.signal.aborted)setCandidate(cropCandidate(image,Number(padding),result,size));
     }catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? "크롭 후보 검출 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}
-    finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
+    finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body && detectButton.current?.isConnected && !detectButton.current.disabled)detectButton.current.focus();});}}
   }
-  return <details><summary>자동 크롭{invalidPadding && " · 입력 확인 필요"}</summary><form onSubmit={detect}><fieldset disabled={busy}>
+  return <details><summary>자동 크롭{invalidPadding && " · 입력 확인 필요"}</summary><form onSubmit={detect}><fieldset disabled={busy} aria-describedby={busy?busyId:undefined}><legend className="generator-visually-hidden">자동 크롭 입력</legend>
     <label>상하좌우 최소 여백 (px)<input type="number" min="0" max="500" required aria-invalid={invalidPadding || undefined} aria-describedby={invalidPadding ? paddingErrorId : undefined} value={padding}
       onChange={e=>{setPadding(e.target.value);setCandidate(null);setError("");}}/>{invalidPadding && <small id={paddingErrorId}>0~500의 정수를 입력하세요.</small>}</label>
-    <ActionButton type="submit" reasons={[!size && "원본 이미지가 열리면 크롭 후보를 검출할 수 있습니다.",invalidPadding && "최소 여백을 확인하세요."]}>크롭 후보 검출</ActionButton></fieldset></form>
-    {busy && <p role="status">크롭 후보를 검출하고 있습니다.</p>}
+    <ActionButton type="submit" buttonRef={detectButton} reasons={[!size && "원본 이미지가 열리면 크롭 후보를 검출할 수 있습니다.",invalidPadding && "최소 여백을 확인하세요."]}>크롭 후보 검출</ActionButton></fieldset></form>
+    {busy && <p id={busyId} role="status">크롭 후보를 검출하고 있습니다.</p>}
     {error && <p role="alert">{error}</p>}
     {candidate && <><svg viewBox={`0 0 ${size.width} ${size.height}`} style={{width:"100%",maxWidth:size.width}} aria-label="크롭 후보 영역">
       <image href={"data:image/png;base64,"+image} width={size.width} height={size.height}/>
       {candidate.result.frames.map(({x,y,width,height},i)=><g key={i}><rect x={x} y={y} width={width} height={height} fill="none" stroke="red" strokeWidth="2"/>
         <text x={Math.max(0,x)+3} y={Math.max(0,y)+14} fill="red">{i+1}</text></g>)}</svg>
       <p>{candidate.result.frames.length}개 후보 · 적용하면 현재 프레임 편집을 교체합니다.</p>
-      <button onClick={()=>{try{onApply(confirmCropCandidate(candidate,image,padding));setCandidate(null);}catch(problem){setCandidate(null);setError(problem.message);}}}>검출 결과 적용</button>
-      <button onClick={()=>setCandidate(null)}>취소</button></>}
+      <button onClick={()=>{try{onApply(confirmCropCandidate(candidate,image,padding));setCandidate(null);}catch(problem){setCandidate(null);setError(requestErrorMessage(problem));}}}>검출 결과 적용</button>
+      <button type="button" onClick={event=>{const focused=document.activeElement===event.currentTarget;setCandidate(null);if(focused)requestAnimationFrame(()=>{if(document.activeElement===document.body && detectButton.current?.isConnected && !detectButton.current.disabled)detectButton.current.focus();});}}>취소</button></>}
   </details>;
 }
 
@@ -372,11 +373,12 @@ async function readLocalSheet(file){
   });
 }
 
-export function LocalSheetReplaceConfirmation({name,busy,onConfirm,onCancel,returnFocus}){
-  return <SpriteChangeConfirmation label="로컬 시트 교체 확인" busy={busy} onConfirm={onConfirm} onCancel={onCancel} returnFocus={returnFocus} confirmLabel="교체 확인" cancelLabel="교체 취소">{name} 파일로 교체하면 현재 프레임 편집 내용이 사라집니다.</SpriteChangeConfirmation>;
+export function LocalSheetReplaceConfirmation({name,busy,onConfirm,onCancel,returnFocus,descriptionId}){
+  return <SpriteChangeConfirmation label="로컬 시트 교체 확인" busy={busy} onConfirm={onConfirm} onCancel={onCancel} returnFocus={returnFocus} descriptionId={descriptionId} confirmLabel="교체 확인" cancelLabel="교체 취소">{name} 파일로 교체하면 현재 프레임 편집 내용이 사라집니다.</SpriteChangeConfirmation>;
 }
 
 function LocalSheet(){
+  const busyId=useId(),confirmId=useId();
   const [file,setFile]=useState(null),[detail,setDetail]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[revision,setRevision]=useState(0);
   const [pending,setPending]=useState(null);
@@ -386,24 +388,24 @@ function LocalSheet(){
     try{
       const result=await readLocalSheet(target);
       setDetail(result);setRevision(n=>n+1);setPending(null);
-    }catch(problem){setError(problem.message);}
+    }catch(problem){setError(requestErrorMessage(problem));}
     finally{setBusy(false);}
   }
   return <details className="sprite-local-sheet"><summary>로컬 PNG 편집</summary>
-    <fieldset disabled={busy || !!pending}><label>시트 PNG<input type="file" accept="image/png" onChange={e=>{
+    <fieldset disabled={busy || !!pending} aria-describedby={busy?busyId:pending?confirmId:undefined}><legend className="generator-visually-hidden">로컬 시트 파일</legend><label>시트 PNG<input type="file" accept="image/png" onChange={e=>{
       setFile(e.target.files[0] || null);setError("");
     }}/></label>
     <ActionButton type="button" reasons={[!file && "열려면 PNG 시트 파일을 선택하세요."]} onClick={()=>{if(detail){changeTrigger.current=document.activeElement;setPending(file);}else load(file);}}>{busy ? "시트 확인 중…" : detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</ActionButton></fieldset>
-    {busy && <p role="status">로컬 시트 파일을 확인하고 있습니다.</p>}
-    {pending && <LocalSheetReplaceConfirmation name={pending.name} busy={busy} returnFocus={changeTrigger.current} onConfirm={()=>load(pending)} onCancel={()=>setPending(null)}/>}
+    {busy && <p id={busyId} role="status">로컬 시트 파일을 확인하고 있습니다.</p>}
+    {pending && <LocalSheetReplaceConfirmation name={pending.name} busy={busy} returnFocus={changeTrigger.current} descriptionId={confirmId} onConfirm={()=>load(pending)} onCancel={()=>setPending(null)}/>}
     {error && <p role="alert">{error}{detail && " 기존 편집 내용은 유지됩니다."}</p>}
     {detail && <SheetView key={revision} path={detail.path} detail={detail}/>}
   </details>;
 }
 
-export function SheetSourceChangeConfirmation({change,onConfirm,onCancel,returnFocus}){
+export function SheetSourceChangeConfirmation({change,onConfirm,onCancel,returnFocus,descriptionId}){
   const label=change.kind==="select" ? change.path : (change.source==="baseline" ? "베이스라인" : "에셋")+" 검색 · "+(change.query || "전체");
-  return <SpriteChangeConfirmation label="편집 원본 변경 확인" onConfirm={onConfirm} onCancel={onCancel} returnFocus={returnFocus} confirmLabel="변경 확인" cancelLabel="변경 취소">{label}으로 변경하면 현재 프레임 편집 내용이 사라집니다.</SpriteChangeConfirmation>;
+  return <SpriteChangeConfirmation label="편집 원본 변경 확인" onConfirm={onConfirm} onCancel={onCancel} returnFocus={returnFocus} descriptionId={descriptionId} confirmLabel="변경 확인" cancelLabel="변경 취소">{label} 변경 시 현재 프레임 편집 내용이 사라집니다.</SpriteChangeConfirmation>;
 }
 
 export default function SpriteSheetEditor(){
@@ -414,6 +416,7 @@ export default function SpriteSheetEditor(){
   const [items,setItems]=useState(null),[selected,select]=useState(link.path || "");
   const [error,setError]=useState(link.error || "");
   const [pendingChange,setPendingChange]=useState(null);
+  const changeDescriptionId=useId(),searchStatusId=useId();
   const changeTrigger=useRef(null),searchRef=useRef(null),selectionFocus=useRef(null),sheetRegion=useRef(null);
   useEffect(()=>{
     if(!request)return;
@@ -446,21 +449,22 @@ export default function SpriteSheetEditor(){
   function search(nextSource){
     requestChange({kind:"search",source:nextSource,query});
   }
+  const searchBusy=Boolean(request && !items && !error);
   return <article className="sprite-editor-page"><h1>스프라이트 시트 편집기</h1><LocalSheet/>
-    <form className="sprite-search" onSubmit={event=>{event.preventDefault();search(source);}}>
-      <label>검색 원본<select value={source} onChange={event=>search(event.target.value)}>
+    <form className="sprite-search" aria-busy={searchBusy} onSubmit={event=>{event.preventDefault();search(source);}}>
+      <label>검색 원본<select value={source} disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} onChange={event=>search(event.target.value)}>
         <option value="assets">에셋 스프라이트</option><option value="baseline">베이스라인 스프라이트</option></select></label>
-      <label>스프라이트 검색<input ref={searchRef} value={query} onChange={event=>setQuery(event.target.value)}/></label>
-      {query && <button type="button" onClick={()=>{setQuery("");searchRef.current?.focus();}}>검색어 지우기</button>}
-      <button>원본 검색</button>
+      <label>스프라이트 검색<input ref={searchRef} value={query} disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} onChange={event=>setQuery(event.target.value)}/></label>
+      {query && <button type="button" disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} onClick={()=>{setQuery("");searchRef.current?.focus();}}>검색어 지우기</button>}
+      <button disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:searchBusy?searchStatusId:undefined}>원본 검색</button>
     </form>
     {request && query!==request.query && <p role="status">검색어가 변경되었습니다. 아래 결과는 이전 검색 조건입니다. 원본 검색을 눌러 적용하세요.</p>}
     {error && <div role="alert"><p>{error}</p>{request && !items && <button type="button" onClick={event=>{if(document.activeElement===event.currentTarget)searchRef.current?.focus();setError("");setRequest({...request});}}>이전 조건으로 다시 검색</button>}</div>}
-    {request && !items && !error && <p role="status">스프라이트 검색 중…</p>}
+    {searchBusy && <p id={searchStatusId} role="status">스프라이트 검색 중…</p>}
     {items?.length === 0 && query===request?.query && <p role="status">일치하는 시트가 없습니다. 검색어를 바꾸거나 지운 후 원본 검색을 누르세요.</p>}
     {items && <ResultTable table={{title:"검색 결과",summary:items.length+"개 시트",columns:["스프라이트","원본 경로"],
-      rows:items.map(item=>[<button type="button" aria-current={selected===item.path ? "true" : undefined} onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}{selected===item.path && " · 선택됨"}</button>,item.path])}}/>}
-    {pendingChange && <SheetSourceChangeConfirmation change={pendingChange} returnFocus={changeTrigger.current} onConfirm={()=>{const change=pendingChange;setPendingChange(null);applyChange(change);}} onCancel={()=>setPendingChange(null)}/>}
+      rows:items.map(item=>[<button type="button" disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} aria-current={selected===item.path ? "true" : undefined} onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}{selected===item.path && " · 선택됨"}</button>,item.path])}}/>}
+    {pendingChange && <SheetSourceChangeConfirmation change={pendingChange} returnFocus={changeTrigger.current} descriptionId={changeDescriptionId} onConfirm={()=>{const change=pendingChange;setPendingChange(null);applyChange(change);}} onCancel={()=>setPendingChange(null)}/>}
     {selected && <Sheet key={source+":"+selected} path={selected} source={source} focusFrom={selectionFocus.current} region={sheetRegion}/>}
   </article>;
 }

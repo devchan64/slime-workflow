@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {useLiveRefresh,LiveRefreshControl} from "./LiveRefresh.jsx";
@@ -15,6 +15,7 @@ export default function ActiveGeneratorProgress(props){
 }
 
 function ActiveGeneratorProgressForService({service,revision=0,onOpenResult}){
+  const loadingId=useId();
   const [records,setRecords]=useState(null),[error,setError]=useState(''),[refreshKey,refresh]=useState(0),[truncated,setTruncated]=useState(false),[checkedAt,setCheckedAt]=useState(null);
   const [loading,setLoading]=useState(true),refreshRef=useRef(null),restoreFocus=useRef(false),jobRefs=useRef(new Map()),refreshLock=useRef(true);
   useEffect(()=>{if(!loading && restoreFocus.current){restoreFocus.current=false;if(document.activeElement===document.body && refreshRef.current?.isConnected)refreshRef.current.focus();}},[loading]);
@@ -53,9 +54,10 @@ function ActiveGeneratorProgressForService({service,revision=0,onOpenResult}){
           while(!controller.signal.aborted && cursor<rows.length){
             const index=cursor++,row=rows[index];
             try{
-              const response=await untilAborted(managementCommand('hermes-agent','hermes-video-source-status',{service,job_id:row.id},{signal:controller.signal}),controller.signal);
-              if(response.service!==service || response.job_id!==row.id || !response.job || !['running','queued','completed','failed','cancelled','canceled','paused'].includes(response.job.status))throw new Error();
-              results[index]={id:row.id,job:response.job};
+              const response=await untilAborted(service==='prompt-translation' ? managementCommand(service,'translation-status',{id:row.id},{signal:controller.signal}) : managementCommand('hermes-agent','hermes-video-source-status',{service,job_id:row.id},{signal:controller.signal}),controller.signal);
+              const job=service==='prompt-translation' ? (response?.id===row.id ? response.status : null) : (response?.service===service && response?.job_id===row.id ? response.job : null);
+              if(!job || !['running','queued','completed','failed','cancelled','canceled','paused'].includes(job.status))throw new Error();
+              results[index]={id:row.id,job};
             }catch{results[index]={id:row.id,error:true};}
           }
         }
@@ -72,14 +74,14 @@ function ActiveGeneratorProgressForService({service,revision=0,onOpenResult}){
   },[service,revision,refreshKey]);
   const activeSummary=(error ? '조회 실패 · 마지막 상태 확인 필요' : records===null ? '확인 중' : records.length===0 ? (truncated ? '일부 상태 확인 필요' : '진행 중인 작업 없음') : records.map(item=>{if(item.error)return `${item.id} 상태 확인 불가`;const progress=observedGenerationProgress(item.job);return `${item.id} ${item.job.status==='running'?'실행':'대기'}${progress ? ` · ${generationProgressSummary(progress,service)}` : ''}`;}).join(' · ') + (truncated ? ' · 일부 상태 확인 필요' : '')) + (checkedAt ? ` · 조회 ${checkedAt.toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour12:false})}` : '');
   return <GeneratorSectionCard cardRef={live.ref} className="active-generator-progress" title="현재 생성 작업" summary={activeSummary} defaultOpen>
-    <div className="active-generator-progress-heading"><button ref={refreshRef} type="button" disabled={loading} onClick={()=>queueRefresh(true)}>{loading?'조회 중…':'상태 새로고침'}</button></div>
-    {loading && records!==null && <p role="status">작업 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다.</p>}
+    <div className="active-generator-progress-heading"><button ref={refreshRef} type="button" disabled={loading} aria-describedby={loading ? loadingId : undefined} onClick={()=>queueRefresh(true)}>{loading?'조회 중…':'상태 새로고침'}</button></div>
+    {loading && <p id={loadingId} role="status">{records!==null ? '작업 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다.' : '작업 상태 확인 중…'}</p>}
     <LiveRefreshControl live={live} label="진행 상황 자동 갱신"/>
     {error && <p role="alert">{error}{records && ' 아래는 마지막 조회 결과입니다.'}</p>}
     {truncated && <p role="status">일부 이력을 확인하지 못했습니다. 전체 이력에서 작업을 확인하세요.</p>}
-    {records===null ? !error && <p role="status">작업 상태 확인 중…</p> : records.length===0 ? <p>{truncated ? '확인된 이력에 진행 중인 생성 작업이 없습니다.' : '진행 중인 생성 작업 없음'}</p> : records.map(item=><div className="active-generator-job" key={item.id} ref={node=>{if(node)jobRefs.current.set(item.id,node);else jobRefs.current.delete(item.id);}}>
+    {records===null ? null : records.length===0 ? <p>{truncated ? '확인된 이력에 진행 중인 생성 작업이 없습니다.' : '진행 중인 생성 작업 없음'}</p> : records.map(item=><div className="active-generator-job" key={item.id} ref={node=>{if(node)jobRefs.current.set(item.id,node);else jobRefs.current.delete(item.id);}}>
       <div className="active-generator-job-heading"><JobIdentifier id={item.id} compact/>{item.job && <JobStatus state={item.job.status}/>}<button type="button" aria-label={item.id+" 작업 결과 보기"} onClick={()=>onOpenResult(item.id)}>작업 결과 보기</button></div>
-      {item.error ? <p role="alert">이 작업의 현재 상태를 확인하지 못했습니다.</p> : <GenerationProgress jobId={item.id} service={service} job={{...item.job,estimate:validGenerationEstimate(item.job.estimate)?item.job.estimate:null}} supportsProgress showQueryTime={false} referenceTime={checkedAt}/>}
+      {item.error ? <p role="alert">이 작업의 현재 상태를 확인하지 못했습니다.</p> : <GenerationProgress jobId={item.id} service={service} job={{...item.job,estimate:validGenerationEstimate(item.job.estimate)?item.job.estimate:null}} supportsProgress={service!=='prompt-translation'} showQueryTime={false} referenceTime={checkedAt}/>}
     </div>)}
   </GeneratorSectionCard>;
 }

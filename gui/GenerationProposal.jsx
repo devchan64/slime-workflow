@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from 'react';
+import React,{useEffect,useId,useRef,useState} from 'react';
 import {readProposalPreview} from './readProposalPreview.mjs';
 import {readGenerationProposal} from './generationProposal.mjs';
 import {useMinimaxReportReceipt,MinimaxReportStatus,PreparedMinimaxForm} from './useMinimaxReportReceipt.jsx';
@@ -30,6 +30,7 @@ export default function GenerationProposal({session,job,snapshot,offset,kind,onO
   return <GenerationProposalForSelection key={JSON.stringify([session,job,snapshot,offset,kind])} session={session} job={job} snapshot={snapshot} offset={offset} kind={kind} onOpenForm={onOpenForm}/>;
 }
 function GenerationProposalForSelection({session,job,snapshot,offset,kind,onOpenForm}){
+  const busyId=useId();
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [prepared,setPrepared]=useState(null);
   const receipt=useMinimaxReportReceipt(kind==='video' && prepared ? {session,job} : null,'minimax-h3-i2v');
@@ -47,7 +48,7 @@ function GenerationProposalForSelection({session,job,snapshot,offset,kind,onOpen
         if(!matches.length)return;
         const checked=await readGenerationProposal(managementCommand,{session,job,snapshot,offset,kind},{signal:controller.signal});
         if(active && checked.service==='minimax-h3-i2v'){setPrepared(matches[0]);setError('');}
-      }catch(problem){if(active && problem.name!=='AbortError')setError(problem.message || '접수폼 상태를 확인할 수 없습니다.');}
+      }catch(problem){if(active && problem?.name!=='AbortError')setError(problem?.message || '접수폼 상태를 확인할 수 없습니다.');}
       finally{if(active)timer=setTimeout(refresh,attempts<12?5000:60000);}
     }
     refresh();
@@ -59,8 +60,8 @@ function GenerationProposalForSelection({session,job,snapshot,offset,kind,onOpen
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setError('');setProposal(null);
     try{setProposal(await readProposalPreview(readGenerationProposal,[{session,job,snapshot,offset,kind}],controller.signal));}
-    catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? '생성 제안 조회 시간이 초과됐습니다. 다시 확인하세요.' : problem.message);}
+    catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? '생성 제안 조회 시간이 초과됐습니다. 다시 확인하세요.' : problem?.message || '생성 제안을 확인할 수 없습니다. 다시 확인하세요.');}
     finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);requestAnimationFrame(()=>{if(document.activeElement===document.body && buttonRef.current?.isConnected && !buttonRef.current.disabled)buttonRef.current.focus();});}}
   }
-  return <section aria-label={names[kind]+' 제안'}>{prepared ? <><PreparedMinimaxForm form={prepared} label="영상" onOpenForm={onOpenForm} receipt={receipt}/></> : <><button ref={buttonRef} type="button" disabled={busy} onClick={inspect}>{names[kind]} 제안 확인</button>{busy && <p role="status">생성 제안을 조회하고 있습니다.</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</>}{error && <p role="alert">{error}</p>}</section>;
+  return <section aria-label={names[kind]+' 제안'}>{prepared ? <><PreparedMinimaxForm form={prepared} label="영상" onOpenForm={onOpenForm} receipt={receipt}/></> : <><button ref={buttonRef} type="button" disabled={busy} aria-describedby={busy?busyId:undefined} onClick={inspect}>{names[kind]} 제안 확인</button>{busy && <p id={busyId} role="status">생성 제안을 조회하고 있습니다.</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</>}{error && <p role="alert">{error}</p>}</section>;
 }

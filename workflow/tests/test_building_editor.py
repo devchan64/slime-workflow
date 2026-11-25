@@ -14,7 +14,9 @@ class BuildingEditorTest(unittest.TestCase):
             bundle=Path(directory)/'building.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BuildingEditor.jsx','--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
             script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
-              const {BuildingProperties,BuildingRegistration,BuildingAssetList}=require(process.argv[1]);
+              const {BuildingProperties,BuildingRegistration,BuildingAssetList,buildingCatalogError}=require(process.argv[1]);
+              assert.match(buildingCatalogError(new Error('SLIME_CONTENT_SERVICE_ORIGIN missing')),/콘텐츠 서비스 주소/);
+              assert.equal(buildingCatalogError(new Error('다른 오류')),'다른 오류');
               const building={texture:'house',width:100,height:200,properties:{anchorX:.5,anchorY:1},maps:[]},reason='목록을 다시 확인하세요.';
               const props={busy:true,disabledReason:reason,setBusy:()=>{}};
               const entries=[React.createElement(BuildingProperties,{...props,building,generation:1,onSaved:()=>{},onDirtyChange:()=>{}}),React.createElement(BuildingRegistration,{...props,generation:1,onRegistered:()=>{}}),React.createElement(BuildingAssetList,{assets:[{texture:'house'}],selected:'',disabled:true,disabledReason:reason,onSelect:()=>{},image:()=>'/house.png'})];

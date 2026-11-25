@@ -46,11 +46,13 @@ class MiniMaxH3UiContractTests(unittest.TestCase):
             bundle = Path(directory) / 'minimax-image.cjs'
             subprocess.run([str(gui / 'node_modules/.bin/esbuild'), 'MiniMaxH3ImagePage.jsx', '--bundle', '--platform=node', '--format=cjs', '--external:react', '--external:react-dom', '--outfile=' + str(bundle)], cwd=gui, check=True, capture_output=True)
             script = """const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
-              global.location={search:''};const {default:Page,minimaxImageReasons:reasons}=require(process.argv[1]);
+              global.location={search:''};global.window={location:global.location};const {default:Page,minimaxImageReasons:reasons}=require(process.argv[1]);
               assert.equal(reasons({model:{generation_ready:true},prompt:'test',seed:42}).filter(Boolean).length,0);
               assert.match(reasons({model:{generation_ready:true},prompt:' ',seed:-1}).filter(Boolean).join(' '),/프롬프트.*시드/);
               for(const embedded of [false,true]){const html=server.renderToStaticMarkup(React.createElement(Page,{embedded}));
                 assert.match(html,/모델 준비 상태를 확인하세요/);assert.match(html,/프롬프트를 입력하세요/);assert.match(html,/aria-describedby=/);
+                assert.match(html,/generator-section-card-heading[^>]*>모델 준비/);assert.match(html,/상태 확인 중/);
+                assert.equal(html.includes('vace-standalone'),!embedded);
                 assert.match(html,/aria-label="생성기 영역 이동"/);assert.match(html,/생성 입력/);assert.match(html,/생성 이력/);assert.match(html,/작업 결과/);}"""
             subprocess.run(['node', '-e', script, str(bundle)], cwd=gui, check=True, capture_output=True, text=True, env={**os.environ, 'NODE_PATH': str(gui / 'node_modules')})
 

@@ -7,6 +7,14 @@ import {latestRequest} from '../../gui/latestRequest.mjs';
 import {anchorHistoryRequest,validAnchorHistoryPage} from '../../gui/anchorHistoryPage.mjs';
 
 const source=readFileSync(new URL('../../gui/AnchorHistory.jsx',import.meta.url),'utf8');
+test('앵커 이력이 메시지 없이 실패해도 이전 결과와 재조회 안내를 유지한다',async()=>{
+  const start=source.indexOf('  async function load(next,offset=null,event) {'),end=source.indexOf('\n  function edit(',start);
+  for(const problem of [null,new Error('')]){
+    let error='',busy=true;const context=vm.createContext({document:{activeElement:{}},request:{current:latestRequest()},activeRequest:{current:null},AbortController,TypeError,untilAborted,animation:'walk',version:'v1',page:{next_offset:20},filtersChanged:false,focusPage:{current:null},anchorHistoryRequest:()=>({}),setTimeout,clearTimeout,setBusy:value=>busy=value,setError:value=>error=value,managementCommand:async()=>{throw problem;}});
+    vm.runInContext(source.slice(start,end)+'\nthis.load=load;',context);await context.load(false);
+    assert.match(error,/다시 조회/);assert.match(error,/이전 조회 결과/);assert.equal(busy,false);
+  }
+});
 test('앵커 이력 요청이 중단을 무시해도 시간 초과 후 이전 결과를 유지한다',async()=>{
   const start=source.indexOf('  async function load(next,offset=null,event) {'),end=source.indexOf('\n  function edit(',start);assert.ok(start>=0 && end>start);
   let timeout,finish,error='',busy=false,updates=0;const context=vm.createContext({document:{activeElement:{}},request:{current:latestRequest()},activeRequest:{current:null},AbortController,untilAborted,animation:'walk',version:'v1',page:{next_offset:20},filtersChanged:false,focusPage:{current:null},

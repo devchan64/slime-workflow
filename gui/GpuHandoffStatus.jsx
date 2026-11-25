@@ -1,4 +1,4 @@
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
 import {executeGpuHandoffCommand} from "./readGpuHandoffStatus.mjs";
 import {handoffUncertaintyKey,handoffSessionStorage,readHandoffUncertainty,markHandoffUncertainty,clearHandoffUncertainty} from "./handoffUncertainty.mjs";
@@ -13,6 +13,7 @@ export default function GpuHandoffStatus(props){
 }
 
 function GpuHandoffScope({session,id,service,status,onUpdate,onClose,children}){
+  const busyId=useId();
   const uncertaintyKey=handoffUncertaintyKey(session,id,service);
   const [busy,setBusy]=useState(false),[error,setError]=useState("");
   const [uncertain,setUncertain]=useState(()=>readHandoffUncertainty(handoffSessionStorage(),uncertaintyKey).uncertain);
@@ -49,7 +50,7 @@ function GpuHandoffScope({session,id,service,status,onUpdate,onClose,children}){
     }catch(problem){
       if(statusRequest.current===controller && currentScope.current===requestScope){
         if(mutation)setUncertain(true);
-        setError(mutation ? "요청 결과를 확인하지 못했습니다. 다시 변경하기 전에 GPU 양도 상태를 확인하세요." : timedOut ? "GPU 양도 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : problem.message || "GPU 양도 상태를 확인할 수 없습니다.");
+        setError(mutation ? "요청 결과를 확인하지 못했습니다. 다시 변경하기 전에 GPU 양도 상태를 확인하세요." : timedOut ? "GPU 양도 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : problem?.message || "GPU 양도 상태를 확인할 수 없습니다. 다시 확인하세요.");
       }
     }finally{clearTimeout(timeout);if(statusRequest.current===controller)statusRequest.current=null;actionPending.current=false;setBusy(false);}
   }
@@ -57,7 +58,7 @@ function GpuHandoffScope({session,id,service,status,onUpdate,onClose,children}){
   const cancelRecovery=status?.reason?.startsWith("취소 후");
   return <section className="kimodo-submission-status" aria-label="GPU 양도 상태"><h3>GPU 양도 상태</h3>
     <p>접수 ID</p><JobIdentifier id={id} label="접수 ID" compact/><p>{labels[status?.state] || "상태 확인 필요"}</p>
-    {busy && <p role="status">GPU 양도 요청을 처리하고 있습니다.</p>}
+    {busy && <p id={busyId} role="status">GPU 양도 요청을 처리하고 있습니다.</p>}
     {uncertain && <p role="status">{storageAvailable ? "이전 요청의 결과가 확인되지 않았습니다. GPU 양도 상태를 먼저 확인하세요." : "브라우저 저장소를 사용할 수 없습니다. 저장소를 확인한 뒤 GPU 양도 상태를 다시 조회하세요."}</p>}
     {targetLabels[status?.target_status] && <><p role={status.target_status==="failed" ? "alert" : undefined}>생성 작업 {targetLabels[status.target_status]}</p>{status.job_id && <JobIdentifier id={status.job_id} compact/>}</>}
     {status?.reason && <p role="alert">{status.reason}</p>}
@@ -80,7 +81,7 @@ function GpuHandoffScope({session,id,service,status,onUpdate,onClose,children}){
       </div>}
     </>}
     {children}
-    <button ref={statusButtonRef} type="button" aria-disabled={busy} onClick={()=>perform("hermes-gpu-handoff-status",{session_id:session,request_id:id})}>{busy ? "GPU 양도 요청 처리 중…" : "GPU 양도 상태 확인"}</button>
+    <button ref={statusButtonRef} type="button" aria-disabled={busy} aria-describedby={busy?busyId:undefined} onClick={()=>perform("hermes-gpu-handoff-status",{session_id:session,request_id:id})}>{busy ? "GPU 양도 요청 처리 중…" : "GPU 양도 상태 확인"}</button>
     {status?.state==="not_found" && <button type="button" disabled={busy || uncertain} onClick={()=>{if(window.confirm("아직 접수되지 않은 이 요청을 철회할까요? 이미 접수됐다면 기존 상태를 표시합니다."))perform("hermes-gpu-handoff-withdraw",{session_id:session,request_id:id,service,confirmed:true},true);}}>미접수 요청 철회</button>}
     {["approved","waiting_release","running"].includes(status?.state) && <button type="button" disabled={busy || uncertain} onClick={()=>{if(window.confirm("이 생성 요청을 중지하고, 해제된 Qwen 3.8은 다시 적재할까요?"))perform("hermes-gpu-handoff-cancel",{session_id:session,request_id:id,expected_revision:status.revision,confirmed:true},true);}}>생성 중지</button>}
     {onClose && ["ready","cancelled","rejected","withdrawn"].includes(status?.state) && <button type="button" disabled={busy || uncertain} onClick={onClose}>상태 닫기</button>}

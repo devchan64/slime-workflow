@@ -46,6 +46,10 @@ def inspect_minimax_result(directory, service):
                 'generation_prompt': request.get('prompt'),
                 'settings': {key: request[key] for key in ('width', 'height', 'frames', 'steps', 'seed') if key in request}}
     if service == 'minimax-h3-image':
+        if request.get('references'):
+            from workflow.domains.image.three_reference_generation import verify_reference_snapshots
+            verify_reference_snapshots(directory, request)
+            evidence['references'] = [_image_info(directory/name) for name in request['references']]
         evidence['image'] = _image_info(directory / 'result.png')
         metadata = _read_json(directory / 'result.json')
         if metadata.get('image_sha256') != evidence['image']['sha256']:
@@ -136,6 +140,9 @@ def observe_minimax_result(directory, evidence, *, runner=None, lock_fd=None, me
     with tempfile.TemporaryDirectory(prefix='minimax-report-frames-') as temporary:
         if service == 'minimax-h3-image':
             targets = [({'source':'result_image','seconds':None}, directory / 'result.png', evidence['image']['sha256'])]
+            for index, reference in enumerate(evidence.get('references', []), start=1):
+                targets.append(({'source':'reference_comparison', 'reference_index':index,
+                                 'reference_sha256':reference['sha256']}, directory / 'result.png', evidence['image']['sha256']))
         else:
             attempt = directory / 'attempts' / evidence['attempt']
             targets = [({'source':'reference','seconds':None}, directory / 'reference-1.png', evidence['reference']['sha256'])]
@@ -164,8 +171,10 @@ def observe_minimax_result(directory, evidence, *, runner=None, lock_fd=None, me
         for marker, path, digest in targets:
             ensure_memory()
             try:
-                result = run([str(root / '.venv/bin/python'), str(root / 'workflow/domains/image/flux_visual_review.py'),
-                              str(path), digest], 180)
+                args = [str(root / '.venv/bin/python'), str(root / 'workflow/domains/image/flux_visual_review.py'), str(path), digest]
+                if marker['source'] == 'reference_comparison':
+                    args.extend([str(directory / f"reference-{marker['reference_index']}.png"), marker['reference_sha256']])
+                result = run(args, 180)
                 observation = json.loads(result.stdout)
                 if not isinstance(observation, dict) or observation.get('image_sha256') != digest or not isinstance(observation.get('observation'), str):
                     raise ValueError('시각 관찰 응답 오류')

@@ -5,6 +5,32 @@ from workflow.common.model_catalog import catalog_overview, read_catalog, read_r
 
 
 class CatalogTest(unittest.TestCase):
+    def test_dflash_is_an_optional_separate_model(self):
+        from workflow.domains.hermes_agent.resident_worker import DFLASH_MODEL
+        item = next(entry for entry in read_catalog()['components'] if entry['id'] == 'qwen3-8-27b-dflash2')
+        self.assertEqual(item['path'], DFLASH_MODEL.parent.name)
+        self.assertEqual(item['optional_services'], ['hermes-model'])
+        self.assertIsNone(item['source'])
+        self.assertIsNone(item['revision'])
+
+    def test_audio_models_have_one_declaration_at_current_path(self):
+        catalog = read_catalog()
+        for identifier, path, repository in (
+            ('heartmula', 'heartmula-oss-3b', 'HeartMuLa/HeartMuLa-oss-3B-happy-new-year'),
+            ('dasheng-audiogen', 'dasheng-audiogen', 'mispeech/Dasheng-AudioGen'),
+        ):
+            with self.subTest(model=identifier):
+                matching = [entry for entry in catalog['components'] if entry.get('source') == repository]
+                self.assertEqual(len(matching), 1)
+                self.assertEqual((matching[0]['id'], matching[0]['path']), (identifier, path))
+                listing = {'models': [{'name': path, 'local_present': True, 'backup_present': False},
+                                      {'name': 'catalog-'+identifier, 'relative_path': path,
+                                       'local_present': True, 'backup_present': False, 'snapshot_present': True}]}
+                result = catalog_overview(catalog, listing, include_manifests=False)
+                item = next(entry for entry in result['components'] if entry['declaration']['id'] == identifier)
+                self.assertTrue(item['presence']['local_present'])
+                self.assertTrue(item['alternate_installations'][0]['snapshot_present'])
+
     def test_empty_nested_survey_is_available(self):
         import json
         from pathlib import Path

@@ -63,6 +63,17 @@
       "usage_note": "Qwen3.8 27B의 IQ4_XS GGUF 변환본을 Hermes와 작가 AI가 다양한 업무에 사용한다."
     },
     {
+      "id": "qwen3-8-27b-dflash2",
+      "label": "Qwen3.8 27B DFlash2 Q4_K_M",
+      "kind": "model",
+      "path": "qwen3.8-27b-dflash2",
+      "services": ["hermes-model"],
+      "optional_services": ["hermes-model"],
+      "source": null,
+      "revision": null,
+      "usage_note": "Hermes 상주 서버에서 선택적으로 사용하는 초안 모델이다. GGUF 헤더는 아키텍처 dflash, 작성자 Inco AI, 원본 https://huggingface.co/incoai/Qwen3.8-27B-DFlash2, 기반 모델 Qwen/Qwen3.8-27B를 선언한다. 실행 코드는 파일 사용 전 고정 SHA-256을 확인한다. 이 선언은 변환 파일의 공급처나 리비전 검증이 아니다."
+    },
+    {
       "id": "animationgpt",
       "label": "AnimationGPT",
       "kind": "model",
@@ -281,41 +292,7 @@
       "revision": null
     },
     {
-      "id": "music-models",
-      "label": "음악과 효과음 모델 모음",
-      "kind": "collection",
-      "path": "music",
-      "services": [
-        "music-heartmula",
-        "sfx-dasheng-audiogen"
-      ],
-      "source": null,
-      "revision": null
-    },
-    {
       "id": "heartmula",
-      "label": "HeartMuLa 음악 모델과 공유 구성요소",
-      "kind": "model",
-      "path": "music/music-heartmula",
-      "services": [
-        "music-heartmula"
-      ],
-      "source": "HeartMuLa/HeartMuLa-oss-3B-happy-new-year",
-      "revision": "41f6fc68490e11dc43fdabaa6b5767946408c903"
-    },
-    {
-      "id": "dasheng-audiogen",
-      "label": "Dasheng 효과음 모델과 공유 구성요소",
-      "kind": "model",
-      "path": "music/sfx-dasheng-audiogen",
-      "services": [
-        "sfx-dasheng-audiogen"
-      ],
-      "source": "mispeech/Dasheng-AudioGen",
-      "revision": "e269f58e700d627b67600cbced86316c6585eae3"
-    },
-    {
-      "id": "heartmula-bundle",
       "label": "HeartMuLa OSS 3B",
       "kind": "model",
       "path": "heartmula-oss-3b",
@@ -355,7 +332,7 @@
       "usage_note": "현재 저장소에서 소비 경로가 확인되지 않았으며 모델별 경로에 보존한다. 사용하지 않는다는 뜻은 아니다."
     },
     {
-      "id": "dasheng-core",
+      "id": "dasheng-audiogen",
       "label": "Dasheng AudioGen 본체",
       "kind": "model",
       "path": "dasheng-audiogen",

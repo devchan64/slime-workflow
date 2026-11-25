@@ -22,6 +22,9 @@ def preview_handoff(session_id, resident_id, service, request, *, session_store=
     (session_store or HermesSessionStore()).read_session_record(session_id)
     if service == 'kimodo':
         validate_kimodo_request(request)
+    elif service == 'minimax-h3-image':
+        from .gpu_handoff_minimax_image import verify_form
+        verify_form(session_id,request)
     elif service == 'writer-agent':
         from workflow.domains.hermes_agent.gpu_handoff_writer import validate_bound_writer_request
         validate_bound_writer_request(request)

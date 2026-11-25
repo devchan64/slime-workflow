@@ -784,6 +784,23 @@ class HermesServiceManager:
             current_view_record = {'text': current_message_record['text'], 'created_at':current_message_record.get('created_at'), 'job_id': current_message_record.get('job_id'), 'session_job_unique':current_session_job_counts[current_message_record['job_id']]==1 if isinstance(current_message_record.get('job_id'),str) else None, 'context_truncated': current_message_record.get('context_truncated', False), 'job': None}
             if current_message_record.get('result_notice'):
                 current_view_record['result_notice'] = True
+                receipt = re.fullmatch(r'minimax-h3-image 이미지 생성 대기열에 등록했습니다\. 작업 ID: (\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8})', current_message_record['text'])
+                if receipt:
+                    from generators.minimax_h3_image.contracts import STORAGE
+                    from .delegation_store import read_bounded_delegation_record
+                    directory = STORAGE / receipt[1]
+                    try:
+                        report = read_bounded_delegation_record(directory / 'hermes-report.json')
+                        origin = report['origin']
+                        if origin['session_id'] == hermes_session_record['id']:
+                            state = read_bounded_delegation_record(directory / 'status.json')['status']
+                            progress = {'status': state, 'job_id': receipt[1], 'report_state': report.get('state')}
+                            current_view_record['generation_progress'] = progress
+                            sample = read_bounded_delegation_record(directory / 'worker-progress.json')
+                            if sample.get('stage') == 'inference':
+                                progress.update(step=sample['step'], total=sample['step_total'])
+                    except (OSError, ValueError, KeyError, TypeError):
+                        pass
                 source = re.search(r'작업 ID: (\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}) \(minimax-h3-image\)$', current_message_record['text'])
                 if source:
                     from generators.minimax_h3_image.contracts import STORAGE
@@ -877,6 +894,11 @@ class HermesServiceManager:
         return {'id': hermes_session_record['id'], 'title': hermes_session_record.get('title', '새 대화'), 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat(), 'context': context_view}
 
     def execute_hermes_command(self, hermes_command_name, hermes_payload_record):
+        if hermes_command_name == 'hermes-chat-image-submit':
+            if not isinstance(hermes_payload_record, dict) or set(hermes_payload_record) != {'session_id','prompt'}:
+                raise ValueError('대화와 생성 지시가 필요합니다.')
+            from .flux_chat_submission import submit_chat_flux
+            return submit_chat_flux(self, **hermes_payload_record)
         if hermes_command_name in ('hermes-dflash-status','hermes-resident-dflash', 'hermes-resident-start', 'hermes-resident-status', 'hermes-resident-release', 'hermes-gpu-handoff-preview', 'hermes-gpu-handoff-approve', 'hermes-gpu-handoff-status', 'hermes-gpu-handoff-list', 'hermes-gpu-handoff-withdraw', 'hermes-gpu-handoff-writer-context', 'hermes-gpu-handoff-recover-release', 'hermes-gpu-handoff-recover-submission', 'hermes-gpu-handoff-recover-reload', 'hermes-gpu-handoff-retry-reload', 'hermes-gpu-handoff-cancel'):
             if not isinstance(hermes_payload_record, dict):
                 raise ValueError('GPU 양도 입력은 객체여야 합니다.')

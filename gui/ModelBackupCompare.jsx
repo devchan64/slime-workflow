@@ -15,7 +15,7 @@ function jobTime(value) {const time = new Date(value); return value && Number.is
 function jobSummary(job) {return `${job.model} · ${jobLabels[job.status] || job.status}${job.error ? ' · ' + job.error : ''}${job.operation === 'sync' && job.result ? ` · ${job.result.file_count}개 파일 SHA-256 확인 · ${job.result.reused ? '기존 스냅샷 재사용' : '새 스냅샷 저장'}` : ''}`;}
 
 export default function ModelBackupCompare({requestedSelection}) {
-  const actionReasonId=useId();
+  const actionReasonId=useId(),modelsLoadingId=useId(),busyId=useId(),historyLoadingId=useId();
   const [models, setModels] = useState([]);
   const [selected, setSelected] = useState('');
   const [modelQuery, setModelQuery] = useState('');
@@ -165,7 +165,7 @@ export default function ModelBackupCompare({requestedSelection}) {
       setPendingRequest(null);
       try {sessionStorage.removeItem('model-backup-pending');} catch {}
       try {await refreshHistory();} catch {setHistoryError('접수는 확인됐지만 작업 이력을 새로고침하지 못했습니다.');}
-    } catch (problem) {setError((problem.message || '접수 결과를 확인하지 못했습니다.') + ' 같은 요청 ID로 다시 확인하세요.');}
+    } catch (problem) {setError((problem?.message || '접수 결과를 확인하지 못했습니다.') + ' 같은 요청 ID로 다시 확인하세요.');}
     finally {requestInFlight.current = false; setBusy(false);}
   }
 
@@ -222,8 +222,8 @@ export default function ModelBackupCompare({requestedSelection}) {
     {error && <p role="alert">{error}</p>}
     {modelsError && <p role="alert">{modelsError}{models.length > 0 && ' 아래 목록은 마지막 조회 결과입니다.'}</p>}
     {backupError && <p role="status">{backupError} 로컬 모델 목록과 메타정보는 조회할 수 있습니다.</p>}
-    <button type="button" aria-disabled={modelsLoading || busy} onClick={() => {if (modelsRequestInFlight.current || busy) return; modelsRequestInFlight.current = true; setError(''); setComparison(null); setMetadata(null); setModelsRevision(value => value + 1);}}>{modelsLoading ? '모델 목록 조회 중…' : '모델과 백업 목록 새로고침'}</button>
-    {modelsLoading && <p role="status">모델과 백업 목록을 확인하고 있습니다.{models.length > 0 && ' 아래는 마지막 조회 결과입니다.'}</p>}
+    <button type="button" aria-disabled={modelsLoading || busy} aria-describedby={modelsLoading ? modelsLoadingId : busy ? busyId : undefined} onClick={() => {if (modelsRequestInFlight.current || busy) return; modelsRequestInFlight.current = true; setError(''); setComparison(null); setMetadata(null); setModelsRevision(value => value + 1);}}>{modelsLoading ? '모델 목록 조회 중…' : '모델과 백업 목록 새로고침'}</button>
+    {modelsLoading && <p id={modelsLoadingId} role="status">모델과 백업 목록을 확인하고 있습니다.{models.length > 0 && ' 아래는 마지막 조회 결과입니다.'}</p>}
     <h3>1. 대상 선택</h3>
     <p>로컬 모델 폴더와 Samba 백업의 최상위 디렉터리입니다. 아래 목록에서 비교할 디렉터리를 선택하세요.</p>
     <label>디렉터리 검색 <input ref={searchRef} type="search" value={modelQuery} onChange={event => setModelQuery(event.target.value)} placeholder="예: flux, wan22, kimodo"/></label>
@@ -238,6 +238,7 @@ export default function ModelBackupCompare({requestedSelection}) {
     </div>}
     {modelQuery.trim() && matchingModels.length === 0 && !modelsLoading && !modelsError && <p>일치하는 디렉터리가 없습니다. 다른 이름으로 검색하세요.</p>}
     <p>‘기존 공유’는 현재 복사된 공유 폴더이며, ‘완료 스냅샷’은 이 관리 기능으로 별도 저장한 백업입니다. 있음은 파일 내용이 일치한다는 뜻이 아닙니다.</p>
+    <p>스냅샷은 Samba 백업 경로의 숨김 폴더 <code>.model-backup-snapshots/모델/작업ID</code>에 저장됩니다. 파일 관리자에서 숨김 파일을 표시해야 볼 수 있습니다. 복사·검증 중에는 <code>.pending-작업ID</code> 폴더에 있으며 완료 후 작업 ID 폴더로 게시됩니다.</p>
     <p>스냅샷 백업은 모델 루트 안의 심볼릭 링크를 따라 대상 파일을 복사합니다. 링크 자체와 공유 관계는 보존하지 않으므로 복원 시 중복 용량이 생길 수 있습니다.</p>
     <label>비교 대상 <select value={target} disabled={busy} onChange={event => {setTarget(event.target.value); setComparison(null);}}>
       <option value="canonical">기존 공유 디렉터리</option>
@@ -260,7 +261,7 @@ export default function ModelBackupCompare({requestedSelection}) {
     {actionReasons.map((reason,index)=><p key={reason} id={`${actionReasonId}-${index}`}>{reason}</p>)}
     {target === 'snapshot_manifest' && <p>자체 무결성은 크기·시간 비교를 지원하지 않습니다. SHA-256 검증을 시작하세요.</p>}
     {!selected && <p>모델 목록을 불러온 뒤 디렉터리를 선택하세요. 목록 조회에 실패했다면 백업 연결을 확인하고 페이지를 다시 여세요.</p>}
-    {busy && <p role="status">요청을 처리하고 있습니다. 완료된 뒤 다시 선택할 수 있습니다.</p>}
+    {busy && <p id={busyId} role="status">요청을 처리하고 있습니다. 완료된 뒤 다시 선택할 수 있습니다.</p>}
     {pendingRequest && <div role="status"><p>{pendingRequest.payload.model} 접수 확인 필요 · {pendingRequest.payload.request_id}</p>
       <p>확인을 중단해도 서버에서 이미 접수된 작업은 계속될 수 있습니다. 이력에서 상태를 확인하세요.</p>
       <button type="button" disabled={busy} onClick={() => submitRequest(pendingRequest)}>같은 요청 확인</button>
@@ -276,12 +277,12 @@ export default function ModelBackupCompare({requestedSelection}) {
     </div>}
     <h3>3. 작업 상태와 이력</h3>
     {historyError && <p role="alert">{historyError}{jobs && ' 아래는 마지막 조회 결과입니다.'}</p>}
-    <button type="button" aria-disabled={historyLoading} onClick={reloadHistory}>{historyLoading ? '이력 조회 중…' : '백업·검증 이력 새로고침'}</button>
-    {historyLoading && <p role="status">이력을 조회하고 있습니다.{jobs && ' 아래는 마지막 조회 결과입니다.'}</p>}
+    <button type="button" aria-disabled={historyLoading} aria-describedby={historyLoading ? historyLoadingId : undefined} onClick={reloadHistory}>{historyLoading ? '이력 조회 중…' : '백업·검증 이력 새로고침'}</button>
+    {historyLoading && <p id={historyLoadingId} role="status">이력을 조회하고 있습니다.{jobs && ' 아래는 마지막 조회 결과입니다.'}</p>}
     <p>이 이력은 이 화면과 게이트웨이에서 접수한 작업만 표시합니다. 외부 백업 진행률은 포함되지 않습니다.</p>
     <label><input type="checkbox" checked={selectedHistoryOnly} onChange={event => setSelectedHistoryOnly(event.target.checked)} disabled={!selected}/> 선택한 디렉터리의 이력만 보기</label>
     {jobs ? <><p role="status">최근 조회된 이력 {jobs.length}건 중 {visibleJobs.length}건 표시 · 오래된 이력은 이 목록에 없을 수 있습니다.</p>
-    {visibleJobs.length > 0 ? <details><summary>최근 백업·검증 작업 {visibleJobs.length}건 보기</summary><ul>{visibleJobs.map(job => <li key={job.job_id}><strong>{job.model} · {job.operation === 'sync' ? '백업' : '검증'} · {jobLabels[job.status] || job.status}</strong><br/>시작 · {jobTime(job.started_at)} · {job.operation === 'sync' ? '스냅샷 백업' : (targets[job.target] || '기존 공유 디렉터리')} · 작업 ID {job.job_id}{job.stage && ` · ${job.stage}`}{job.current_file && ` · ${job.current_file}`}{Number.isFinite(job.file_bytes) ? ` · 현재 파일 ${job.file_bytes.toLocaleString()} / ${job.file_total_bytes?.toLocaleString() ?? '?'}바이트` : Number.isFinite(job.bytes) ? ` · ${job.bytes.toLocaleString()} / ${job.total_bytes?.toLocaleString() ?? '?'}바이트` : ''} <button type="button" aria-label={`${job.model} ${jobTime(job.started_at)} ${job.operation === 'sync' ? '백업' : '검증'} 상태·결과 확인`} aria-disabled={busy} onClick={() => {if (!busy) showJob(job.job_id);}}>상태·결과 확인</button>{jobResult && shownJobId === job.job_id && <p>{failedJobId === job.job_id && error ? '이전 조회 결과 · ' : ''}{jobSummary(jobResult)}</p>}{error && failedJobId === job.job_id && <p>{error}</p>}</li>)}</ul></details> : <p>{selectedHistoryOnly ? '최근 조회된 이력에 선택한 디렉터리의 작업이 없습니다.' : '최근 백업·검증 이력이 없습니다.'}</p>}</> : !historyLoading && <p>이력을 확인하지 못했습니다. 이력 새로고침을 시도하세요.</p>}
+    {visibleJobs.length > 0 ? <details><summary>최근 백업·검증 작업 {visibleJobs.length}건 보기</summary><ul>{visibleJobs.map(job => <li key={job.job_id}><strong>{job.model} · {job.operation === 'sync' ? '백업' : '검증'} · {jobLabels[job.status] || job.status}</strong><br/>시작 · {jobTime(job.started_at)} · {job.operation === 'sync' ? '스냅샷 백업' : (targets[job.target] || '기존 공유 디렉터리')} · 작업 ID {job.job_id}{job.stage && ` · ${job.stage}`}{job.current_file && ` · ${job.current_file}`}{Number.isFinite(job.file_bytes) ? ` · 현재 파일 ${job.file_bytes.toLocaleString()} / ${job.file_total_bytes?.toLocaleString() ?? '?'}바이트` : Number.isFinite(job.bytes) ? ` · ${job.bytes.toLocaleString()} / ${job.total_bytes?.toLocaleString() ?? '?'}바이트` : ''} <button type="button" aria-label={`${job.model} ${jobTime(job.started_at)} ${job.operation === 'sync' ? '백업' : '검증'} 상태·결과 확인`} aria-disabled={busy} aria-describedby={busy ? busyId : undefined} onClick={() => {if (!busy) showJob(job.job_id);}}>상태·결과 확인</button>{jobResult && shownJobId === job.job_id && <p>{failedJobId === job.job_id && error ? '이전 조회 결과 · ' : ''}{jobSummary(jobResult)}</p>}{error && failedJobId === job.job_id && <p>{error}</p>}</li>)}</ul></details> : <p>{selectedHistoryOnly ? '최근 조회된 이력에 선택한 디렉터리의 작업이 없습니다.' : '최근 백업·검증 이력이 없습니다.'}</p>}</> : !historyLoading && <p>이력을 확인하지 못했습니다. 이력 새로고침을 시도하세요.</p>}
     {comparison && <div><h3>비교·검증 결과</h3>{comparisonLoading && <p role="status">비교를 다시 조회하고 있습니다. 아래는 마지막으로 확인한 결과입니다.</p>}<p role="status">{comparison.model} · {comparison.complete ? '목록 조회 완료' : '일부 경로 확인 실패'} · 파일 {comparison.files.length.toLocaleString()}개</p>
       {comparisonOrigin?.kind === 'history' && <p>이력의 과거 결과 · {jobTime(comparisonOrigin.time)} · 이후 파일이나 경로가 변경됐을 수 있습니다.</p>}
       {comparisonOrigin?.kind === 'comparison' && <p>비교 조회 시각 · {jobTime(comparisonOrigin.time)} · 이후 파일이나 경로가 변경됐을 수 있습니다.</p>}

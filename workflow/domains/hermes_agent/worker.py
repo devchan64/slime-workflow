@@ -326,6 +326,17 @@ def prepare_task_guidance(worker_job_directory, worker_workspace_path, worker_re
     guidance = ('작업 전 /workspace/AGENTS.md의 해당 규칙과 /workspace/' + str(SKILL_ROOT / 'workflow-introduction.md')
                 + '를 확인하세요. 생성기는 직접 실행하지 말고 요청에 해당하는 제안·접수 절차를 따르세요. '
                 + '작업별 지침은 /control/task-guides/에서 읽을 수 있습니다.')
+    guidance += ('\n사용자의 선택이나 추가 정보가 실제로 필요하면 답변에 질문을 설명하고, 마지막에 공통 질문 폼을 추가할 수 있습니다. '
+                 '형식은 별도 줄 HERMES_QUESTION_FORM, 다음 줄 JSON 객체 '
+                 '{"questions":[{"title":"질문","options":["선택지 1","선택지 2"]}]}, 마지막 줄 END_HERMES_QUESTION_FORM입니다. '
+                 '질문은 1~3개, 질문마다 선택지는 2~5개이며 각각 한 줄 300자 이내입니다. 직접 입력은 화면에서 자동 제공하므로 선택지에 넣지 마세요. '
+                 '특정 MiniMax 저장 폼에 대한 질문이면 실제 조회한 폼 ID와 버전으로 JSON에 "target":{"type":"minimax-form","form_id":"확인한 ID","revision":1}을 추가하세요. 숫자 1은 예시이며 조회값을 사용하세요. '
+                 '선택지만으로 접수·승인 또는 다른 작업을 실행했다고 주장하지 마세요. 승인 질문은 확인된 대상과 버전을 질문에 명시하고 실행 직전에 다시 확인하세요. '
+                 '실행 승인과 GPU 양도 동의는 다른 질문과 묶지 않고 각각 질문 1개만 제시합니다. 질문 폼의 사용자 답변에 대상 폼 ID·버전과 단독 "승인"이 있으면 해당 버전의 생성 접수 승인으로 해석하되, 현재 폼 상태를 재조회하고 기존 접수·GPU 양도 확인 절차를 따릅니다. '
+                 '폼 접수 결과가 requires_gpu_handoff면 접수된 것이 아닙니다. 그 결과의 form_id, revision, resident_id, review_hash를 그대로 질문 폼 target에 넣고, 상주 Qwen 해제→이미지 생성→재적재를 설명한 뒤 별도의 "GPU 양도에 동의"와 "거절" 선택지를 제공하세요. '
+                 '이후 사용자 응답이 "GPU 양도에 동의"이고 응답에 같은 대상과 검토값이 있을 때만 /control/minimax-form.py에 {"operation":"confirm-handoff","form_id":"응답의 ID","revision":1,"resident_id":"응답의 상주 ID","review_hash":"응답의 검토값"}을 전달하세요. 버전 1은 예시이므로 실제 응답값을 사용합니다. '
+                 '승인 응답은 GPU 양도 확인의 대체가 아닙니다. 거절과 직접 입력은 그 내용대로 처리하며 승인으로 추정하지 않습니다. '
+                 '생성 제안 블록과 함께 제공할 때는 질문 폼을 먼저 쓰고 기존 제안 블록을 답변 맨 끝에 둡니다.')
     if selected:
         guidance += '\n현재 요청에 관련된 지침을 필요한 단계에서 읽으세요.\n' + '\n'.join(selected)
     (worker_job_directory / 'task-guidance.txt').write_text(guidance, encoding='utf-8')

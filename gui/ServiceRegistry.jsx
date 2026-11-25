@@ -6,7 +6,7 @@ function restrictions(items) {
 }
 
 export default function ServiceRegistry({query}) {
-  const pageReasonId=useId();
+  const pageReasonId=useId(),loadingId=useId();
   const [offset, setOffset] = useState(0);
   const [page, setPage] = useState(null);
   const [pageQuery,setPageQuery]=useState("");
@@ -38,10 +38,10 @@ export default function ServiceRegistry({query}) {
     return () => {active = false; clearTimeout(timer);clearTimeout(timeoutId);controller.abort();};
   }, [query,offset,revision]);
   return <section aria-label="서비스 등록 목록">
-    <button ref={refreshRef} type="button" disabled={loading} onClick={event => {if(refreshPending.current)return;refreshPending.current=true;restoreFocus.current=document.activeElement===event.currentTarget;setLoading(true);refresh(value => value+1);}}>{loading?"조회 중…":"등록 목록 새로고침"}</button>
+    <button ref={refreshRef} type="button" disabled={loading} aria-describedby={loading ? loadingId : undefined} onClick={event => {if(refreshPending.current)return;refreshPending.current=true;restoreFocus.current=document.activeElement===event.currentTarget;setLoading(true);refresh(value => value+1);}}>{loading?"조회 중…":"등록 목록 새로고침"}</button>
     {error && <p role="alert">{error}{page && " · 이전 조회 결과를 유지합니다."}</p>}
     {error && offset>0 && <button ref={firstPageRef} type="button" onClick={event=>{focusNextPage.current=document.activeElement===event.currentTarget;setOffset(0);}}>첫 페이지부터 다시 조회</button>}
-    {loading && page && <p role="status">새 목록을 조회 중입니다. 아래는 이전 결과입니다.</p>}
+    {loading && <p id={loadingId} role="status">{page ? "새 목록을 조회 중입니다. 아래는 이전 결과입니다." : "등록 서비스 조회 중…"}</p>}
     {page ? <>
       <p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p>
       <h3 ref={listRef} tabIndex={-1}>등록 서비스</h3>
@@ -63,6 +63,6 @@ export default function ServiceRegistry({query}) {
       {(offset>0 || page.next_offset!=null) && (loading || error || query!==pageQuery) && <p id={pageReasonId}>{loading ? "목록 조회가 끝나면 페이지를 이동할 수 있습니다." : error ? "목록을 다시 조회한 뒤 페이지를 이동하세요." : "변경된 검색 결과를 확인한 뒤 페이지를 이동하세요."}</p>}
       {offset>0 && <button type="button" disabled={loading || !!error || query!==pageQuery} aria-describedby={loading || error || query!==pageQuery ? pageReasonId : undefined} onClick={event => {focusNextPage.current=document.activeElement===event.currentTarget;setOffset(Math.max(0,offset-10));}}>이전 서비스</button>}
       {page.next_offset!=null && <button type="button" disabled={loading || !!error || query!==pageQuery} aria-describedby={loading || error || query!==pageQuery ? pageReasonId : undefined} onClick={event => {focusNextPage.current=document.activeElement===event.currentTarget;setOffset(page.next_offset);}}>다음 서비스</button>}
-    </> : !error && <p role="status">등록 서비스 조회 중…</p>}
+    </> : null}
   </section>;
 }

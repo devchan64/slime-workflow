@@ -73,7 +73,7 @@ function KimodoBuild() {
           setRecord(!verify && verified.current ? verified.current.record : next);setCheckedAt(new Date());setPollError("");
         }
       } catch (problem) {
-        if (active) {setPollError(timedOut ? "빌드 상태 조회 시간이 초과됐습니다." : problem.message || "빌드 상태를 확인할 수 없습니다.");if(verify){clearVerified();setVerify(false);}}
+        if (active) {setPollError(timedOut ? "빌드 상태 조회 시간이 초과됐습니다." : problem?.message || "빌드 상태를 확인할 수 없습니다.");if(verify){clearVerified();setVerify(false);}}
       } finally {
         clearTimeout(timeout);
         if (active) timer = setTimeout(poll, 5000);
@@ -98,12 +98,12 @@ function KimodoBuild() {
       const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
       let next;
       try{next=await untilAborted(managementCommand("kimodo", "migraphx-build",{},{signal:controller.signal}),controller.signal);}
-      catch(problem){throw new Error(timedOut ? "응답 시간이 초과됐습니다." : problem.message);}
+      catch(problem){throw new Error(timedOut ? "응답 시간이 초과됐습니다." : problem?.message || "응답을 확인할 수 없습니다.");}
       finally{clearTimeout(timeout);}
       if(!validBuildRecord(next))throw new Error("빌드 접수 응답 형식을 확인할 수 없습니다.");
       setRecord(next);
     } catch (problem) {
-      setError("빌드 요청의 접수 결과를 확인하지 못했습니다. 다시 요청하기 전에 빌드 상태를 확인하세요. · "+problem.message);
+      setError("빌드 요청의 접수 결과를 확인하지 못했습니다. 다시 요청하기 전에 빌드 상태를 확인하세요. · "+(problem?.message || "응답을 확인할 수 없습니다."));
     } finally {
       submitPending.current=false;setPending(false);
     }
@@ -130,7 +130,7 @@ export default function ModelPage() {
   const [error, setError] = useState("");
   const [missingModel,setMissingModel]=useState("");
   const [checkedAt,setCheckedAt]=useState(null);
-  const missingModelId=useId();
+  const missingModelId=useId(),loadingId=useId();
   const [loading,setLoading]=useState(true),[revision,setRevision]=useState(0);
   useEffect(()=>{document.title="모델 상태와 파일";},[]);
   useEffect(() => {
@@ -147,7 +147,7 @@ export default function ModelPage() {
         const requested = new URLSearchParams(location.search).get("model");
         const choice=resolveModelSelection(items,selectedRef.current || missingRef.current,requested);
         selectedRef.current=choice.selected;missingRef.current=choice.missing;select(choice.selected);setMissingModel(choice.missing);
-      } catch (problem) {if(active)setError(timedOut ? "모델 목록 조회 시간이 초과됐습니다. 다시 시도하세요." : problem.message || "모델 목록을 조회할 수 없습니다.");}
+      } catch (problem) {if(active)setError(timedOut ? "모델 목록 조회 시간이 초과됐습니다. 다시 시도하세요." : problem?.message || "모델 목록을 조회할 수 없습니다. 다시 조회하세요.");}
       finally {clearTimeout(timeout);if(active)setLoading(false);}
     }
     load();
@@ -162,9 +162,9 @@ export default function ModelPage() {
   }
   return <article className="model-management-page"><h1>모델 상태와 파일</h1>
     <a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 이동</a>
-    <button type="button" aria-disabled={loading} onClick={()=>{if(!loading)setRevision(value=>value+1);}}>{loading ? "모델 목록 조회 중…" : error ? "모델 목록 다시 조회" : "모델 목록 새로고침"}</button>
+    <button type="button" aria-disabled={loading} aria-describedby={loading ? loadingId : undefined} onClick={()=>{if(!loading)setRevision(value=>value+1);}}>{loading ? "모델 목록 조회 중…" : error ? "모델 목록 다시 조회" : "모델 목록 새로고침"}</button>
     {checkedAt && <p>마지막 목록 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
-    {loading && <p role="status">모델 목록을 조회하고 있습니다.{models.length>0 && " 아래는 마지막 조회 결과입니다."}</p>}
+    {loading && <p id={loadingId} role="status">모델 목록을 조회하고 있습니다.{models.length>0 && " 아래는 마지막 조회 결과입니다."}</p>}
     {error && <p role="alert">{error}{models.length>0 && " · 이전 목록을 유지합니다."}</p>}
     {!loading && !error && !models.length && <p role="status">등록된 모델이 없습니다.</p>}
     {missingModel && <p id={missingModelId} role="status">요청한 모델 ‘{missingModel}’을 목록에서 찾지 못했습니다. 모델을 선택해 주세요.</p>}

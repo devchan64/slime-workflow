@@ -1,10 +1,11 @@
-import React, {useEffect,useRef,useState} from "react";
+import React, {useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import ResultTable from "./ResultTable.jsx";
 import {latestRequest} from "./latestRequest.mjs";
 import {anchorHistoryRequest,validAnchorHistoryPage} from "./anchorHistoryPage.mjs";
 
 export default function AnchorHistory() {
+  const searchReasonId=useId(),pageBlockId=useId(),firstPageId=useId(),lastPageId=useId();
   const [animation,setAnimation]=useState("");
   const [version,setVersion]=useState("");
   const [page,setPage]=useState(null);
@@ -20,6 +21,8 @@ export default function AnchorHistory() {
   if(!request.current)request.current=latestRequest();
   useEffect(()=>()=>{request.current.invalidate();activeRequest.current?.abort();},[]);
   const filtersChanged=Boolean(pageFilters && (animation.trim()!==pageFilters.animation || version.trim()!==pageFilters.version));
+  const searchReason=busy ? "앵커 이력 조회가 끝날 때까지 기다리세요." : [!animation.trim() && "애니메이션 ID를 입력하세요.",!version.trim() && "애니메이션 버전을 입력하세요."].filter(Boolean).join(" ");
+  const pageBlock=busy ? "이력 조회가 끝나면 페이지를 이동할 수 있습니다." : error ? "이력을 다시 조회한 뒤 페이지를 이동하세요." : filtersChanged ? "변경된 검색 조건으로 조회한 뒤 페이지를 이동하세요." : "";
 
   async function load(next,offset=null,event) {
     if(next && filtersChanged)return;
@@ -40,7 +43,7 @@ export default function AnchorHistory() {
       }
       focusPage.current=focusTrigger;setPage(result);setPageFilters({animation:payload.animation_id,version:payload.animation_version});setReceivedAt(new Date());
     } catch(problem) {
-      if(request.current.isCurrent(token)){focusPage.current=null;setError((timedOut?"앵커 이력 조회 시간이 초과됐습니다. 다시 조회하세요.":problem instanceof TypeError?"앵커 이력에 연결하지 못했습니다. 다시 조회하세요.":problem.message)+(page?" 이전 조회 결과를 유지합니다.":""));}
+      if(request.current.isCurrent(token)){focusPage.current=null;setError((timedOut?"앵커 이력 조회 시간이 초과됐습니다. 다시 조회하세요.":problem instanceof TypeError?"앵커 이력에 연결하지 못했습니다. 다시 조회하세요.":problem?.message || "앵커 이력을 조회하지 못했습니다. 다시 조회하세요.")+(page?" 이전 조회 결과를 유지합니다.":""));}
     } finally {
       clearTimeout(timer);if(activeRequest.current===controller)activeRequest.current=null;
       if(request.current.isCurrent(token))setBusy(false);
@@ -56,19 +59,23 @@ export default function AnchorHistory() {
     setError("");
   }
   function pagination(position){return page && <nav className="anchor-history-pagination" aria-label={"앵커 이력 페이지 "+position}>
-    <button type="button" disabled={busy || !!error || filtersChanged || page.offset<=0} onClick={event=>load(true,Math.max(0,page.offset-20),event)}>이전 이력</button>
+    <button type="button" disabled={busy || !!error || filtersChanged || page.offset<=0} aria-describedby={pageBlock ? pageBlockId : page.offset<=0 ? firstPageId : undefined} onClick={event=>load(true,Math.max(0,page.offset-20),event)}>이전 이력</button>
     <span>{page.records.length ? `${page.offset+1}–${page.offset+page.records.length} / ${page.total}건` : page.total ? `현재 페이지 0건 / 전체 ${page.total}건` : "0건"}</span>
-    <button type="button" disabled={busy || !!error || filtersChanged || page.next_offset==null} onClick={event=>load(true,null,event)}>다음 이력</button>
+    <button type="button" disabled={busy || !!error || filtersChanged || page.next_offset==null} aria-describedby={pageBlock ? pageBlockId : page.next_offset==null ? lastPageId : undefined} onClick={event=>load(true,null,event)}>다음 이력</button>
   </nav>;}
   return <fieldset><legend>과거 앵커 검수 이력</legend>
     <form className="anchor-history-search" onSubmit={event=>{event.preventDefault();focusSearch.current=document.activeElement===searchButton.current;load(false);}}>
       <label>애니메이션 ID<input required value={animation} onChange={e=>edit(setAnimation,e.target.value)}/></label>
       <label>애니메이션 버전<input required value={version} onChange={e=>edit(setVersion,e.target.value)}/></label>
-      <button ref={searchButton} disabled={busy || !animation.trim() || !version.trim()}>이력 조회</button>
+      <button ref={searchButton} disabled={Boolean(searchReason)} aria-describedby={searchReason ? searchReasonId : undefined}>이력 조회</button>
     </form>
+    {searchReason && <p id={searchReasonId}>{searchReason}</p>}
     {error && <p role="alert">{error}</p>}
     {busy && <p role="status">앵커 이력을 조회하고 있습니다.{page && " 아래는 마지막 조회 결과입니다."}</p>}
     {page && filtersChanged && <p role="status">검색 조건이 변경되었습니다. 아래는 이전 조건의 결과입니다. 이력 조회를 눌러 새 조건을 적용하세요.</p>}
+    {page && pageBlock && <p id={pageBlockId}>{pageBlock}</p>}
+    {page && !pageBlock && page.offset<=0 && <p id={firstPageId}>첫 번째 이력 페이지입니다.</p>}
+    {page && !pageBlock && page.next_offset==null && <p id={lastPageId}>마지막 이력 페이지입니다.</p>}
     {!page && !busy && !error && <p>애니메이션 ID와 버전을 입력한 뒤 이력을 조회하세요.</p>}
     {page && <p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p>}
     {pagination("상단")}

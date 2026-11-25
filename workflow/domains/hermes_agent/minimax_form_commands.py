@@ -100,8 +100,8 @@ def execute_minimax_form_command(command, payload, *, sessions, read_job, dispat
             raise ValueError('프롬프트 또는 시드를 확인하세요.')
         width, height = request.get('width'), request.get('height')
         if form['service'] == 'minimax-h3-image':
-            if any(type(size) is not int or not 512 <= size <= 2048 or size % 32 for size in (width, height)):
-                raise ValueError('이미지 크기는 512~2048의 32배수여야 합니다.')
+            if any(type(size) is not int or not 480 <= size <= 2048 or size % 32 for size in (width, height)):
+                raise ValueError('이미지 크기는 480~2048의 32배수여야 합니다.')
         elif (type(width) is not int or type(height) is not int or (width, height) not in ((832, 480), (768, 448))):
             raise ValueError('영상 크기는 832×480 또는 768×448이어야 합니다.')
         if 'prompt' in changes:

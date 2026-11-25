@@ -2,6 +2,7 @@
 import os
 import json
 import hashlib
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -45,6 +46,9 @@ class HandoffHistoryUiTests(unittest.TestCase):
                                            env={**os.environ, 'NODE_PATH':str(gui/'node_modules')})
         self.assertIn('GPU 양도 이력을 불러오는 중', html)
         self.assertIn('aria-disabled="true"', html)
+        loading_id = re.search(r'<p id="([^"]+)" role="status">GPU 양도 이력을 불러오는 중', html)
+        self.assertIsNotNone(loading_id)
+        self.assertIn(f'aria-describedby="{loading_id.group(1)}"', html)
         self.assertNotIn('양도 기록이 없습니다', html)
 
 

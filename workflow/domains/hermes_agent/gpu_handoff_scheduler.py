@@ -17,6 +17,8 @@ class HandoffServiceAdapter:
     """저장된 서비스에 맞는 기존 생성기 어댑터만 선택한다."""
     def __init__(self):
         self.kimodo = KimodoHandoffAdapter()
+        from .gpu_handoff_minimax_image import MiniMaxImageHandoff
+        self.minimax_image = MiniMaxImageHandoff()
         self.flux = FluxHandoffAdapter()
         self.video = VideoHandoffAdapter()
         self.audio = AudioHandoffAdapter()
@@ -29,6 +31,8 @@ class HandoffServiceAdapter:
         def dispatch(record):
             if record['service'] == 'trellis-experiment':
                 adapter = self.trellis2
+            elif record['service'] == 'minimax-h3-image':
+                adapter = self.minimax_image
             elif record['service'] == 'kimodo':
                 adapter = self.kimodo
             elif record['service'] == 'writer-agent':

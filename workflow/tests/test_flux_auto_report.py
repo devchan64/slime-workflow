@@ -59,7 +59,7 @@ class FluxReportTests(unittest.TestCase):
             self.assertEqual(record["hermes_job_id"], report_job)
             self.assertEqual(calls.count("hermes-submit"), 1)
             jobs = [m["job_id"] for m in sessions.read_session_record(session)["messages"]]
-            self.assertEqual(jobs, [proposal, report_job] if chat else [])
+            self.assertEqual(jobs, [proposal, None, report_job] if chat else [])
 
     def test_chat_report_delivery(self):
         self.exercise(True)

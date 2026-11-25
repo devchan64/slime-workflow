@@ -9,7 +9,7 @@ const functions=source.slice(source.indexOf('  async function readJob('),source.
 function fixture(){
  const body={},origin={},other={},frames=[];let focused=0;
  const context=vm.createContext({AbortController,DOMException,setTimeout,clearTimeout,untilAborted,service:'prompt-translation',
-  document:{body,activeElement:origin},inputRef:{current:{text:'기존',language:'en',terms:''}},reviewEpoch:{current:0},reviewRefState:{current:null},restoreFrame:{current:null},
+  document:{body,activeElement:origin},inputRef:{current:{text:'기존',language:'en',terms:''}},inputCard:{current:{open:false}},reviewEpoch:{current:0},reviewRefState:{current:null},restoreFrame:{current:null},
   textRef:{current:{isConnected:true,disabled:false,focus:()=>focused++}},setText:()=>{},setLanguage:()=>{},setTerms:()=>{},setTermsError:()=>{},setNotice:()=>{},
   requestAnimationFrame:fn=>(frames.push(fn),frames.length),cancelAnimationFrame:()=>{},managementCommand:()=>new Promise(()=>{})});
  vm.runInContext(functions+'\nthis.readJob=readJob;this.restore=restore;',context);
@@ -24,6 +24,7 @@ test('번역 이력 조회는 상위 중단을 따른다',async()=>{
 test('번역 이력 연속 복원은 먼저 적용한 입력을 보존한다',()=>{
  const {context}=fixture();const record={inputAtStart:context.inputRef.current,reviewAtStart:0,focusAtStart:context.document.activeElement};
  context.restore(input,record);
+ assert.equal(context.inputCard.current.open,true);
  assert.throws(()=>context.restore({...input,text:'늦은 입력'},record),/작성 내용이 변경/);
  assert.equal(context.inputRef.current.text,'복원');
 });

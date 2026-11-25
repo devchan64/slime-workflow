@@ -10,6 +10,31 @@ from workflow.domains.hermes_agent.minimax_form_bridge import handle_form_connec
 
 
 class MiniMaxFormBridgeTests(unittest.TestCase):
+    def test_handoff_operation_requires_current_turn_consent(self):
+        session,form,job='a'*32,'b'*32,'2026-11-25_22-30-44-0d6a944f'
+        resident,review='resident_123','d'*64
+        payload={'operation':'confirm-handoff','form_id':form,'revision':1,'resident_id':resident,'review_hash':review}
+        prompt=(f'질문 작업 {job}에 대한 답변:\n대상 폼 ID: {form}\n대상 폼 버전: 1\n'
+                f'상주 모델 ID: {resident}\nGPU 양도 검토: {review}\n1. GPU 양도할까요?\n답변: GPU 양도에 동의')
+        form_data={'session_id':session,'form_id':form,'revision':1,'state':'editing','service':'minimax-h3-image',
+                   'source_job_id':job,'request':{'prompt':'집','images':[]}}
+        def gateway(command,data):
+            if command=='hermes-minimax-form-read':return form_data
+            if command=='hermes-resident-status':return {'resident_id':resident,'resident':{'state':'ready'}}
+            if command=='hermes-gpu-handoff-approve':return {'id':data['request_id'],'state':'approved','revision':1}
+            raise AssertionError(command)
+        dispatch=Mock(side_effect=gateway)
+        def exchange(text):
+            server,client=socket.socketpair()
+            thread=threading.Thread(target=handle_form_connection,args=(server,session,text,dispatch));thread.start()
+            with client:
+                client.settimeout(2);client.sendall(json.dumps(payload).encode()+b'\n');result=json.loads(client.recv(4096))
+            thread.join(2);self.assertFalse(thread.is_alive());return result
+        self.assertEqual(exchange(prompt)['state'],'approved')
+        before=dispatch.call_count
+        self.assertIn('error',exchange(prompt.replace('답변: GPU 양도에 동의','답변: 거절')))
+        self.assertEqual(dispatch.call_count,before)
+
     def test_submit_uses_pinned_form_and_duplicate_receipt(self):
         from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
         from workflow.domains.hermes_agent.minimax_form_commands import execute_minimax_form_command

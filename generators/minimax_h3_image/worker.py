@@ -24,7 +24,7 @@ def execute(job):
         raise ValueError('이미지 작업 경로 오류')
     request = json.loads((job / 'request.json').read_text())
     from generators.minimax_h3_image.contracts import verify_saved_request
-    from workflow.domains.image.three_reference_generation import validate_three_reference_request
+    from workflow.domains.image.three_reference_generation import validate_three_reference_request, verify_reference_snapshots
     if 'common_style' in request:
         verify_saved_request(request)
     elif any(key in request for key in ('user_prompt', 'prompt_sha256')):
@@ -35,9 +35,17 @@ def execute(job):
         request['prompt_sha256'] = hashlib.sha256(request['prompt'].encode('utf-8')).hexdigest()
     validate_three_reference_request({key: request[key] for key in ('action', 'width', 'height', 'steps', 'seed', 'tag')}
         | {'prompt': request['user_prompt'], 'images': []}, allowed_inference_steps=(6,), maximum_reference_count=0,
-        minimum_output_size=512, maximum_output_size=2048)
+        minimum_output_size=480, maximum_output_size=2048)
     if request['width'] % 32 or request['height'] % 32:
         raise ValueError('출력 크기는 32의 배수여야 합니다.')
+    verify_reference_snapshots(job, request)
+    if len(request['references']) > 2:
+        raise ValueError('참조 이미지는 2장까지 사용할 수 있습니다.')
+    from PIL import Image
+    references = []
+    for name in request['references']:
+        with Image.open(job / name) as source:
+            references.append(source.convert('RGB'))
     status = inspect_runtime()
     if not status['generation_ready']:
         raise ValueError(status['message'])
@@ -62,7 +70,7 @@ def execute(job):
     from core.inference.diffusion_minimax_h3_image import (native_config_transformer_class,
         h3_image_prepare_prequant_model, load_h3_image_vae, install_h3_image_forward,
         install_pdd_head_bank, MiniMaxH3ImagePipeline, MiniMaxH3ImageScheduler, H3_IMAGE_SIGMAS)
-    from transformers import AutoTokenizer
+    from transformers import AutoProcessor, AutoTokenizer
     helper.hf_hub_download_with_xet_fallback = lambda *args, **kwargs: str(ENCODER)
     os.environ['UNSLOTH_ALLOW_LOCAL_PREQUANT_PATH'] = str(TRANSFORMER.parent)
     encoder = load_h3_quantized_text_encoder(str(ENCODER_BASE), 'int8', dtype=torch.bfloat16,
@@ -85,7 +93,7 @@ def execute(job):
     vae = load_h3_image_vae(BASE).to('cuda')
     tokenizer = AutoTokenizer.from_pretrained(str(BASE / 'tokenizer'), local_files_only=True)
     pipe = MiniMaxH3ImagePipeline(transformer=transformer, vae=vae, text_encoder=encoder,
-        tokenizer=tokenizer, scheduler=MiniMaxH3ImageScheduler(sample_sigmas=list(H3_IMAGE_SIGMAS)))
+        tokenizer=tokenizer, processor=AutoProcessor.from_pretrained(str(BASE/'processor'), local_files_only=True) if references else None, scheduler=MiniMaxH3ImageScheduler(sample_sigmas=list(H3_IMAGE_SIGMAS)))
     pipe._unsloth_h3_device = 'cuda'
     def check(module, args, output):
         def visit(value):
@@ -105,7 +113,7 @@ def execute(job):
         print(f'stage=inference step={index + 1}/6', flush=True)
         return payload
     with torch.inference_mode():
-        image = pipe(prompt=request['prompt'], width=request['width'], height=request['height'],
+        image = pipe(prompt=request['prompt'], image=references or None, width=request['width'], height=request['height'],
                      num_inference_steps=6, generator=torch.Generator('cpu').manual_seed(request['seed']),
                      callback_on_step_end=on_step).images[0]
     hook.remove()

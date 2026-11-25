@@ -1,4 +1,7 @@
 import {formatActivityCopy} from './formatActivityCopy.mjs';
+import {imageSubmissionIntent} from './imageSubmissionIntent.mjs';
+import {parseQuestionForm} from './hermesQuestionForm.mjs';
+import HermesQuestionForm from './HermesQuestionForm.jsx';
 import {ConversationPending} from './ConversationPending.jsx';
 import MiniMaxForms from './MiniMaxForms.jsx';
 import {classifyQueueUpdate,validChatActive,validChatQueue,matchesChatQueueReceipt} from "./chatQueueUpdate.mjs";
@@ -104,7 +107,15 @@ function messagesFrom(view) {
       const progress=m.report_progress;
       const phase={writing:"작성 중",completed:"작성 완료 · 대화 전달 완료",failed:"작성 실패"};
       const flow=progress ? "\n\n**보고서 진행 상황**\n1. 생성 결과 파일 확인 완료\n2. 이미지 관찰 단계 종료 · 접수폼과 관찰 자료 전달 완료\n3. 비교 보고서 "+(phase[progress.state] || "상태 확인 중")+"\n\n[보고서 작업 상세]("+jobLink(progress.writer,view.id)+")" : "";
-      return [{id:key+"-notice",role:"assistant",content:m.text+flow}];
+      const generation=m.generation_progress;
+      let generationText="";
+      if(generation){
+        const status={queued:"대기 중", running:"실행 중", completed:"완료", failed:"실패", cancelled:"취소"};
+        const steps=Number.isInteger(generation.step) && generation.total>0 ? " · 추론 "+generation.step+"/"+generation.total+"단계" : "";
+        const review={analyzing:"이미지 분석 중",report_queued:"작성 대기",writing:"작성 중",completed:"대화 전달 완료",failed:"실패"}[generation.report_state];
+        generationText="\n\n**이미지 생성** · "+(status[generation.status] || generation.status)+steps+(review ? "\n\n**검수 보고서** · "+review : "");
+      }
+      return [{id:key+"-notice",role:"assistant",content:m.text+generationText+flow}];
     }
     if(m.form_id)return [{id:m.form_id,role:"user",content:m.text,metadata:{custom:{formId:m.form_id,session:view.id}}}];
     if(m.report_job_id && m.report_job_id===m.job_id){
@@ -121,6 +132,7 @@ function messagesFrom(view) {
       columns:["작업 ID","상태"], rows:page.rows.map(row=>[row.id,row.status])
     });
     const answer = job.final_response || "";
+    const questionForm=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated ? parseQuestionForm(answer) : null;
     const kimodoProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_KIMODO_PROPOSAL");
     const generationProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated ? ["audio","video","writer"].find(kind=>answer.includes("HERMES_"+kind.toUpperCase()+"_PROPOSAL")) : null;
     const captureProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_CAPTURE_PROPOSAL");
@@ -134,11 +146,12 @@ function messagesFrom(view) {
     let displayAnswer=kimodoProposal ? answer.replace(/\n*HERMES_KIMODO_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_KIMODO_PROPOSAL\s*$/, "") : fluxProposal ? answer.replace(/HERMES_(IMAGE|FLUX)_PROPOSAL\s*[\s\S]*?END_HERMES_\1_PROPOSAL/g, "") : buildingProposal ? answer.replace(/\n*HERMES_BUILDING_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_BUILDING_PROPOSAL\s*$/, "") : billboardProposal ? answer.replace(/\n*HERMES_BILLBOARD_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_BILLBOARD_PROPOSAL\s*$/, "") : spriteProposal ? answer.replace(/\n*HERMES_SPRITE_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_SPRITE_PROPOSAL\s*$/, "") : effectProposal ? answer.replace(/\n*HERMES_EFFECT_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_EFFECT_PROPOSAL\s*$/, "") : cityProposal ? answer.replace(/\n*HERMES_CITY_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_CITY_PROPOSAL\s*$/, "") : fieldProposal ? answer.replace(/\n*HERMES_FIELD_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_FIELD_PROPOSAL\s*$/, "") : answer;
     if(captureProposal)displayAnswer=displayAnswer.replace(/\n*HERMES_CAPTURE_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_CAPTURE_PROPOSAL\s*$/, "");
     if(generationProposal){const marker=generationProposal.toUpperCase();displayAnswer=displayAnswer.replace(new RegExp("\\n*HERMES_"+marker+"_PROPOSAL\\s*\\n[\\s\\S]*?\\nEND_HERMES_"+marker+"_PROPOSAL\\s*$"), "");}
+    if(questionForm)displayAnswer=displayAnswer.replace(/\n?^HERMES_QUESTION_FORM[ \t]*\n[\s\S]*?\nEND_HERMES_QUESTION_FORM[ \t]*(?=\n|$)/m, '');
     const suggestion = !activity.video_source && job.status?.status==="completed" && !job.final_response_truncated ? videoLookupSuggestion(answer,m.text) : null;
     const showAnswer = !table || (answer !== activity.source_history_summary && !activity.history_table_is_answer);
     return [{id:key+"-user",role:"user",content:m.text},
       {id:key+"-answer",role:"assistant",content:showAnswer ? (suggestion ? "작업 결과 조회가 필요합니다." : displayAnswer) : "",metadata:{custom:{
-        videoSuggestion:suggestion,
+        videoSuggestion:suggestion,questionForm,
         status:job.status?.status || "접수 확인 중",kimodoRequest:/kimodo|키모도|김도/i.test(m.text || ""),queueMessage:job.status?.status==="queued" && typeof job.status.message==="string" ? job.status.message : "",session:view.id,job:m.job_id,sessionSnapshot:view.snapshot,sessionOffset:view.offset || 0,seedProposal:m.seed_form_proposal,kimodoProposal,captureProposal,generationProposal,fluxProposal,buildingProposal,billboardProposal,spriteProposal,effectProposal,cityProposal,fieldProposal,activity,table}}}];
   });
 }
@@ -356,12 +369,22 @@ function ChatQueuePanel({session,children,openDetails,messages,linkedJob}){
   function renderEdit(item){return <ChatQueueItem item={item} savedEdit={editingItem?.request_id===item.request_id ? editingItem : null} unavailable={Boolean(error)} mutationLocked={Boolean(pendingUpdate)} disableEdit={Boolean(editingItem && editingItem.request_id!==item.request_id)} onEditing={rememberEdit} onChange={sendUpdate}/>;}
   const activeRows=records(running);
   const extraPending=[];
+  const finishedRows=records(completed), otherRows=records(scheduleRows("other"));
+  for(const message of new Map([...messages || [], ...data?.messages || []].filter(item=>item.generation_progress).map(item=>[item.generation_progress.job_id,item])).values()){
+    const generation=message.generation_progress;
+    if(!generation || steps.some(step=>step.source_job_id===generation.job_id))continue;
+    const group={running:activeRows,queued:extraPending,completed:finishedRows}[generation.status] || otherRows;
+    group.unshift(<details key={"minimax-"+generation.job_id} className="queue-record">
+      <summary><strong>MiniMax 이미지 생성</strong> · <code>{generation.job_id}</code></summary>
+      <p>{sessionQueueStateLabel(statusLabels,generation.status)}{generation.total>0 && " · 추론 "+generation.step+"/"+generation.total+"단계"}</p>
+    </details>);
+  }
   if(data?.chat_active)(data.chat_active.status==="running" ? activeRows : extraPending).unshift(<QueueJobRecord key={data.chat_active.job_id} session={session} id={data.chat_active.job_id} initialOpen={linkedJob===data.chat_active.job_id} status={data.chat_active.status} summary={<><strong>대화 요청</strong> · <code>{data.chat_active.job_id}</code></>}>
     {data.chat_active.status==="running" ? <CurrentQueueCommand data={data} session={session}/> : <p>{data.chat_active.prompt}</p>}
     {data.chat_active.status==="running" && (data.chat_active.control_ready ? <LiveInstructionForm key={data.chat_active.job_id} session={session} job={data.chat_active.job_id} receipts={data.live_instructions} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/> : <p>실행 중 지시 전달 경로가 준비되지 않았습니다. 준비 중이거나 이전 방식으로 시작된 작업일 수 있습니다.</p>)}{["running","queued"].includes(data.chat_active.status) && <button type="button" aria-disabled={stopJobs.has(data.chat_active.job_id) || Boolean(error)} onClick={stopCurrent}>{stopJobs.has(data.chat_active.job_id)?"중단 요청 중":"지시 중단"}</button>}{stopNotices[data.chat_active.job_id] && <p role="status">{stopNotices[data.chat_active.job_id]}</p>}
   </QueueJobRecord>);
   return <section className="chat-queue-panel" aria-label="작업 일정">
-    <UnifiedQueueOverview linkedRow={linkedQueueRow(linkedJob,session)} session={session} call={call} refreshRef={queueRefreshRef} onRefresh={()=>refresh(n=>n+1)} editRequest={renderEdit} localQueue={data?.chat_queue || []} extraPending={extraPending} other={records(scheduleRows("other"))} running={activeRows} completed={records(completed)} failures={[["완료 이력",historyError,Boolean(older.length)],["대화 요청",error,Boolean(data)],["생성 작업",workflowError,Boolean(workflow)]]} ready={Boolean(data && workflow && !error && !workflowError)}/>
+    <UnifiedQueueOverview linkedRow={linkedQueueRow(linkedJob,session)} session={session} call={call} refreshRef={queueRefreshRef} onRefresh={()=>refresh(n=>n+1)} editRequest={renderEdit} localQueue={data?.chat_queue || []} extraPending={extraPending} other={otherRows} running={activeRows} completed={finishedRows} failures={[["완료 이력",historyError,Boolean(older.length)],["대화 요청",error,Boolean(data)],["생성 작업",workflowError,Boolean(workflow)]]} ready={Boolean(data && workflow && !error && !workflowError)}/>
 
 
     {editStorageError && editingItem && <p role="alert">편집 내용을 이 탭에 보관하지 못했습니다. 패널을 닫기 전에 내용을 복사하세요. <CopyTextButton value={editingItem.text} label="대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/></p>}
@@ -525,7 +548,8 @@ function Message() {
     {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} append={actions.append} openStep={actions.openStep}/>}
     {meta.generationProposal && meta.job && <GenerationProposal key={meta.job} kind={meta.generationProposal} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} onOpenForm={actions.openMinimaxForm}/>}
     {meta.captureProposal && meta.job && <CaptureProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
-    {meta.fluxProposal && meta.job && <FluxProposal onOpenFluxForm={actions.openFluxForm} key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} onOpenForm={actions.openMinimaxForm}/>}
+    {meta.fluxProposal && meta.job && <FluxProposal onOpenFluxForm={actions.openFluxForm} key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} onOpenForm={actions.openMinimaxForm} onQuestionDraft={actions.writeQuestionAnswer} hasQuestionForm={Boolean(meta.questionForm)}/>}
+    {meta.questionForm && meta.job && <HermesQuestionForm key={meta.job} job={meta.job} session={meta.session} questions={meta.questionForm.questions} target={meta.questionForm.target} onDraft={actions.writeQuestionAnswer}/>}
     {meta.buildingProposal && meta.job && <BuildingProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
     {meta.billboardProposal && meta.job && <BillboardProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
     {meta.spriteProposal && meta.job && <SpriteProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
@@ -794,8 +818,12 @@ function App() {
       sessionStorage.setItem(pendingKey, JSON.stringify(item));
       if (!session) await call("session-create", {session_id:item.session_id});
       const queueSubmissionPayload={...item,model_profile:'qwen3.8-27b'};
-      const queueReceiptValue=await call("session-queue-submit", queueSubmissionPayload);
-      if(!matchesChatQueueReceipt(queueReceiptValue,queueSubmissionPayload))throw new Error("대화 접수 결과를 확인할 수 없습니다. 같은 요청의 상태를 다시 확인해 주세요.");
+      const imageIntent=imageSubmissionIntent(item.prompt);
+      const imageReceipt=imageIntent && await call("chat-image-submit",{session_id:item.session_id,prompt:item.prompt.trim()});
+      if(!imageReceipt?.handled){
+        const queueReceiptValue=await call("session-queue-submit", queueSubmissionPayload);
+        if(!matchesChatQueueReceipt(queueReceiptValue,queueSubmissionPayload))throw new Error("대화 접수 결과를 확인할 수 없습니다. 같은 요청의 상태를 다시 확인해 주세요.");
+      }
       sessionStorage.removeItem(pendingKey);
       const currentDraft=sessionStorage.getItem("hermes-draft-"+session) || "";
       const remaining=currentDraft===item.prompt?"":currentDraft;
@@ -862,6 +890,7 @@ function App() {
   const [showGpu,setShowGpu]=useState(false);
   const [searchMode,setSearchMode]=useState(()=>query().get("panel")==="capabilities"?query().get("panel"):"tools");
   const appendSelection=(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));closeTools(text);};
+  const writeQuestionAnswer=answer=>{edit([draft,answer].filter(Boolean).join("\n\n"));text.current?.focus();};
   function openFunFromTools(){
     if(showTools)closeTools();
     setShowGpu(false);setShowKimodo(false);setGeneratorPanel(null);setQueue(null);
@@ -976,7 +1005,7 @@ function App() {
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1></header>
 
 
-    <ProposalActions.Provider value={{append:appendSelection,openFluxForm,openStep:inputs=>openKimodo(inputs),openMinimaxForm,openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory} refreshPending={()=>retryView(n=>n+1)}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
+    <ProposalActions.Provider value={{append:appendSelection,writeQuestionAnswer,openFluxForm,openStep:inputs=>openKimodo(inputs),openMinimaxForm,openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory} refreshPending={()=>retryView(n=>n+1)}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
 
     <form onSubmit={e=>{e.preventDefault();send()}}>
     <details className="composer-menu" ref={composerMenu} onKeyDown={event=>{if(event.key==='Escape' && !event.nativeEvent.isComposing){event.preventDefault();event.stopPropagation();composerMenu.current.open=false;toolToggle.current?.focus();}}}><summary ref={toolToggle}>메뉴</summary><div className="composer-menu-panel">
@@ -1031,7 +1060,7 @@ function App() {
       <p className="generator-help-text">탐색 대상은 찾을 정보의 종류입니다.{searchMode==="tools" && " 도구 분야는 목록을 작업 영역별로 좁힙니다."}</p>
       {["capabilities","expressions","keyframes","services"].includes(searchMode) && <input ref={toolSearch} aria-label={{capabilities:"관리 기능 검색",expressions:"표정 프리셋 검색",keyframes:"Kimodo 키프레임 검색",services:"서비스 검색"}[searchMode]} maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>}
       {["capabilities","expressions","keyframes","services"].includes(searchMode) && search && <button type="button" onClick={()=>{setSearch("");requestAnimationFrame(()=>toolSearch.current?.focus());}}>검색어 지우기</button>}
-      {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}
+      {searchMode==="expressions" && <ExpressionCatalog query={search} choose={appendSelection}/>}
       {searchMode==="anchors" && <AnchorHistory/>}
       {searchMode==="billboards" && <BillboardCatalog choose={appendSelection}/>}
       {searchMode==="keyframes" && <KeyframeCatalog query={search} choose={appendSelection}/>}

@@ -27,7 +27,11 @@ assert.equal(render({stage:'completed',summary:'결과 있음'}),'<p role="statu
             bundle = Path(directory) / 'writer.cjs'
             subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'WriterPage.jsx', '--bundle', '--platform=node', '--format=cjs', '--external:react', '--external:react-dom', '--outfile='+str(bundle)], cwd=gui, check=True, capture_output=True)
             script = """global.location={pathname:'/',search:'',href:'http://localhost/'};global.sessionStorage={getItem:()=>null};
-              const React=require('react'),server=require('react-dom/server'),Page=require(process.argv[1]).default;
+              const React=require('react'),server=require('react-dom/server'),writer=require(process.argv[1]),Page=writer.default;
+              const assert=require('node:assert/strict'),state={workspace:{active_job:'job-1'},checking:true,error:'',checkedAt:null};
+              assert.match(writer.writerInputSummary(state),/확인 중.*이전 작업 job-1/);
+              assert.match(writer.writerInputSummary({...state,checking:false,error:'실패'}),/조회 실패.*이전 작업 job-1/);
+              assert.match(writer.writerInputSummary({...state,checking:false}),/진행 중 · job-1/);
               for(const embedded of [false,true])console.log(server.renderToStaticMarkup(React.createElement(Page,{embedded,session:'session'})));"""
             lines = subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')}).splitlines()
         self.assertEqual(len(lines),2)
