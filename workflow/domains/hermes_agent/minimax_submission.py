@@ -35,10 +35,10 @@ def resolve_proposal(origin, service, *, sessions, read_job):
     if job.get('status', {}).get('status') != 'completed' or job.get('final_response_truncated'):
         raise ValueError('완료된 생성 제안을 확인할 수 없습니다.')
     if service == 'minimax-h3-image':
-        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_flux_proposal
+        from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_image_proposal
         from workflow.domains.hermes_agent.image_selection import select_image_proposal
         from workflow.domains.minimax_h3_image.generation import MiniMaxH3ImageManager
-        proposal = select_image_proposal(parse_hermes_flux_proposal(job.get('final_response')), job['request'])
+        proposal = select_image_proposal(parse_hermes_image_proposal(job.get('final_response')), job['request'])
         manager = MiniMaxH3ImageManager()
     else:
         from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_video_proposal

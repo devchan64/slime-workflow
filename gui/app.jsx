@@ -124,14 +124,14 @@ function messagesFrom(view) {
     const kimodoProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_KIMODO_PROPOSAL");
     const generationProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated ? ["audio","video","writer"].find(kind=>answer.includes("HERMES_"+kind.toUpperCase()+"_PROPOSAL")) : null;
     const captureProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_CAPTURE_PROPOSAL");
-    const fluxProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_FLUX_PROPOSAL");
+    const fluxProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && /HERMES_(?:IMAGE|FLUX)_PROPOSAL/.test(answer);
     const buildingProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_BUILDING_PROPOSAL");
     const billboardProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_BILLBOARD_PROPOSAL");
     const spriteProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_SPRITE_PROPOSAL");
     const effectProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_EFFECT_PROPOSAL");
     const cityProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_CITY_PROPOSAL");
     const fieldProposal=m.session_job_unique===true && job.status?.status==="completed" && !job.final_response_truncated && answer.includes("HERMES_FIELD_PROPOSAL");
-    let displayAnswer=kimodoProposal ? answer.replace(/\n*HERMES_KIMODO_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_KIMODO_PROPOSAL\s*$/, "") : fluxProposal ? answer.replace(/\n*HERMES_FLUX_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_FLUX_PROPOSAL\s*$/, "") : buildingProposal ? answer.replace(/\n*HERMES_BUILDING_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_BUILDING_PROPOSAL\s*$/, "") : billboardProposal ? answer.replace(/\n*HERMES_BILLBOARD_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_BILLBOARD_PROPOSAL\s*$/, "") : spriteProposal ? answer.replace(/\n*HERMES_SPRITE_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_SPRITE_PROPOSAL\s*$/, "") : effectProposal ? answer.replace(/\n*HERMES_EFFECT_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_EFFECT_PROPOSAL\s*$/, "") : cityProposal ? answer.replace(/\n*HERMES_CITY_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_CITY_PROPOSAL\s*$/, "") : fieldProposal ? answer.replace(/\n*HERMES_FIELD_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_FIELD_PROPOSAL\s*$/, "") : answer;
+    let displayAnswer=kimodoProposal ? answer.replace(/\n*HERMES_KIMODO_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_KIMODO_PROPOSAL\s*$/, "") : fluxProposal ? answer.replace(/HERMES_(IMAGE|FLUX)_PROPOSAL\s*[\s\S]*?END_HERMES_\1_PROPOSAL/g, "") : buildingProposal ? answer.replace(/\n*HERMES_BUILDING_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_BUILDING_PROPOSAL\s*$/, "") : billboardProposal ? answer.replace(/\n*HERMES_BILLBOARD_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_BILLBOARD_PROPOSAL\s*$/, "") : spriteProposal ? answer.replace(/\n*HERMES_SPRITE_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_SPRITE_PROPOSAL\s*$/, "") : effectProposal ? answer.replace(/\n*HERMES_EFFECT_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_EFFECT_PROPOSAL\s*$/, "") : cityProposal ? answer.replace(/\n*HERMES_CITY_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_CITY_PROPOSAL\s*$/, "") : fieldProposal ? answer.replace(/\n*HERMES_FIELD_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_FIELD_PROPOSAL\s*$/, "") : answer;
     if(captureProposal)displayAnswer=displayAnswer.replace(/\n*HERMES_CAPTURE_PROPOSAL\s*\n[\s\S]*?\nEND_HERMES_CAPTURE_PROPOSAL\s*$/, "");
     if(generationProposal){const marker=generationProposal.toUpperCase();displayAnswer=displayAnswer.replace(new RegExp("\\n*HERMES_"+marker+"_PROPOSAL\\s*\\n[\\s\\S]*?\\nEND_HERMES_"+marker+"_PROPOSAL\\s*$"), "");}
     const suggestion = !activity.video_source && job.status?.status==="completed" && !job.final_response_truncated ? videoLookupSuggestion(answer,m.text) : null;
@@ -243,7 +243,7 @@ function ScheduleStepControls({step,session,onRefresh}){
 }
 function completedMessages(messages){
   return messages.filter(m=>m.job_id && m.job?.status?.status==="completed").reverse().map(m=>({
-    id:m.job_id,kind:m.report_job_id ? "검수 보고서" : "대화 요청",text:m.text
+    id:m.job_id,kind:m.report_job_id ? "검수 보고서" : "대화 요청",text:m.text,createdAt:m.created_at
   }));
 }
 
@@ -318,7 +318,7 @@ function ChatQueuePanel({session,children,openDetails,messages,linkedJob}){
   },[session]);
   const steps=[...(workflow?.steps || []),...(workflow?.direct_jobs || [])];
   const scheduleRows=state=>steps.filter(step=>state==="other" ? !["running","completed"].includes(step.source_state || step.state) : (step.source_state || step.state)===state).map(step=>({
-    step,id:step.source_job_id || step.request_id,kind:step.generator || "생성 작업",text:step.step_id || step.generator
+    step,id:step.source_job_id || step.request_id,kind:step.generator || "생성 작업",text:step.step_id || step.generator,createdAt:step.created_at
   }));
   const running=scheduleRows("running");
   const [older,setOlder]=useState([]),[historyError,setHistoryError]=useState("");
@@ -349,7 +349,7 @@ function ChatQueuePanel({session,children,openDetails,messages,linkedJob}){
   },[session,snapshot,offset,revision]);
   const completed=[...scheduleRows("completed"),...completedMessages(data?.messages || messages || []),...older];
   function records(rows){
-    return Array.from(new Map(rows.map(row=>[row.kind+row.id,row])).values()).map(row=>!row.step ? <QueueJobRecord key={row.kind+row.id} session={session} id={row.id} initialOpen={linkedJob===row.id} summary={<><strong>{row.kind}</strong> · <code>{row.id}</code></>}><p>{row.text}</p></QueueJobRecord> : <details key={row.kind+row.id} className="queue-record">
+    return Array.from(new Map(rows.map(row=>[row.kind+row.id,row])).values()).map(row=>!row.step ? <QueueJobRecord key={row.kind+row.id} data-created-at={row.createdAt} session={session} id={row.id} initialOpen={linkedJob===row.id} summary={<><strong>{row.kind}</strong> · <code>{row.id}</code></>}><p>{row.text}</p></QueueJobRecord> : <details key={row.kind+row.id} data-created-at={row.createdAt} className="queue-record">
       <summary><strong>{row.kind}</strong> · <code>{row.id}</code></summary><p>{row.text}</p>{row.step ? <><p>{sessionQueueStateLabel(statusLabels,row.step.source_state || row.step.state)}</p><ScheduleStepControls step={row.step} session={session} onRefresh={()=>refresh(n=>n+1)}/></> : <a href={jobLink(row.id,session)}>작업 상세 보기</a>}
     </details>);
   }

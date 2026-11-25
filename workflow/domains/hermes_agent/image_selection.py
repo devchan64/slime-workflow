@@ -3,8 +3,9 @@ import re
 
 
 def select_image_proposal(proposal, request):
+    from workflow.domains.hermes_agent.delegation_proposal import validate_image_proposal_for_service
     if request.get('image_selection_version') != 1:
-        return proposal
+        return validate_image_proposal_for_service(proposal)
     preferred = request.get('minimax_preferred')
     explicit = proposal.get('explicit_service')
     if type(preferred) is not bool or type(explicit) is not bool:
@@ -30,4 +31,4 @@ def select_image_proposal(proposal, request):
         result['selection_reason'] = '사용자가 FLUX를 지정했습니다.'
     else:
         result['selection_reason'] = '요청 형식에 맞는 기존 생성기를 선택했습니다.'
-    return result
+    return validate_image_proposal_for_service(result)

@@ -20,4 +20,4 @@ class TaskGuidanceTests(unittest.TestCase):
             self.assertIn('generation-request/SKILL.md', guidance)
             self.assertNotIn('generator-development', guidance)
             self.assertNotIn('[음악·효과음 위임 제안]', query)
-            self.assertIn('HERMES_FLUX_PROPOSAL', (directory / 'task-guides/flux.txt').read_text())
+            self.assertIn('HERMES_IMAGE_PROPOSAL', (directory / 'task-guides/flux.txt').read_text())

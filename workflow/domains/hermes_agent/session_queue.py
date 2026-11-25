@@ -78,7 +78,7 @@ def append_session_video_jobs(result, payload, session_root=None):
 
 def append_session_flux_proposals(result, payload, job_reader, session_root=None):
     """세션 메시지에 속한 유효 FLUX 제안의 접수만 현재 원본과 함께 표시한다."""
-    from .delegation_proposal import parse_hermes_flux_proposal
+    from .delegation_proposal import parse_hermes_image_proposal
     from .flux_profile_operations import read_hermes_flux_source_job
     from .gpu_handoff_store import GpuHandoffStore
     session_id = payload['session_id']
@@ -120,10 +120,11 @@ def append_session_flux_proposals(result, payload, job_reader, session_root=None
         if record.get('final_response_truncated') or not isinstance(answer, str):
             unreadable += 1
             continue
-        if 'HERMES_FLUX_PROPOSAL' not in answer:
+        if not any(marker in answer for marker in ('HERMES_IMAGE_PROPOSAL', 'HERMES_FLUX_PROPOSAL')):
             continue
         try:
-            proposal = parse_hermes_flux_proposal(answer)
+            from .image_selection import select_image_proposal
+            proposal = select_image_proposal(parse_hermes_image_proposal(answer), record.get('request') or {})
             service = proposal.get('service', 'flux-image')
             encoded = json.dumps([session_id, proposal_job, service], ensure_ascii=False, separators=(',', ':')).encode('utf-8')
             request_id = 'flux_' + hashlib.sha256(encoded).hexdigest()

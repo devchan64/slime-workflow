@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 import re
 
-from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_flux_proposal, parse_hermes_video_proposal
+from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_image_proposal, parse_hermes_video_proposal
 from workflow.domains.hermes_agent.image_selection import select_image_proposal
 from workflow.domains.hermes_agent.video_selection import select_video_proposal
 
@@ -32,8 +32,8 @@ def advance_form_marker(path, dispatch):
     # Other tools and incomplete/ambiguous proposals do not create instances.
     service = None
     try:
-        if 'HERMES_FLUX_PROPOSAL' in answer:
-            value = select_image_proposal(parse_hermes_flux_proposal(answer), request)
+        if any(marker in answer for marker in ('HERMES_IMAGE_PROPOSAL', 'HERMES_FLUX_PROPOSAL')):
+            value = select_image_proposal(parse_hermes_image_proposal(answer), request)
             if value.get('service') == 'minimax-h3-image': service = value['service']
         elif 'HERMES_VIDEO_PROPOSAL' in answer:
             value = select_video_proposal(parse_hermes_video_proposal(answer), request)

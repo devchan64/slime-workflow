@@ -13,6 +13,13 @@ export function validSnapshot(value,session){
     (row.kind!=="task" || typeof row.service==="string"));
 }
 
+function creationTime(item){
+  const match=String(item.props.id || item.key || "").match(/(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})/);
+  if(match)return new Date(+match[1],+match[2]-1,+match[3],+match[4],+match[5],+match[6]).getTime();
+  const explicit=Date.parse(item.props["data-created-at"] || "");
+  return Number.isFinite(explicit) ? explicit : 0;
+}
+
 export default function UnifiedQueueOverview(props){
   return <QueueForSession key={props.session} {...props}/>;
 }
@@ -56,16 +63,16 @@ function QueueForSession({session,call,linkedRow,running=[],completed=[],ready,f
   });
   for(const item of localQueue){
     if(rows.some(row=>row.kind==="chat" && row.own_session && row.id===item.request_id))continue;
-    pending.push(<details key={item.request_id}><summary>이 대화 요청 · {item.request_id}</summary>{editRequest(item)}</details>);
+    pending.push(<details key={item.request_id} data-created-at={item.created_at}><summary>이 대화 요청 · {item.request_id}</summary>{editRequest(item)}</details>);
   }
   const groups=[["running","진행 중",running],["pending","다음 후보",[...extraPending,...pending]],["completed","완료",completed],...(other.length ? [["other","기타 상태",other]] : [])];
   const entries=groups.filter(([key])=>filter==="all" || filter===key)
     .flatMap(([key,label,items])=>items.map(item=>({key:key+":"+item.key,label,item})));
   if(linkedRow && filter==="all"){
     const index=entries.findIndex(({item})=>item.props.id===linkedRow.props.id);
-    if(index>=0)entries.unshift(...entries.splice(index,1));
-    else entries.unshift({key:linkedRow.key,label:"연결된 작업",item:linkedRow});
+    if(index<0)entries.push({key:linkedRow.key,label:"연결된 작업",item:linkedRow});
   }
+  entries.sort((a,b)=>creationTime(b.item)-creationTime(a.item));
   const failedSources=[...failures,["공용 대기열",error,Boolean(current)]].filter(([,reason])=>reason);
   const currentPage=Math.min(page,Math.max(0,Math.ceil(entries.length/size)-1));
   return <section className="panel unified-queue-overview" aria-label="작업 일정 목록">

@@ -39,17 +39,19 @@ HERMES_FLUX_PROPOSAL_START = 'HERMES_FLUX_PROPOSAL'
 HERMES_FLUX_PROPOSAL_END = 'END_HERMES_FLUX_PROPOSAL'
 
 
-def parse_hermes_flux_proposal(current_answer_text):
-    """미신뢰 답변의 텍스트 이미지 제안만 기존 FLUX 검증기로 확인한다."""
-    from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
+def parse_hermes_image_proposal(current_answer_text):
+    """생성기 선택 전 공통 형식과 안전한 입력 범위를 확인한다."""
     from workflow.common.management_gateway import parse_management_request_json
     if not isinstance(current_answer_text, str) or len(current_answer_text) > 8000:
         raise ValueError('최종 답변을 확인할 수 없습니다.')
-    if current_answer_text.count(HERMES_FLUX_PROPOSAL_START) != 2 or current_answer_text.count(HERMES_FLUX_PROPOSAL_END) != 1:
-        raise ValueError('FLUX 제안 블록이 하나 필요합니다.')
-    current_block_match = re.search(r'(?m)^HERMES_FLUX_PROPOSAL\s*\n([\s\S]*?)\nEND_HERMES_FLUX_PROPOSAL\s*$', current_answer_text)
-    if current_block_match is None or len(current_block_match.group(1)) > 4000:
-        raise ValueError('FLUX 제안 형식 또는 크기 오류')
+    markers = ('HERMES_IMAGE_PROPOSAL', HERMES_FLUX_PROPOSAL_START)
+    present = [marker for marker in markers if marker in current_answer_text]
+    if len(present) != 1 or current_answer_text.count(present[0]) != 2 or current_answer_text.count('END_'+present[0]) != 1:
+        raise ValueError('이미지 제안 블록이 하나 필요합니다.')
+    marker = present[0]
+    current_block_match = re.search(r'(?m)^'+marker+r'\s*\n([\s\S]*?)\nEND_'+marker+r'\s*$', current_answer_text)
+    if current_block_match is None or len(current_block_match.group(1)) > 7800:
+        raise ValueError('이미지 제안 형식 또는 크기 오류')
     current_proposal_record = parse_management_request_json(current_block_match.group(1))
     if not isinstance(current_proposal_record, dict) or set(current_proposal_record) - {'service','prompt','width','height','seed','explicit_service'} or not {'prompt','width','height','seed'} <= set(current_proposal_record):
         raise ValueError('이미지 제안 형식 오류')
@@ -59,7 +61,27 @@ def parse_hermes_flux_proposal(current_answer_text):
     from workflow.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
     if not isinstance(current_service_name,str) or current_service_name not in (*FLUX_IMAGE_PROFILE_RECORDS,'flux-expression'):
         raise ValueError('지원하는 FLUX 이미지 프로필이 아닙니다.')
-    current_generation_record = {key:value for key,value in current_proposal_record.items() if key not in ('service','explicit_service')}
+    prompt = current_proposal_record['prompt']
+    if not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 8000:
+        raise ValueError('이미지 프롬프트 형식 오류')
+    if any(type(current_proposal_record[key]) is not int or not 256 <= current_proposal_record[key] <= 2048 or current_proposal_record[key] % 16 for key in ('width','height')):
+        raise ValueError('이미지 크기 형식 오류')
+    if type(current_proposal_record['seed']) is not int or not 0 <= current_proposal_record['seed'] <= 4294967295:
+        raise ValueError('이미지 시드 형식 오류')
+    return current_proposal_record
+
+
+def validate_image_proposal_for_service(proposal):
+    """선택된 생성기의 실제 입력 규칙으로 제안을 검증한다."""
+    current_service_name = proposal.get('service', 'flux-image')
+    current_generation_record = {key:value for key,value in proposal.items() if key in ('prompt','width','height','seed')}
+    if current_service_name == 'minimax-h3-image':
+        from workflow.domains.minimax_h3_image.generation import MiniMaxH3ImageManager
+        current_generation_record.update(action='generate', images=[], steps=6)
+        MiniMaxH3ImageManager().validate_generation_request(current_generation_record)
+        return proposal
+    from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
+    from workflow.domains.image.flux_profiles import FLUX_IMAGE_PROFILE_RECORDS
     current_placeholder_images=[]
     if current_service_name=='flux-expression' or FLUX_IMAGE_PROFILE_RECORDS[current_service_name][4]:
         import base64
@@ -75,8 +97,12 @@ def parse_hermes_flux_proposal(current_answer_text):
         FluxExpressionGenerationManager().validate_generation_request(current_generation_record)
     else:
         FluxImageGenerationManager(current_service_name).validate_generation_request(current_generation_record)
-    return current_proposal_record
+    return proposal
 
+
+def parse_hermes_flux_proposal(answer):
+    """기존 FLUX 전용 호출자의 검증 계약을 유지한다."""
+    return validate_image_proposal_for_service(parse_hermes_image_proposal(answer))
 
 HERMES_FIELD_PROPOSAL_START = 'HERMES_FIELD_PROPOSAL'
 HERMES_FIELD_PROPOSAL_END = 'END_HERMES_FIELD_PROPOSAL'

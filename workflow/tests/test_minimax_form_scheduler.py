@@ -88,7 +88,7 @@ class MiniMaxFormSchedulerTests(unittest.TestCase):
             self.assertEqual(advance_form_marker(path, dispatch), 'waiting')
             self.assertTrue(path.exists())
             detail.update(status={'status':'completed'}, final_response='HERMES_FLUX_PROPOSAL', final_response_truncated=False)
-            with patch('workflow.domains.hermes_agent.minimax_form_scheduler.parse_hermes_flux_proposal', return_value={}), \
+            with patch('workflow.domains.hermes_agent.minimax_form_scheduler.parse_hermes_image_proposal', return_value={}), \
                  patch('workflow.domains.hermes_agent.minimax_form_scheduler.select_image_proposal', return_value={'service':'minimax-h3-image'}):
                 with self.assertRaises(OSError): advance_form_marker(path, dispatch)
                 self.assertTrue(path.exists())

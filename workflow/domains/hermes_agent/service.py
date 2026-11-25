@@ -1610,14 +1610,15 @@ class HermesServiceManager:
                     validate_origin(origin, hermes_payload_record['service'])
                     if 'proposal_job_id' in origin:
                         from .session_store import HermesSessionStore
-                        from .delegation_proposal import parse_hermes_flux_proposal
+                        from .delegation_proposal import parse_hermes_image_proposal
+                        from .image_selection import select_image_proposal
                         sessions = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
                         session = sessions.read_session_record(origin['session_id'])
                         if sum(m.get('job_id') == origin['proposal_job_id'] for m in session['messages']) != 1:
                             raise ValueError('대화의 FLUX 제안 작업을 확인할 수 없습니다.')
                         proposal_job = self.read_context_job(origin['proposal_job_id'])
                         if (proposal_job['status']['status'] != 'completed' or proposal_job.get('final_response_truncated')
-                                or parse_hermes_flux_proposal(proposal_job['final_response']).get('service','flux-image') != hermes_payload_record['service']):
+                                or select_image_proposal(parse_hermes_image_proposal(proposal_job['final_response']), proposal_job['request']).get('service','flux-image') != hermes_payload_record['service']):
                             raise ValueError('완료된 FLUX 제안과 서비스가 일치하지 않습니다.')
                     return submit_hermes_flux_profile(hermes_payload_record['request_id'],hermes_payload_record['service'],hermes_payload_record['request'],origin=origin)
                 if set(hermes_payload_record)!=base_fields:
@@ -1913,9 +1914,9 @@ class HermesServiceManager:
                     raise ValueError('완료된 Hermes 작업에서만 제안을 확인할 수 있습니다.')
                 if current_job_record.get('final_response_truncated'):
                     raise ValueError('최종 답변이 잘려 제안을 확인할 수 없습니다.')
-                from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_flux_proposal
+                from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_image_proposal
                 from workflow.domains.hermes_agent.image_selection import select_image_proposal
-                proposal = parse_hermes_flux_proposal(current_job_record.get('final_response'))
+                proposal = parse_hermes_image_proposal(current_job_record.get('final_response'))
                 return {'job_id':hermes_payload_record['id'], 'proposal':select_image_proposal(proposal, current_job_record['request'])}
             if hermes_command_name == 'hermes-kimodo-proposal':
                 if set(hermes_payload_record) != {'id'}:
