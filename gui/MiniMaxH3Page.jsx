@@ -20,7 +20,7 @@ import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import ReviewPrompt from "./ReviewPrompt.jsx";
 import ActionButton from "./ActionButton.jsx";
-import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionNavigation,{openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
 import SeedInput from "./SeedInput.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
 import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
@@ -112,7 +112,7 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
     <p role="status">헤르메스 MiniMax 우선 정책: {policy===null ? "조회 중" : policy===true ? "적용 중" : policy===false ? "적용 안 함" : policy==="timeout" ? "조회 시간 초과 · 새로고침하여 다시 확인하세요" : "게이트웨이 상태 확인 불가 · 새로고침하여 다시 확인하세요"}</p>
     <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={setJob}/>
+    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     <GeneratorSectionCard title="생성 입력" summary="첫 이미지와 동작 지시" defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
       <ReferenceImageInput label="첫 프레임 이미지" source={file} onSelectionStart={()=>imageVersion.current++} onCheckingChange={setChecking} onChange={setFile} disabled={busy || !!pending}/>

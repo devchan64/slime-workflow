@@ -20,7 +20,7 @@ import HistoryCleanup from "./HistoryCleanup.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
-import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionNavigation,{openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import GeneratorUsage from "./GeneratorUsage.jsx";
 import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
@@ -229,7 +229,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <ModelReadiness session={session} service={modelService} onStatus={setModel} onError={setModelError}/>
       {embedded && (model?.generation_ready ?? model?.ready) && !["queued","running","failed","cancelled","unknown"].includes(model?.preparation_status) ? <details><summary>모델 다운로드 이력</summary><DownloadProgress service={modelService}/></details> : <DownloadProgress service={modelService}/>}
     </GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={openResult}/>
+    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     {error && <p role="alert">{error}</p>}
     {templateError && <p role="alert">{templateError}</p>}
     {!template && !templateError && <p role="status">생성 입력을 불러오는 중입니다.</p>}

@@ -18,6 +18,7 @@ import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 import {fluxProposalRequestId,classifyFluxProposalReceipt,verifyFluxProposal} from "./fluxProposalReceipt.mjs";
 import {fluxModelReady} from "./fluxModelReady.mjs";
 import {validateGpuHandoffStatus} from "./validateGpuHandoffStatus.mjs";
@@ -60,7 +61,7 @@ export default function FluxImagePage(props={}){
 }
 
 function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=null,receiptScope=null,session:embeddedSession=""}={}){
-  const referenceOrderHelpId=useId(),guidePageHelpId=useId(),numericErrorId=useId(),inputLockId=useId(),historyLockId=useId(),translationHelpId=useId();
+  const referenceOrderHelpId=useId(),guidePageHelpId=useId(),numericErrorId=useId(),fixedSizeHelpId=useId(),inputLockId=useId(),historyLockId=useId(),translationHelpId=useId();
   const service=serviceOverride || location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
   const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
   const [profileError,setProfileError]=useState("");
@@ -235,7 +236,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
       setFiles(current=>[file,...current.slice(1)]);
       if(profile.rolePrompt)setForm(current=>({...current,prompt:addFluxRolePrompt(current.prompt,profile.rolePrompt)}));
       setGuideNotice("선택한 가이드를 참조 이미지 1에 적용했습니다.");
-    }catch(error){if(guideRequest.current===controller){setGuideError(true);setGuideNotice("참조 가이드를 적용하지 못했습니다. · "+(timedOut ? "조회 시간이 초과됐습니다. 다시 시도하세요." : error?.message || "다시 시도하세요."));}}
+    }catch(error){if(guideRequest.current===controller){setGuideError(true);setGuideNotice("참조 가이드를 적용하지 못했습니다. · "+(timedOut ? "조회 시간이 초과됐습니다. 다시 시도하세요." : error instanceof TypeError ? requestErrorMessage(error) : error?.message || "다시 시도하세요."));}}
     finally{clearTimeout(timeout);if(guideRequest.current===controller){guideRequest.current=null;setBusy(false);}}
   }
   async function runInputTool(load){
@@ -250,7 +251,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
       if(guideRequest.current!==controller)return;
       if(imageSelectionRevision.current!==version)throw new Error("조회 중 참조 이미지가 변경되었습니다. 다시 시도하세요.");
       apply();setToolNotice("참조 입력을 적용했습니다.");
-    }catch(error){if(guideRequest.current===controller){setToolError(true);setToolNotice(timedOut ? "참조 입력 조회 시간이 초과됐습니다. 다시 시도하세요." : error?.message || "참조 입력을 불러오지 못했습니다. 다시 시도하세요.");}}
+    }catch(error){if(guideRequest.current===controller){setToolError(true);setToolNotice(timedOut ? "참조 입력 조회 시간이 초과됐습니다. 다시 시도하세요." : error instanceof TypeError ? requestErrorMessage(error) : error?.message || "참조 입력을 불러오지 못했습니다. 다시 시도하세요.");}}
     finally{clearTimeout(timeout);if(guideRequest.current===controller){guideRequest.current=null;setToolLoading(false);setBusy(false);}}
   }
   function defaultFace(){return runInputTool(async signal=>{
@@ -379,7 +380,8 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
           accept="image/png" maxBytes={3000000} source={files[index]} disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing") || (index>0 && !files[0])} describedBy={index===1 && !files[0] ? referenceOrderHelpId : undefined} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);setImagesChecking(checkingSlots.current.size>0);}}
           onChange={file=>{setGuideNotice("");setFiles(current=>{const next=[...current];if(file)next[index]=file;else next.splice(index,1);return next;});}}/>)}
       </div>{!profile?.expressions && !files[0] && <p id={referenceOrderHelpId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>}
-      {[["width","너비"],["height","높이"]].map(([key,label])=><div className="flux-number-field" key={key}><label>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" aria-invalid={Boolean(numericIssues[key]) || undefined} aria-describedby={numericIssues[key] ? `${numericErrorId}-${key}` : undefined} value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>{numericIssues[key] && <small id={`${numericErrorId}-${key}`}>{numericIssues[key]}</small>}</div>)}
+      {seamless && <p id={fixedSizeHelpId}>심리스 타일은 512×512 고정 크기로 생성합니다.</p>}
+      {[["width","너비"],["height","높이"]].map(([key,label])=><div className="flux-number-field" key={key}><label>{label} <input type="number" readOnly={seamless} required min="256" max={service==="flux-character"?2048:1664} step="16" aria-invalid={Boolean(numericIssues[key]) || undefined} aria-describedby={[seamless && fixedSizeHelpId,numericIssues[key] && `${numericErrorId}-${key}`].filter(Boolean).join(" ") || undefined} value={form[key]} onChange={e=>edit(key,e.target.value)}/></label>{numericIssues[key] && <small id={`${numericErrorId}-${key}`}>{numericIssues[key]}</small>}</div>)}
       {service==="flux-character" ? <div className="flux-number-field"><label>생성 스텝 <input type="number" required min="1" max="50" aria-invalid={Boolean(numericIssues.steps) || undefined} aria-describedby={numericIssues.steps ? `${numericErrorId}-steps` : undefined} value={form.steps} onChange={e=>edit("steps",e.target.value)}/></label>{numericIssues.steps && <small id={`${numericErrorId}-steps`}>{numericIssues.steps}</small>}</div> : <p>생성 스텝: 16</p>}
       <p>FLUX.3 Image Klein Distilled의 <a href="https://huggingface.co/black-forest-labs/flux-3-image-klein" target="_blank" rel="noreferrer">모델 카드</a> 권장값은 16스텝입니다.</p>
       <p>모델 카드는 구체적인 장면 설명을 권장합니다. 필요한 피사체, 구도, 배경과 조명을 프롬프트에 적어 주세요. 자동 프롬프트 확장은 사용하지 않습니다.</p>

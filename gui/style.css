@@ -161,7 +161,7 @@ article {position:relative;}
 .translation-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}
 .translation-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.translation-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.translation-request-review p {margin:.4rem 0}.translation-request-review ul {padding-left:1.3rem}.translation-request-review :is(p,li) {overflow-wrap:anywhere}.translation-review-text {white-space:pre-wrap}
 .fun-request-review {margin:1rem 0;padding:1rem;border:1px solid var(--line,#484d50);border-radius:.7rem;background:var(--surface,#202326);overflow-wrap:anywhere}.fun-request-review h2 {font-size:1.1rem;margin:0 0 .7rem}.fun-request-review h3 {font-size:.9rem;margin:.9rem 0 .3rem}.fun-request-review p {margin:.4rem 0;line-height:1.5}.fun-review-prompt {white-space:pre-wrap}
-.fun-request-review:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
+.fun-request-review:focus,.kimodo-request-review:focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .review-prompt {min-width:0;max-width:100%;overflow-wrap:anywhere}.review-prompt .fun-review-prompt {white-space:pre-wrap;overflow-wrap:anywhere}
 .generation-review-text {max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
 pre.generation-review-text {max-height:20rem;overflow:auto}

@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {validVideoJobId} from '../../gui/videoJobId.mjs';
+import {restoreLostFocus,visibleFocusTarget} from '../../gui/restoreLostFocus.mjs';
 
 test('영상 편집 검토는 중복 읽기를 막고 시간 초과 후 다시 시도한다',async()=>{
  const source=readFileSync(new URL('../../gui/MiniMaxH3Ref2VAPage.jsx',import.meta.url),'utf8');
@@ -21,7 +22,7 @@ test('영상 편집 검토 취소는 검토에서 사라진 초점만 복구한�
  const start=source.indexOf('  function cancelReview()'),end=source.indexOf('  async function readSavedInput(',start);
  for(const moved of [false,true]){
   const body={},inside={},other={},document={body,activeElement:inside};let frame,focused=0;
-  const context=vm.createContext({document,reviewRef:{current:{contains:value=>value===inside}},formRef:{current:{focus:()=>focused++}},setPending:()=>{},requestAnimationFrame:fn=>frame=fn});
+  const context=vm.createContext({document,restoreLostFocus,visibleFocusTarget,reviewRef:{current:{contains:value=>value===inside}},formRef:{current:{isConnected:true,focus:()=>focused++}},setPending:()=>{},requestAnimationFrame:fn=>frame=fn});
   vm.runInContext(source.slice(start,end),context);context.cancelReview();document.activeElement=moved?other:body;frame();assert.equal(focused,moved?0:1);
  }
 });

@@ -53,7 +53,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   interactionRef.current={busy,review};
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
   const [activeError,setActiveError]=useState(""),[activeNotice,setActiveNotice]=useState(""),[activeId,setActiveId]=useState(""),[activeRevision,retryActive]=useState(0),[activeLoading,setActiveLoading]=useState(false);
-  const activePending=useRef(false),activeRetryRef=useRef(null),activeRetryFocus=useRef(false),activeOpenFocus=useRef(false),activeErrorRef=useRef(null);
+  const activePending=useRef(false),activeRetryRef=useRef(null),activeRetryFocus=useRef(false),activeErrorRef=useRef(null);
   const [historyRevision,setHistoryRevision]=useState(0);
   const handoff=useGpuHandoff(session,service,setJob,setNotice);
   const submitting=useRef(false),confirmation=useRef(null);
@@ -118,7 +118,6 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[activeRevision]);
   useEffect(()=>{if(activeLoading || !activeRetryFocus.current)return;activeRetryFocus.current=false;if(document.activeElement===document.body)restoreLostFocus(document,(activeError ? activeRetryRef : activeErrorRef).current);},[activeLoading,activeError]);
-  useEffect(()=>{if(!activeOpenFocus.current)return;activeOpenFocus.current=false;restoreLostFocus(document,activeErrorRef.current);},[job]);
   useEffect(()=>{
     const controller=new AbortController();
     let active=true,timedOut=false;
@@ -210,7 +209,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
       </details>
     </GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRegion,id,setJob)}>
-      <AudioActiveStatus statusRef={activeErrorRef} retryRef={activeRetryRef} loading={activeLoading} notice={activeNotice} error={activeError} activeId={activeId} job={job} onOpen={event=>{activeOpenFocus.current=document.activeElement===event.currentTarget;setJob(activeId);}} onRetry={()=>{if(activePending.current)return;activePending.current=true;activeRetryFocus.current=document.activeElement===activeRetryRef.current;setActiveLoading(true);setActiveError("");retryActive(value=>value+1);}}/>
+      <AudioActiveStatus statusRef={activeErrorRef} retryRef={activeRetryRef} loading={activeLoading} notice={activeNotice} error={activeError} activeId={activeId} job={job} onOpen={()=>openGeneratorHistory(historyRegion,activeId,setJob)} onRetry={()=>{if(activePending.current)return;activePending.current=true;activeRetryFocus.current=document.activeElement===activeRetryRef.current;setActiveLoading(true);setActiveError("");retryActive(value=>value+1);}}/>
     </ActiveGeneratorProgress>
     <GeneratorSectionNavigation inputRef={inputRegion} historyRef={historyRegion} resultRef={resultRegion} inputReady={Boolean(form)} resultReady={Boolean(job)} openOnNavigate/>
     {!form && (inputError ? <div><p role="alert">{inputError}</p><button ref={inputRetryRef} type="button" onClick={()=>{if(inputPending.current)return;inputPending.current=true;inputRetryFocus.current=document.activeElement===inputRetryRef.current;setInputError("");retryInput(value=>value+1);}}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}

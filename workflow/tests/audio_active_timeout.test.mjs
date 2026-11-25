@@ -56,12 +56,14 @@ test('오디오 진행 작업의 손상된 ID는 유휴 또는 정상 결과로 
  }
 });
 
-test('오디오 진행 결과 열기 후 사라진 초점만 상태 영역으로 복구한다',()=>{
+test('오디오 진행 결과 보기는 이력을 열고 제목에 초점을 둔다',()=>{
  const source=readFileSync(new URL('../../gui/SoundEffectPage.jsx',import.meta.url),'utf8');
- const effect=source.match(/useEffect\(\(\)=>\{if\(!activeOpenFocus\.current\).*?\},\[job\]\);/s)?.[0];assert.ok(effect);
- for(const moved of [false,true]){
-  let run,focused=0;const body={},other={},document={body,activeElement:moved?other:body};
-  const context=vm.createContext({document,restoreLostFocus,job:'id',activeOpenFocus:{current:true},activeErrorRef:{current:{isConnected:true,focus:()=>focused++}},useEffect:fn=>run=fn});
-  vm.runInContext(effect,context);run();assert.equal(focused,moved?0:1);assert.equal(context.activeOpenFocus.current,false);
- }
+ const navigation=readFileSync(new URL('../../gui/GeneratorSectionNavigation.jsx',import.meta.url),'utf8');
+ const helper=navigation.slice(navigation.indexOf('export function focusGeneratorRegion'),navigation.indexOf('/** 현재 페이지의 작업 흐름')) .replaceAll('export function','function');
+ const callback=source.match(/<AudioActiveStatus[^\n]*?onOpen=\{\(\)=>([^}]+)\}/)?.[1];assert.ok(callback);
+ let selected='',focused=0,scrolled=0;const summary={isConnected:true,matches:()=>true,setAttribute:()=>{},scrollIntoView:()=>scrolled++,focus:()=>focused++};
+ const card={open:false,querySelector:selector=>selector==='summary'?summary:null};
+ const context=vm.createContext({historyRegion:{current:{querySelector:()=>card}},activeId:'existing-job',setJob:id=>selected=id});
+ vm.runInContext(helper+'\n'+callback,context);
+ assert.equal(selected,'existing-job');assert.equal(card.open,true);assert.equal(focused,1);assert.equal(scrolled,1);
 });

@@ -313,7 +313,7 @@ function ChatQueuePanel({session,children,openDetails,messages,linkedJob}){
     try{const response=await callUntilAborted("cancel",{id:job},controller.signal);if(controller.signal.aborted || response.id!==job || response.cancel_requested!==true)throw new Error("중단 요청 접수를 확인할 수 없습니다.");setStopNotices(previous=>({...previous,[job]:"중단을 요청했습니다. 작업 종료 여부를 확인 중입니다."}));}
     catch{if(panelMounted.current)setStopNotices(previous=>({...previous,[job]:"중단 요청 결과를 확인하지 못했습니다. 작업 상세에서 종료 여부를 확인하세요."}));}finally{clearTimeout(timer);stopControllers.current.delete(job);if(panelMounted.current){setStopJobs(previous=>{const next=new Set(previous);next.delete(job);return next;});refresh(n=>n+1);}}
   }
-  useEffect(()=>{let active=true,timer,timeout,controller;async function load(){controller=new AbortController();timeout=setTimeout(()=>controller.abort(),15000);try{const next=await callUntilAborted("session-view",{session_id:session,limit:1},controller.signal);if(!validChatQueue(next,session) || !validChatActive(next.chat_active) || !validLiveInstructionRows(next.live_instructions))throw new Error("대기열 응답 오류");if(active && !controller.signal.aborted){setData({...next,checkedAt:new Date()});setError("");}}catch(problem){if(active)setError(problem.message || "대기열 조회 오류");}finally{clearTimeout(timeout);if(active)timer=setTimeout(load,3000);}}load();return()=>{active=false;clearTimeout(timer);clearTimeout(timeout);controller?.abort();};},[session,revision]);
+  useEffect(()=>{let active=true,timer,timeout,controller;async function load(){controller=new AbortController();timeout=setTimeout(()=>controller.abort(),15000);try{const next=await callUntilAborted("session-view",{session_id:session,limit:1},controller.signal);if(!validChatQueue(next,session) || !validChatActive(next.chat_active) || !validLiveInstructionRows(next.live_instructions))throw new Error("대기열 응답 오류");if(active && !controller.signal.aborted){setData({...next,checkedAt:new Date()});setError("");}}catch(problem){if(active)setError(controller.signal.aborted ? "조회 시간이 초과됐습니다." : requestErrorMessage(problem));}finally{clearTimeout(timeout);if(active)timer=setTimeout(load,3000);}}load();return()=>{active=false;clearTimeout(timer);clearTimeout(timeout);controller?.abort();};},[session,revision]);
   const [workflow,setWorkflow]=useState(null),[workflowError,setWorkflowError]=useState("");
   useEffect(()=>{
     let active=true,timer,controller;
@@ -328,7 +328,7 @@ function ChatQueuePanel({session,children,openDetails,messages,linkedJob}){
       finally{clearTimeout(timeout);if(active)timer=setTimeout(load,10000);}
     }
     load();return ()=>{active=false;clearTimeout(timer);controller?.abort();};
-  },[session]);
+  },[session,revision]);
   const steps=[...(workflow?.steps || []),...(workflow?.direct_jobs || [])];
   const scheduleRows=state=>steps.filter(step=>state==="other" ? !["running","completed"].includes(step.source_state || step.state) : (step.source_state || step.state)===state).map(step=>({
     step,id:step.source_job_id || step.request_id,kind:step.generator || "생성 작업",text:step.step_id || step.generator,createdAt:step.created_at

@@ -1,8 +1,9 @@
-import React,{useEffect,useState} from "react";
+import React,{useEffect,useId,useState} from "react";
 import QueuePagination from "./QueuePagination.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {untilAborted} from "./managementCommand.js";
 import StatusTag from "./StatusTag.jsx";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export function validSnapshot(value,session){
   return value?.session_id===session && Array.isArray(value.entries) && typeof value.note==="string" && value.entries.every(row=>
@@ -26,6 +27,7 @@ export default function UnifiedQueueOverview(props){
 }
 
 function QueueForSession({session,call,linkedRow,running=[],completed=[],ready,failures=[],refreshRef,onRefresh,editRequest,localQueue=[],extraPending=[],other=[]}){
+  const refreshStatusId=useId();
   const [page,setPage]=useState(0),[size,setSize]=useState(5);
   const [snapshot,setSnapshot]=useState(null),[error,setError]=useState(""),[filter,setFilter]=useState("all"),[revision,refresh]=useState(0);
   const [checkedAt,setCheckedAt]=useState(null),[checking,setChecking]=useState(true);
@@ -40,7 +42,7 @@ function QueueForSession({session,call,linkedRow,running=[],completed=[],ready,f
         const value=await untilAborted(call("unified-queue-observe",{session_id:session},{signal:controller.signal}),controller.signal);
         if(!validSnapshot(value,session))throw new Error("공용 대기열 응답 형식 오류");
         if(active){setSnapshot(value);setCheckedAt(new Date());setError("");}
-      }catch(problem){if(active)setError(timedOut ? "조회 시간이 초과됐습니다." : problem.message || "공용 대기열을 조회하지 못했습니다.");}
+      }catch(problem){if(active)setError(timedOut ? "조회 시간이 초과됐습니다." : requestErrorMessage(problem));}
       finally{clearTimeout(deadline);if(active){setChecking(false);timer=setTimeout(load,5000);}}
     }
     load();
@@ -84,14 +86,14 @@ function QueueForSession({session,call,linkedRow,running=[],completed=[],ready,f
         {groups.map(([key,label])=><option key={key} value={key}>{label}</option>)}
       </select>
     </label>
-      <button ref={refreshRef} type="button" disabled={checking || !session} aria-disabled={checking || !session} onClick={()=>{refresh(n=>n+1);onRefresh();}}>새로고침</button>
+      <button ref={refreshRef} type="button" aria-disabled={checking || !session} aria-describedby={checking || !session ? refreshStatusId : undefined} onClick={()=>{if(checking || !session)return;refresh(n=>n+1);onRefresh();}}>새로고침</button>
     </div>
+    {(checking || !session) && <p id={refreshStatusId} role="status">{checking ? "작업 일정을 조회하고 있습니다." : "대화를 선택하면 작업 일정을 조회할 수 있습니다."}</p>}
     {failedSources.length>0 && <details className="schedule-query-error">
       <summary><span role="status">조회 실패 · {failedSources.map(([label])=>label).join(", ")}</span></summary>
       <ul>{failedSources.map(([label,reason,stale])=><li key={label}><strong>{label}</strong> · {reason} {stale && "마지막 조회 결과를 표시합니다."}</li>)}</ul>
       <p>자동으로 다시 조회합니다. 실패가 계속되면 연결 상태를 확인하세요.</p>
     </details>}
-    {!current && checking && <p role="status">공용 대기열 조회 중…</p>}
     {ready && !error && current && !entries.length && <p>표시할 작업이 없습니다.</p>}
     {entries.length>0 && <table className="queue-table">
       <thead><tr><th scope="col">상태</th><th scope="col">작업</th></tr></thead>

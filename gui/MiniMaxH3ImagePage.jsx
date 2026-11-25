@@ -11,7 +11,7 @@ import PromptWordCount from "./PromptWordCount.jsx";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import ActionButton from "./ActionButton.jsx";
-import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionNavigation,{openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
@@ -95,7 +95,7 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
     {proposalScope && !reportReceipt && <MinimaxReportStatus receipt={receipt}/>}
     <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : model.generation_ready ? "준비 완료" : "준비 필요"}><ModelReadiness service={service} onStatus={updateModel} onError={setModelError}/></GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={revision} onOpenResult={setJob}/>
+    <ActiveGeneratorProgress service={service} revision={revision} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     {error && <p role="alert">{error}</p>}
     <GeneratorSectionCard title="생성 입력" summary="프롬프트와 시드" defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
       <label>프롬프트<textarea ref={promptRef} required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>

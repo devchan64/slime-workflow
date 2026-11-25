@@ -1,5 +1,6 @@
 import React,{useEffect,useId,useRef,useState} from "react";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
+import usePageTitle from "./usePageTitle.js";
 import GeneratorHistory from "./GeneratorHistory.jsx";
 import MediaJobResult from "./MediaJobResult.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
@@ -26,7 +27,7 @@ function ArchiveDetail({service,id}){
       if(!result || typeof result!=="object" || typeof result.log!=="string")throw new Error("작업 로그 응답 형식을 확인할 수 없습니다.");
       if(request.current===controller)setLog(result.log || "기록된 로그가 없습니다.");
     }catch(problem){
-      if(request.current===controller)setError(timedOut ? "로그 조회 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));
+      if(request.current===controller)setError(timedOut ? "로그 조회 시간이 초과됐습니다. 다시 시도하세요." : /(?:no such file or directory|enoent)/i.test(problem?.message || "") ? "보관된 작업의 실행 로그를 찾을 수 없습니다. 작업 ID와 이력을 확인하세요." : requestErrorMessage(problem));
     }finally{
       clearTimeout(timeout);
       if(request.current===controller){request.current=null;setLoading(false);}
@@ -40,6 +41,7 @@ function ArchiveDetail({service,id}){
 }
 
 export default function QwenArchive(){
+  usePageTitle("Qwen 이미지 생성 이력");
   const params=new URLSearchParams(location.search);
   const service=params.get("service")?.trim() || "",session=params.get("session");
   const [id,select]=useState(params.get("job") || "");

@@ -67,3 +67,21 @@ test('FLUX 가이드의 늦은 응답은 이미지 선택 변경 또는 화면 �
   assert.equal(applied,0);if(mode==='changed'){assert.match(notice,/변경/);assert.equal(errors,1);}else assert.equal(errors,0);
  }
 });
+
+test('참조 입력 도구 연결 실패는 공통 안내를 표시한다',async()=>{
+ const source=readFileSync(new URL('../../gui/FluxImagePage.jsx',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('  async function runInputTool('),source.indexOf('  function defaultFace()',source.indexOf('  async function runInputTool(')));
+ let notice='',isError=false;
+ const context=vm.createContext({AbortController,TypeError,untilAborted,document:{activeElement:null},toolFocus:{current:null},inputFormRef:{current:null},guideRequest:{current:null},imageSelectionRevision:{current:0},interactionRef:{current:{busy:false,review:null}},checkingSlots:{current:new Set()},setTimeout:()=>1,clearTimeout:()=>{},setBusy:()=>{},setToolLoading:()=>{},setToolError:value=>isError=value,setToolNotice:value=>notice=value,requestErrorMessage:()=> '서버에 연결할 수 없습니다. 연결 상태를 확인하세요.'});
+ vm.runInContext(method,context);await context.runInputTool(async()=>{throw new TypeError('Failed to fetch');});
+ assert.equal(isError,true);assert.match(notice,/연결 상태/);assert.doesNotMatch(notice,/Failed to fetch/);
+});
+
+test('가이드 적용 연결 실패는 선택을 유지하고 공통 안내를 표시한다',async()=>{
+ const source=readFileSync(new URL('../../gui/FluxImagePage.jsx',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('  async function applyReferenceGuide()'),source.indexOf('  async function runInputTool('));
+ let notice='',isError=false,applied=false;
+ const context=vm.createContext({AbortController,TypeError,untilAborted,document:{activeElement:null},toolFocus:{current:null},inputFormRef:{current:null},guideRequest:{current:null},imageSelectionRevision:{current:0},interactionRef:{current:{busy:false,review:null}},checkingSlots:{current:new Set()},selectedGuide:'guide',guideAvailable:true,guideUrl:id=>id,profile:{},setTimeout:()=>1,clearTimeout:()=>{},setBusy:()=>{},setNotice:()=>{},setGuideError:value=>isError=value,setGuideNotice:value=>notice=value,setFiles:()=>{applied=true;},requestErrorMessage:()=> '서버에 연결할 수 없습니다. 연결 상태를 확인하세요.',fetch:async()=>{throw new TypeError('Failed to fetch');}});
+ vm.runInContext(method,context);await context.applyReferenceGuide();
+ assert.equal(isError,true);assert.match(notice,/연결 상태/);assert.doesNotMatch(notice,/Failed to fetch/);assert.equal(applied,false);assert.equal(context.selectedGuide,'guide');
+});

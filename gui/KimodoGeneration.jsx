@@ -1,6 +1,5 @@
 import {openInvalidDetails} from "./openInvalidDetails.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
-import GeneratorUsage from "./GeneratorUsage.jsx";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
@@ -321,7 +320,6 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
     requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===reviewButtonRef.current)reviewSectionRef.current?.focus();});
   },[review]);
   return <section aria-label="Kimodo 모션 생성"><h2>모션 생성</h2>
-    <GeneratorUsage generator="kimodo"/>
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service="kimodo" status={handoffStatus} onUpdate={setHandoffStatus}
       onClose={()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);}}>
       {handoffStatus?.job_id && <KimodoAcceptedResult id={handoffStatus.job_id} choose={choose}/>}
@@ -357,8 +355,8 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
         <label>구간별 프레임 <input type="text" inputMode="numeric" value={segments} placeholder="예: 64 32 64" aria-describedby={segmentHelp} aria-invalid={Boolean(segments.trim()) && !segmentsValid} onChange={event=>{const value=event.target.value;setSegments(value);setReview(null);const parts=value.trim().split(/\s+/);if(value.trim() && parts.length>=2 && parts.length<=10 && parts.every(part=>/^\d+$/.test(part) && Number(part)>=16 && Number(part)<=300)){const total=parts.reduce((sum,part)=>sum+Number(part),0);if(total<=300)setInputs(previous=>({...previous,frames:total}));}}}/></label>
         <p className="kimodo-segment-total">전체 프레임 <strong>{Number.isSafeInteger(segmentTotal) ? segmentTotal+"프레임" : "계산할 수 없음"}</strong>{segments.trim() && !segmentsValid && " · 아래 입력 조건을 확인하세요."}</p>
         <p id={segmentHelp}>구간별 프레임을 공백으로 구분하세요. 2~10구간, 각 16프레임 이상, 전체 300프레임 이하입니다. 동작 설명은 구간마다 한 줄씩 입력합니다. 동작 설명 {promptSegmentCount}줄 · 프레임 {segmentTokens.length}구간{segmentTokens.length>0 && promptSegmentCount!==segmentTokens.length && " · 개수를 맞춰 주세요."}</p>
-      </section> : <label>프레임 수 <input type="number" required min="30" max="300" aria-invalid={singleFrameInvalid || undefined} aria-describedby={singleFrameInvalid ? frameErrorId : undefined} value={inputs.frames} onChange={e=>edit("frames",e.target.value)}/>{singleFrameInvalid && <small id={frameErrorId}>30~300의 정수를 입력하세요.</small>}</label>}
-      <label>생성 단계 <input type="number" required min="2" max="100" aria-invalid={invalidSteps || undefined} aria-describedby={invalidSteps ? stepErrorId : undefined} value={inputs.steps} onChange={e=>edit("steps",e.target.value)}/>{invalidSteps && <small id={stepErrorId}>2~100의 정수를 입력하세요.</small>}</label>
+      </section> : <label>프레임 수 <input type="number" required min="30" max="300" aria-invalid={singleFrameInvalid || undefined} aria-describedby={singleFrameInvalid ? frameErrorId : undefined} value={inputs.frames} onChange={e=>edit("frames",e.target.value)}/></label>}{generationMode!=="sequence" && singleFrameInvalid && <small id={frameErrorId}>30~300의 정수를 입력하세요.</small>}
+      <label>생성 단계 <input type="number" required min="2" max="100" aria-invalid={invalidSteps || undefined} aria-describedby={invalidSteps ? stepErrorId : undefined} value={inputs.steps} onChange={e=>edit("steps",e.target.value)}/></label>{invalidSteps && <small id={stepErrorId}>2~100의 정수를 입력하세요.</small>}
       <SeedInput value={inputs.seed} max={2147483647} error={invalidSeed ? "0~2147483647의 정수를 입력하세요." : ""} onChange={value=>edit("seed",value)}/>
       <section ref={referenceExamplesRef} tabIndex={-1} className="kimodo-reference-examples" aria-label="신체 비율 예시">
         {referenceExamples===null ? <button type="button" onClick={event=>startReferenceExample(null,event)}>신체 비율 예시 조회</button> : <>
@@ -410,9 +408,9 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
         <label>카메라 고도 <select value={inputs.camera_elevation_degrees} onChange={e=>edit("camera_elevation_degrees",Number(e.target.value))}>
           {[0,15,30].map(value=><option key={value} value={value}>{value}°</option>)}</select></label>
         <label>텍스트 CFG <input type="number" required min="0" max="10" step="any" aria-invalid={invalidCfg || undefined} aria-describedby={invalidCfg ? cfgErrorId : undefined} value={inputs.guidance_scale}
-          onChange={e=>edit("guidance_scale",e.target.value)}/>{invalidCfg && <small id={cfgErrorId}>0~10 사이로 입력하세요.</small>}</label>
+          onChange={e=>edit("guidance_scale",e.target.value)}/></label>{invalidCfg && <small id={cfgErrorId}>0~10 사이로 입력하세요.</small>}
         <label>OpenPose 출력 크기 (%) <input type="number" required min="10" max="100" step="any" aria-invalid={invalidScale || undefined} aria-describedby={invalidScale ? scaleErrorId : undefined} value={inputs.openpose_scale_percent}
-          onChange={e=>edit("openpose_scale_percent",e.target.value)}/>{invalidScale && <small id={scaleErrorId}>10~100 사이로 입력하세요.</small>}</label>
+          onChange={e=>edit("openpose_scale_percent",e.target.value)}/></label>{invalidScale && <small id={scaleErrorId}>10~100 사이로 입력하세요.</small>}
         {[["post_processing","공식 후처리"],["remove_horizontal_motion","수평 이동 제거"],["pose_include_hands","손 포즈 포함"],
           ["pose_include_face","얼굴 포즈 포함"]].map(([field,label])=>
           <label key={field}><input type="checkbox" disabled={Boolean(placement) && ["post_processing","remove_horizontal_motion"].includes(field)} aria-describedby={placement && ["post_processing","remove_horizontal_motion"].includes(field) ? placementHelpId : undefined} checked={inputs[field]} onChange={e=>edit(field,e.target.checked)}/>{label}</label>)}

@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 import json
+import re
 import subprocess
 import tempfile
 import unittest
@@ -51,8 +52,11 @@ class UnifiedQueueUiTests(unittest.TestCase):
               process.stdout.write(server.renderToStaticMarkup(React.createElement(Queue,{session:'session-1',call:()=>{throw Error('render should not request');}})));"""
             html = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True,
                                            env={**os.environ, 'NODE_PATH':str(gui/'node_modules')})
-        self.assertIn('대기열 조회 중', html)
+        self.assertIn('작업 일정을 조회하고 있습니다.', html)
         self.assertIn('aria-disabled="true"', html)
+        status = re.search(r'<p id="([^"]+)" role="status">작업 일정을 조회하고 있습니다\.</p>', html)
+        self.assertIsNotNone(status)
+        self.assertIn(f'aria-describedby="{status.group(1)}"', html)
         self.assertNotIn('대기 중인 요청이 없습니다', html)
 
 
