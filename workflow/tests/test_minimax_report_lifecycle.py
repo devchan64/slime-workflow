@@ -156,11 +156,15 @@ class MiniMaxReportLifecycleTests(unittest.TestCase):
                 origin={'session_id':'a'*32,'proposal_job_id':'2026-11-24_11-00-00-12345678','request_id':'r'*16}
                 (root/'hermes-report.json').write_text(json.dumps({'state':'waiting','origin':origin}))
                 (root/'status.json').write_text(json.dumps({'status':state}))
+                (root/'worker.log').write_text('LLVM ERROR: Disk quota exceeded')
                 receipts=Mock();receipts.read_service_delegation.return_value={'state':'accepted','job_id':root.name}
                 sessions=Mock();sessions.read_session_record.return_value={'messages':[{'job_id':origin['proposal_job_id']}]}
                 inspect=Mock();observe=Mock();dispatch=Mock()
                 result=advance_minimax_report(root,'minimax-h3-image',dispatch,sessions,inspect=inspect,observe=observe,receipts=receipts)
                 self.assertEqual(result['state'],'failed');inspect.assert_not_called();observe.assert_not_called();dispatch.assert_not_called()
+                notice=sessions.append_result_notice.call_args.args[2]
+                self.assertIn(root.name,notice)
+                self.assertIn('할당량 초과' if state=='failed' else '취소',notice)
 
     def test_writer_timeout_reuses_identical_request_identifier(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -99,6 +99,22 @@ def advance_minimax_report(directory, service, dispatch, sessions, *, inspect=in
     status = json.loads((directory / 'status.json').read_text(encoding='utf-8'))
     generation_state = status.get('status')
     if generation_state in ('failed', 'cancelled', 'canceled'):
+        reason = '원인을 확인할 수 없습니다. 작업 상세의 실행 기록을 확인하세요.'
+        log = directory / 'worker.log'
+        if not log.is_symlink() and log.is_file():
+            with log.open('rb') as stream:
+                stream.seek(0, 2)
+                stream.seek(max(0, stream.tell() - 65536))
+                tail = stream.read().decode('utf-8', errors='replace')
+            if 'Disk quota exceeded' in tail:
+                reason = '실행 로그에 디스크 할당량 초과가 기록되었습니다.'
+        if generation_state in ('cancelled', 'canceled'):
+            reason = '생성 작업이 취소되었습니다.'
+        notice_id = 'report_' + hashlib.sha256(f'{service}/{directory.name}/generation_failure'.encode()).hexdigest()
+        link = f'/management/frame/minimax-h3-image-generator/?job={directory.name}#job-result' if service == 'minimax-h3-image' else None
+        job_label = f'[{directory.name}]({link})' if link else directory.name
+        sessions.append_result_notice(origin['session_id'], notice_id,
+            f'{service} 생성 작업 {job_label}이 완료되지 않았습니다. {reason} 생성 결과가 없어 이미지 검수 보고서는 작성하지 않았습니다.')
         record.update(state='failed', error='생성 작업이 완료되지 않아 보고서를 작성하지 않았습니다.')
         write_record_atomically(path, record)
         return record

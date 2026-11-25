@@ -432,7 +432,7 @@ function linkMiniMaxImageJobs() {
       if (!node.children || ['a','pre','code'].includes(node.tagName)) return;
       node.children = node.children.flatMap(child => {
         if (child.type !== 'text') { visit(child); return [child]; }
-        const match = /(작업\s*ID\s*[:：]\s*)(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8})(?=\s*\(minimax-h3-image\))/.exec(child.value)
+        const match = /(작업\s*ID\s*[:：]\s*)(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8})(?=\s*\(minimax-h3-image(?:\s*[,，)]))/.exec(child.value)
           || /^(minimax-h3-image 이미지 생성 대기열에 등록했습니다\. 작업 ID: )(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8})$/.exec(child.value);
         if (!match) return [child];
         const start = match.index + match[1].length;
