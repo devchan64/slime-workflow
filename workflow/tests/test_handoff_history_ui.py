@@ -22,6 +22,9 @@ class HandoffHistoryUiTests(unittest.TestCase):
                           target_request=payload, resident_id='resident_123', confirmed=True)
             records = store.list_session_records(session)
             self.assertEqual(len(records),1)
+            self.assertEqual(store.list_session_records_page(session, 0, 1)['total'], 1)
+            self.assertEqual(store.list_session_records_page(session, 1, 1)['records'], [])
+            with self.assertRaises(ValueError): store.list_session_records_page(session, -1, 1)
             self.assertNotIn('target_request', records[0])
             script = """import assert from 'node:assert/strict';
               import {readHandoffHistoryResult} from './gui/handoffHistoryResult.mjs';

@@ -591,7 +591,7 @@ def is_hermes_resident_job(waiting_job_directory):
 
 def select_runnable_ticket(available_memory_mib, current_memory_domain=None, active_service_names=(), active_hermes_sessions=None, active_kimodo_count=0, available_host_memory_mib=None):
     """잠금 안에서 접수 순서대로 확인해 메모리가 맞는 첫 작업을 선택한다."""
-    if (GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment'}).intersection(active_service_names) or 'unreadable' in active_service_names:
+    if (GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment', 'minimax-h3-image'}).intersection(active_service_names) or 'unreadable' in active_service_names:
         return None
     try:
         current_waiting_tickets=read_priority_tickets()
@@ -642,6 +642,8 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
         if not isinstance(waiting_command_record,dict) or not isinstance(waiting_command_record.get('service'),str) or waiting_command_record['service'] not in GPU_MEMORY_REQUIREMENTS or not isinstance(waiting_command_record.get('command'),list):
             return None
         waiting_service = waiting_command_record['service']
+        if 'minimax-h3-image' in active_service_names and waiting_service != 'hermes-agent':
+            continue
         if (current_memory_domain == 'vram' and available_host_memory_mib is not None
                 and waiting_service == 'hermes-agent' and is_hermes_resident_job(waiting_job_directory)
                 and available_host_memory_mib < HERMES_RESIDENT_HOST_FLOOR_MIB):
@@ -660,7 +662,7 @@ def select_runnable_ticket(available_memory_mib, current_memory_domain=None, act
                     or None in active_hermes_sessions or waiting_session is None
                     or waiting_session in active_hermes_sessions or active_hermes_count >= 2):
                 continue
-        elif waiting_service in GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment'} and active_service_names:
+        elif waiting_service in GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment'} and active_service_names and not (waiting_service == 'minimax-h3-image' and all(name == 'hermes-agent' for name in active_service_names)):
             if waiting_service != 'hermes-agent' or not is_hermes_status_query(waiting_job_directory):
                 continue
         waiting_memory_estimate = estimate_required_memory(
@@ -1089,7 +1091,7 @@ def execute_locked_generation(generation_job_path):
                             wait_message = '실행 중인 GPU 예약을 확인할 수 없어 대기 중입니다.'
                         elif generation_command_record['service'] == 'image' and is_kimodo_queue_job(generation_job_path) and active_kimodo_count >= KIMODO_MAX_CONCURRENT_JOBS:
                             wait_message = 'Kimodo 동시 실행 한도(2개)에 도달해 시스템 메모리 보호를 위해 대기 중입니다.'
-                        elif (GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment'}).intersection(active_service_names) or ('pixal-experiment' in active_service_names and generation_command_record['service'] != 'hermes-agent'):
+                        elif (GPU_EXCLUSIVE_SERVICES - {'hermes-agent', 'pixal-experiment', 'minimax-h3-image'}).intersection(active_service_names) or ('minimax-h3-image' in active_service_names and generation_command_record['service'] != 'hermes-agent') or ('pixal-experiment' in active_service_names and generation_command_record['service'] != 'hermes-agent'):
                             wait_message = 'GPU 독점 작업이 종료되기를 기다리는 중입니다.'
                         elif (current_memory_domain == 'vram' and generation_command_record['service'] == 'hermes-agent'
                                 and is_hermes_resident_job(generation_job_path) and available_host_memory < HERMES_RESIDENT_HOST_FLOOR_MIB):

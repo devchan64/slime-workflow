@@ -19,7 +19,7 @@ class MiniMaxFormActionTests(unittest.TestCase):
             with self.assertRaises(ValueError): submit_requested_form(session,rejected,payload,dispatch)
         with self.assertRaises(ValueError):
             submit_requested_form(session,prompt+'\n답변 계속: 취소',payload,dispatch)
-        self.assertEqual(dispatch.call_count,3)
+        self.assertEqual(dispatch.call_count,2)
 
     def test_bound_approval_respects_resident_gpu_handoff(self):
         session,form='a'*32,'b'*32
@@ -30,15 +30,14 @@ class MiniMaxFormActionTests(unittest.TestCase):
         def preview(command,payload):
             if command=='hermes-resident-status':return {'resident':{'state':'ready'},'resident_id':'resident_123'}
             if command=='hermes-minimax-form-read':return snapshot
-            if command=='hermes-gpu-handoff-preview':return {'review_hash':'d'*64}
+            if command=='hermes-minimax-form-submit':return {'state':'unknown'}
             raise AssertionError(command)
         ready=Mock(side_effect=preview)
-        self.assertEqual(submit_requested_form(session,prompt,payload,ready),
-                         {'state':'requires_gpu_handoff','form_id':form,'revision':3,'resident_id':'resident_123','review_hash':'d'*64})
-        self.assertEqual([call.args[0] for call in ready.call_args_list],['hermes-minimax-form-read','hermes-resident-status','hermes-gpu-handoff-preview'])
+        self.assertEqual(submit_requested_form(session,prompt,payload,ready)['state'],'unknown')
+        self.assertEqual([call.args[0] for call in ready.call_args_list],['hermes-minimax-form-read','hermes-minimax-form-submit'])
         absent=Mock(side_effect=lambda command, payload: snapshot if command=='hermes-minimax-form-read' else {'resident':{'state':'not_found'}} if command=='hermes-resident-status' else {'state':'unknown'})
         self.assertEqual(submit_requested_form(session,prompt,payload,absent)['state'],'unknown')
-        self.assertEqual(absent.call_args_list[2].args,('hermes-minimax-form-submit',{'session_id':session,**payload}))
+        self.assertEqual(absent.call_args_list[1].args,('hermes-minimax-form-submit',{'session_id':session,**payload}))
         for changed in ({'form_id':form,'revision':4},{'form_id':'c'*32,'revision':3}):
             with self.assertRaises(ValueError): submit_requested_form(session,prompt,changed,absent)
         snapshot['request']={'prompt':'참조 이미지와 동일한 캐릭터','images':[]}

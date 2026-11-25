@@ -12,7 +12,7 @@ from workflow.domains.hermes_agent.minimax_form_store import MiniMaxFormStore
 
 
 class QuestionHandoffTests(unittest.TestCase):
-    def test_bound_question_approval_then_separate_gpu_consent(self):
+    def test_bound_question_approval_schedules_gpu_handoff(self):
         from workflow.domains.hermes_agent.minimax_form_bridge import handle_form_connection
         session,form,job='a'*32,'b'*32,'2026-11-24_22-01-26-b482d868'
         resident='resident_123'
@@ -25,7 +25,7 @@ class QuestionHandoffTests(unittest.TestCase):
             options={'session_store':sessions,'resident_inspector':inspector,'reservation_snapshot':reservations}
             def gateway(command,payload):
                 if command=='hermes-minimax-form-read':return forms.read(payload['session_id'],payload['form_id'])
-                if command=='hermes-resident-status':return {'resident_id':resident,'resident':{'state':'ready'}}
+                if command=='hermes-minimax-form-submit':return {'state':'accepted','job_id':'2026-11-25_23-01-01-12345678'}
                 if command=='hermes-gpu-handoff-preview':return preview_handoff(payload['session_id'],payload['resident_id'],payload['service'],payload['request'],**options)
                 if command=='hermes-gpu-handoff-approve':return approve_handoff(**payload,store=store,resident_conflict_check=lambda _:None,**options)
                 raise AssertionError(command)
@@ -37,16 +37,10 @@ class QuestionHandoffTests(unittest.TestCase):
             approval=(f'질문 작업 {job}에 대한 답변:\n대상 폼 ID: {form}\n대상 폼 버전: 1\n'
                       '1. 이 폼으로 생성할까요?\n답변: 승인')
             with patch('workflow.domains.hermes_agent.gpu_handoff_minimax_image.HermesSessionStore',return_value=Mock(session_storage_root=root)):
-                review=exchange(approval,{'operation':'submit','form_id':form,'revision':1})
-                self.assertEqual(review['state'],'requires_gpu_handoff')
-                consent=(f'질문 작업 {job}에 대한 답변:\n대상 폼 ID: {form}\n대상 폼 버전: 1\n'
-                         f'상주 모델 ID: {resident}\nGPU 양도 검토: {review["review_hash"]}\n'
-                         '1. GPU 양도에 동의할까요?\n답변: GPU 양도에 동의')
-                payload={'operation':'confirm-handoff','form_id':form,'revision':1,'resident_id':resident,'review_hash':review['review_hash']}
-                self.assertIn('error',exchange(consent.replace('답변: GPU 양도에 동의','답변: 거절'),payload))
-                result=exchange(consent,payload)
-                self.assertEqual(result['state'],'approved')
-                self.assertEqual(store.read(result['id'])['target_request'],{'form_id':form,'revision':1,'request':request})
+                result=exchange(approval,{'operation':'submit','form_id':form,'revision':1})
+                self.assertEqual(result['state'],'accepted')
+                self.assertEqual(result['job_id'],'2026-11-25_23-01-01-12345678')
+                self.assertEqual(store.list_active_ids(),[])
 
     def test_review_binds_actual_form_revision_and_explicit_gpu_consent(self):
         session,form='a'*32,'b'*32

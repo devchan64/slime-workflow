@@ -894,6 +894,36 @@ class HermesServiceManager:
         return {'id': hermes_session_record['id'], 'title': hermes_session_record.get('title', '새 대화'), 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat(), 'context': context_view}
 
     def execute_hermes_command(self, hermes_command_name, hermes_payload_record):
+        if hermes_command_name == 'hermes-tool-result':
+            if not isinstance(hermes_payload_record, dict) or set(hermes_payload_record) != {'session_id','id','call_id'}:
+                raise ValueError('대화, 작업과 도구 호출 ID가 필요합니다.')
+            call_id = hermes_payload_record['call_id']
+            if not isinstance(call_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', call_id):
+                raise ValueError('도구 호출 ID 오류')
+            from .session_store import HermesSessionStore
+            sessions = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
+            session = sessions.read_session_record(hermes_payload_record['session_id'])
+            job = self.resolve_hermes_job_path(hermes_payload_record['id'])
+            if not any(m.get('job_id') == job.name for m in session['messages']):
+                raise ValueError('이 대화에 속한 작업이 아닙니다.')
+            path = job / 'hermes-events.jsonl'
+            if path.is_symlink() or not path.is_file():
+                raise ValueError('도구 기록을 찾을 수 없습니다.')
+            matches = []
+            with path.open('rb') as stream:
+                for line in stream:
+                    if len(line) > 8*1024*1024:
+                        raise ValueError('도구 기록이 조회 크기 제한을 초과합니다.')
+                    try: record = json.loads(line)
+                    except (ValueError, UnicodeDecodeError): continue
+                    if isinstance(record, dict) and record.get('type') == 'tool_result' and record.get('tool_call_id') == call_id:
+                        matches.append(record)
+            if len(matches) != 1:
+                raise ValueError('도구 결과가 없거나 중복됩니다.')
+            output = matches[0].get('output')
+            if not isinstance(output, str): raise ValueError('도구 결과 원문이 없습니다.')
+            if len(output.encode('utf-8')) > 1024*1024: raise ValueError('도구 결과가 1 MiB 조회 제한을 초과합니다.')
+            return {'id':job.name, 'call_id':call_id, 'output':output, 'is_error':matches[0].get('is_error') is True}
         if hermes_command_name == 'hermes-chat-image-submit':
             if not isinstance(hermes_payload_record, dict) or set(hermes_payload_record) != {'session_id','prompt'}:
                 raise ValueError('대화와 생성 지시가 필요합니다.')
@@ -971,11 +1001,15 @@ class HermesServiceManager:
                 summary = summarize_handoff_request(record)
                 return {**{key:value for key,value in record.items() if key != 'target_request'}, 'target_summary':summary}
             if hermes_command_name == 'hermes-gpu-handoff-list':
-                if set(hermes_payload_record) != {'session_id'}: raise ValueError('세션이 필요합니다.')
+                if set(hermes_payload_record) not in ({'session_id'}, {'session_id','offset','limit'}): raise ValueError('세션과 선택적인 페이지 정보가 필요합니다.')
                 session_id = hermes_payload_record['session_id']
                 sessions.read_session_record(session_id)
                 from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
-                return {'session_id':session_id, 'handoffs':GpuHandoffStore().list_session_records(session_id)}
+                store = GpuHandoffStore()
+                if 'offset' not in hermes_payload_record:
+                    return {'session_id':session_id, 'handoffs':store.list_session_records(session_id)}
+                page = store.list_session_records_page(session_id, hermes_payload_record['offset'], hermes_payload_record['limit'])
+                return {'session_id':session_id, 'handoffs':page.pop('records'), **page}
             if hermes_command_name == 'hermes-gpu-handoff-withdraw':
                 if set(hermes_payload_record) != {'session_id','request_id','service','confirmed'} or hermes_payload_record['confirmed'] is not True:
                     raise ValueError('미접수 GPU 양도 철회 확인 입력 오류')
@@ -1544,7 +1578,7 @@ class HermesServiceManager:
             sessions = HermesSessionStore(self.hermes_session_root) if self.hermes_session_root is not None else HermesSessionStore()
             address = validate_gateway_address(os.environ.get('SLIME_MANAGEMENT_GATEWAY_URL', DEFAULT_GATEWAY_ADDRESS))
             return execute_minimax_form_command(hermes_command_name, hermes_payload_record, sessions=sessions,
-                read_job=self.read_context_job, dispatch=lambda service, command, request: execute_management_command(service, command, request, address))
+                read_job=self.read_context_job, resolve_job_path=self.resolve_hermes_job_path, dispatch=lambda service, command, request: execute_management_command(service, command, request, address))
         if hermes_command_name == 'hermes-minimax-report-retry':
             from workflow.domains.hermes_agent.minimax_submission import retry_report
             from workflow.domains.hermes_agent.session_store import HermesSessionStore

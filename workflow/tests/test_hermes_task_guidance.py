@@ -22,5 +22,4 @@ class TaskGuidanceTests(unittest.TestCase):
             self.assertNotIn('[음악·효과음 위임 제안]', query)
             self.assertIn('HERMES_IMAGE_PROPOSAL', (directory / 'task-guides/flux.txt').read_text())
             self.assertIn('HERMES_QUESTION_FORM', guidance)
-            self.assertIn('confirm-handoff', guidance)
-            self.assertIn('별도', guidance)
+            self.assertIn('별도 GPU 양도 동의를 묻지 마세요', guidance)

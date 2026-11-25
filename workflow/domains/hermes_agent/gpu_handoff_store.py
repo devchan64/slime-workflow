@@ -216,7 +216,10 @@ class GpuHandoffStore(HermesDelegationStore):
 
     def list_session_records(self, session_id, limit=20):
         """현재 세션의 최근 양도만 입력 원본 없이 반환한다."""
-        if not isinstance(session_id, str) or not _SESSION.fullmatch(session_id) or type(limit) is not int or not 1 <= limit <= 50:
+        return self.list_session_records_page(session_id, 0, limit)['records']
+
+    def list_session_records_page(self, session_id, offset=0, limit=20):
+        if not isinstance(session_id, str) or not _SESSION.fullmatch(session_id) or type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 50:
             raise ValueError('GPU 양도 이력 조회 입력 오류')
         with self.hold_delegation_storage_lock():
             paths = list_delegation_record_paths(self.delegation_storage_root)
@@ -232,7 +235,7 @@ class GpuHandoffStore(HermesDelegationStore):
                 summary = summarize_handoff_request(record)
                 rows.append({**{key:value for key,value in record.items() if key != 'target_request'}, 'target_summary':summary})
             rows.sort(key=lambda row:(row['updated_at'],row['id']), reverse=True)
-            return rows[:limit]
+            return {'records':rows[offset:offset+limit], 'total':len(rows), 'offset':offset, 'limit':limit}
 
     def run_without_open_session_handoff(self, session_id, callback, *, all_sessions=False):
         """양도 승인과 상주 모델 최초 접수가 교차하지 않도록 같은 잠금을 유지한다."""

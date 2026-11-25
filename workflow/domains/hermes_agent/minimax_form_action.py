@@ -104,21 +104,7 @@ def submit_requested_form(session_id, user_prompt, payload, dispatch):
     if re.search(r'(?m)^대상 폼 (?:ID|버전):', user_prompt):
         _bound_question_target(user_prompt, payload)
     if is_question_answer:
-        form = _question_form_snapshot(session_id, payload, dispatch)
-        owner = dispatch('hermes-resident-status', {'session_id':session_id})
-        if not isinstance(owner, dict) or not isinstance(owner.get('resident'), dict):
-            raise ValueError('상주 모델 상태를 확인할 수 없습니다.')
-        if owner['resident'].get('state') == 'ready':
-            resident_id = owner.get('resident_id')
-            target = {'form_id':payload['form_id'],'revision':payload['revision'],'request':form['request']}
-            review = dispatch('hermes-gpu-handoff-preview', {'session_id':session_id,'resident_id':resident_id,
-                              'service':form['service'],'request':target})
-            if not isinstance(review, dict) or not re.fullmatch(r'[a-f0-9]{64}', str(review.get('review_hash',''))):
-                raise ValueError('GPU 양도 검토 결과를 확인할 수 없습니다.')
-            return {'state':'requires_gpu_handoff', 'form_id':payload['form_id'], 'revision':payload['revision'],
-                    'resident_id':resident_id, 'review_hash':review['review_hash']}
-        if owner['resident'].get('state') != 'not_found':
-            raise ValueError('상주 모델 상태를 확인하거나 별도 GPU 양도 검토와 동의를 먼저 진행하세요.')
+        _question_form_snapshot(session_id, payload, dispatch)
     result = dispatch('hermes-minimax-form-submit', {'session_id':session_id, **payload})
     if not isinstance(result, dict) or result.get('state') not in ('accepted', 'unknown'):
         raise ValueError('접수 결과를 확인할 수 없습니다. 기존 접수 상태를 다시 조회하세요.')

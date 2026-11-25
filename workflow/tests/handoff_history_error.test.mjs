@@ -12,7 +12,7 @@ test('양도 이력 조회에서 메시지 없는 오류가 발생해도 이전 
   for(const problem of [null,new Error('')]){
     let error='',busy=false,rows=['previous'];
     const context=vm.createContext({AbortController,TypeError,Date,setTimeout,clearTimeout,untilAborted,
-      activeRequest:{current:null},rowRevision:{current:0},session:'session',
+      activeRequest:{current:null},rowRevision:{current:0},session:'session',page:0,size:5,
       managementCommand:async()=>{throw problem;},setBusy:value=>busy=value,setError:value=>error=value,
       setRows:value=>rows=value,setCheckedAt:()=>{}});
     vm.runInContext(source.slice(start,end)+'\nthis.refresh=refresh;',context);
