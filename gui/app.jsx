@@ -606,8 +606,6 @@ function App() {
   const [viewError,setViewError]=useState("");
   const [viewLoading,setViewLoading]=useState(false);
   const [targetForm,setTargetForm]=useState("");
-  const [minimaxFormTarget,setMinimaxFormTarget]=useState("");
-  useEffect(()=>{setMinimaxFormTarget('');},[session]);
   const [targetProposal,setTargetProposal]=useState("");
   const [viewRevision,retryView]=useState(0);
   const sending=useRef(false),text=useRef(null);
@@ -827,7 +825,11 @@ function App() {
   }
   function closeGenerator(){setGeneratorPanel(null);toolToggle.current?.focus();}
   function closeGpu(){setShowGpu(false);gpuToggle.current?.focus();}
-  function openMinimaxForm(formId){setShowGpu(false);setQueue(null);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setMinimaxFormTarget(formId);setSearchMode('minimax-forms');setShowTools(true);}
+  function openMinimaxForm(formId){
+    if(!/^[a-f0-9]{32}$/.test(formId))return;
+    setShowTools(false);setShowGpu(false);setQueue(null);setShowKimodo(false);setShowFunControl(false);
+    setGeneratorPanel({id:"saved-form",label:"생성 접수폼",formId,session});
+  }
   const lastFormReply=useRef(null);
   useEffect(()=>{
     if(view.id!==session || view.offset>0 || historyPage)return;
@@ -971,12 +973,11 @@ function App() {
     {showTools && <div className="tool-drawer-content">
       <label className="search-scope">탐색 대상 <select ref={toolScope} value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
         <optgroup label="도구와 기능"><option value="tools">도구 목록</option><option value="capabilities">관리 명령 검색</option></optgroup>
-        <optgroup label="저장된 자료"><option value="minimax-forms">MiniMax 접수폼</option><option value="expressions">표정 프리셋</option><option value="billboards">빌보드 에셋</option><option value="keyframes">Kimodo 키프레임</option></optgroup>
+        <optgroup label="저장된 자료"><option value="expressions">표정 프리셋</option><option value="billboards">빌보드 에셋</option><option value="keyframes">Kimodo 키프레임</option></optgroup>
         <optgroup label="작업과 검수 이력"><option value="history">생성 이력</option><option value="jobs">운영 작업 이력</option><option value="anchors">앵커 검수 이력</option></optgroup>
         <optgroup label="시스템 상태"><option value="services">서비스 등록 상태</option><option value="content">콘텐츠 DB 상태</option></optgroup>
       </select></label>
       <p className="generator-help-text">탐색 대상은 찾을 정보의 종류입니다.{searchMode==="tools" && " 도구 분야는 목록을 작업 영역별로 좁힙니다."}</p>
-      {searchMode==="minimax-forms" && session && <MiniMaxForms key={session+':'+minimaxFormTarget} session={session} initialFormId={minimaxFormTarget}/>}
       {["capabilities","expressions","keyframes","services"].includes(searchMode) && <input ref={toolSearch} aria-label={{capabilities:"관리 기능 검색",expressions:"표정 프리셋 검색",keyframes:"Kimodo 키프레임 검색",services:"서비스 검색"}[searchMode]} maxLength={100} placeholder="이름·기능 검색" value={search} onChange={e=>setSearch(e.target.value)}/>}
       {["capabilities","expressions","keyframes","services"].includes(searchMode) && search && <button type="button" onClick={()=>{setSearch("");requestAnimationFrame(()=>toolSearch.current?.focus());}}>검색어 지우기</button>}
       {searchMode==="expressions" && <ExpressionCatalog key={search} query={search} choose={appendSelection}/>}
@@ -1020,6 +1021,8 @@ function App() {
         >
         <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call}/>
       </ChatQueuePanel>}
+      {generatorPanel?.id==="saved-form" && generatorPanel.session===session && !showTools && !showGpu && !queue &&
+        <MiniMaxForms key={session+generatorPanel.formId} session={session} initialFormId={generatorPanel.formId}/>}
       {mountedGenerators.map(id=>{const Generator=embeddedGenerators[id];return <div key={id} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!==id} className="embedded-generator"><Generator embedded session={session}/></div>;})}
       {kimodoMounted && <div hidden={!showKimodo || showTools || showGpu || Boolean(queue) || Boolean(generatorPanel)} className="embedded-generator"><KimodoPage key={session+":"+kimodoRevision} embedded session={session} initialInputs={currentFormInputs ? kimodoProposal : null} onChoose={(label,value)=>{edit([draft,label+" "+value].filter(Boolean).join("\n"));text.current?.focus();}}/></div>}
       {funMounted && <div hidden={!showFunControl || showTools || showGpu || Boolean(queue) || showKimodo || Boolean(generatorPanel)}><FunControlPage key={session+(currentFormInputs ? videoFormId : "")+videoFormRevision} embedded session={session} restoreFormId={currentFormInputs ? videoFormId : ""} seedProposal={currentFormInputs ? seedProposal : null} onSaved={()=>setRefresh(n=>n+1)}/></div>}
