@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {createRequire,Module} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {observedGenerationProgress,validInferenceCompletion,generationProgressSummary} from '../../gui/generationProgressModel.mjs';
+assert.equal(observedGenerationProgress({worker_progress:{stage:'inference',step:1,total:2,updated_at:'2026-11-25T00:00:00Z',scope:{unexpected:true}}}).scope,undefined);
 assert.equal(generationProgressSummary({stage:'reference_vae_encode',step:0,total:8}),'참조 영상 인코딩');
 assert.equal(generationProgressSummary({stage:'inference',step:3,total:8}),'단계 3/8');
 assert.equal(generationProgressSummary({stage:'saving',step:8,total:8},'minimax-h3-ref2va'),'결과 저장');
@@ -20,8 +21,16 @@ for(const stage of ['prepare','load','reference_prepare','reference_text_encode'
   assert.match(html,/이 단계의 진행률은 제공되지 않습니다/);
   assert.doesNotMatch(html,/<progress|0\/8/);
 }
-assert.match(renderStage('inference','minimax-h3-ref2va'),/<progress/);
+assert.match(renderStage('inference','minimax-h3-ref2va'),/<progress aria-label="추론 단계 진행" aria-valuetext="0 \/ 8"/);
 assert.match(renderStage('saving','other'),/<progress/);
+for(const stage of ['__proto__','constructor','toString'])assert.ok(renderStage(stage,'other').includes(`${stage} 단계 진행`));
+const damagedScope=renderToStaticMarkup(React.createElement(renderedModule.exports.default,{job:{status:'running',worker_progress:{stage:'inference',step:1,total:2,updated_at:'2026-11-25T00:00:00Z',scope:{invalid:true}}}}));
+assert.match(damagedScope,/관측 범위 · 현재 단계/);
+assert.match(damagedScope,/<progress/);
+for(const id of ['job-a','job-b']){
+  const html=renderToStaticMarkup(React.createElement(renderedModule.exports.default,{jobId:id,job:{status:'running',worker_progress:{stage:'inference',step:1,total:2,updated_at:'2026-11-25T00:00:00Z'}}}));
+  assert.ok(html.includes(`aria-label="${id} · 추론 단계 진행"`));
+}
 const worker={stage:'inference',step:3,total:20,updated_at:'2026-11-22T14:45:00+09:00',scope:'추론 단계'};
 assert.deepEqual(observedGenerationProgress({worker_progress:worker}),{stage:'inference',step:3,total:20,updatedAt:worker.updated_at,scope:'추론 단계'});
 assert.equal(observedGenerationProgress({worker_progress:{...worker,step:21}}),null);

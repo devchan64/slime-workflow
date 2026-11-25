@@ -1,4 +1,4 @@
-import React, {useEffect,useRef,useState} from "react";
+import React, {useEffect,useId,useRef,useState} from "react";
 import {requestErrorMessage} from "./requestError.mjs";
 import {untilAborted} from "./managementCommand.js";
 import ClipboardCopyButton from "./ClipboardCopyButton.jsx";
@@ -9,6 +9,7 @@ export default function RecordFolder({service,id,direct=false}) {
 }
 
 function RecordFolderForJob({service,id,direct=false}) {
+  const copyHelpId=useId();
   const [path,setPath]=useState("");
   const [notice,setNotice]=useState(""),[noticeError,setNoticeError]=useState(false);
   const [busy,setBusy]=useState(false);
@@ -40,8 +41,9 @@ function RecordFolderForJob({service,id,direct=false}) {
     <summary>{direct ? "폴더 경로 확인" : "기록 폴더"}</summary>
     {path && <label>기록 폴더 경로<input ref={pathInput} aria-label="기록 폴더 경로" readOnly value={path} onFocus={event=>event.currentTarget.select()}/></label>}
     {stale && <p role="status">표시된 경로는 마지막으로 확인한 값입니다. 현재 폴더 상태는 확인하지 못했습니다.</p>}
+    {(busy || !path) && <p id={copyHelpId}>{busy ? "폴더 확인이 끝나면 경로를 복사할 수 있습니다." : "경로를 다시 확인한 뒤 복사할 수 있습니다."}</p>}
     <div className="choice-buttons"><button type="button" disabled={busy} onClick={event=>request("inspect",event.currentTarget)}>경로 다시 확인</button>
-      <ClipboardCopyButton ref={copyButton} disabled={busy || !path} onClick={copy} label="기록 폴더 경로 복사" title="경로 복사"/>
+      <ClipboardCopyButton ref={copyButton} disabled={busy || !path} aria-describedby={busy || !path ? copyHelpId : undefined} onClick={copy} label="기록 폴더 경로 복사" title="경로 복사"/>
       {!direct && openButton}</div>
     {!direct && feedback}
   </details>{direct && feedback}</>;

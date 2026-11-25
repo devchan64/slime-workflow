@@ -34,11 +34,15 @@ export function BillboardReviewSummary({result}){
   </>;
 }
 
+export function BillboardNumericField({label,value,required,error,onChange}){
+  return <div><label>{label}<input type="number" step="any" required={required} aria-invalid={error ? true : undefined} aria-describedby={error?.[0]} value={value ?? ""} onChange={event=>onChange(event.target.value)}/></label>{error && <span id={error[0]}>{error[1]}</span>}</div>;
+}
+
 export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}}){
   const [source,setSource]=useState(null),[edits,setEdits]=useState({}),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const readRequest=useRef(null),saving=useRef(false),reviewRef=useRef(null),reviewTrigger=useRef(null),loadButton=useRef(null),restoreLoadFocus=useRef(false),restoreReviewFocus=useRef(false);
-  const placementReasonId=useId(),reloadReasonId=useId(),heightErrorId=useId(),columnsErrorId=useId(),rowsErrorId=useId(),shadowColumnErrorId=useId(),shadowRowErrorId=useId(),scaleXErrorId=useId(),scaleYErrorId=useId(),anchorXErrorId=useId(),anchorYErrorId=useId(),emptyErrorId=useId();
+  const placementReasonId=useId(),reloadReasonId=useId(),busyReasonId=useId(),heightErrorId=useId(),columnsErrorId=useId(),rowsErrorId=useId(),shadowColumnErrorId=useId(),shadowRowErrorId=useId(),scaleXErrorId=useId(),scaleYErrorId=useId(),anchorXErrorId=useId(),anchorYErrorId=useId(),emptyErrorId=useId();
   useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus({preventScroll:true});},[review]);
   useEffect(()=>{if(!busy && restoreLoadFocus.current){restoreLoadFocus.current=false;if(document.activeElement===document.body && loadButton.current && !loadButton.current.disabled)loadButton.current.focus({preventScroll:true});}},[busy,source,notice,edits]);
   useEffect(()=>{if(!busy && restoreReviewFocus.current){restoreReviewFocus.current=false;if(notice && document.activeElement===document.body && reviewTrigger.current?.isConnected && !reviewTrigger.current.disabled)reviewTrigger.current.focus({preventScroll:true});}},[busy,notice,review]);
@@ -108,14 +112,13 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
   const automaticPlacement=source?.initial || ["tile-intersection","tile-bottom-center"].includes(properties.billboardAnchorMode);
   const shadowVersion=source?.initial ? 2 : properties.shadowSizeVersion;
   const fieldError=key=>Object.hasOwn(edits,key) && String(edits[key]).trim()==="" ? [`${emptyErrorId}-${key}`,"값을 입력하세요."] : key==="displayHeight" && heightInvalid ? [heightErrorId,"0.005부터 1024까지 입력하세요. 소수 둘째 자리로 반올림됩니다."] : key==="groundFootprintColumns" && Object.hasOwn(edits,key) && invalidFootprint(edits[key]) ? [columnsErrorId,"1부터 8까지의 정수여야 합니다."] : key==="groundFootprintRows" && Object.hasOwn(edits,key) && invalidFootprint(edits[key]) ? [rowsErrorId,"1부터 8까지의 정수여야 합니다."] : key==="shadowOffsetColumn" && Object.hasOwn(edits,key) && invalidShadowOffset(edits[key]) ? [shadowColumnErrorId,"-4부터 4까지 입력하세요."] : key==="shadowOffsetRow" && Object.hasOwn(edits,key) && invalidShadowOffset(edits[key]) ? [shadowRowErrorId,"-4부터 4까지 입력하세요."] : ["shadowScaleX","shadowScaleY"].includes(key) && Object.hasOwn(edits,key) && invalidShadowScale(edits[key],key,shadowVersion) ? [key==="shadowScaleX" ? scaleXErrorId : scaleYErrorId,`${shadowScaleMinimum(key,shadowVersion)}부터 4까지 입력하세요.`] : ["anchorX","anchorY"].includes(key) && Object.hasOwn(edits,key) && invalidBillboardAnchor(edits[key],automaticPlacement) ? [key==="anchorX" ? anchorXErrorId : anchorYErrorId,automaticPlacement ? "-16부터 16까지 입력하세요." : "0부터 1까지 입력하세요."] : null;
-  return <section><button ref={loadButton} type="button" disabled={busy || hasEdits} aria-describedby={hasEdits ? reloadReasonId : undefined} onClick={load}>{source?"공용 속성 다시 불러오기":"공용 속성 불러오기"}</button>
-    {busy && <p role="status">빌보드 요청을 처리하고 있습니다.</p>}
+  return <section><button ref={loadButton} type="button" disabled={busy || hasEdits} aria-describedby={[busy && busyReasonId,hasEdits && reloadReasonId].filter(Boolean).join(" ") || undefined} onClick={load}>{source?"공용 속성 다시 불러오기":"공용 속성 불러오기"}</button>
+    {busy && <p id={busyReasonId} role="status">빌보드 요청을 처리하고 있습니다. 완료될 때까지 기다리세요.</p>}
     {hasEdits && <p id={reloadReasonId} role="status">변경 사항이 있습니다. 다시 불러오려면 편집을 취소하거나 저장하세요. <button type="button" disabled={busy} onClick={event=>{restoreLoadFocus.current=document.activeElement===event.currentTarget;setEdits({});onDirtyChange(false);setReview(null);setNotice("");}}>편집 취소</button></p>}
-    {source && <form className="billboard-properties-form" onSubmit={preview}><fieldset disabled={busy}><legend>빌보드 공용 속성</legend>
+    {source && <form className="billboard-properties-form" onSubmit={preview}><fieldset disabled={busy} aria-describedby={busy ? busyReasonId : undefined}><legend>빌보드 공용 속성</legend>
       {source.initial && <p>최초 설정 초안 · 기본 점유 1×1, 표시 높이 128px입니다. 원본을 확인한 뒤 검토하세요.</p>}
       <p>앵커·높이·그림자 이동은 소수 둘째 자리로 반올림됩니다. {shadowVersion===2 ? "그림자 배율은 소수 여섯째 자리로 반올림됩니다." : "그림자 배율도 소수 둘째 자리로 반올림됩니다."}</p>
-      <div className="billboard-properties-grid">{Object.keys(labels).filter(key=>!key.startsWith("billboard")).map(key=>{const error=fieldError(key);return <label key={key}>{labels[key]}
-        <input type="number" step="any" required={key in edits} aria-invalid={error ? true : undefined} aria-describedby={error?.[0]} value={properties[key] ?? ""} onChange={e=>edit(key,e.target.value)}/>{error && <span id={error[0]}>{error[1]}</span>}</label>;})}
+      <div className="billboard-properties-grid">{Object.keys(labels).filter(key=>!key.startsWith("billboard")).map(key=><BillboardNumericField key={key} label={labels[key]} value={properties[key]} required={key in edits} error={fieldError(key)} onChange={value=>edit(key,value)}/>)}
       <label>배치 기준<select disabled={automaticPlacement} aria-describedby={automaticPlacement ? placementReasonId : undefined} value={automaticPlacement?(Number(properties.anchorY)<0.5?"top":"bottom"):(properties.billboardPlacementAnchor ?? "")} onChange={e=>edit("billboardPlacementAnchor",e.target.value)}>
         <option value="" disabled>미지정</option><option value="top">위쪽</option><option value="bottom">아래쪽</option></select></label>
       {automaticPlacement && <p id={placementReasonId}>현재 앵커 설정에 따라 배치 기준이 자동으로 결정됩니다.</p>}
@@ -126,7 +129,7 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
         <button type="button" onClick={save}>검토한 속성 저장</button><button type="button" onClick={()=>{const focused=document.activeElement;setReview(null);requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}}>취소</button></section>}
     </fieldset></form>}
     {source && !source.initial && !hasEdits && <BillboardCrop key={source.revision} source={source} busy={busy} setBusy={setBusy}
-      onSaved={()=>{setSource(null);setReview(null);setNotice("원본 크롭 저장 완료");onCrop();}}/>}
+      onSaved={({restoreFocus}={})=>{restoreLoadFocus.current=Boolean(restoreFocus);setSource(null);setReview(null);setNotice("원본 크롭 저장 완료");onCrop();}}/>}
     {notice && <p role="status">{notice}</p>}
   </section>;
 }

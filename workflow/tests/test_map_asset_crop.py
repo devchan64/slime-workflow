@@ -10,6 +10,23 @@ from workflow.domains.map_assets import crop, editor
 
 
 class MapAssetCropTests(unittest.TestCase):
+    def test_ui_accepts_real_saved_crop_receipt(self):
+        import json
+        import subprocess
+        input_request={**self.current_request_payload,'alphaThreshold':5}
+        preview=crop.preview_billboard_crop(input_request)
+        request={**input_request,'token':preview['token']}
+        result=crop.save_billboard_crop(request)
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'crop.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'BillboardCrop.jsx','--bundle','--platform=node','--format=cjs','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const assert=require('node:assert/strict'),{validCropSave}=require(process.argv[1]);
+              let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{const {result,request}=JSON.parse(data);
+              assert.equal(validCropSave(result,request),true);assert.equal(validCropSave(result,{...request,texture:'other'}),false);
+              assert.equal(validCropSave(result,{...request,token:'other'}),false);});"""
+            subprocess.run(['node','-e',script,str(bundle)],input=json.dumps({'result':result,'request':request}),cwd=gui,check=True,capture_output=True,text=True)
+
     def test_ui_validates_preview_against_crop_contract(self):
         import json
         import subprocess

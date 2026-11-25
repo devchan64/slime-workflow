@@ -3,7 +3,10 @@ export function validMapDraftPreview(value){
 }
 
 export function isMapCellDirty(cell,original){
-  return Boolean(cell && original && ["tile","height","blocked","wall"].some(key=>String(cell[key] ?? "")!==String(original[key] ?? "")));
+  if(!cell || !original)return false;
+  const height=String(cell.height ?? ""),originalHeight=String(original.height ?? "");
+  const sameHeight=height.trim()!=="" && originalHeight.trim()!=="" && Number.isFinite(Number(height)) && Number(height)===Number(originalHeight);
+  return ["tile","blocked","wall"].some(key=>String(cell[key] ?? "")!==String(original[key] ?? "")) || (!sameHeight && height!==originalHeight);
 }
 
 export function invalidMapCellHeight(value){

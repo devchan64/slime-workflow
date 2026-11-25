@@ -66,7 +66,7 @@ function KimodoFramesForJob({id,choose,onDeleted,selectionControls=false}) {
     {statusError && !source && <button ref={retryRef} type="button" onClick={()=>refresh(value=>value+1)}>작업 상태 다시 조회</button>}
     {source && <><p><JobStatus state={source.status}/> {source.error}</p>
       {source.status==="missing" && <p role="status">현재 작업 데이터를 찾을 수 없습니다. 이력 색인에는 과거 상태가 남아 있을 수 있으므로 결과와 실제 작업 상태를 확인할 수 없습니다.</p>}
-      <GenerationProgress job={{...source,estimate:validGenerationEstimate(source.estimate) ? source.estimate : null}} live={live} supportsProgress={false}/>
+      <GenerationProgress jobId={id} job={{...source,estimate:validGenerationEstimate(source.estimate) ? source.estimate : null}} live={live} supportsProgress={false}/>
       <div className="kimodo-result-actions"><button ref={refreshRef} type="button" onClick={()=>refresh(value=>value+1)}>작업 상태 갱신</button>
       {statusError && <p role="status">작업 상태를 다시 조회할 때까지 이 작업의 제어와 삭제를 사용할 수 없습니다.</p>}
       <GeneratorJobControls showActions={!selectionControls} service="kimodo" id={id} state={source.status} disabled={Boolean(statusError)} refresh={()=>refresh(value=>value+1)}/></div></>}

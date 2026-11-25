@@ -7,9 +7,10 @@ function time(value){const date=new Date(value);return value && !Number.isNaN(da
 function showObservationTime(value,reference){const observed=new Date(value).getTime(),queried=new Date(reference).getTime();return !value || !Number.isFinite(observed) || !reference || !Number.isFinite(queried) || queried-observed>30000 || observed>queried+30000;}
 function completionPassed(value,reference){const completion=new Date(value).getTime(),queried=new Date(reference).getTime();return Boolean(value && reference && Number.isFinite(completion) && Number.isFinite(queried) && completion<queried);}
 
-export default function GenerationProgress({job,service,live,supportsProgress=true,showQueryTime=true,referenceTime}){
+export default function GenerationProgress({job,jobId,service,live,supportsProgress=true,showQueryTime=true,referenceTime}){
   const estimate=job?.estimate, observed=observedGenerationProgress(job);
   const unmeasured=unmeasuredStageLabel(observed,service);
+  const stageName=observed && (Object.hasOwn(stages,observed.stage) ? stages[observed.stage] : observed.stage);
   const queryTime=referenceTime || job.queried_at;
   const running=job.status==="running" || job.status==="queued";
   const inference=observed?.estimate;
@@ -24,8 +25,8 @@ export default function GenerationProgress({job,service,live,supportsProgress=tr
       <p>추정 범위 · {estimate.scope}</p>{showObservationTime(estimate.updated_at,queryTime) && <p>예상 정보 갱신 · {time(estimate.updated_at)}</p>}</div>}
     {running && !estimate && <p>전체 예상 시간은 확인할 수 없습니다. 작업 상태를 다시 확인하세요.</p>}
     {observed ? <div className="generation-stage">
-      {unmeasured ? <p>{unmeasured} · 이 단계의 진행률은 제공되지 않습니다.</p> : <><p>{stages[observed.stage] || observed.stage} · 단계 진행 {observed.step}/{observed.total} (전체 작업 진행률과 별개)</p>
-      <progress aria-label="단계 진행" max={observed.total} value={observed.step}/></>}
+      {unmeasured ? <p>{unmeasured} · 이 단계의 진행률은 제공되지 않습니다.</p> : <><p>{stageName} · 단계 진행 {observed.step}/{observed.total} (전체 작업 진행률과 별개)</p>
+      <progress aria-label={`${jobId ? jobId+' · ' : ''}${stageName} 단계 진행`} aria-valuetext={`${observed.step} / ${observed.total}`} max={observed.total} value={observed.step}/></>}
       <p>관측 범위 · {observed.scope || '현재 단계'}</p>{showObservationTime(observed.updatedAt,queryTime) && <p>단계 관측 · {time(observed.updatedAt)}</p>}
       {running && inference && !unmeasured && <p>추론 종료 예상 · {showObservationTime(observed.updatedAt,queryTime) || completionPassed(inference.completion,queryTime) ? "이전 관측이거나 예상 시각이 지났습니다. 최신 진행을 확인하세요." : Number.isFinite(inference.remaining) && inference.remaining>=0 && validInferenceCompletion(inference.completion) ? `조회 시점 기준 약 ${Math.ceil(inference.remaining/60)}분 후 (${time(inference.completion)})` : "계산 중 · 유효한 추론 예상 정보를 기다리는 중입니다."}<br/>
         {inference.basis} · 표본 {inference.samples}개<br/>{inference.scope}</p>}

@@ -13,6 +13,12 @@ export function MapDraftFileInput({cellDirty,error,onFile,inputRef}){
   }}/></label>{error && <p id="map-import-error" role="alert">{error}</p>}</>;
 }
 
+export function MapCoordinateInput({axis,value,onChange}){
+  const errorId=useId();
+  const invalid=value.trim()==="" || !Number.isInteger(Number(value)) || Number(value)<0;
+  return <div><label>셀 {axis} (0부터 시작)<input type="number" required min="0" step="1" value={value} aria-invalid={invalid || undefined} aria-describedby={invalid ? errorId : undefined} onChange={event=>onChange(event.target.value)}/></label>{invalid && <small id={errorId}>0 이상의 정수를 입력하세요.</small>}</div>;
+}
+
 export function MapReviewNavigation({field,destination,onNavigate,saving,cellDirty,unsafeAutosave}){
   const help=[saving && "map-saving-status",cellDirty && "map-cell-pending-reason",unsafeAutosave && "map-storage-failure"].filter(Boolean).join(" ") || undefined;
   return <nav aria-label="지도 검수 이동"><a href={destination(field?"town":"field")} onClick={onNavigate} aria-describedby={help}>{field?"도시맵":"야외필드"} 검수</a> · <a href={destination("battle")} onClick={onNavigate} aria-describedby={help}>전투필드 검수</a></nav>;
@@ -200,7 +206,7 @@ export default function MapReview(){
   async function inspectCell(override=null){
     if(cellDirty){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}
     const selected=override || window.mapReviewSelectedCell;
-    if(!selected){setFeedback("지도에서 셀을 선택하세요.");return;}
+    if(!selected){setFeedback("지도를 눌러 셀을 선택하거나 아래 열·행을 입력해 조회하세요.");return;}
     const focusAtStart=document.activeElement;
     setReading(true);
     try{
@@ -252,7 +258,7 @@ export default function MapReview(){
     setLoadError("");setReady(false);
     const url=new URL(location.href);
     url.searchParams.set("mapKind",field?"field":"town");
-    history.replaceState(null,"",url);
+    history.replaceState(history.state,"",url);
     untilAborted(import(new URL("/isloon-map-review/block-map-review.js",location.origin).href),controller.signal).then(()=>{
       if(active)setReady(true);
     }).catch(error=>{if(active)setLoadError(timedOut ? "지도 검수 화면을 불러오는 시간이 초과됐습니다." : requestErrorMessage(error));}).finally(cancelDeadline);
@@ -350,11 +356,12 @@ export default function MapReview(){
     {field && <fieldset disabled={!ready || reading} aria-describedby={reading ? (saving ? "map-saving-status" : "map-reading-status") : undefined}><legend>셀 검수</legend>
       {saveUncertain && <section aria-label="저장 결과 확인"><p>이전 저장 결과가 불확실합니다. 초안은 유지됩니다. 새로 검증하거나 원본 리비전을 조회해도 이전 저장의 완료 여부가 확인되는 것은 아닙니다.</p><button type="button" onClick={inspectSaveRevision}>현재 원본 리비전 확인</button></section>}
       <label><input type="checkbox" checked={editing} aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined} onChange={event=>{if(cellDirty){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}window.mapReviewEditingEnabled=event.target.checked;setEditing(event.target.checked);setBrush("pan");window.mapReviewSelectedCell=null;setCell(null);setCellOriginal(null);}}/>캐릭터 이동 대신 셀 선택</label>
-      <button aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined} onClick={()=>inspectCell()}>선택 셀 속성 조회</button>
+      <p id="map-cell-selection-help">지도를 눌러 셀을 선택한 뒤 조회하거나, 아래 열·행을 입력해 바로 조회할 수 있습니다.</p>
+      <button aria-describedby={["map-cell-selection-help",cellDirty && "map-cell-pending-reason"].filter(Boolean).join(" ")} onClick={()=>inspectCell()}>선택 셀 속성 조회</button>
       <form className="map-cell-inspect-form" onSubmit={event=>{event.preventDefault();inspectCell({column:Number(cellColumn),row:Number(cellRow)});}}>
         <div className="generator-settings-grid">
-        <label>셀 열 (0부터 시작)<input type="number" required min="0" step="1" value={cellColumn} onChange={event=>setCellColumn(event.target.value)}/></label>
-        <label>셀 행 (0부터 시작)<input type="number" required min="0" step="1" value={cellRow} onChange={event=>setCellRow(event.target.value)}/></label>
+        <MapCoordinateInput axis="열" value={cellColumn} onChange={setCellColumn}/>
+        <MapCoordinateInput axis="행" value={cellRow} onChange={setCellRow}/>
         </div>
         <button type="submit" aria-describedby={cellDirty ? "map-cell-pending-reason" : undefined}>입력한 셀 속성 조회</button>
       </form>

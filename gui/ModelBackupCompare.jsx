@@ -1,8 +1,9 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useId, useRef, useState} from 'react';
 import {managementCommand, untilAborted} from './managementCommand.js';
 import {requestErrorMessage} from './requestError.mjs';
 import {readPendingBackupRequest, validateBackupReceipt} from './modelBackupPending.mjs';
-import {backupDirectories, modelBackupPage, verificationSummary} from './modelBackupResults.mjs';
+import {backupDirectories, modelBackupPage, verificationSummary, validBackupJob, validBackupComparison, validBackupMetadata, validBackupModels, backupActionReasons} from './modelBackupResults.mjs';
+import {validCatalogHistory} from './modelCatalogSearch.mjs';
 
 const labels = {missing: '백업 누락', different: '차이 있음', matches_metadata: '크기·시간 일치', verified: 'SHA-256 일치', backup_only: '백업에만 있음', unknown: '확인 불가'};
 const jobLabels = {running: '진행 중', completed: '완료', failed: '실패', interrupted: '중단됨'};
@@ -14,6 +15,7 @@ function jobTime(value) {const time = new Date(value); return value && Number.is
 function jobSummary(job) {return `${job.model} · ${jobLabels[job.status] || job.status}${job.error ? ' · ' + job.error : ''}${job.operation === 'sync' && job.result ? ` · ${job.result.file_count}개 파일 SHA-256 확인 · ${job.result.reused ? '기존 스냅샷 재사용' : '새 스냅샷 저장'}` : ''}`;}
 
 export default function ModelBackupCompare({requestedSelection}) {
+  const actionReasonId=useId();
   const [models, setModels] = useState([]);
   const [selected, setSelected] = useState('');
   const [modelQuery, setModelQuery] = useState('');
@@ -42,6 +44,10 @@ export default function ModelBackupCompare({requestedSelection}) {
   const historyRevision = useRef(0);
   const historyRequest = useRef(null);
   const jobReadRequest = useRef(null);
+  const compareRequest = useRef(null);
+  const [comparisonLoading,setComparisonLoading]=useState(false);
+  const metadataRequest = useRef(null);
+  const [metadataLoading,setMetadataLoading]=useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const handledSelection = useRef(null), headingRef = useRef(null), searchRef = useRef(null), fileSearchRef = useRef(null), folderHeadingRef = useRef(null);
   const [selectionNotice, setSelectionNotice] = useState('');
@@ -61,7 +67,7 @@ export default function ModelBackupCompare({requestedSelection}) {
       const request = managementCommand('model-downloads', 'backup-verify-history', {}, {signal});
       const result = signal ? await untilAborted(request, signal) : await request;
       if (revision !== historyRevision.current) return;
-      if (!Array.isArray(result.records)) throw new Error('검증 이력 응답이 올바르지 않습니다.');
+      if (!validCatalogHistory(result)) throw new Error('검증 이력 응답이 올바르지 않습니다.');
       setJobs(result.records);
       setHistoryError('');
     } catch (problem) {
@@ -87,7 +93,7 @@ export default function ModelBackupCompare({requestedSelection}) {
     modelsRequestInFlight.current = true;
     setModelsLoading(true);
     untilAborted(managementCommand('model-downloads', 'backup-models', {}, {signal: controller.signal}), controller.signal).then(result => {
-      if (!Array.isArray(result.models)) throw new Error('모델 목록 응답이 올바르지 않습니다.');
+      if (!validBackupModels(result)) throw new Error('모델 목록 응답이 올바르지 않습니다.');
       if (!controller.signal.aborted) {
         setModels(result.models);
         setModelsError('');
@@ -115,24 +121,37 @@ export default function ModelBackupCompare({requestedSelection}) {
 
   useEffect(() => {
     reloadHistory();
-    return () => {historyRevision.current++; const request = historyRequest.current; historyRequest.current = null; request?.abort(); const jobRequest = jobReadRequest.current; jobReadRequest.current = null; jobRequest?.abort();};
+    return () => {historyRevision.current++; const request = historyRequest.current; historyRequest.current = null; request?.abort(); const jobRequest = jobReadRequest.current; jobReadRequest.current = null; jobRequest?.abort(); const comparisonRequest=compareRequest.current;compareRequest.current=null;comparisonRequest?.abort();const metadataRead=metadataRequest.current;metadataRequest.current=null;metadataRead?.abort();};
   }, []);
 
-  async function compare() {
-    setBusy(true); setError(''); setComparison(null); setJobResult(null);
+  async function compare(event) {
+    if(compareRequest.current)return;
+    const origin=event?.currentTarget,restoreFocus=origin && document.activeElement===origin;
+    const controller=new AbortController();compareRequest.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setBusy(true);setComparisonLoading(true);setError('');
     try {
-      const result = await managementCommand('model-downloads', 'backup-compare', {model: selected, target});
-      if (!Array.isArray(result.files)) throw new Error('비교 결과가 올바르지 않습니다.');
-      setComparison(result); setComparisonOrigin({kind: 'comparison', time: new Date().toISOString()}); setFilter('all'); setFileQuery(''); setPage(0);
-    } catch (problem) {setError(problem.message || '비교하지 못했습니다.');}
-    finally {setBusy(false);}
+      const result = await untilAborted(managementCommand('model-downloads', 'backup-compare', {model: selected, target},{signal:controller.signal}),controller.signal);
+      if(compareRequest.current!==controller)return;
+      if (!validBackupComparison(result,selected,target)) throw new Error('비교 결과의 대상 또는 형식을 확인할 수 없습니다.');
+      setJobResult(null);setComparison(result); setComparisonOrigin({kind: 'comparison', time: new Date().toISOString()}); setFilter('all'); setFileQuery(''); setPage(0);
+    } catch (problem) {if(compareRequest.current===controller)setError((timedOut ? '비교 조회 시간이 초과됐습니다. 다시 시도하세요.' : requestErrorMessage(problem))+(comparison ? ' 이전 비교 결과를 유지합니다.' : ''));}
+    finally {clearTimeout(timeout);if(compareRequest.current===controller){compareRequest.current=null;setComparisonLoading(false);setBusy(false);if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body && origin.isConnected && !origin.disabled)origin.focus();});}}
   }
 
-  async function showMetadata() {
-    setBusy(true); setError(''); setMetadata(null);
-    try {setMetadata(await managementCommand('model-downloads', 'backup-metadata', {model: selected}));}
-    catch (problem) {setError(problem.message || '메타정보를 조회하지 못했습니다.');}
-    finally {setBusy(false);}
+  async function showMetadata(event) {
+    if(metadataRequest.current)return;
+    const origin=event?.currentTarget,restoreFocus=origin && document.activeElement===origin;
+    const controller=new AbortController();metadataRequest.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setBusy(true);setMetadataLoading(true);setError('');
+    try {
+      const result=await untilAborted(managementCommand('model-downloads','backup-metadata',{model:selected},{signal:controller.signal}),controller.signal);
+      if(metadataRequest.current!==controller)return;
+      if(!validBackupMetadata(result,selected))throw new Error('메타정보 대상 또는 형식을 확인할 수 없습니다.');
+      setMetadata(result);
+    } catch(problem) {if(metadataRequest.current===controller)setError((timedOut ? '메타정보 조회 시간이 초과됐습니다. 다시 시도하세요.' : requestErrorMessage(problem))+(metadata ? ' 이전 메타정보를 유지합니다.' : ''));}
+    finally {clearTimeout(timeout);if(metadataRequest.current===controller){metadataRequest.current=null;setMetadataLoading(false);setBusy(false);if(restoreFocus)requestAnimationFrame(()=>{if(document.activeElement===document.body && origin.isConnected && !origin.disabled)origin.focus();});}}
   }
 
   async function submitRequest(request) {
@@ -172,6 +191,7 @@ export default function ModelBackupCompare({requestedSelection}) {
     try {
       const result = await untilAborted(managementCommand('model-downloads', 'backup-verify-status', {job_id: jobId}, {signal: controller.signal}), controller.signal);
       if (jobReadRequest.current !== controller) return;
+      if (!validBackupJob(result,jobId)) throw new Error('작업 결과의 형식 또는 작업 ID를 확인할 수 없습니다.');
       setJobResult(result);
       setShownJobId(jobId);
       setComparisonOrigin({kind: 'history', time: result.finished_at || result.started_at || null});
@@ -191,7 +211,9 @@ export default function ModelBackupCompare({requestedSelection}) {
   const visibleJobs = jobs ? (selectedHistoryOnly ? jobs.filter(job => job.model === selected) : jobs) : [];
   const matchingModels = models.filter(model => searchTerms.every(term => `${model.name} ${directoryLabel(model.name, model.relative_path)}`.toLocaleLowerCase().includes(term)));
   const localMissing = selectedModel?.local_present === false;
-  const unavailableReason = modelsLoading ? '모델 목록을 불러오는 중입니다.' : modelsError ? '모델 목록을 다시 불러오세요.' : backupError ? '백업 연결을 확인하고 목록을 다시 불러오세요.' : !selected ? '모델 디렉터리를 선택하세요.' : busy ? '현재 요청이 끝날 때까지 기다리세요.' : pendingRequest ? '이전 요청의 접수 결과를 먼저 확인하세요.' : '';
+  const {compare:compareReason,metadata:metadataReason,verify:verifyReason,sync:syncReason}=backupActionReasons({busy,modelsLoading,modelsError,backupError,selected,localMissing,target,pendingRequest});
+  const actionReasons=[...new Set([compareReason,metadataReason,verifyReason,syncReason].filter(Boolean))];
+  const reasonDescription=reason=>reason ? `${actionReasonId}-${actionReasons.indexOf(reason)}` : undefined;
 
   return <section className="model-backup"><h2 ref={headingRef} tabIndex={-1}>모델 백업 비교</h2>
     {jobResult && <p role="status">{failedJobId && error ? '이전 조회 결과 · ' : ''}{jobSummary(jobResult)}</p>}
@@ -230,12 +252,12 @@ export default function ModelBackupCompare({requestedSelection}) {
     <h3>2. 비교 및 백업</h3>
     {selectedModel && <p>비교·검증 대상 · <strong>{directoryLabel(selectedModel.name, selectedModel.relative_path)}</strong> · {targets[target]} · 백업은 별도 스냅샷으로 저장됩니다.</p>}
     <div className="generator-history-actions">
-    <button type="button" onClick={compare} disabled={busy || modelsLoading || !!modelsError || !!backupError || !selected || localMissing || target === 'snapshot_manifest'}>백업과 비교</button>
-    <button type="button" onClick={showMetadata} disabled={busy || modelsLoading || !!modelsError || !selected}>모델 메타정보</button>
-    <button type="button" onClick={() => beginRequest('backup-verify')} disabled={busy || modelsLoading || !!modelsError || !!backupError || !selected || (localMissing && target !== 'snapshot_manifest') || !!pendingRequest}>SHA-256 검증 시작</button>
-    <button type="button" onClick={() => beginRequest('backup-sync')} disabled={busy || modelsLoading || !!modelsError || !!backupError || !selected || localMissing || !!pendingRequest}>선택한 모델 백업</button>
+    <button type="button" onClick={compare} disabled={Boolean(compareReason)} aria-describedby={reasonDescription(compareReason)}>백업과 비교</button>
+    <button type="button" onClick={showMetadata} disabled={Boolean(metadataReason)} aria-describedby={reasonDescription(metadataReason)}>모델 메타정보</button>
+    <button type="button" onClick={() => beginRequest('backup-verify')} disabled={Boolean(verifyReason)} aria-describedby={reasonDescription(verifyReason)}>SHA-256 검증 시작</button>
+    <button type="button" onClick={() => beginRequest('backup-sync')} disabled={Boolean(syncReason)} aria-describedby={reasonDescription(syncReason)}>선택한 모델 백업</button>
     </div>
-    {unavailableReason && <p role="status">{unavailableReason}</p>}
+    {actionReasons.map((reason,index)=><p key={reason} id={`${actionReasonId}-${index}`}>{reason}</p>)}
     {target === 'snapshot_manifest' && <p>자체 무결성은 크기·시간 비교를 지원하지 않습니다. SHA-256 검증을 시작하세요.</p>}
     {!selected && <p>모델 목록을 불러온 뒤 디렉터리를 선택하세요. 목록 조회에 실패했다면 백업 연결을 확인하고 페이지를 다시 여세요.</p>}
     {busy && <p role="status">요청을 처리하고 있습니다. 완료된 뒤 다시 선택할 수 있습니다.</p>}
@@ -246,7 +268,7 @@ export default function ModelBackupCompare({requestedSelection}) {
     </div>}
     <p>백업은 최신 스냅샷과 SHA-256을 비교하고 동일하면 재사용합니다. 변경된 경우 모델 전체를 새 스냅샷으로 복사하므로 모델 크기만큼 추가 공간이 필요합니다.</p>
     <p>검증은 선택한 파일을 전체적으로 읽으므로 시간이 오래 걸립니다. 작업 완료와 모든 파일의 일치는 별도입니다.</p>
-    {metadata && <div><p>{metadata.origin === 'backup_snapshot' ? `백업 스냅샷 ${metadata.snapshot_id} · ` : metadata.origin === 'backup_directory' ? '기존 백업 디렉터리 · ' : ''}관련 서비스 · {metadata.services?.join(', ') || '확인된 등록 없음'} · 기존 매니페스트 {metadata.manifest_state}</p>
+    {metadata && <div>{metadataLoading && <p role="status">메타정보를 다시 조회하고 있습니다. 아래는 마지막으로 확인한 결과입니다.</p>}<p>{metadata.origin === 'backup_snapshot' ? `백업 스냅샷 ${metadata.snapshot_id} · ` : metadata.origin === 'backup_directory' ? '기존 백업 디렉터리 · ' : ''}관련 서비스 · {metadata.services?.join(', ') || '확인된 등록 없음'} · 기존 매니페스트 {metadata.manifest_state}</p>
       <p>매니페스트의 해시는 선언값입니다. 파일 내용을 검증한 결과와 구분합니다.</p>
       <ul>{metadata.declared_sources?.map((item, index) => <li key={index}>{item.repository} · {item.revision}</li>)}</ul>
       <ul>{metadata.declared_files?.slice(0, 200).map((item, index) => <li key={index}>{item.path} · {item.sha256}</li>)}</ul>
@@ -260,7 +282,7 @@ export default function ModelBackupCompare({requestedSelection}) {
     <label><input type="checkbox" checked={selectedHistoryOnly} onChange={event => setSelectedHistoryOnly(event.target.checked)} disabled={!selected}/> 선택한 디렉터리의 이력만 보기</label>
     {jobs ? <><p role="status">최근 조회된 이력 {jobs.length}건 중 {visibleJobs.length}건 표시 · 오래된 이력은 이 목록에 없을 수 있습니다.</p>
     {visibleJobs.length > 0 ? <details><summary>최근 백업·검증 작업 {visibleJobs.length}건 보기</summary><ul>{visibleJobs.map(job => <li key={job.job_id}><strong>{job.model} · {job.operation === 'sync' ? '백업' : '검증'} · {jobLabels[job.status] || job.status}</strong><br/>시작 · {jobTime(job.started_at)} · {job.operation === 'sync' ? '스냅샷 백업' : (targets[job.target] || '기존 공유 디렉터리')} · 작업 ID {job.job_id}{job.stage && ` · ${job.stage}`}{job.current_file && ` · ${job.current_file}`}{Number.isFinite(job.file_bytes) ? ` · 현재 파일 ${job.file_bytes.toLocaleString()} / ${job.file_total_bytes?.toLocaleString() ?? '?'}바이트` : Number.isFinite(job.bytes) ? ` · ${job.bytes.toLocaleString()} / ${job.total_bytes?.toLocaleString() ?? '?'}바이트` : ''} <button type="button" aria-label={`${job.model} ${jobTime(job.started_at)} ${job.operation === 'sync' ? '백업' : '검증'} 상태·결과 확인`} aria-disabled={busy} onClick={() => {if (!busy) showJob(job.job_id);}}>상태·결과 확인</button>{jobResult && shownJobId === job.job_id && <p>{failedJobId === job.job_id && error ? '이전 조회 결과 · ' : ''}{jobSummary(jobResult)}</p>}{error && failedJobId === job.job_id && <p>{error}</p>}</li>)}</ul></details> : <p>{selectedHistoryOnly ? '최근 조회된 이력에 선택한 디렉터리의 작업이 없습니다.' : '최근 백업·검증 이력이 없습니다.'}</p>}</> : !historyLoading && <p>이력을 확인하지 못했습니다. 이력 새로고침을 시도하세요.</p>}
-    {comparison && <div><h3>비교·검증 결과</h3><p role="status">{comparison.model} · {comparison.complete ? '목록 조회 완료' : '일부 경로 확인 실패'} · 파일 {comparison.files.length.toLocaleString()}개</p>
+    {comparison && <div><h3>비교·검증 결과</h3>{comparisonLoading && <p role="status">비교를 다시 조회하고 있습니다. 아래는 마지막으로 확인한 결과입니다.</p>}<p role="status">{comparison.model} · {comparison.complete ? '목록 조회 완료' : '일부 경로 확인 실패'} · 파일 {comparison.files.length.toLocaleString()}개</p>
       {comparisonOrigin?.kind === 'history' && <p>이력의 과거 결과 · {jobTime(comparisonOrigin.time)} · 이후 파일이나 경로가 변경됐을 수 있습니다.</p>}
       {comparisonOrigin?.kind === 'comparison' && <p>비교 조회 시각 · {jobTime(comparisonOrigin.time)} · 이후 파일이나 경로가 변경됐을 수 있습니다.</p>}
       {comparison.model !== selected && <p>이 결과는 현재 선택한 디렉터리가 아닌 이전 작업의 결과입니다.</p>}

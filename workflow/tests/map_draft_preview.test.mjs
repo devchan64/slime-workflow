@@ -19,7 +19,10 @@ test("셀 좌표와 원본 응답을 함께 확인한다",()=>{
 test("셀의 입력 변경은 숫자 표현을 정규화해 판단한다",()=>{
   const original={tile:"a",height:1,blocked:false};
   assert.equal(isMapCellDirty({...original,height:"1"},original),false);
+  assert.equal(isMapCellDirty({...original,height:"1.0"},original),false);
+  assert.equal(isMapCellDirty({...original,height:"01"},original),false);
   assert.equal(isMapCellDirty({...original,height:""},original),true);
+  assert.equal(isMapCellDirty({...original,height:"2"},original),true);
   assert.equal(isMapCellDirty({...original,blocked:true},original),true);
   assert.equal(isMapCellDirty({...original,wall:"stone"},original),true);
 });

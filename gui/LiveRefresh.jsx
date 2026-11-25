@@ -1,4 +1,4 @@
-import React,{useCallback,useEffect,useRef,useState} from "react";
+import React,{useCallback,useEffect,useId,useRef,useState} from "react";
 import {observeLiveVisibility} from "./observeLiveVisibility.mjs";
 
 export const LIVE_REFRESH_MS=30000;
@@ -25,5 +25,6 @@ export function useLiveRefresh(refresh,active=true,interval=LIVE_REFRESH_MS){
 }
 
 export function LiveRefreshControl({live,label="자동 갱신",inactiveReason="일시 중지"}){
-  return <label className="live-refresh"><input type="checkbox" checked={live.enabled} onChange={event=>live.setEnabled(event.target.checked)}/> {label} · {(live.interval ?? LIVE_REFRESH_MS)/1000}초 간격{!live.active ? " · "+inactiveReason : live.enabled && !live.visible ? " · 화면에 보이면 갱신" : ""}</label>;
+  const descriptionId=useId();
+  return <label className="live-refresh"><input type="checkbox" aria-label={label} aria-describedby={descriptionId} checked={live.enabled} onChange={event=>live.setEnabled(event.target.checked)}/> {label} <span id={descriptionId}>· {(live.interval ?? LIVE_REFRESH_MS)/1000}초 간격{!live.active ? " · "+inactiveReason : live.enabled && !live.visible ? " · 화면에 보이면 갱신" : ""}</span></label>;
 }

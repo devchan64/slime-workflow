@@ -833,7 +833,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .billboard-catalog .billboard-properties-form {width:100%;max-width:none;margin:1rem 0;padding:0}
 .billboard-properties-form > fieldset {padding:1rem;border:1px solid var(--line,#484d50);border-radius:.5rem}
 .billboard-properties-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.75rem;margin-bottom:1rem}
-.billboard-properties-grid > label:not(.billboard-checkbox) {display:grid;gap:.35rem;min-width:0}
+.billboard-properties-grid > label:not(.billboard-checkbox),.billboard-properties-grid > div > label {display:grid;gap:.35rem;min-width:0}
+.billboard-properties-grid > div {min-width:0}
 .billboard-properties-grid :is(input[type=number],select) {box-sizing:border-box;width:100%;min-width:0;font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
 .billboard-properties-grid > .billboard-checkbox {display:flex;align-items:center;gap:.5rem;align-self:end;min-height:2.5rem}
 .billboard-properties-form > fieldset > button {margin:.75rem .5rem 0 0}
@@ -855,6 +856,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .billboard-crop section > button {margin-right:.5rem}
 
 .billboard-crop-help {margin:.65rem 0;color:var(--muted,#aeb7c3);font-size:.9rem}
+.billboard-crop :where([tabindex="-1"]):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 
 .service-registry-list {list-style:none;margin:.75rem 0;padding:0;display:grid;gap:.5rem}
 .service-registry-list > li {min-width:0;padding:.75rem;border:1px solid var(--line,#484d50);border-radius:.5rem;overflow-wrap:anywhere}
@@ -1029,6 +1031,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .generator-section-card-heading {font-size:1.125rem;line-height:1.3;font-weight:700}
 .generator-section-card-summary {margin-inline-start:.7rem;font-size:.85rem;font-weight:400;line-height:1.5;overflow-wrap:anywhere}
 .generator-section-card-body {padding:.8rem;min-width:0}
+.generator-usage :where([tabindex="-1"]):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .vace-usage-card .generator-section-card-body {display:grid;gap:.75rem}
 .vace-usage-card .generator-section-card-body ol {margin:0;padding-left:1.4rem}
 .vace-usage-card .generator-section-card-body li + li {margin-top:.35rem}

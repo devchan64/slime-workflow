@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {managementCommand, untilAborted} from './managementCommand.js';
 import {requestErrorMessage} from './requestError.mjs';
-import {installationJobs, relatedActivity, searchCatalog, sortCatalog} from './modelCatalogSearch.mjs';
+import {installationJobs, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification} from './modelCatalogSearch.mjs';
 import {backupTargetLabel, verificationSummary} from './modelBackupResults.mjs';
 
 const kindLabels = {model: '모델', shared: '공유 구성요소', cache: '캐시', collection: '구성요소 모음'};
@@ -34,8 +34,9 @@ export default function ModelCatalog({onCompare}) {
       ]),controller.signal);
       if (next.status === 'rejected') throw next.reason;
       const value = next.value;
-      if (!Array.isArray(value.components) || !Array.isArray(value.unclassified)) throw new Error('카탈로그 응답 형식이 올바르지 않습니다.');
-      const recent = history.status === 'fulfilled' && Array.isArray(history.value.records) ? history.value.records : [];
+      if (!validCatalogOverview(value)) throw new Error('카탈로그 응답 형식이 올바르지 않습니다.');
+      const validHistory=history.status === 'fulfilled' && validCatalogHistory(history.value);
+      const recent = validHistory ? history.value.records : [];
       const targets = value.components.flatMap(component => {
         const entries = component.alternate_installations || [];
         if (!entries.some(entry => entry.retained_original)) return [];
@@ -45,11 +46,11 @@ export default function ModelCatalog({onCompare}) {
       const checks = await untilAborted(Promise.all(targets.map(async target => {
         const job = recent.find(record => record.model === target && record.operation !== 'sync');
         if (!job) return [target, null];
-        try {return [target, await managementCommand('model-downloads', 'backup-verify-status', {job_id: job.job_id}, {signal:controller.signal})];}
+        try {const record=await managementCommand('model-downloads', 'backup-verify-status', {job_id: job.job_id}, {signal:controller.signal});return [target, validCatalogVerification(record,job.job_id,target) ? record : {status:'unavailable'}];}
         catch {return [target, {status: 'unavailable'}];}
       })),controller.signal);
       if (requestRef.current!==controller || controller.signal.aborted) return;
-      if (history.status === 'fulfilled' && Array.isArray(history.value.records)) {
+      if (validHistory) {
         setJobs(history.value.records); setJobsError('');
       } else {
         setJobs(null); setJobsError('최근 백업·검증 작업을 조회하지 못했습니다.');
@@ -60,6 +61,7 @@ export default function ModelCatalog({onCompare}) {
     } catch (problem) {if(requestRef.current===controller)setError(timedOut ? '카탈로그 조회 시간이 초과됐습니다. 다시 조회하세요.' : '카탈로그를 조회하지 못했습니다. '+requestErrorMessage(problem));}
     finally {clearTimeout(timeout); if(requestRef.current===controller){requestRef.current=null; setBusy(false);}}
   }
+  const visibleComponents=result ? sortCatalog(searchCatalog(result.components,query),order) : [];
   return <section className="model-catalog"><h2>모델 카탈로그</h2>
     <p>등록된 모델과 공유 구성요소, 아직 분류하지 않은 디렉터리를 확인합니다. 표시된 관계는 현재 등록된 정보이며 전체 의존성을 보장하지 않습니다.</p>
     <button type="button" onClick={load} aria-disabled={busy}>{busy ? '카탈로그 조회 중…' : '카탈로그 조회'}</button>
@@ -98,9 +100,9 @@ export default function ModelCatalog({onCompare}) {
       <label>카탈로그 검색 <input ref={searchRef} type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="모델, 서비스, 출처, 경로"/></label>
       <label>정렬 <select value={order} onChange={event => setOrder(event.target.value)}><option value="catalog">카탈로그 순서</option><option value="allocated">이전 조사 할당 크기순</option></select></label>
       {query && <button type="button" onClick={() => {setQuery(''); searchRef.current?.focus();}}>카탈로그 검색 지우기</button>}
-      <p role="status">검색 결과 {searchCatalog(result.components, query).length}개 / 등록 {result.components.length}개 · 미분류 디렉터리 {result.unclassified.length}개</p>
-      {searchCatalog(result.components, query).length === 0 && <p>일치하는 등록 항목이 없습니다. 다른 이름이나 경로를 검색하세요.</p>}
-      <ul>{sortCatalog(searchCatalog(result.components, query), order).map(({declaration: item, declared_version: version, presence: state, installation_metadata: installed, storage_observation: storage, observed_links: links, alternate_installations: alternates}) => {
+      <p role="status">검색 결과 {visibleComponents.length}개 / 등록 {result.components.length}개 · 미분류 디렉터리 {result.unclassified.length}개</p>
+      {visibleComponents.length===0 && <p>{result.components.length===0 ? '등록된 카탈로그 항목이 없습니다.' : '일치하는 등록 항목이 없습니다. 다른 이름이나 경로를 검색하세요.'}</p>}
+      {visibleComponents.length>0 && <ul>{visibleComponents.map(({declaration: item, declared_version: version, presence: state, installation_metadata: installed, storage_observation: storage, observed_links: links, alternate_installations: alternates}) => {
         const current = alternates?.find(alt => alt.local_present === true && alt.backup_target);
         const legacy = current && state?.local_present !== true;
         const currentTarget = legacy ? current.backup_target : (!item.path.includes('/') ? item.path : null);
@@ -126,7 +128,7 @@ export default function ModelCatalog({onCompare}) {
         {links?.length > 0 && <details><summary aria-label={`${item.label} · ${item.path} 조사에서 발견한 관련 링크 ${links.length}개`}>조사에서 발견한 관련 링크 {links.length}개</summary><p>링크와 대상 경로는 조사 당시의 관측값입니다. 폴더를 이동하면 참조가 끊어질 수 있습니다.</p><ul>{links.map(link => <li key={link.path}>{link.path} → {link.resolved} · {({present: '대상 있음', missing: '대상 없음', outside: '모델 루트 밖', unknown: '상태 확인 불가'}[link.status] || '상태 확인 불가')}</li>)}</ul></details>}
         {legacy && current.storage_observation && <p>현재 설치본의 이전 조사 · 할당 크기 {gib(current.storage_observation.allocated_bytes)}</p>}
         {alternates?.filter(alt => !legacy || alt !== current).map(alt => <p key={alt.path}>{alt.retained_original ? '별도 보존 원본' : alt.external_cache ? '별도 캐시' : '추가 설치본'} · {alt.path} · {alt.retained_original ? <>모델 백업 대상 경로 밖에 보존됨 · 정리 보류{alt.storage_observation && ` · 관측 할당 크기 ${gib(alt.storage_observation.allocated_bytes)} · ${alt.storage_observation.observed_at}${alt.storage_observation.errors || alt.storage_observation.changed ? ' · 조사 오류 또는 변경 감지' : ''}`} · 새 백업과 복원 검증 전에는 보존</> : alt.external_cache ? '모델 백업 대상 경로 밖에 있음' : <>백업 대상 {alt.backup_target} · 로컬 {present(alt.local_present)} · 기존 백업 {present(alt.backup_present)} · 완료 스냅샷 {present(alt.snapshot_present)}{alt.storage_observation && ` · 이전 조사 할당 크기 ${gib(alt.storage_observation.allocated_bytes)}`}{alt.installation_metadata && ` · 설치 매니페스트 ${manifestLabel(alt.installation_metadata.manifest_state)} · 선언 파일 ${alt.installation_metadata.declared_file_count ?? '확인 불가'}개`} <button type="button" aria-label={`${item.label} · ${alt.path} · 백업 대상 ${alt.backup_target} 이 설치본의 백업 비교로 이동`} onClick={() => onCompare?.(alt.backup_target)}>이 설치본의 백업 비교로 이동</button></>}</p>)}
-      </li>})}</ul>
+      </li>})}</ul>}
       <details><summary>미분류 디렉터리 {result.unclassified.length}개 보기</summary>
         <p>미분류는 미사용이나 삭제 가능을 뜻하지 않습니다.</p>
         <ul>{result.unclassified.map(item => <li key={item.name}>{item.name} · {item.partially_classified && '일부 구성요소 등록됨 · '}로컬 {present(item.local_present)} · 기존 백업 {present(item.backup_present)}</li>)}</ul>

@@ -158,15 +158,15 @@ export default function ModelPage() {
   const selectedModel=models.find(model=>model.id===service);
   function chooseModel(value){
     selectedRef.current=value;missingRef.current="";select(value);setMissingModel("");
-    const url=new URL(location.href);url.searchParams.set("model",value);history.replaceState(null,"",url);
+    const url=new URL(location.href);url.searchParams.set("model",value);history.replaceState(history.state,"",url);
   }
   return <article className="model-management-page"><h1>모델 상태와 파일</h1>
     <a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 이동</a>
-    <button type="button" aria-disabled={loading} onClick={()=>{if(!loading)setRevision(value=>value+1);}}>{loading ? "모델 목록 조회 중…" : "모델 목록 새로고침"}</button>
+    <button type="button" aria-disabled={loading} onClick={()=>{if(!loading)setRevision(value=>value+1);}}>{loading ? "모델 목록 조회 중…" : error ? "모델 목록 다시 조회" : "모델 목록 새로고침"}</button>
     {checkedAt && <p>마지막 목록 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
     {loading && <p role="status">모델 목록을 조회하고 있습니다.{models.length>0 && " 아래는 마지막 조회 결과입니다."}</p>}
     {error && <p role="alert">{error}{models.length>0 && " · 이전 목록을 유지합니다."}</p>}
-    {!loading && !error && !models.length && <p>등록된 모델이 없습니다.</p>}
+    {!loading && !error && !models.length && <p role="status">등록된 모델이 없습니다.</p>}
     {missingModel && <p id={missingModelId} role="status">요청한 모델 ‘{missingModel}’을 목록에서 찾지 못했습니다. 모델을 선택해 주세요.</p>}
     {models.length>0 && <section className="model-finder" aria-labelledby="model-list-heading"><h2 id="model-list-heading">모델 찾기</h2>
       <p>목록에서 모델을 선택하면 아래에 준비 상태와 다운로드 기록이 표시됩니다. 이름이나 서비스 ID로 검색할 수도 있습니다.</p>
@@ -174,9 +174,9 @@ export default function ModelPage() {
       {modelQuery && <button type="button" onClick={()=>{setModelQuery("");searchRef.current?.focus();}}>검색 지우기</button>}
       {selectedModel && <p>선택한 모델 · <strong>{selectedModel.label}</strong> <small>({selectedModel.id})</small></p>}
       <p role="status">{modelQuery.trim() ? `검색 결과 ${matchingModels.length}개 / 전체 ${models.length}개` : `등록 모델 ${models.length}개`}{service && searchTerms.length>0 && !matchingModels.some(model=>model.id===service) ? " · 현재 선택은 유지됩니다." : ""}</p>
-      <div role="group" aria-label="모델 목록" className="model-choice-list">
+      {matchingModels.length>0 && <div role="group" aria-label="모델 목록" className="model-choice-list">
         {matchingModels.map(model=><button key={model.id} type="button" className="generator-history-select" aria-pressed={service===model.id} onClick={()=>chooseModel(model.id)}><span className="history-card-content"><span className="history-card-heading"><strong>{model.label}</strong>{service===model.id && <span>선택됨</span>}</span><small className="history-card-id">{model.id}</small></span></button>)}
-      </div>
+      </div>}
       {modelQuery.trim() && matchingModels.length===0 && <p>일치하는 모델이 없습니다. 다른 이름이나 서비스 ID로 검색하세요.</p>}
     </section>}
     {service === "flux-image" && <p>약 20.32GB · <a href="https://huggingface.co/black-forest-labs/flux-3-image-klein">FLUX 접근 조건</a>을 확인하고 Hugging Face에 로그인하세요.</p>}

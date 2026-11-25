@@ -58,11 +58,11 @@ export function buildingPropertiesChanged(original,values){
   });
 }
 
-export function BuildingProperties({building,generation,busy,setBusy,onSaved,onDirtyChange}){
+export function BuildingProperties({building,generation,busy,disabledReason,setBusy,onSaved,onDirtyChange}){
   const expected={displayWidthAdjustment:0,displayHeightAdjustment:0,...building.properties};
   const original={shadowShape:"circle",shadowOffsetColumn:0,shadowOffsetRow:0,shadowScaleX:1,shadowScaleY:1,...expected};
   const [values,edit]=useState(original),[error,setError]=useState("");
-  const sizeErrorId=useId(),fieldErrorId=useId();
+  const sizeErrorId=useId(),fieldErrorId=useId(),disabledHelp=useId();
   const fieldMinimum=(key,min)=>building.texture==="ward-tower-v1" && ["displayWidthAdjustment","displayHeightAdjustment"].includes(key) ? -138 : min;
   const fieldIssues=Object.fromEntries(fields.map(([key,,min,max,step])=>{const raw=values[key],n=Number(raw);return [key,raw==null || String(raw).trim()==="" || !Number.isFinite(n) || n<fieldMinimum(key,min) || n>max || (step===1 && !Number.isInteger(n))];}));
   const invalidSizes=invalidBuildingSizeFields(building,{displayWidthAdjustment:Number(values.displayWidthAdjustment),displayHeightAdjustment:Number(values.displayHeightAdjustment)});
@@ -104,7 +104,7 @@ export function BuildingProperties({building,generation,busy,setBusy,onSaved,onD
     }catch(problem){setError("저장 결과를 확인하지 못했습니다. 다시 저장하기 전에 편집 내용을 기록하고 목록을 다시 읽어 실제 속성을 확인하세요. · "+requestErrorMessage(problem));}
     finally{saving.current=false;setBusy(false);}
   }
-  return <form className="building-properties-form" onSubmit={save}><fieldset disabled={busy}><legend>건물 표시 속성</legend>
+  return <form className="building-properties-form" onSubmit={save}>{busy && disabledReason && <p id={disabledHelp}>{disabledReason}</p>}<fieldset disabled={busy} aria-describedby={busy && disabledReason ? disabledHelp : undefined}><legend>건물 표시 속성</legend>
     {building.maps.length>0 && <label>미리보기 맵 배치<select value={placement} onChange={e=>selectPlacement(Number(e.target.value))}>
       {building.maps.map((item,i)=><option key={i} value={i}>{item.map} · {item.name} · {item.width}×{item.height} · {item.facing}</option>)}</select></label>}
     <canvas ref={canvas} tabIndex={-1} width="480" height="360" aria-label="건물 타일 배치 미리보기" style={{maxWidth:"100%",height:"auto"}}/>
@@ -112,7 +112,7 @@ export function BuildingProperties({building,generation,busy,setBusy,onSaved,onD
     {previewStatus==="invalid" && <p ref={previewInvalid} tabIndex={-1} role="status">입력값과 표시 크기를 확인하면 미리보기를 볼 수 있습니다.</p>}
     {previewStatus==="image-error" && <p role="alert">건물 이미지를 불러오지 못했습니다. <button ref={previewRetryButton} type="button" onClick={()=>{restorePreviewFocus.current=document.activeElement===previewRetryButton.current;retryPreview(value=>value+1);}}>미리보기 다시 불러오기</button></p>}
     <p>{building.maps.length?"노란 윤곽은 점유 타일, 빨간 십자는 앵커, 점선은 주변 타일입니다.":"등록된 맵 배치가 없어 원본 이미지를 표시합니다."}</p>
-    <div className="building-properties-grid">{fields.map(([key,label,min,max,step])=>{const sizeFieldError=key==="displayWidthAdjustment" ? widthSizeError : key==="displayHeightAdjustment" ? heightSizeError : "";return <label key={key}>{label}<input ref={key==="anchorX" ? firstField : undefined} type="number" required min={fieldMinimum(key,min)} max={max} step={step || "any"} value={values[key]} aria-invalid={Boolean(fieldIssues[key] || sizeFieldError) || undefined} aria-describedby={[fieldIssues[key] && `${fieldErrorId}-${key}`,sizeFieldError && `${sizeErrorId}-${key}`].filter(Boolean).join(" ") || undefined} onChange={e=>edit({...values,[key]:e.target.value})}/>{fieldIssues[key] && <small id={`${fieldErrorId}-${key}`}>{fieldMinimum(key,min)}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</label>;})}
+    <div className="building-properties-grid">{fields.map(([key,label,min,max,step])=>{const sizeFieldError=key==="displayWidthAdjustment" ? widthSizeError : key==="displayHeightAdjustment" ? heightSizeError : "";return <div key={key}><label>{label}<input ref={key==="anchorX" ? firstField : undefined} type="number" required min={fieldMinimum(key,min)} max={max} step={step || "any"} value={values[key]} aria-invalid={Boolean(fieldIssues[key] || sizeFieldError) || undefined} aria-describedby={[fieldIssues[key] && `${fieldErrorId}-${key}`,sizeFieldError && `${sizeErrorId}-${key}`].filter(Boolean).join(" ") || undefined} onChange={e=>edit({...values,[key]:e.target.value})}/></label>{fieldIssues[key] && <small id={`${fieldErrorId}-${key}`}>{fieldMinimum(key,min)}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</div>;})}
     <label>그림자 형태<select value={values.shadowShape} onChange={e=>edit({...values,shadowShape:e.target.value})}>
       <option value="circle">원형</option><option value="rectangle">사각형</option></select></label></div>
     {widthSizeError && <p id={`${sizeErrorId}-displayWidthAdjustment`} role="alert">{widthSizeError}</p>}
@@ -140,9 +140,9 @@ export async function buildingCommand(action,payload,{signal,onDispatch}={}){
   return managementCommand("map-assets","building-"+action,{...payload,requestId});
 }
 
-export function BuildingRegistration({generation,busy,setBusy,onRegistered}){
+export function BuildingRegistration({generation,busy,disabledReason,setBusy,onRegistered}){
   const [error,setError]=useState(""),[fileError,setFileError]=useState("");
-  const idHelp=useId(),imageHelp=useId(),fileErrorId=useId(),submitting=useRef(false),prepareRequest=useRef(null);
+  const idHelp=useId(),imageHelp=useId(),fileErrorId=useId(),disabledHelp=useId(),submitting=useRef(false),prepareRequest=useRef(null);
   useEffect(()=>()=>{prepareRequest.current?.abort();},[]);
   async function submit(event){
     event.preventDefault();
@@ -162,7 +162,7 @@ export function BuildingRegistration({generation,busy,setBusy,onRegistered}){
     }catch(problem){if(problem?.name!=="AbortError")setError((requested ? "등록 결과를 확인하지 못했습니다. 다시 등록하기 전에 건물 목록에서 처리 여부를 확인하세요. · " : "")+requestErrorMessage(problem));}
     finally{if(prepareRequest.current===controller)prepareRequest.current=null;submitting.current=false;setBusy(false);}
   }
-  return <details><summary>건물 등록</summary><form className="building-registration-form" onSubmit={submit}><fieldset disabled={busy}>
+  return <details><summary>건물 등록</summary>{busy && disabledReason && <p id={disabledHelp}>{disabledReason}</p>}<form className="building-registration-form" onSubmit={submit}><fieldset disabled={busy} aria-describedby={busy && disabledReason ? disabledHelp : undefined}>
     <label>건물 ID<input name="texture" required pattern="town-[a-z0-9\x2d]+-v[1-9][0-9]*" placeholder="town-iseulon-house-v1" aria-describedby={idHelp}/></label>
     <small id={idHelp}>town-으로 시작하고 -v1처럼 양의 버전 번호로 끝나는 영문 소문자·숫자·하이픈 ID를 입력하세요.</small>
     <label>투명 PNG<input name="image" required type="file" accept="image/png" aria-invalid={fileError ? true : undefined} aria-describedby={[imageHelp,fileError ? fileErrorId : null].filter(Boolean).join(" ")} onChange={()=>setFileError("")}/></label>
@@ -173,9 +173,10 @@ export function BuildingRegistration({generation,busy,setBusy,onRegistered}){
   </fieldset></form></details>;
 }
 
-export function BuildingAssetList({assets,selected,disabled,onSelect,image}){
-  return <div className="building-asset-list" role="group" aria-label="건물 목록">{assets.map(item=><button key={item.texture} type="button" disabled={disabled} aria-pressed={item.texture===selected} onClick={()=>onSelect(item.texture)}>
-    <img loading="lazy" src={image(item.texture)} width="64" height="64" alt=""/><span>{item.texture}{item.texture===selected && <small> · 선택됨</small>}</span></button>)}</div>;
+export function BuildingAssetList({assets,selected,disabled,disabledReason,onSelect,image}){
+  const disabledHelp=useId();
+  return <>{disabled && disabledReason && <p id={disabledHelp}>{disabledReason}</p>}<div className="building-asset-list" role="group" aria-label="건물 목록">{assets.map(item=><button key={item.texture} type="button" disabled={disabled} aria-describedby={disabled && disabledReason ? disabledHelp : undefined} aria-pressed={item.texture===selected} onClick={()=>onSelect(item.texture)}>
+    <img loading="lazy" src={image(item.texture)} width="64" height="64" alt=""/><span>{item.texture}{item.texture===selected && <small> · 선택됨</small>}</span></button>)}</div></>;
 }
 
 export default function BuildingEditor(){
@@ -230,20 +231,24 @@ export default function BuildingEditor(){
     {error && <p ref={catalogError} tabIndex={-1} role="alert">{error}{catalog && " 아래는 마지막 조회 결과이며, 다시 확인하기 전에는 변경할 수 없습니다."}</p>}
     {loading && catalog && <p role="status">목록 조회 중입니다. 아래는 마지막 조회 결과입니다.</p>}
     {catalog ? <><h2 ref={listHeading} tabIndex={-1}>건물 목록</h2><p>건물 {catalog.assets.length}종 · DB 세대 {catalog.generation}</p>
-      <BuildingRegistration generation={catalog.generation} busy={busy || dirty || unavailable} setBusy={setBusy} onRegistered={id=>{
+      <BuildingRegistration generation={catalog.generation} busy={busy || dirty || unavailable} disabledReason={busy ? "건물 요청이 끝날 때까지 기다리세요." : dirty ? "변경한 건물 속성을 저장하거나 편집을 취소하세요." : loading ? "건물 목록 확인이 끝날 때까지 기다리세요." : error ? "건물 목록을 다시 확인한 뒤 등록하세요." : ""} setBusy={setBusy} onRegistered={id=>{
         setNotice(id+" 등록 완료");setSelected(id);refreshCatalog(document.activeElement===document.body);
       }}/>
       {!catalog.assets.length && <p>등록된 건물이 없습니다.</p>}
       {selected && !building && <p role="status">선택한 건물을 현재 목록에서 찾지 못했습니다. 다른 건물을 선택하세요.</p>}
-      <BuildingAssetList assets={catalog.assets} selected={selected} disabled={busy || dirty || loading} onSelect={setSelected} image={image}/>
+      <BuildingAssetList assets={catalog.assets} selected={selected} disabled={busy || dirty || loading} disabledReason={busy ? "건물 요청이 끝날 때까지 기다리세요." : dirty ? "변경한 건물 속성을 저장하거나 편집을 취소하세요." : loading ? "건물 목록 확인이 끝날 때까지 기다리세요." : ""} onSelect={setSelected} image={image}/>
     </> : !error && <p role="status">건물 목록을 읽고 있습니다.</p>}
     {building && <section><h2>{building.texture}</h2>
       <RecoverableImage key={selected+":"+catalogVersion} src={image(selected)} name={selected}/>
       <p>{building.width}×{building.height} px · 앵커 X {building.properties.anchorX} · Y {building.properties.anchorY}</p>
-      <BuildingProperties key={building.texture+"/"+catalogVersion} building={building} generation={catalog.generation} busy={busy || unavailable} setBusy={setBusy} onDirtyChange={setDirty}
+      <BuildingProperties key={building.texture+"/"+catalogVersion} building={building} generation={catalog.generation} busy={busy || unavailable} disabledReason={busy ? "건물 요청이 끝날 때까지 기다리세요." : loading ? "건물 목록 확인이 끝날 때까지 기다리세요." : error ? "건물 목록을 다시 확인한 뒤 속성을 편집하세요." : ""} setBusy={setBusy} onDirtyChange={setDirty}
         onSaved={id=>{setDirty(false);setNotice(id+" 표시 속성을 저장했습니다.");refreshCatalog(document.activeElement===document.body);}}/>
       <h3>사용 맵</h3>{building.maps.length ? <ul>{building.maps.map((usage,i)=><li key={i}>{usage.map} · {usage.name} · {usage.width}×{usage.height} · {usage.facing}</li>)}</ul> : <p>사용 맵 없음</p>}
-      <ActionButton disabled={busy || dirty || unavailable} reasons={[
+      <ActionButton reasons={[
+        busy && "건물 요청이 끝날 때까지 기다리세요.",
+        dirty && "저장하지 않은 건물 속성을 저장하거나 편집을 취소하세요.",
+        loading && "건물 목록 확인이 끝날 때까지 기다리세요.",
+        error && "건물 목록을 다시 확인한 후 삭제할 수 있습니다.",
         building.texture==="ward-tower-v1" && "보호된 건물은 삭제할 수 없습니다.",
         building.maps.length>0 && "사용 중인 맵의 건물 배치를 먼저 제거하세요."
       ]} onClick={retire}>선택 건물 삭제</ActionButton>

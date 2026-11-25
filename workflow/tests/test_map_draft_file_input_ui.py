@@ -7,6 +7,18 @@ import unittest
 
 
 class MapDraftFileInputTests(unittest.TestCase):
+    def test_coordinate_errors_are_connected_to_each_input(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'map.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'MapReview.jsx','--bundle','--platform=node','--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict');
+const Input=require(process.argv[1]).MapCoordinateInput;
+const render=value=>server.renderToStaticMarkup(React.createElement(Input,{axis:'열',value,onChange:()=>{}}));
+for(const value of ['', '-1', '1.5']){const html=render(value);const id=html.match(/aria-describedby=\"([^\"]+)\"/)[1];assert.match(html,/aria-invalid=\"true\"/);assert.ok(html.includes('id=\"'+id+'\">0 이상의 정수를 입력하세요.'));}
+for(const value of ['0','12'])assert.doesNotMatch(render(value),/aria-invalid|aria-describedby|0 이상의 정수를 입력하세요/);"""
+            subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+
     def test_map_canvas_exposes_visible_keyboard_help(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:
@@ -18,6 +30,8 @@ function render(path){global.location=new URL('http://localhost'+path);return se
 const field=render('/management/assistant/field-map/');
 assert.match(field,/<p id="map-keyboard-help">.*Shift\\+방향키.*열·행 입력/);
 assert.match(field,/<canvas[^>]*aria-describedby="map-keyboard-help"/);
+assert.match(field,/<p id="map-cell-selection-help">.*열·행을 입력/);
+assert.match(field,/<button aria-describedby="map-cell-selection-help"[^>]*>선택 셀 속성 조회<\\/button>/);
 const town=render('/management/assistant/town-map/');assert.match(town,/id="map-keyboard-help"/);assert.doesNotMatch(town,/열·행 입력으로도/);"""
             subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
 

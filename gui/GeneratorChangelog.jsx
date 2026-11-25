@@ -1,10 +1,11 @@
-import React, {useEffect,useRef,useState} from "react";
+import React, {useEffect,useId,useRef,useState} from "react";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import {requestErrorMessage} from "./requestError.mjs";
 import {untilAborted} from "./managementCommand.js";
 import {validChangelogPage} from "./changelogPage.mjs";
 
 export default function GeneratorChangelog({generator,card=false}) {
+  const paginationHelpId=useId();
   const [open,setOpen]=useState(false);
   const [position,setPosition]=useState({generator,index:0});
   const index=position.generator===generator ? position.index : 0;
@@ -47,18 +48,20 @@ export default function GeneratorChangelog({generator,card=false}) {
   },[open,generator,index,revision]);
   const visiblePage=page?.generator===generator ? page : null;
   const visibleError=error?.generator===generator ? error.message : "";
+  const paginationHelp=loading ? "조회가 끝나면 페이지를 이동할 수 있습니다." : !visiblePage ? "다시 조회한 뒤 페이지를 이동할 수 있습니다." : visiblePage.count===1 ? "변경 기록이 한 페이지입니다." : visiblePage.index===0 ? "첫 페이지입니다." : visiblePage.index+1>=visiblePage.count ? "마지막 페이지입니다." : "";
   function navigate(target,event){if(requestBusy.current)return;requestBusy.current=true;focusRequest.current=event.currentTarget;setLoading(true);if(target===index)setRevision(value=>value+1);else setPosition({generator,index:target});}
   function refresh(){if(requestBusy.current)return;requestBusy.current=true;setLoading(true);setRevision(value=>value+1);}
   const content=<>
       {loading && <p role="status">변경 기록을 불러오는 중…</p>}
       {visibleError && <p role="alert">{visibleError}</p>}
       {visiblePage && (loading || visibleError) && <p>아래는 마지막으로 조회한 변경 기록입니다.</p>}
+      {paginationHelp && <p id={paginationHelpId}>{paginationHelp}</p>}
       <div className="choice-buttons">
-        <button type="button" disabled={loading || !visiblePage || visiblePage.index===0} onClick={event=>navigate(visiblePage.index-1,event)}>이전 페이지</button>
-        <button type="button" disabled={loading || !visiblePage || visiblePage.index+1>=visiblePage.count} onClick={event=>navigate(visiblePage.index+1,event)}>다음 페이지</button>
-        <button ref={refreshRef} type="button" aria-disabled={loading} onClick={refresh}>{loading ? "조회 중…" : "새로고침"}</button>
+        <button type="button" disabled={loading || !visiblePage || visiblePage.index===0} aria-describedby={paginationHelp && (loading || !visiblePage || visiblePage.index===0) ? paginationHelpId : undefined} onClick={event=>navigate(visiblePage.index-1,event)}>이전 페이지</button>
+        <button type="button" disabled={loading || !visiblePage || visiblePage.index+1>=visiblePage.count} aria-describedby={paginationHelp && (loading || !visiblePage || visiblePage.index+1>=visiblePage.count) ? paginationHelpId : undefined} onClick={event=>navigate(visiblePage.index+1,event)}>다음 페이지</button>
+        <button ref={refreshRef} type="button" aria-disabled={loading} onClick={refresh}>{loading ? "조회 중…" : visibleError ? "변경 기록 다시 조회" : "새로고침"}</button>
       </div>
-      {visiblePage && <><p>{visiblePage.date || "날짜 없음"} · {visiblePage.index+1} / {visiblePage.count}</p><pre tabIndex={0} aria-label="변경 기록 내용">{visiblePage.content}</pre></>}
+      {visiblePage && <><p role="status">{visiblePage.date || "날짜 없음"} · {visiblePage.index+1} / {visiblePage.count}</p>{visiblePage.content.trim() ? <pre tabIndex={0} aria-label="변경 기록 내용">{visiblePage.content}</pre> : <p role="status">등록된 변경 기록 내용이 없습니다.</p>}</>}
     </>;
   if(card)return <GeneratorSectionCard title="생성기 변경 기록" summary="업데이트 내역" className="generator-changelog" onOpenChange={setOpen}>{open && content}</GeneratorSectionCard>;
   return <details className="generator-changelog" onToggle={event=>setOpen(event.currentTarget.open)}><summary>생성기 변경 기록</summary>{open && content}</details>;

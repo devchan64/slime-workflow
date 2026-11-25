@@ -1,5 +1,5 @@
 /* 관리도구 전역 스타일. MoMask 생성기를 시각 기준으로 사용한다. */
-:root{color-scheme:dark;--page:#10151f;--panel:#192230;--line:#314055;--muted:#a7b5c8;--accent:#a7c8ff;--danger:#ffc2bf;--text-primary:#edf3fc;--text-secondary:var(--muted);--surface-base:var(--page);--surface-panel:var(--panel);--surface-control:#25364c;--border-subtle:var(--line);--accent-primary:var(--accent);--input-background:#101925;--input-border:#40516a;--button-border:#455a76;--button-hover:#344963;--accent-hover:#c5daff;--log-background:#0d1420;--log-text:#c8d7e9;--control-height:40px;--space-small:8px;--space-medium:16px;--space-large:24px}
+:root{color-scheme:dark;--page:#10151f;--panel:#192230;--line:#314055;--muted:#a7b5c8;--accent:#a7c8ff;--danger:#ffc2bf;--text-primary:#edf3fc;--text-secondary:var(--muted);--surface-base:var(--page);--surface-panel:var(--panel);--surface-control:#25364c;--border-subtle:var(--line);--accent-primary:var(--accent);--input-background:#101925;--input-border:#40516a;--button-border:#455a76;--button-hover:#344963;--accent-hover:#c5daff;--log-background:#0d1420;--log-text:#c8d7e9;--control-height:44px;--space-small:8px;--space-medium:16px;--space-large:24px}
 
 
 *{box-sizing:border-box}
@@ -290,3 +290,5 @@ textarea{margin:6px 0 10px}select{margin:4px 8px 8px 0}button{margin:4px 6px 4px
 
 /* 단독 검수 화면의 숫자 입력 공용 스타일 */
 .review-number-input{font:inherit;color:var(--text);background:var(--input-background);border:1px solid var(--input-border);border-radius:9px;padding:10px}
+
+:where(button,select:not([multiple]):not([size])),select[size="1"] {min-height:var(--control-height)}
