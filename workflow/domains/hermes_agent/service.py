@@ -914,7 +914,8 @@ class HermesServiceManager:
                 session_record = sessions.read_session_record(session_id)
                 from workflow.domains.hermes_agent.resident_queue import find_session_resident, inspect_resident
                 resident_id = find_session_resident(session_id)
-                return {'dflash_enabled':session_record.get('dflash_enabled') is True, 'session_id':session_id, 'resident_id':resident_id, 'resident':inspect_resident(resident_id, session_id) if resident_id else {'state':'not_found'}}
+                from workflow.domains.hermes_agent.resident_worker import dflash_model_present
+                return {'dflash_available':dflash_model_present(), 'dflash_enabled':session_record.get('dflash_enabled') is True, 'session_id':session_id, 'resident_id':resident_id, 'resident':inspect_resident(resident_id, session_id) if resident_id else {'state':'not_found'}}
             if hermes_command_name == 'hermes-gpu-handoff-status':
                 if set(hermes_payload_record) != {'session_id','request_id'}: raise ValueError('세션과 GPU 양도 요청 ID가 필요합니다.')
                 sessions.read_session_record(hermes_payload_record['session_id'])

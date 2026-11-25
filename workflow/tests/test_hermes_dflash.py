@@ -31,10 +31,22 @@ class ResidentDflashTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     save('false')
 
+    def test_incomplete_download_cannot_enable_dflash(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / 'draft.gguf'
+            with patch.object(resident_worker, 'DFLASH_MODEL', path):
+                for candidate in (path.with_suffix('.gguf.part'), path):
+                    candidate.write_bytes(b'partial')
+                    self.assertFalse(resident_worker.dflash_model_present())
+                    with self.assertRaises(ValueError):
+                        resident_worker.dflash_arguments(True)
+                    self.assertEqual(resident_worker.dflash_arguments(False), [])
+
     def test_launch_arguments_only_add_drafter_when_enabled(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)/'draft.gguf'
-            path.touch()
+            with path.open('wb') as model_file:
+                model_file.truncate(resident_worker.DFLASH_MODEL_BYTES)
             with patch.object(resident_worker,'DFLASH_MODEL',path), patch.object(resident_worker.worker,'calculate_file_digest',return_value=resident_worker.DFLASH_SHA256):
                 self.assertEqual(resident_worker.dflash_arguments(False),[])
                 args=resident_worker.dflash_arguments(True)

@@ -25,10 +25,20 @@ DFLASH_MODEL = ROOT / '.model/qwen3.8-27b-dflash2/Qwen3.8-27B-DFlash2-Q4_K_M.ggu
 DFLASH_SHA256 = 'd169ad335929adc0d77e10e2523f968f3e75f547637ad739b0a137ccde111b5f'
 
 
+DFLASH_MODEL_BYTES = 1143006816
+
+
+def dflash_model_present():
+    try:
+        return DFLASH_MODEL.is_file() and DFLASH_MODEL.stat().st_size == DFLASH_MODEL_BYTES
+    except OSError:
+        return False
+
+
 def dflash_arguments(enabled):
     if not enabled:
         return []
-    if not DFLASH_MODEL.is_file() or worker.calculate_file_digest(DFLASH_MODEL) != DFLASH_SHA256:
+    if not dflash_model_present() or worker.calculate_file_digest(DFLASH_MODEL) != DFLASH_SHA256:
         raise ValueError('DFlash2 초안 모델 파일 또는 체크섬을 확인하세요.')
     return ['--spec-type', 'draft-dflash', '--spec-draft-model', str(DFLASH_MODEL),
             '--spec-draft-ngl', 'all', '--spec-draft-n-max', '4']

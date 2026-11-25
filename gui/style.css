@@ -1165,3 +1165,11 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .minimax-snapshot dd:nth-child(2) {white-space:pre-wrap;margin-bottom:.5rem}
 
 .assistant-markdown .saved-form-link {text-decoration:underline;text-underline-offset:.2em;color:var(--accent);margin-top:.4rem}
+
+.dflash-switch {display:inline-flex;align-items:center;gap:.45rem;min-height:2.75rem;padding-inline:.35rem;font-size:.85rem;cursor:pointer}
+.dflash-switch input[role=switch] {appearance:none;box-sizing:border-box;display:inline-flex;align-items:center;width:2.25rem;height:1.35rem;margin:0;padding:.13rem;border:1px solid var(--muted);border-radius:1rem;background:var(--surface);color:var(--ink);cursor:inherit}
+.dflash-switch input::before {content:"";width:.9rem;height:.9rem;border-radius:50%;background:currentColor}
+.dflash-switch input:checked {justify-content:flex-end;background:var(--accent);color:var(--canvas)}
+.dflash-switch input:focus-visible {outline:2px solid var(--accent);outline-offset:3px}
+.dflash-switch:has(input:disabled) {opacity:.65;cursor:not-allowed}
+@media (forced-colors:active) {.dflash-switch input[role=switch] {appearance:auto}}
