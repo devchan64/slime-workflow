@@ -47,6 +47,13 @@ class MiniMaxH3ImageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'missing'):
                 manager.validate_generation_runtime()
 
+    def test_downscale_preserves_exact_aspect_ratio(self):
+        request = {**self.request, 'width': 1664, 'height': 960, 'output_size': {'width': 832, 'height': 480}}
+        self.assertEqual(validate_request(request)['output_size'], {'width': 832, 'height': 480})
+        for size in ({'width': 832, 'height': 481}, {'width': 3328, 'height': 1920}, {'width': True, 'height': 1}):
+            with self.subTest(size=size), self.assertRaises(ValueError):
+                validate_request({**request, 'output_size': size})
+
     def test_preview_hash_locks_composition_and_saved_snapshot(self):
         result = validate_request(self.request)
         self.assertEqual(validate_request({**self.request, 'expected_prompt_sha256': result['prompt_sha256']})['prompt'], result['prompt'])

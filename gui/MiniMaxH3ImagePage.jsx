@@ -31,6 +31,7 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
   const inputLockId=useId();
   const [prompt,setPrompt]=useState(initialInputs?.prompt || ""), [seed,setSeed]=useState(initialInputs?.seed ?? 42), [model,setModel]=useState(null), [modelError,setModelError]=useState("");
   const [size,setSize]=useState(initialInputs?.width===832 && initialInputs?.height===480 ? 832 : initialInputs?.width===512 && initialInputs?.height===512 ? 512 : 1024);
+  const [downscale,setDownscale]=useState(false);
   const [references,setReferences]=useState([null,null]),[checking,setChecking]=useState([false,false]);
   const [pending,setPending]=useState(null), [preview,setPreview]=useState(""), [busy,setBusy]=useState(false), [error,setError]=useState("");
   const [job,setJob]=useState(()=>{
@@ -52,7 +53,8 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
     if((proposalScope && receipt.state!=="editing") || sending.current || busy || pending || checking.some(Boolean) || !model?.generation_ready || !prompt.trim() || !Number.isInteger(seed) || seed<0 || seed>4294967295)return;
     const focused=document.activeElement;previewFocus.current=focused;
     sending.current=true;setBusy(true);setError("");
-    const request={action:"generate",prompt:prompt.trim(),images:[],width:size,height:size===832?480:size,steps:6,seed};
+    const height=size===832?480:size;
+    const request={action:"generate",prompt:prompt.trim(),images:[],width:downscale?size*2:size,height:downscale?height*2:height,steps:6,seed,...(downscale?{output_size:{width:size,height}}:{})};
     const controller=new AbortController();previewRequest.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
@@ -100,11 +102,13 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
       <PromptWordCount text={prompt}/>
       <SeedInput value={seed} max={4294967295} error={invalidSeed ? "0부터 4,294,967,295까지의 정수로 입력하세요." : ""} onChange={value=>setSeed(value===""?"":Number(value))}/>
       <label>이미지 크기<select value={size} onChange={event=>setSize(Number(event.target.value))}><option value={832}>832×480</option><option value={512}>512×512</option><option value={1024}>1024×1024</option></select></label>
+      {!proposalScope && <label><input type="checkbox" checked={downscale} onChange={event=>setDownscale(event.target.checked)}/> 2배 크기로 생성 후 축소</label>}
+      {downscale && <p>생성 {size*2}×{(size===832?480:size)*2} · 최종 {size}×{size===832?480:size} · OpenCV 영역 보간</p>}
       <section aria-label="참조 이미지"><p>참조 PNG · 최대 2장</p><div className="reference-image-slots">{[0,1].map(index=><ReferenceImageInput key={index} label={"참조 이미지 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || !!pending || (index===1 && !references[0])} onCheckingChange={value=>setChecking(previous=>{const next=[...previous];next[index]=value;return next;})} onChange={value=>setReferences(previous=>{const next=[...previous];next[index]=value;if(index===0 && !value)next[1]=null;return next;})}/>)}</div>{!references[0] && <p>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>
       <p>직접 생성 · 6스텝 · INT8{size===512 && " · 512×512 실제 생성 미검증"}</p>
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
     </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{pending ? "입력을 수정하려면 아래 검토에서 입력 수정을 선택하세요." : "최종 프롬프트를 확인하고 있습니다. 잠시 기다려 주세요."}</p>}</form></GeneratorSectionCard>
-    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review minimax-image-review" aria-label="생성 요청 확인"><h2>공용 화풍 적용 프롬프트</h2><GpuQueueSummary/><pre className="generation-review-text" tabIndex={0} aria-label="검토할 프롬프트">{preview}</pre><PromptWordCount text={preview} label="최종 프롬프트"/><p>{pending.width}×{pending.height} · 6스텝 · 시드 {pending.seed} · 참조 {pending.images.length}장</p><GenerationReviewActions busy={busy} disabledReason={!model?.generation_ready ? "모델 준비 상태를 확인하세요." : proposalScope && receipt.state!=="editing" ? "대화 접수 상태를 확인하세요." : ""} onCancel={closeReview} onConfirm={submit}/></section>}
+    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review minimax-image-review" aria-label="생성 요청 확인"><h2>공용 화풍 적용 프롬프트</h2><GpuQueueSummary/><pre className="generation-review-text" tabIndex={0} aria-label="검토할 프롬프트">{preview}</pre><PromptWordCount text={preview} label="최종 프롬프트"/><p>생성 {pending.width}×{pending.height}{pending.output_size && ` · 최종 ${pending.output_size.width}×${pending.output_size.height} (OpenCV)`} · 6스텝 · 시드 {pending.seed} · 참조 {pending.images.length}장</p><GenerationReviewActions busy={busy} disabledReason={!model?.generation_ready ? "모델 준비 상태를 확인하세요." : proposalScope && receipt.state!=="editing" ? "대화 접수 상태를 확인하세요." : ""} onCancel={closeReview} onConfirm={submit}/></section>}
     <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority openResult={setJob} resultId={job} onCloseResult={()=>setJob("")}
       onSelectedDeleted={(id)=>{if(id===job)setJob("");setRevision(n=>n+1);}}
       footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={()=>{setJob("");setRevision(n=>n+1);}}/>}

@@ -55,7 +55,14 @@ def inspect_minimax_result(directory, service):
         if metadata.get('image_sha256') != evidence['image']['sha256']:
             raise ValueError('이미지 결과 해시가 일치하지 않습니다.')
         evidence['actual_settings'] = {key: metadata[key] for key in ('width', 'height', 'steps', 'seed') if key in metadata}
-        expected = [request.get('width'), request.get('height')]
+        output_size = request.get('output_size')
+        if output_size:
+            evidence['original_image'] = _image_info(directory / 'raw-result.png')
+            if metadata.get('original_image_sha256') != evidence['original_image']['sha256']:
+                raise ValueError('원본 이미지 해시가 일치하지 않습니다.')
+            evidence['output_size'] = output_size
+            evidence['resize_method'] = metadata.get('resize_method')
+        expected = [output_size.get('width'), output_size.get('height')] if output_size else [request.get('width'), request.get('height')]
         evidence['checks'] = {'png_decode':'pass', 'recorded_sha256':'pass', 'dimensions': ('pass' if evidence['image']['dimensions'] == expected else 'fail') if all(type(value) is int for value in expected) else 'unknown'}
         keys = ('width', 'height', 'steps', 'seed')
         evidence['checks']['recorded_settings_match'] = ('pass' if all(request[key] == metadata[key] for key in keys) else 'fail') if all(type(request.get(key)) is int and type(metadata.get(key)) is int for key in keys) else 'unknown'

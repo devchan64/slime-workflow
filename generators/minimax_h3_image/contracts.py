@@ -36,6 +36,7 @@ def validate_request(request):
     if not isinstance(request, dict):
         raise ValueError('생성 요청은 객체여야 합니다.')
     request = dict(request)
+    output_size = request.pop('output_size', None)
     expected = request.pop('expected_prompt_sha256', None)
     if expected is not None and (not isinstance(expected, str) or len(expected) != 64):
         raise ValueError('프롬프트 확인값 오류')
@@ -43,12 +44,22 @@ def validate_request(request):
                                               minimum_output_size=480, maximum_output_size=2048)
     if result['width'] % 32 or result['height'] % 32:
         raise ValueError('출력 너비와 높이는 32의 배수여야 합니다.')
+    if output_size is not None:
+        validate_output_size(output_size, result['width'], result['height'])
     user_prompt = result['prompt'].strip()
     final_prompt, style = compose_common_style_prompt(user_prompt)
     digest = hashlib.sha256(final_prompt.encode('utf-8')).hexdigest()
     if expected is not None and expected != digest:
         raise ValueError('검토 후 공용 화풍 또는 프롬프트가 변경됐습니다. 다시 검토하세요.')
-    return {**result, 'user_prompt': user_prompt, 'prompt': final_prompt, 'common_style': style, 'prompt_sha256': digest}
+    return {**result, **({'output_size': output_size} if output_size is not None else {}), 'user_prompt': user_prompt, 'prompt': final_prompt, 'common_style': style, 'prompt_sha256': digest}
+
+
+def validate_output_size(size, width, height):
+    if (not isinstance(size, dict) or set(size) != {'width', 'height'}
+            or any(type(size[key]) is not int or size[key] < 1 for key in ('width', 'height'))
+            or size['width'] > width or size['height'] > height
+            or size['width'] * height != size['height'] * width):
+        raise ValueError('축소 크기는 생성 크기 이하이며 종횡비가 같아야 합니다.')
 
 
 def verify_saved_request(request):

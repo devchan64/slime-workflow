@@ -117,13 +117,23 @@ def execute(job):
                      num_inference_steps=6, generator=torch.Generator('cpu').manual_seed(request['seed']),
                      callback_on_step_end=on_step).images[0]
     hook.remove()
-    image.save(job / 'result.png')
+    output_size = request.get('output_size')
+    if output_size is not None:
+        from generators.minimax_h3_image.contracts import validate_output_size
+        validate_output_size(output_size, request['width'], request['height'])
+        import cv2
+        import numpy as np
+        image.save(job / 'raw-result.png')
+        pixels = cv2.resize(np.asarray(image.convert('RGB')), (output_size['width'], output_size['height']), interpolation=cv2.INTER_AREA)
+        Image.fromarray(pixels).save(job / 'result.png')
+    else:
+        image.save(job / 'result.png')
     write_record_atomically(job / 'result.json', {'seed': request['seed'], 'width': request['width'],
         'height': request['height'], 'steps': 6, 'weights': checksums, 'prompt_sha256': request['prompt_sha256'],
         'image_sha256': hashlib.sha256((job / 'result.png').read_bytes()).hexdigest(),
         'torch': str(torch.__version__), 'hip': torch.version.hip, 'gpu': torch.cuda.get_device_name(0),
         'allocator': os.environ['PYTORCH_ALLOC_CONF'], 'sdpa': '기본 경로; 정확도 미검증',
-        'quality_status': '사용자 검수 대기'})
+        'quality_status': '사용자 검수 대기', **({'output_size': output_size, 'resize_method': 'opencv_inter_area', 'original_image_sha256': hashlib.sha256((job / 'raw-result.png').read_bytes()).hexdigest()} if output_size is not None else {})})
 
 
 if __name__ == '__main__':
