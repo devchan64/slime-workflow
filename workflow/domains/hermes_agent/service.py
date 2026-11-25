@@ -852,18 +852,20 @@ class HermesServiceManager:
                 path = self.resolve_hermes_job_path(latest_job) / 'context-status.json'
                 if not path.exists():
                     job = self.read_hermes_job_record(self.resolve_hermes_job_path(latest_job))
-                    if job['status'].get('status') == 'running':
+                    if job['status'].get('status') in ('running', 'failed', 'cancelled', 'canceled'):
                         path = self.resolve_hermes_job_path(latest_job) / 'context-exchange' / 'progress.json'
                 if path.is_file() and not path.is_symlink() and path.stat().st_size <= 4096:
                     usage = json.loads(path.read_text(encoding='utf-8'))
                     if isinstance(usage, dict) and type(usage.get('tokens')) is int and usage['tokens'] >= 0 and all(usage.get(key) is None or (type(usage[key]) is int and usage[key] >= 0) for key in ('tokens_after', 'threshold')):
+                        if path.name == 'progress.json' and job['status'].get('status') != 'running':
+                            usage['state'] = 'summary_failed'
                         context_view['usage'] = usage
             except (OSError, ValueError, TypeError):
                 pass
         return {'id': hermes_session_record['id'], 'title': hermes_session_record.get('title', '새 대화'), 'message_count': len(hermes_session_record['messages']), 'messages': hermes_view_messages, 'truncated': current_start_index > 0, 'offset':current_offset_value, 'next_offset':current_offset_value+len(hermes_view_messages) if current_start_index>0 else None, 'snapshot':current_snapshot_value, 'queried_at': datetime.now(timezone.utc).isoformat(), 'context': context_view}
 
     def execute_hermes_command(self, hermes_command_name, hermes_payload_record):
-        if hermes_command_name in ('hermes-resident-start', 'hermes-resident-status', 'hermes-resident-release', 'hermes-gpu-handoff-preview', 'hermes-gpu-handoff-approve', 'hermes-gpu-handoff-status', 'hermes-gpu-handoff-list', 'hermes-gpu-handoff-withdraw', 'hermes-gpu-handoff-writer-context', 'hermes-gpu-handoff-recover-release', 'hermes-gpu-handoff-recover-submission', 'hermes-gpu-handoff-recover-reload', 'hermes-gpu-handoff-retry-reload', 'hermes-gpu-handoff-cancel'):
+        if hermes_command_name in ('hermes-resident-dflash', 'hermes-resident-start', 'hermes-resident-status', 'hermes-resident-release', 'hermes-gpu-handoff-preview', 'hermes-gpu-handoff-approve', 'hermes-gpu-handoff-status', 'hermes-gpu-handoff-list', 'hermes-gpu-handoff-withdraw', 'hermes-gpu-handoff-writer-context', 'hermes-gpu-handoff-recover-release', 'hermes-gpu-handoff-recover-submission', 'hermes-gpu-handoff-recover-reload', 'hermes-gpu-handoff-retry-reload', 'hermes-gpu-handoff-cancel'):
             if not isinstance(hermes_payload_record, dict):
                 raise ValueError('GPU 양도 입력은 객체여야 합니다.')
             from workflow.domains.hermes_agent.session_store import HermesSessionStore
@@ -899,13 +901,20 @@ class HermesServiceManager:
                     if policy and policy['session_id'] == session_id:
                         save_policy(policy_root, session_id, False)
                     return GpuHandoffStore().run_without_open_session_handoff(session_id, lambda: request_resident_release(hermes_payload_record['resident_id'], session_id))
+            if hermes_command_name == 'hermes-resident-dflash':
+                if set(hermes_payload_record) != {'session_id', 'enabled'}:
+                    raise ValueError('세션과 DFlash2 설정이 필요합니다.')
+                from workflow.domains.hermes_agent.resident_worker import dflash_arguments
+                if hermes_payload_record['enabled'] is True:
+                    dflash_arguments(True)
+                return sessions.set_dflash(**hermes_payload_record)
             if hermes_command_name == 'hermes-resident-status':
                 if set(hermes_payload_record) != {'session_id'}: raise ValueError('대화 세션이 필요합니다.')
                 session_id = hermes_payload_record['session_id']
-                sessions.read_session_record(session_id)
+                session_record = sessions.read_session_record(session_id)
                 from workflow.domains.hermes_agent.resident_queue import find_session_resident, inspect_resident
                 resident_id = find_session_resident(session_id)
-                return {'session_id':session_id, 'resident_id':resident_id, 'resident':inspect_resident(resident_id, session_id) if resident_id else {'state':'not_found'}}
+                return {'dflash_enabled':session_record.get('dflash_enabled') is True, 'session_id':session_id, 'resident_id':resident_id, 'resident':inspect_resident(resident_id, session_id) if resident_id else {'state':'not_found'}}
             if hermes_command_name == 'hermes-gpu-handoff-status':
                 if set(hermes_payload_record) != {'session_id','request_id'}: raise ValueError('세션과 GPU 양도 요청 ID가 필요합니다.')
                 sessions.read_session_record(hermes_payload_record['session_id'])

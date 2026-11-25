@@ -42,3 +42,17 @@ class ResidentQueueSubmissionTest(unittest.TestCase):
                 self.assertIsNone(find_session_resident(session,root=residents))
                 (residents/'failed_1'/'status.json').write_text(json.dumps({'status':'failed','exit_code':2}))
                 with self.assertRaises(ValueError): find_session_resident(session,root=residents)
+
+    def test_cancelled_ready_resident_requires_both_pids_to_have_exited(self):
+        import json
+        from workflow.domains.hermes_agent.resident_queue import _recoverable_terminal_status
+        with tempfile.TemporaryDirectory() as temp:
+            directory = Path(temp)
+            (directory / 'cancel.request').touch()
+            record = {'model':'qwen3.8-27b', 'status':'ready', 'worker_pid':123, 'server_pid':456}
+            (directory / 'resident-status.json').write_text(json.dumps(record))
+            status = {'status':'cancelled'}
+            with patch('os.kill', side_effect=[ProcessLookupError(), None]):
+                self.assertFalse(_recoverable_terminal_status(directory, status))
+            with patch('os.kill', side_effect=ProcessLookupError):
+                self.assertTrue(_recoverable_terminal_status(directory, status))

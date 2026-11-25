@@ -21,6 +21,19 @@ from workflow.common.model_prepare_process import hold_hermes_model_usage_guard
 from workflow.domains.hermes_agent import worker
 
 
+DFLASH_MODEL = ROOT / '.model/qwen3.8-27b-dflash2/Qwen3.8-27B-DFlash2-Q4_K_M.gguf'
+DFLASH_SHA256 = 'd169ad335929adc0d77e10e2523f968f3e75f547637ad739b0a137ccde111b5f'
+
+
+def dflash_arguments(enabled):
+    if not enabled:
+        return []
+    if not DFLASH_MODEL.is_file() or worker.calculate_file_digest(DFLASH_MODEL) != DFLASH_SHA256:
+        raise ValueError('DFlash2 초안 모델 파일 또는 체크섬을 확인하세요.')
+    return ['--spec-type', 'draft-dflash', '--spec-draft-model', str(DFLASH_MODEL),
+            '--spec-draft-ngl', 'all', '--spec-draft-n-max', '4']
+
+
 def _release_requested(path, token):
     try:
         if path.is_symlink() or not path.is_file() or path.stat().st_size > 1024:
@@ -31,7 +44,7 @@ def _release_requested(path, token):
     return request == {'token': token}
 
 
-def _run_proxy(server_process, port, directory, token, offload):
+def _run_proxy(server_process, port, directory, token, offload, dflash=False):
     """연결 접수를 중지하고 이미 접수된 연결이 끝난 뒤 반환한다."""
     state_path = directory / 'resident-status.json'
     lock = threading.Lock()
@@ -39,7 +52,7 @@ def _run_proxy(server_process, port, directory, token, offload):
 
     def publish(status):
         write_record_atomically(state_path, {'status': status, 'model': 'qwen3.8-27b',
-            'worker_pid': os.getpid(), 'server_pid': server_process.pid, 'offload': offload})
+            'worker_pid': os.getpid(), 'server_pid': server_process.pid, 'offload': offload, 'dflash': dflash})
 
     def relay(client):
         try:
@@ -125,6 +138,10 @@ def run_resident_worker(job_directory):
                      '--alias', 'hermes-local', '--host', '127.0.0.1', '--port', str(port), '-ngl', 'all',
                      '--fit', 'off', '-c', '64000', '-np', '1', '-b', '256', '-ub', '128',
                      '--jinja', '--no-context-shift', '--verbosity', '4']
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        session = HermesSessionStore().read_session_record(request['context']['session_id'])
+        dflash = session.get('dflash_enabled') is True
+        arguments.extend(dflash_arguments(dflash))
         runtime_temp_directory = ROOT / '.tmp' / 'hermes-resident-runtime-tmp'
         if runtime_temp_directory.is_symlink():
             raise ValueError('상주 모델 임시 디렉터리 오류')
@@ -138,7 +155,7 @@ def run_resident_worker(job_directory):
             with (directory / 'server.log').open('w', encoding='utf-8') as log:
                 server = subprocess.Popen(arguments, stdout=log, stderr=subprocess.STDOUT, env=environment)
                 offload = worker.wait_worker_model_ready(server, port, directory / 'server.log')
-                _run_proxy(server, port, directory, token, offload)
+                _run_proxy(server, port, directory, token, offload, dflash)
             worker.stop_hermes_model_process(server)
             server = None
             write_record_atomically(directory / 'resident-status.json', {'status':'stopped', 'model':'qwen3.8-27b', 'worker_pid':os.getpid()})

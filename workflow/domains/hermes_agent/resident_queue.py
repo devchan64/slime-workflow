@@ -208,6 +208,31 @@ def _server_is_child(server_pid, worker_pid):
         return False
 
 
+def _recoverable_terminal_status(directory, status, *, check_pids=True):
+    if not isinstance(status, dict):
+        return False
+    if status.get('status') == 'failed':
+        return type(status.get('exit_code')) is int and status['exit_code'] != 0
+    marker = directory / 'cancel.request'
+    if status.get('status') != 'cancelled' or marker.is_symlink() or not marker.is_file():
+        return False
+    resident = read_bounded_delegation_record(directory / 'resident-status.json')
+    if not isinstance(resident, dict) or resident.get('model') != 'qwen3.8-27b':
+        return False
+    for key in ('worker_pid', 'server_pid'):
+        pid = resident.get(key)
+        if type(pid) is not int or pid <= 1:
+            return False
+        if not check_pids:
+            continue
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            continue
+        return False
+    return True
+
+
 def inspect_failed_resident_cleanup(request_id, session_id, *, root=RESIDENT_ROOT, gpu_idle=None, _root_locked=False, _on_verified=None):
     """실패한 상주 실행기의 종료와 대기열·예약 부재를 읽기 전용으로 확인한다."""
     from workflow.common import gpu_job_queue
@@ -239,7 +264,7 @@ def inspect_failed_resident_cleanup(request_id, session_id, *, root=RESIDENT_ROO
                 except BlockingIOError:
                     return False
                 status = read_bounded_delegation_record(directory / 'status.json')
-                if not isinstance(status, dict) or status.get('status') != 'failed' or type(status.get('exit_code')) is not int or status['exit_code'] == 0:
+                if not _recoverable_terminal_status(directory, status):
                     return False
                 target = str(directory.resolve())
                 with hold_writer_reservation_queue_lock() as active_root:
@@ -380,7 +405,7 @@ def inspect_resident(request_id, session_id, *, root=RESIDENT_ROOT):
                             or match.group(1) != match.group(2) or not _server_is_child(status.get('server_pid'), status.get('worker_pid'))
                             or not healthy):
                         return {'state':'unknown'}
-                    return {'state':'ready', 'model':'qwen3.8-27b', 'gpu_loaded':True, 'reservation_verified':True}
+                    return {'state':'ready', 'model':'qwen3.8-27b', 'dflash':status.get('dflash') is True, 'gpu_loaded':True, 'reservation_verified':True}
                 finally:
                     os.close(descriptor)
         except (OSError, ValueError, TypeError):
@@ -430,8 +455,7 @@ def _failed_cleanup_snapshot(directory, session_id):
     if (not isinstance(request, dict) or request.get('model_profile') != 'qwen3.8-27b'
             or request.get('context') != {'session_id': session_id}
             or launch != {'id': directory.name, 'state': 'accepted'}
-            or not isinstance(status, dict) or status.get('status') != 'failed'
-            or type(status.get('exit_code')) is not int or status['exit_code'] == 0):
+            or not _recoverable_terminal_status(directory, status, check_pids=False)):
         return None
     return {'session_id': session_id, 'id': directory.name,
             'request': request, 'launch': launch, 'status': status}

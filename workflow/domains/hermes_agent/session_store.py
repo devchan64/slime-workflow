@@ -210,6 +210,15 @@ class HermesSessionStore:
             write_record_atomically(self.resolve_session_record_path(session_identifier_value), session)
             return {'session_id': session_identifier_value, 'enabled': enabled}
 
+    def set_dflash(self, session_id, enabled):
+        if type(enabled) is not bool:
+            raise ValueError('DFlash2 설정값 오류')
+        with self.hold_session_storage_lock():
+            session = self.read_session_record_locked(session_id)
+            session['dflash_enabled'] = enabled
+            write_record_atomically(self.resolve_session_record_path(session_id), session)
+        return {'session_id': session_id, 'enabled': enabled}
+
     def set_context_threshold(self, session_id, threshold):
         if threshold is not None and (type(threshold) is not int or threshold not in (8000,16000,32000,54400)):
             raise ValueError('지원하지 않는 대화 정리 기준입니다.')
