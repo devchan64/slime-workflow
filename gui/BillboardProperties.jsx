@@ -1,4 +1,5 @@
 import BillboardGroundPreview from "./BillboardGroundPreview.jsx";
+import ActionButton from "./ActionButton.jsx";
 import BillboardCrop from "./BillboardCrop.jsx";
 import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
@@ -37,7 +38,7 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
   const [source,setSource]=useState(null),[edits,setEdits]=useState({}),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const readRequest=useRef(null),saving=useRef(false),reviewRef=useRef(null),reviewTrigger=useRef(null),loadButton=useRef(null),restoreLoadFocus=useRef(false),restoreReviewFocus=useRef(false);
-  const placementReasonId=useId(),reloadReasonId=useId(),heightErrorId=useId(),columnsErrorId=useId(),rowsErrorId=useId(),shadowColumnErrorId=useId(),shadowRowErrorId=useId(),scaleXErrorId=useId(),scaleYErrorId=useId(),anchorXErrorId=useId(),anchorYErrorId=useId();
+  const placementReasonId=useId(),reloadReasonId=useId(),heightErrorId=useId(),columnsErrorId=useId(),rowsErrorId=useId(),shadowColumnErrorId=useId(),shadowRowErrorId=useId(),scaleXErrorId=useId(),scaleYErrorId=useId(),anchorXErrorId=useId(),anchorYErrorId=useId(),emptyErrorId=useId();
   useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus({preventScroll:true});},[review]);
   useEffect(()=>{if(!busy && restoreLoadFocus.current){restoreLoadFocus.current=false;if(document.activeElement===document.body && loadButton.current && !loadButton.current.disabled)loadButton.current.focus({preventScroll:true});}},[busy,source,notice,edits]);
   useEffect(()=>{if(!busy && restoreReviewFocus.current){restoreReviewFocus.current=false;if(notice && document.activeElement===document.body && reviewTrigger.current?.isConnected && !reviewTrigger.current.disabled)reviewTrigger.current.focus({preventScroll:true});}},[busy,notice,review]);
@@ -61,11 +62,16 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
     finally{setBusy(false);}
   }
   function edit(key,value){
-    setEdits({...edits,[key]:value});onDirtyChange(true);setReview(null);setNotice("");
+    const next={...edits},original=source?.properties?.[key];
+    const numeric=!key.startsWith("billboard");
+    const unchanged=numeric ? String(value).trim()!=="" && original!=null && Number.isFinite(Number(value)) && Number(value)===original : value===(key==="billboardBlocksMovement" ? original ?? false : original ?? "");
+    if(unchanged)delete next[key];else next[key]=value;
+    setEdits(next);onDirtyChange(Object.keys(next).length>0);setReview(null);setNotice("");
   }
   async function preview(event){
     event.preventDefault();if(busy)return;reviewTrigger.current=document.activeElement;restoreReviewFocus.current=true;setBusy(true);setNotice("");setReview(null);
     try{
+      if(Object.entries(edits).some(([key,value])=>!key.startsWith("billboard") && String(value).trim()===""))throw new Error("비어 있는 숫자 속성을 입력하세요.");
       if(Object.hasOwn(edits,"displayHeight") && invalidDisplayHeight(edits.displayHeight))throw new Error("표시 높이는 0.005부터 1024까지 입력하세요. 저장 시 소수 둘째 자리로 반올림됩니다.");
       if(["groundFootprintColumns","groundFootprintRows"].some(key=>Object.hasOwn(edits,key) && invalidFootprint(edits[key])))throw new Error("점유 열과 행은 각각 1부터 8까지의 정수여야 합니다.");
       if(["shadowOffsetColumn","shadowOffsetRow"].some(key=>Object.hasOwn(edits,key) && invalidShadowOffset(edits[key])))throw new Error("그림자 열과 행 이동은 각각 -4부터 4까지여야 합니다.");
@@ -101,7 +107,7 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
   const heightInvalid=Object.hasOwn(edits,"displayHeight") && invalidDisplayHeight(edits.displayHeight);
   const automaticPlacement=source?.initial || ["tile-intersection","tile-bottom-center"].includes(properties.billboardAnchorMode);
   const shadowVersion=source?.initial ? 2 : properties.shadowSizeVersion;
-  const fieldError=key=>key==="displayHeight" && heightInvalid ? [heightErrorId,"0.005부터 1024까지 입력하세요. 소수 둘째 자리로 반올림됩니다."] : key==="groundFootprintColumns" && Object.hasOwn(edits,key) && invalidFootprint(edits[key]) ? [columnsErrorId,"1부터 8까지의 정수여야 합니다."] : key==="groundFootprintRows" && Object.hasOwn(edits,key) && invalidFootprint(edits[key]) ? [rowsErrorId,"1부터 8까지의 정수여야 합니다."] : key==="shadowOffsetColumn" && Object.hasOwn(edits,key) && invalidShadowOffset(edits[key]) ? [shadowColumnErrorId,"-4부터 4까지 입력하세요."] : key==="shadowOffsetRow" && Object.hasOwn(edits,key) && invalidShadowOffset(edits[key]) ? [shadowRowErrorId,"-4부터 4까지 입력하세요."] : ["shadowScaleX","shadowScaleY"].includes(key) && Object.hasOwn(edits,key) && invalidShadowScale(edits[key],key,shadowVersion) ? [key==="shadowScaleX" ? scaleXErrorId : scaleYErrorId,`${shadowScaleMinimum(key,shadowVersion)}부터 4까지 입력하세요.`] : ["anchorX","anchorY"].includes(key) && Object.hasOwn(edits,key) && invalidBillboardAnchor(edits[key],automaticPlacement) ? [key==="anchorX" ? anchorXErrorId : anchorYErrorId,automaticPlacement ? "-16부터 16까지 입력하세요." : "0부터 1까지 입력하세요."] : null;
+  const fieldError=key=>Object.hasOwn(edits,key) && String(edits[key]).trim()==="" ? [`${emptyErrorId}-${key}`,"값을 입력하세요."] : key==="displayHeight" && heightInvalid ? [heightErrorId,"0.005부터 1024까지 입력하세요. 소수 둘째 자리로 반올림됩니다."] : key==="groundFootprintColumns" && Object.hasOwn(edits,key) && invalidFootprint(edits[key]) ? [columnsErrorId,"1부터 8까지의 정수여야 합니다."] : key==="groundFootprintRows" && Object.hasOwn(edits,key) && invalidFootprint(edits[key]) ? [rowsErrorId,"1부터 8까지의 정수여야 합니다."] : key==="shadowOffsetColumn" && Object.hasOwn(edits,key) && invalidShadowOffset(edits[key]) ? [shadowColumnErrorId,"-4부터 4까지 입력하세요."] : key==="shadowOffsetRow" && Object.hasOwn(edits,key) && invalidShadowOffset(edits[key]) ? [shadowRowErrorId,"-4부터 4까지 입력하세요."] : ["shadowScaleX","shadowScaleY"].includes(key) && Object.hasOwn(edits,key) && invalidShadowScale(edits[key],key,shadowVersion) ? [key==="shadowScaleX" ? scaleXErrorId : scaleYErrorId,`${shadowScaleMinimum(key,shadowVersion)}부터 4까지 입력하세요.`] : ["anchorX","anchorY"].includes(key) && Object.hasOwn(edits,key) && invalidBillboardAnchor(edits[key],automaticPlacement) ? [key==="anchorX" ? anchorXErrorId : anchorYErrorId,automaticPlacement ? "-16부터 16까지 입력하세요." : "0부터 1까지 입력하세요."] : null;
   return <section><button ref={loadButton} type="button" disabled={busy || hasEdits} aria-describedby={hasEdits ? reloadReasonId : undefined} onClick={load}>{source?"공용 속성 다시 불러오기":"공용 속성 불러오기"}</button>
     {busy && <p role="status">빌보드 요청을 처리하고 있습니다.</p>}
     {hasEdits && <p id={reloadReasonId} role="status">변경 사항이 있습니다. 다시 불러오려면 편집을 취소하거나 저장하세요. <button type="button" disabled={busy} onClick={event=>{restoreLoadFocus.current=document.activeElement===event.currentTarget;setEdits({});onDirtyChange(false);setReview(null);setNotice("");}}>편집 취소</button></p>}
@@ -115,7 +121,7 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
       {automaticPlacement && <p id={placementReasonId}>현재 앵커 설정에 따라 배치 기준이 자동으로 결정됩니다.</p>}
       <label className="billboard-checkbox"><input type="checkbox" checked={properties.billboardBlocksMovement ?? false} onChange={e=>edit("billboardBlocksMovement",e.target.checked)}/>통행 차단</label></div>
       <BillboardGroundPreview source={source} edits={edits}/>
-      <button>변경 검토</button>
+      <ActionButton type="submit" reasons={[!source.initial && !hasEdits && "변경한 속성이 없습니다.",Object.keys(labels).filter(key=>!key.startsWith("billboard")).some(key=>fieldError(key)) && "숫자 속성의 입력을 확인하세요."]}>변경 검토</ActionButton>
       {review && <section ref={reviewRef} tabIndex={-1} aria-label="빌보드 속성 변경 확인"><BillboardReviewSummary result={review.result}/>
         <button type="button" onClick={save}>검토한 속성 저장</button><button type="button" onClick={()=>{const focused=document.activeElement;setReview(null);requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}}>취소</button></section>}
     </fieldset></form>}

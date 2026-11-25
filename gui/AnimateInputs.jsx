@@ -17,7 +17,7 @@ import {validAnimateVideoInfo} from "./videoFrameLimit.mjs";
 import {prepareAnimatePreview} from "./animatePreview.mjs";
 
 export default function AnimateInputs({saved,onSelectionStart,onJob,session,model,loraModel,onInteractionChange,onAttachmentCheckingChange}) {
-  const videoHelpId=useId(),videoErrorId=useId();
+  const videoHelpId=useId(),videoErrorId=useId(),frameErrorId=useId(),stepErrorId=useId();
   const [prompt,setPrompt]=useState(saved?.request.prompt ?? "");
   const [seed,setSeed]=useState(saved?.request.seed ?? "42");
   const [reference,setReference]=useState(saved?.reference ?? null);
@@ -77,9 +77,10 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
   useEffect(()=>{if(!checkingVideo && videoRetryFocus.current){videoRetryFocus.current=false;requestAnimationFrame(()=>{if(document.activeElement===document.body)videoInfoRef.current?.focus();});}},[checkingVideo]);
   const frameNumber=Number(frames),stepNumber=Number(steps),seedNumber=Number(seed);
   const invalidFrames=frames==='' || !Number.isInteger(frameNumber) || frameNumber<5 || frameNumber>81 || (frameNumber-1)%4!==0;
-  const invalidSteps=steps==='' || !Number.isInteger(stepNumber) || stepNumber<2 || stepNumber>50;
+  const exceedsVideo=Boolean(videoInfo && frameNumber>videoInfo.maximum_frames);
+  const invalidSteps=steps===''  || !Number.isInteger(stepNumber) || stepNumber<2 || stepNumber>50;
   const invalidSeed=String(seed).trim()==='' || !Number.isInteger(seedNumber) || seedNumber<0 || seedNumber>2147483647;
-  const reviewReasons=[imageCheckPending && '참조 이미지 확인이 끝날 때까지 기다리세요.',!reference && '참조 PNG를 선택하세요.',!(motionFile || saved?.motion) && '동작 MP4를 선택하세요.',checkingVideo && '동작 영상 정보를 확인하고 있습니다.',videoError,videoInfo && frameNumber>videoInfo.maximum_frames && `입력 영상은 최대 ${videoInfo.maximum_frames}프레임까지 지원합니다.`,!prompt.trim() && '캐릭터 외형·배경 설명을 입력하세요.',invalidFrames && '프레임은 5~81의 4n+1이어야 합니다.',invalidSteps && '스텝은 2~50이어야 합니다.',invalidSeed && '시드를 확인하세요.',!generationReady(model) && '기본 모델 준비 상태를 확인하세요.',lora==='lightx2v' && !loraModel?.ready && 'LightX2V LoRA를 준비하세요.'];
+  const reviewReasons=[imageCheckPending && '참조 이미지 확인이 끝날 때까지 기다리세요.',!reference && '참조 PNG를 선택하세요.',!(motionFile || saved?.motion) && '동작 MP4를 선택하세요.',checkingVideo && '동작 영상 정보를 확인하고 있습니다.',videoError,exceedsVideo && `입력 영상은 최대 ${videoInfo.maximum_frames}프레임까지 지원합니다.`,!prompt.trim() && '캐릭터 외형·배경 설명을 입력하세요.',invalidFrames && '프레임은 5~81의 4n+1이어야 합니다.',invalidSteps && '스텝은 2~50이어야 합니다.',invalidSeed && '시드를 확인하세요.',!generationReady(model) && '기본 모델 준비 상태를 확인하세요.',lora==='lightx2v' && !loraModel?.ready && 'LightX2V LoRA를 준비하세요.'];
   async function materialize(value,type,signal){
     if(typeof value!=="string")return value;
     const response=await fetch(value,{cache:"no-store",signal});
@@ -136,11 +137,11 @@ export default function AnimateInputs({saved,onSelectionStart,onJob,session,mode
       <p><PromptWordCount text={prompt} final/> · 원문 그대로 전달</p>
       </div>
       <div className="generator-input-group"><h2>생성 설정</h2><p className="generator-group-help">출력 길이와 가속 방식을 선택하세요.</p><div className="generator-settings-grid">
-      <label>프레임<input type="number" min={5} max={81} step={4} value={frames} onChange={event=>setFrames(event.target.value)}/></label>
+      <label>프레임<input type="number" min={5} max={81} step={4} aria-invalid={invalidFrames || exceedsVideo || undefined} aria-describedby={invalidFrames || exceedsVideo ? frameErrorId : undefined} value={frames} onChange={event=>setFrames(event.target.value)}/>{(invalidFrames || exceedsVideo) && <small id={frameErrorId}>{invalidFrames ? "5~81 사이에서 4프레임 간격으로 입력하세요." : `입력 영상은 최대 ${videoInfo.maximum_frames}프레임까지 지원합니다.`}</small>}</label>
       <label>가속 LoRA<select value={lora} onChange={event=>{const value=event.target.value;setLora(value);setSteps(value==='lightx2v' ? 6 : 40);}}><option value="none">사용 안 함 · Base</option><option value="lightx2v">LightX2V · 6스텝</option></select></label>
-      <label>스텝<input type="number" min={2} max={50} value={steps} onChange={event=>setSteps(event.target.value)}/></label>
-      <SeedInput value={seed} max={2147483647} onChange={setSeed}/>
-      </div>{!invalidFrames && <p>출력 16fps · 예상 재생 길이 {(frameNumber/16).toFixed(2)}초</p>}
+      <label>스텝<input type="number" min={2} max={50} aria-invalid={invalidSteps || undefined} aria-describedby={invalidSteps ? stepErrorId : undefined} value={steps} onChange={event=>setSteps(event.target.value)}/>{invalidSteps && <small id={stepErrorId}>2~50의 정수를 입력하세요.</small>}</label>
+      <SeedInput value={seed} max={2147483647} error={invalidSeed ? "0~2147483647의 정수를 입력하세요." : ""} onChange={setSeed}/>
+      </div>{!invalidFrames && !exceedsVideo && <p>출력 16fps · 예상 재생 길이 {(frameNumber/16).toFixed(2)}초</p>}
       <p>{lora === 'lightx2v' ? 'LightX2V 강도 1 · LCM · shift 5 · CFG 1 · 생성 품질 검증 필요' : '공식 Base BF16 · 공식 스케줄러 및 CFG'} · AMD ROCm GPU 연산</p>
       </div>
       <ActionButton type="submit" reasons={reviewReasons}>생성 요청 검토</ActionButton>

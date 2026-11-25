@@ -34,7 +34,7 @@ export function validBuildingChange(result,texture,generation,action,properties)
 export function invalidBuildingSizeMap(building,properties){
   for(const usage of building.maps){
     const width=usage.tower?building.width*112/207:(usage.width+usage.height)*40*1.04/usage.contentWidth;
-    if(width+properties.displayWidthAdjustment<=0 || width*building.height/building.width+properties.displayHeightAdjustment<=0)return usage.map;
+    if(width+Number(properties.displayWidthAdjustment)<=0 || width*building.height/building.width+Number(properties.displayHeightAdjustment)<=0)return usage.map;
   }
   return null;
 }
@@ -42,14 +42,18 @@ export function invalidBuildingSizeMap(building,properties){
 function BuildingProperties({building,generation,busy,setBusy,onSaved,onDirtyChange}){
   const expected={displayWidthAdjustment:0,displayHeightAdjustment:0,...building.properties};
   const original={shadowShape:"circle",shadowOffsetColumn:0,shadowOffsetRow:0,shadowScaleX:1,shadowScaleY:1,...expected};
-  const [values,edit]=useState(original),[error,setError]=useState(""),[sizeError,setSizeError]=useState("");
-  const sizeErrorId=useId();
+  const [values,edit]=useState(original),[error,setError]=useState("");
+  const sizeErrorId=useId(),fieldErrorId=useId();
+  const fieldMinimum=(key,min)=>building.texture==="ward-tower-v1" && ["displayWidthAdjustment","displayHeightAdjustment"].includes(key) ? -138 : min;
+  const fieldIssues=Object.fromEntries(fields.map(([key,,min,max,step])=>{const raw=values[key],n=Number(raw);return [key,raw==null || String(raw).trim()==="" || !Number.isFinite(n) || n<fieldMinimum(key,min) || n>max || (step===1 && !Number.isInteger(n))];}));
+  const invalidMap=Object.values(fieldIssues).some(Boolean) ? null : invalidBuildingSizeMap(building,{displayWidthAdjustment:Number(values.displayWidthAdjustment),displayHeightAdjustment:Number(values.displayHeightAdjustment)});
+  const sizeError=invalidMap!==null ? invalidMap+"에서 표시 크기가 0 이하입니다." : "";
   const [placement,selectPlacement]=useState(0);
   const [previewStatus,setPreviewStatus]=useState("loading"),[previewRevision,retryPreview]=useState(0);
   const canvas=useRef(null),previewRetryButton=useRef(null),previewInvalid=useRef(null),restorePreviewFocus=useRef(false),saving=useRef(false);
   useEffect(()=>{
     const url="/management/assistant/building-image/"+encodeURIComponent(building.texture);
-    if(fields.some(([key])=>values[key]==="" || !Number.isFinite(Number(values[key])))){
+    if(Object.values(fieldIssues).some(Boolean)){
       canvas.current.getContext("2d").clearRect(0,0,canvas.current.width,canvas.current.height);setPreviewStatus("invalid");return;
     }
     return drawBuildingPreview(canvas.current,url,building.maps[placement],values,setPreviewStatus);
@@ -63,12 +67,10 @@ function BuildingProperties({building,generation,busy,setBusy,onSaved,onDirtyCha
   useEffect(()=>{onDirtyChange(changed);},[changed,onDirtyChange]);
   async function save(event){
     event.preventDefault();
-    if(!changed || busy || saving.current)return;
+    if(!changed || busy || saving.current || Object.values(fieldIssues).some(Boolean) || sizeError)return;
     const properties={shadowShape:values.shadowShape};
     for(const [key] of fields)properties[key]=Number(values[key]);
-    const invalidMap=invalidBuildingSizeMap(building,properties);
-    if(invalidMap!==null){setSizeError(invalidMap+"에서 표시 크기가 0 이하입니다.");return;}
-    saving.current=true;setBusy(true);setError("");setSizeError("");
+    saving.current=true;setBusy(true);setError("");
     try{
       const result=await managementCommand("map-assets","building-save",{texture:building.texture,generation,expected,properties});
       if(!validBuildingChange(result,building.texture,generation,null,properties))throw new Error("저장 응답의 대상이나 속성을 확인할 수 없습니다.");
@@ -84,13 +86,13 @@ function BuildingProperties({building,generation,busy,setBusy,onSaved,onDirtyCha
     {previewStatus==="invalid" && <p ref={previewInvalid} tabIndex={-1} role="status">입력값과 표시 크기를 확인하면 미리보기를 볼 수 있습니다.</p>}
     {previewStatus==="image-error" && <p role="alert">건물 이미지를 불러오지 못했습니다. <button ref={previewRetryButton} type="button" onClick={()=>{restorePreviewFocus.current=document.activeElement===previewRetryButton.current;retryPreview(value=>value+1);}}>미리보기 다시 불러오기</button></p>}
     <p>{building.maps.length?"노란 윤곽은 점유 타일, 빨간 십자는 앵커, 점선은 주변 타일입니다.":"등록된 맵 배치가 없어 원본 이미지를 표시합니다."}</p>
-    <div className="building-properties-grid">{fields.map(([key,label,min,max,step])=>{const sizeField=["displayWidthAdjustment","displayHeightAdjustment"].includes(key);return <label key={key}>{label}<input type="number" required min={min} max={max} step={step || "any"} value={values[key]} aria-invalid={sizeField && sizeError ? true : undefined} aria-describedby={sizeField && sizeError ? sizeErrorId : undefined} onChange={e=>{if(sizeField)setSizeError("");edit({...values,[key]:e.target.value});}}/></label>;})}
+    <div className="building-properties-grid">{fields.map(([key,label,min,max,step])=>{const sizeField=["displayWidthAdjustment","displayHeightAdjustment"].includes(key);return <label key={key}>{label}<input type="number" required min={fieldMinimum(key,min)} max={max} step={step || "any"} value={values[key]} aria-invalid={fieldIssues[key] || (sizeField && sizeError) || undefined} aria-describedby={[fieldIssues[key] && `${fieldErrorId}-${key}`,sizeField && sizeError && sizeErrorId].filter(Boolean).join(" ") || undefined} onChange={e=>edit({...values,[key]:e.target.value})}/>{fieldIssues[key] && <small id={`${fieldErrorId}-${key}`}>{fieldMinimum(key,min)}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</label>;})}
     <label>그림자 형태<select value={values.shadowShape} onChange={e=>edit({...values,shadowShape:e.target.value})}>
       <option value="circle">원형</option><option value="rectangle">사각형</option></select></label></div>
     {sizeError && <p id={sizeErrorId} role="alert">{sizeError}</p>}
-    <button type="button" onClick={()=>{setSizeError("");edit({...values,displayWidthAdjustment:0,displayHeightAdjustment:0});}}>크기 보정 초기화</button>
-    {changed && <button type="button" onClick={()=>{edit(original);setError("");setSizeError("");}}>편집 취소</button>}
-    <ActionButton type="submit" reasons={[!changed && "변경한 속성이 없습니다."]}>표시 속성 저장</ActionButton>
+    <button type="button" onClick={()=>edit({...values,displayWidthAdjustment:0,displayHeightAdjustment:0})}>크기 보정 초기화</button>
+    {changed && <button type="button" onClick={()=>{edit(original);setError("");}}>편집 취소</button>}
+    <ActionButton type="submit" reasons={[!changed && "변경한 속성이 없습니다.",Object.values(fieldIssues).some(Boolean) && "범위를 벗어난 속성을 수정하세요.",sizeError && "표시 크기 보정을 수정하세요."]}>표시 속성 저장</ActionButton>
     {error && <p role="alert">{error}</p>}
   </fieldset></form>;
 }

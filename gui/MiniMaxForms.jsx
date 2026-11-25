@@ -1,6 +1,7 @@
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {managementCommand,untilAborted} from './managementCommand.js';
 import ReferenceImageInput from './ReferenceImageInput.jsx';
+import SeedInput from './SeedInput.jsx';
 import {referencePng} from './videoInputs.js';
 import {formStateLabel} from './minimaxFormState.mjs';
 
@@ -59,6 +60,8 @@ export default function MiniMaxForms({session,initialFormId=''}) {
     catch(problem){if(active.current)setError(formError(problem,'저장 결과를 확인할 수 없습니다.')+' 최신 폼을 다시 불러와 확인하세요.');}
     finally{operation.current=false;if(active.current)setBusy(false);}
   }
+  const seedMax=selected?.service==='minimax-h3-i2v'?2147483647:4294967295;
+  const invalidSeed=seed.trim()==='' || !Number.isInteger(Number(seed)) || Number(seed)<0 || Number(seed)>seedMax;
   const dirty=selected && (prompt!==selected.request.prompt || seed!==String(selected.request.seed ?? '') ||
     (selected.service==='minimax-h3-image' && size!==selected.request.width+'x'+selected.request.height) || !!file);
   const stale=selected && rows?.some(row=>row.form_id===selected.form_id && (row.revision!==selected.revision || row.state!==selected.state));
@@ -69,7 +72,7 @@ export default function MiniMaxForms({session,initialFormId=''}) {
       {dirty && <p role="status">저장하지 않은 수정 내용이 있습니다. 대화로 접수하기 전에 폼 수정 저장을 눌러 주세요.</p>}
       {stale && <p role="alert">다른 곳에서 폼이 변경됐습니다. 현재 입력을 확인한 뒤 목록에서 폼을 다시 열어 주세요.</p>}
       <fieldset disabled={busy || selected.state!=='editing'}><label>프롬프트<textarea required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
-      <label>시드<input type="number" min="0" max={selected.service==='minimax-h3-i2v'?2147483647:4294967295} step="1" required value={seed} onChange={event=>setSeed(event.target.value)}/></label>
+      <SeedInput value={seed} max={seedMax} error={invalidSeed ? `0~${seedMax}의 정수를 입력하세요.` : ""} onChange={setSeed}/>
       {selected.service==='minimax-h3-image' ? <label>이미지 크기<select value={size} onChange={event=>setSize(event.target.value)}><option value="512x512">512×512</option><option value="1024x1024">1024×1024</option>{!['512x512','1024x1024'].includes(selected.request.width+'x'+selected.request.height) && <option value={selected.request.width+'x'+selected.request.height}>{selected.request.width}×{selected.request.height} · 저장된 설정</option>}</select></label> : <><ReferenceImageInput label="첫 프레임 이미지 변경" source={file} onCheckingChange={setChecking} onChange={setFile} disabled={busy}/><p>저장된 참조 이미지: {selected.request.images?.length ? '첨부됨' : '첨부 필요'}{file && ' · 새 이미지 선택됨'}</p></>}
       <p>설정: {selected.request.steps}스텝{selected.request.frames && ' · '+selected.request.frames+'프레임'}{selected.service==='minimax-h3-i2v' && ' · '+selected.request.width+'×'+selected.request.height}</p>
       <button type="submit" disabled={checking || stale}>{checking?'이미지 확인 중':'폼 수정 저장'}</button></fieldset>

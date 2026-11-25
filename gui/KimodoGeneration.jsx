@@ -1,3 +1,4 @@
+import {openInvalidDetails} from "./openInvalidDetails.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import GeneratorUsage from "./GeneratorUsage.jsx";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
@@ -32,7 +33,7 @@ export function KimodoPromptField({value,onChange,reason,reasonId,segmentHelp,se
 }
 
 export function KimodoInputSummary({inputs,references,placement,bundle,directions,frameInvalid=false,generationMode="single",segmentCount=0,segmentFrames=[]}){
-  const items=[['생성 방식',generationMode==="sequence" ? `순차 생성${segmentCount ? ` · ${segmentCount}구간` : ''}${!frameInvalid && segmentFrames.length ? ` (${segmentFrames.join(' + ')})` : ''}` : '일반 생성'],['시드',inputs.seed],['프레임',frameInvalid ? '구간 입력 확인 필요' : `${inputs.frames}프레임`],['방향',(inputs.directions || []).map(id=>directions[id]?.label || id).join(', ') || '없음'],['고도',`${inputs.camera_elevation_degrees}°`],['참조',`${references.length}장${references.length ? ' ('+references.map(file=>file.name).join(', ')+')' : ''}`],['키프레임',`${placement?.placements?.length || 0}개`],['가중 골격',bundle ? '선택됨' : '없음'],['후처리',inputs.post_processing ? '켜짐' : '꺼짐'],['수평 이동 제거',inputs.remove_horizontal_motion ? '켜짐' : '꺼짐']];
+  const items=[['생성 방식',generationMode==="sequence" ? `순차 생성${segmentCount ? ` · ${segmentCount}구간` : ''}${!frameInvalid && segmentFrames.length ? ` (${segmentFrames.join(' + ')})` : ''}` : '일반 생성'],['시드',inputs.seed],['프레임',frameInvalid ? '프레임 입력 확인 필요' : `${inputs.frames}프레임`],['방향',(inputs.directions || []).map(id=>directions[id]?.label || id).join(', ') || '없음'],['고도',`${inputs.camera_elevation_degrees}°`],['참조',`${references.length}장${references.length ? ' ('+references.map(file=>file.name).join(', ')+')' : ''}`],['키프레임',`${placement?.placements?.length || 0}개`],['가중 골격',bundle ? '선택됨' : '없음'],['후처리',inputs.post_processing ? '켜짐' : '꺼짐'],['수평 이동 제거',inputs.remove_horizontal_motion ? '켜짐' : '꺼짐']];
   return <section className="kimodo-input-summary" aria-label="현재 생성 설정 요약"><strong>현재 생성 설정</strong><dl>{items.map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>;
 }
 
@@ -54,7 +55,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
   const [placement,setPlacement]=useState(null);
   const [segments,setSegments]=useState("");
   const [generationMode,setGenerationMode]=useState("single");
-  const modeName=useId(),segmentHelp=useId(),promptHelp=useId();
+  const modeName=useId(),segmentHelp=useId(),promptHelp=useId(),frameErrorId=useId(),stepErrorId=useId(),cfgErrorId=useId(),scaleErrorId=useId();
   const segmentTokens=segments.trim() ? segments.trim().split(/\s+/) : [];
   const segmentCounts=segmentTokens.every(value=>/^\d+$/.test(value)) ? segmentTokens.map(Number) : [];
   const segmentTotal=segmentCounts.length ? segmentCounts.reduce((sum,value)=>sum+value,0) : null;
@@ -63,13 +64,18 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
   const handoffKey="kimodo-gpu-handoff-"+session+(receiptScope?"-proposal-"+receiptScope:"");
   const [inputs,setInputs]=useState(null),[review,setReview]=useState(null),[busy,setBusy]=useState(false);
   const promptReason=inputs ? kimodoPromptReason(inputs.prompt) : "";
+  const singleFrameInvalid=inputs && (String(inputs.frames).trim()==="" || !Number.isInteger(Number(inputs.frames)) || Number(inputs.frames)<30 || Number(inputs.frames)>300);
+  const invalidSteps=inputs && (String(inputs.steps).trim()==="" || !Number.isInteger(Number(inputs.steps)) || Number(inputs.steps)<2 || Number(inputs.steps)>100);
+  const invalidSeed=inputs && (String(inputs.seed).trim()==="" || !Number.isInteger(Number(inputs.seed)) || Number(inputs.seed)<0 || Number(inputs.seed)>2147483647);
+  const outside=(value,min,max)=>value==null || String(value).trim()==="" || !Number.isFinite(Number(value)) || Number(value)<min || Number(value)>max;
+  const invalidCfg=inputs && outside(inputs.guidance_scale,0,10),invalidScale=inputs && outside(inputs.openpose_scale_percent,10,100);
   const [templateRevision,setTemplateRevision]=useState(0),[templateError,setTemplateError]=useState("");
   const [loadingTemplate,setLoadingTemplate]=useState(true);
   const [reviewing,setReviewing]=useState(false);
   const [loadingReferences,setLoadingReferences]=useState(false),[loadingExample,setLoadingExample]=useState(false);
   const promptSegmentCount=inputs?.prompt?.split(/\r\n|\r|\n/).filter(line=>line.trim()).length || 0;
   const [sourceJob,setSourceJob]=useState("");
-  const busyRef=useRef(false),reviewButtonRef=useRef(null),reviewSectionRef=useRef(null),reviewEpoch=useRef(0),inputEpoch=useRef(0),bundleInputRef=useRef(null),calibrationInputRef=useRef(null),exampleRequest=useRef(null),referenceRequest=useRef(null),referenceExamplesRef=useRef(null),restoreReferenceFocus=useRef(false),motionExamplesRef=useRef(null),restoreMotionFocus=useRef(false);
+  const advancedRef=useRef(null),busyRef=useRef(false),reviewButtonRef=useRef(null),reviewSectionRef=useRef(null),reviewEpoch=useRef(0),inputEpoch=useRef(0),bundleInputRef=useRef(null),calibrationInputRef=useRef(null),exampleRequest=useRef(null),referenceRequest=useRef(null),referenceExamplesRef=useRef(null),restoreReferenceFocus=useRef(false),motionExamplesRef=useRef(null),restoreMotionFocus=useRef(false);
   useEffect(()=>()=>{exampleRequest.current?.abort();referenceRequest.current?.abort();},[]);
   useEffect(()=>{if(!busy && !loadingReferences && restoreReferenceFocus.current){restoreReferenceFocus.current=false;restoreLostFocus(document,referenceExamplesRef.current);}},[busy,loadingReferences]);
   useEffect(()=>{if(!busy && !loadingExample && restoreMotionFocus.current){restoreMotionFocus.current=false;restoreLostFocus(document,motionExamplesRef.current);}},[busy,loadingExample]);
@@ -339,8 +345,8 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
         <KeyframeCatalog query={search} initialFrames={inputs.frames} initialRows={placement?.placements || []}
           apply={(frames,result)=>{setPlacement(result);setInputs({...inputs,frames,post_processing:true,remove_horizontal_motion:false});setReview(null);setPlacing(false);}}/></>}
     </fieldset>}
-    {inputs && <form onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (target.matches("textarea") && promptReason && value===promptReason) || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();const epoch=reviewEpoch.current;perform(async()=>{setReviewing(true);try{await inspect();}catch(error){if(epoch!==reviewEpoch.current)return;setTimeout(()=>{if(document.activeElement===document.body && reviewButtonRef.current?.isConnected && !reviewButtonRef.current.disabled)reviewButtonRef.current.focus();},50);throw error;}finally{setReviewing(false);}});}}><fieldset disabled={busy || loadingTemplate}>
-      <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions} generationMode={generationMode} segmentCount={segmentTokens.length} segmentFrames={segmentCounts} frameInvalid={generationMode==="sequence" && !segmentsValid}/>
+    {inputs && <form onInvalidCapture={event=>openInvalidDetails(event,advancedRef.current)} onChangeCapture={event=>{const target=event.target;const related=target.closest(".kimodo-segment-settings") || target.matches("textarea") || target.name===modeName;setNotice(value=>value.endsWith(" 설정을 적용했습니다.") || (target.matches("textarea") && promptReason && value===promptReason) || (related && ["순차 생성의 구간 프레임 수를 입력하세요.","구간은 2~10개, 각 16~300프레임, 합계는 최대 300프레임으로 입력하세요.","동작 설명의 줄 수와 구간 프레임 수가 같아야 합니다."].includes(value)) ? "" : value);}} onSubmit={e=>{e.preventDefault();const epoch=reviewEpoch.current;perform(async()=>{setReviewing(true);try{await inspect();}catch(error){if(epoch!==reviewEpoch.current)return;setTimeout(()=>{if(document.activeElement===document.body && reviewButtonRef.current?.isConnected && !reviewButtonRef.current.disabled)reviewButtonRef.current.focus();},50);throw error;}finally{setReviewing(false);}});}}><fieldset disabled={busy || loadingTemplate}>
+      <KimodoInputSummary inputs={inputs} references={references} placement={placement} bundle={bundle} directions={directions} generationMode={generationMode} segmentCount={segmentTokens.length} segmentFrames={segmentCounts} frameInvalid={generationMode==="sequence" ? !segmentsValid : singleFrameInvalid}/>
       <KimodoPromptField value={inputs.prompt} onChange={value=>edit("prompt",value)} reason={promptReason} reasonId={promptHelp} segmentHelp={generationMode==="sequence" ? segmentHelp : undefined} segmentMismatch={generationMode==="sequence" && segmentsValid && promptSegmentCount!==segmentCounts.length}/>
       <div ref={motionExamplesRef} tabIndex={-1} className="kimodo-motion-examples" aria-label="동작 예시 설정"><KimodoPromptExamples apply={prompt=>edit("prompt",prompt)} applySettings={(id,origin)=>{if(busyRef.current)return;restoreMotionFocus.current=document.activeElement===origin;perform(()=>applyExample(id));}}/>{loadingExample && <p role="status">동작 예시 설정과 참조를 확인하고 있습니다.</p>}</div>
       <fieldset className="kimodo-mode"><legend>생성 방식</legend><div className="kimodo-mode-options">
@@ -351,9 +357,9 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
         <label>구간별 프레임 <input type="text" inputMode="numeric" value={segments} placeholder="예: 64 32 64" aria-describedby={segmentHelp} aria-invalid={Boolean(segments.trim()) && !segmentsValid} onChange={event=>{const value=event.target.value;setSegments(value);setReview(null);const parts=value.trim().split(/\s+/);if(value.trim() && parts.length>=2 && parts.length<=10 && parts.every(part=>/^\d+$/.test(part) && Number(part)>=16 && Number(part)<=300)){const total=parts.reduce((sum,part)=>sum+Number(part),0);if(total<=300)setInputs(previous=>({...previous,frames:total}));}}}/></label>
         <p className="kimodo-segment-total">전체 프레임 <strong>{Number.isSafeInteger(segmentTotal) ? segmentTotal+"프레임" : "계산할 수 없음"}</strong>{segments.trim() && !segmentsValid && " · 아래 입력 조건을 확인하세요."}</p>
         <p id={segmentHelp}>구간별 프레임을 공백으로 구분하세요. 2~10구간, 각 16프레임 이상, 전체 300프레임 이하입니다. 동작 설명은 구간마다 한 줄씩 입력합니다. 동작 설명 {promptSegmentCount}줄 · 프레임 {segmentTokens.length}구간{segmentTokens.length>0 && promptSegmentCount!==segmentTokens.length && " · 개수를 맞춰 주세요."}</p>
-      </section> : <label>프레임 수 <input type="number" required min="30" max="300" value={inputs.frames} onChange={e=>edit("frames",e.target.value)}/></label>}
-      <label>생성 단계 <input type="number" required min="2" max="100" value={inputs.steps} onChange={e=>edit("steps",e.target.value)}/></label>
-      <SeedInput value={inputs.seed} max={2147483647} onChange={value=>edit("seed",value)}/>
+      </section> : <label>프레임 수 <input type="number" required min="30" max="300" aria-invalid={singleFrameInvalid || undefined} aria-describedby={singleFrameInvalid ? frameErrorId : undefined} value={inputs.frames} onChange={e=>edit("frames",e.target.value)}/>{singleFrameInvalid && <small id={frameErrorId}>30~300의 정수를 입력하세요.</small>}</label>}
+      <label>생성 단계 <input type="number" required min="2" max="100" aria-invalid={invalidSteps || undefined} aria-describedby={invalidSteps ? stepErrorId : undefined} value={inputs.steps} onChange={e=>edit("steps",e.target.value)}/>{invalidSteps && <small id={stepErrorId}>2~100의 정수를 입력하세요.</small>}</label>
+      <SeedInput value={inputs.seed} max={2147483647} error={invalidSeed ? "0~2147483647의 정수를 입력하세요." : ""} onChange={value=>edit("seed",value)}/>
       <section ref={referenceExamplesRef} tabIndex={-1} className="kimodo-reference-examples" aria-label="신체 비율 예시">
         {referenceExamples===null ? <button type="button" onClick={event=>startReferenceExample(null,event)}>신체 비율 예시 조회</button> : <>
           {referenceExamples.length===0 ? <p>등록된 신체 비율 예시가 없습니다.</p> : referenceExamples.map(example=><button type="button" key={example.id} onClick={event=>startReferenceExample(example.id,event)}>{example.label} 참조 적용</button>)}
@@ -396,17 +402,17 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
           {calibration && <p>적용된 얼굴 앵커 교정 · {calibration.name} <button type="button" onClick={()=>{setCalibration(null);setAttachmentRevision(value=>value+1);setReview(null);requestAnimationFrame(()=>calibrationInputRef.current?.focus());}}>얼굴 앵커 교정 제거</button></p>}
         </fieldset>}
       </details>
-      <details><summary>모션 및 포즈 출력 설정</summary>
+      <details ref={advancedRef}><summary>모션 및 포즈 출력 설정{(invalidCfg || invalidScale) && " · 입력 확인 필요"}</summary>
         <fieldset><legend>카메라 방향</legend>{Object.entries(directions).map(([id,direction])=>
           <label key={id}><input type="checkbox" checked={inputs.directions.includes(id)}
             onChange={e=>edit("directions",e.target.checked?[...inputs.directions,id]:inputs.directions.filter(item=>item!==id))}/>
             {direction.label} ({direction.angle}°)</label>)}</fieldset>
         <label>카메라 고도 <select value={inputs.camera_elevation_degrees} onChange={e=>edit("camera_elevation_degrees",Number(e.target.value))}>
           {[0,15,30].map(value=><option key={value} value={value}>{value}°</option>)}</select></label>
-        <label>텍스트 CFG <input type="number" required min="0" max="10" step="any" value={inputs.guidance_scale}
-          onChange={e=>edit("guidance_scale",e.target.value)}/></label>
-        <label>OpenPose 출력 크기 (%) <input type="number" required min="10" max="100" step="0.5" value={inputs.openpose_scale_percent}
-          onChange={e=>edit("openpose_scale_percent",e.target.value)}/></label>
+        <label>텍스트 CFG <input type="number" required min="0" max="10" step="any" aria-invalid={invalidCfg || undefined} aria-describedby={invalidCfg ? cfgErrorId : undefined} value={inputs.guidance_scale}
+          onChange={e=>edit("guidance_scale",e.target.value)}/>{invalidCfg && <small id={cfgErrorId}>0~10 사이로 입력하세요.</small>}</label>
+        <label>OpenPose 출력 크기 (%) <input type="number" required min="10" max="100" step="any" aria-invalid={invalidScale || undefined} aria-describedby={invalidScale ? scaleErrorId : undefined} value={inputs.openpose_scale_percent}
+          onChange={e=>edit("openpose_scale_percent",e.target.value)}/>{invalidScale && <small id={scaleErrorId}>10~100 사이로 입력하세요.</small>}</label>
         {[["post_processing","공식 후처리"],["remove_horizontal_motion","수평 이동 제거"],["pose_include_hands","손 포즈 포함"],
           ["pose_include_face","얼굴 포즈 포함"]].map(([field,label])=>
           <label key={field}><input type="checkbox" disabled={Boolean(placement) && ["post_processing","remove_horizontal_motion"].includes(field)} checked={inputs[field]} onChange={e=>edit(field,e.target.checked)}/>{label}</label>)}

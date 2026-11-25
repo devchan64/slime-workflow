@@ -66,9 +66,9 @@ test('Fun Control 화면 종료 후 인코딩이 끝나도 영상 정보 조회�
 test('Fun Control 화면 종료 시 진행 중인 영상 정보 응답과 오류를 무시한다',async()=>{
  const source=readFileSync(new URL('../../gui/FunControlPage.jsx',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('  async function attach('),source.indexOf('  async function load('));
- const cleanupLine=source.split('\n').find(line=>line.includes('useEffect(()=>()=>{attachmentEpoch.current++'));
+ const cleanupLine=source.split('\n').find(line=>line.includes('mounted.current=true;return()=>{mounted.current=false;attachmentEpoch.current++'));
  let cleanup,finish,updates=0;
- const context=vm.createContext({AbortController,untilAborted,attachmentEpoch:{current:0},attachmentProcessing:{current:false},attachmentRevision:{current:0},poseInspection:{current:null},inputLoading:{current:null},
+ const context=vm.createContext({AbortController,untilAborted,attachmentEpoch:{current:0},attachmentProcessing:{current:false},attachmentRevision:{current:0},poseInspection:{current:null},inputLoading:{current:null},mounted:{current:true},saveRequest:{current:null},reviewRequest:{current:null},restoreFrame:{current:null},resultFocusFrame:{current:null},
   useEffect:fn=>cleanup=fn(),videoData:async()=> '영상',fetch:()=>new Promise(resolve=>finish=resolve),setTimeout:()=>1,clearTimeout:()=>{},
   setBusy:()=>updates++,setError:()=>updates++,setPoseError:()=>updates++,setRequest:()=>updates++,setVideoInfo:()=>updates++,requestErrorMessage:problem=>problem.message});
  vm.runInContext(cleanupLine+'\n'+code,context);const pending=context.attach({},'pose_video');

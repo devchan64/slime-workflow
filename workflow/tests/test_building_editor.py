@@ -41,6 +41,10 @@ class BuildingEditorTest(unittest.TestCase):
               assert.equal(invalidSize(row,{displayWidthAdjustment:0,displayHeightAdjustment:0}),null);
               assert.equal(invalidSize(row,{displayWidthAdjustment:-200,displayHeightAdjustment:0}),'town');
               assert.equal(invalidSize(row,{displayWidthAdjustment:0,displayHeightAdjustment:-300}),'town');
+              const multi={...row,maps:[{...row.maps[0],map:'wide',contentWidth:1},{...row.maps[0],map:'narrow',contentWidth:10}]};
+              assert.equal(invalidSize(multi,{displayWidthAdjustment:-20,displayHeightAdjustment:0}),'narrow');
+              assert.equal(invalidSize(multi,{displayWidthAdjustment:'-20',displayHeightAdjustment:'0'}),'narrow');
+              assert.equal(invalidSize(multi,{displayWidthAdjustment:0,displayHeightAdjustment:0}),null);
               const saved={saved:true,asset:'house',generation:2,properties:{anchorX:.5,anchorY:1}};
               assert.equal(change(saved,'house',1,null,{anchorX:.5,anchorY:1}),true);
               for(const result of [null,{...saved,asset:'other'},{...saved,generation:1},{...saved,properties:{anchorX:2}}])assert.equal(change(result,'house',1,null,{anchorX:.5}),false);

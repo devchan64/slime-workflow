@@ -172,7 +172,7 @@ export function Alignment({detail,onDirtyChange,onBusyChange}){
   const [revision,setRevision]=useState(detail.revision),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[saveError,setSaveError]=useState(false);
   const [inputError,setInputError]=useState(null);
   const submitting=useRef(false),saveButton=useRef(null),messageRef=useRef(null),restoreSaveFocus=useRef(false);
-  const coordinatesHelpId=useId(),inputErrorId=useId();
+  const coordinatesHelpId=useId(),inputErrorId=useId(),alphaErrorId=useId();
   useEffect(()=>{onDirtyChange(JSON.stringify(values)!==JSON.stringify(savedValues));},[values,savedValues,onDirtyChange]);
   useEffect(()=>{onBusyChange(busy);},[busy,onBusyChange]);
   useEffect(()=>{if(!busy && message && restoreSaveFocus.current){restoreSaveFocus.current=false;restoreLostFocus(document,messageRef.current);}},[busy,message]);
@@ -200,11 +200,12 @@ export function Alignment({detail,onDirtyChange,onBusyChange}){
     }catch(problem){setSaveError(true);setMessage(effectSaveFailure(problem,dispatched));}
     finally{submitting.current=false;setBusy(false);}
   }
+  const alphaInvalid=String(values.alpha).trim()==="" || !Number.isFinite(Number(values.alpha)) || Number(values.alpha)<0 || Number(values.alpha)>1;
   return <form className="effect-alignment-form" onSubmit={save}><fieldset disabled={busy} aria-describedby={inputError ? inputErrorId : undefined}><legend>공용 이펙트 정렬</legend>
     <p id={coordinatesHelpId}>좌표는 0부터 1까지의 비율입니다. 왼쪽은 오른쪽보다, 위쪽은 아래쪽보다 작아야 합니다.</p>
     {inputError && <p id={inputErrorId} role="alert">{inputError.message}</p>}
     <fieldset className="effect-rectangle"><legend>대상 영역</legend>{rectangle("target")}</fieldset>
-    <label>불투명도<input type="number" min="0" max="1" step="any" required value={values.alpha} onChange={e=>setValues({...values,alpha:e.target.value})}/></label>
+    <label>불투명도<input type="number" min="0" max="1" step="any" required aria-invalid={alphaInvalid || undefined} aria-describedby={alphaInvalid ? alphaErrorId : undefined} value={values.alpha} onChange={e=>setValues({...values,alpha:e.target.value})}/>{alphaInvalid && <small id={alphaErrorId}>0~1 사이로 입력하세요.</small>}</label>
     {values.frames.map((_,index)=><fieldset className="effect-rectangle" key={index}><legend>{index+1}번 프레임</legend>{rectangle("frames",index)}</fieldset>)}
     <AlignmentPreview detail={detail} values={values}/><button ref={saveButton} type="submit">정렬 저장</button></fieldset>{busy && <p role="status">이펙트 정렬을 저장 중입니다.</p>}{message && <p ref={messageRef} tabIndex={-1} role={saveError ? "alert" : "status"}>{message}</p>}</form>;
 }

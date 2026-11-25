@@ -188,6 +188,8 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const invalidFrames=frameLimit!==null && Number(values.frames)>frameLimit;
   const seedValue=values?.seed;
   const invalidSeed=seedValue==="" || seedValue==null || !Number.isInteger(Number(seedValue)) || Number(seedValue)<0 || Number(seedValue)>template?.maximum_seed;
+  const fightingStrength=values?.fighting_strength ?? 1;
+  const invalidFightingStrength=["fighting","fighting_lightning"].includes(values?.lora_mode) && (fightingStrength==="" || !Number.isFinite(Number(fightingStrength)) || Number(fightingStrength)<=0 || Number(fightingStrength)>2);
   const invalidSettings=Object.fromEntries(numericSettings.slice(1).map(([key,,min,max,step])=>{
     const value=values?.[key],number=Number(value);
     return [key,value==="" || value==null || !Number.isFinite(number) || number<min || number>max || (step===1 && !Number.isInteger(number))];
@@ -248,20 +250,21 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <label>모델<select value={values.model_profile || "official-bf16-resident-v1"} onChange={e=>{setModel(null);field("model_profile",e.target.value);}}><option value="official-bf16-resident-v1">공식 BF16</option><option value="q8-gguf-resident-v1">Q8_0 GGUF · 실험</option></select></label>
       {values.model_profile==="q8-gguf-resident-v1" && <p>Q8 전문가 파일 준비 및 실제 ROCm 실행 검증이 필요합니다. <a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-vace-q8",...(session?{session}:{})})}>Q8 모델 준비</a></p>}
       <label>LoRA<select value={values.lora_mode || "none"} onChange={e=>{const mode=e.target.value,previous=values.lora_mode || "none",usesLightning=m=>["lightning","fighting_lightning"].includes(m);if(!usesLightning(previous) && usesLightning(mode))nonLoraSettings.current={steps:values.steps,guidance_scale:values.guidance_scale,flow_shift:values.flow_shift};const restored=usesLightning(previous) && !usesLightning(mode) ? nonLoraSettings.current : null;if(restored)nonLoraSettings.current=null;setValues(old=>({...old,lora_mode:mode,...(usesLightning(mode)?{steps:4,guidance_scale:1,flow_shift:5}:restored || {})}));}}><option value="none">사용 안 함</option><option value="fighting">격투만 · 실험</option><option value="lightning">Lightning만 · 실험</option><option value="fighting_lightning">격투 + Lightning · 실험</option></select></label>
-      {["fighting","fighting_lightning"].includes(values.lora_mode) && <label>격투 LoRA 강도<input type="number" min="0.01" max="2" step="any" required value={values.fighting_strength ?? 1} onChange={e=>field("fighting_strength",e.target.value===""?"":Number(e.target.value))}/></label>}
+      {["fighting","fighting_lightning"].includes(values.lora_mode) && <label>격투 LoRA 강도<input type="number" min="0" max="2" step="any" required aria-invalid={invalidFightingStrength || undefined} aria-describedby={invalidFightingStrength ? `${settingErrorId}-fighting` : undefined} value={fightingStrength} onChange={e=>field("fighting_strength",e.target.value===""?"":Number(e.target.value))}/>{invalidFightingStrength && <small className="vace-field-error" id={`${settingErrorId}-fighting`}>0보다 크고 2 이하로 입력하세요.</small>}</label>}
       {numericSettings.map(([key,label,min,max,step])=>
         <label key={key}>{label}<input type="number" required min={min} max={max} step={step} aria-invalid={(key==="frames" ? invalidFrameValue || invalidFrames : invalidSettings[key]) || undefined} aria-describedby={key==="frames" ? [invalidFrameValue && frameErrorId,invalidFrames && frameLimitErrorId].filter(Boolean).join(" ") || undefined : invalidSettings[key] ? `${settingErrorId}-${key}` : undefined} value={values[key]} onChange={e=>field(key,e.target.value===""?"":Number(e.target.value))}/>{key==="frames" && invalidFrameValue && <small className="vace-field-error" id={frameErrorId}>5~129 사이에서 4프레임 간격으로 입력하세요. 예: 5, 9, 13.</small>}{invalidSettings[key] && <small className="vace-field-error" id={`${settingErrorId}-${key}`}>{min}~{max}{step===1 ? "의 정수" : " 사이"}로 입력하세요.</small>}</label>)}
       </div>{frameLimit!==null && <p>입력에 사용할 수 있는 최대 출력 길이 {frameLimit}프레임 <button type="button" onClick={()=>field("frames",frameLimit)}>최대 프레임 적용</button></p>}
       {invalidFrames && <p id={frameLimitErrorId} role="alert">출력 프레임이 입력 영상보다 깁니다. {frameLimit}프레임 이하로 줄이세요.</p>}
       {values.lora_mode==="fighting" && <p>격투 LoRA는 High 전문가에 적용합니다. Lightning 없이 일반 스텝·CFG·shift를 사용하며 동작 품질은 검수해야 합니다. <a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-fighting-lora",...(session?{session}:{})})}>격투 LoRA 준비</a></p>}
       {["lightning","fighting_lightning"].includes(values.lora_mode) && <p>Lightning은 High·Low 전문가에 적용합니다. {values.lora_mode==="fighting_lightning" && "격투 LoRA는 High 전문가에 적용합니다. "}4스텝·shift 5를 사용합니다. CFG 1이 기본이며 더 높은 CFG는 실험 설정입니다. 동작 품질은 검수해야 합니다. {values.lora_mode==="fighting_lightning" && <><a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-fighting-lora",...(session?{session}:{})})}>격투 LoRA 준비</a> · </>}<a href={"/management/frame/model-management/?"+new URLSearchParams({model:"wan22-vace-lightning",...(session?{session}:{})})}>Lightning 준비</a></p>}
-      <p>832×480 · 16fps · {Number(values.frames)>0?(Number(values.frames)/16).toFixed(2):"0"}초 · VACE-Fun A14B BF16 · Euler/FlowMatch</p>
+      <p>832×480 · 16fps · {invalidFrameValue || invalidFrames ? "예상 길이 계산 불가" : `${(Number(values.frames)/16).toFixed(2)}초`} · VACE-Fun A14B BF16 · Euler/FlowMatch</p>
       <SeedInput value={values.seed} max={template.maximum_seed} error={invalidSeed ? `0~${template.maximum_seed}의 정수로 입력하세요.` : ""} onChange={value=>field("seed",value===""?"":Number(value))}/>
       </div><ActionButton type="submit" reasons={[
         !generationReady(model) && "모델 준비 상태를 확인하세요.",
         invalidFrameValue && "출력 프레임의 입력 범위를 확인하세요.",
         Object.values(invalidSettings).some(Boolean) && "생성 설정의 입력 범위를 확인하세요.",
         invalidSeed && "시드의 입력 범위를 확인하세요.",
+        invalidFightingStrength && "격투 LoRA 강도는 0보다 크고 2 이하여야 합니다.",
         ["lightning","fighting_lightning"].includes(values.lora_mode) && (values.steps!==4 || values.flow_shift!==5) && "Lightning에는 4스텝·shift 5가 필요합니다.",
         !values.prompt.trim() && "프롬프트를 입력하세요.",
         values.mode!=="text" && imageCheckPending && "선택한 이미지 확인이 끝날 때까지 기다리세요.",

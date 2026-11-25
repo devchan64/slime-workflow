@@ -1,5 +1,6 @@
+import {invalidSpriteGridCount,invalidSpriteGrid,invalidSpriteFrameRange,spriteFrameIssue,spriteFrameFieldIssues} from "./spriteGridValidation.mjs";
 import SpriteAnchorRestore from "./SpriteAnchorRestore.jsx";
-import React,{useEffect,useRef,useState} from "react";
+import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
@@ -108,8 +109,14 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const [columns,setColumns]=useState(initialColumns),[busy,setBusy]=useState(false);
   const [result,setResult]=useState(null),[error,setError]=useState("");
   const [first,setFirst]=useState(1),[last,setLast]=useState(rows.length),[fps,setFps]=useState(6);
+  const rangeErrorId=useId(),outputColumnsErrorId=useId(),frameErrorId=useId();
+  const frameFieldIssues=rows.map(spriteFrameFieldIssues);
+  const frameIssues=frameFieldIssues.map(issue=>Object.values(issue).join(" "));
+  const hasFrameIssues=frameIssues.some(Boolean);
+  const invalidOutputColumns=invalidSpriteGridCount(columns);
+  const invalidRange=invalidSpriteFrameRange(first,last,rows.length);
   const [review,setReview]=useState(null),[restoredFeet,setRestoredFeet]=useState({});
-  const canvas=useRef(null),reviewRef=useRef(null),reviewTrigger=useRef(null),saving=useRef(false);
+  const canvas=useRef(null),frameTableRef=useRef(null),reviewRef=useRef(null),reviewTrigger=useRef(null),saving=useRef(false);
   useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus({preventScroll:true});},[review]);
   function readBodyReference(){
     if(original?.source!=="assets")return null;
@@ -127,6 +134,9 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     event.preventDefault();setBusy(true);setResult(null);setError("");
     try{
       const gif=event.nativeEvent.submitter?.value==="gif";
+      if((gif ? rows.slice(Number(first)-1,Number(last)) : rows).some(spriteFrameIssue))throw new Error("프레임 크롭과 앵커 입력을 확인하세요.");
+      if(!gif && invalidOutputColumns)throw new Error("출력 열 수는 1~128의 정수여야 합니다.");
+      if(gif && invalidSpriteFrameRange(first,last,rows.length))throw new Error("GIF 시작·끝 프레임은 시트 범위 안의 정수여야 합니다.");
       const start=gif?Number(first)-1:0,end=gif?Number(last):rows.length;
       if(!Number.isInteger(start)||!Number.isInteger(end)||start<0||end<=start||end>rows.length){
         throw new Error("GIF 시작·끝 프레임은 시트 범위 안의 정수여야 합니다.");
@@ -172,28 +182,30 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     finally{saving.current=false;setBusy(false);setReview(null);}
   }
   return <form onSubmit={exportSheet}><fieldset disabled={busy}><legend>크롭과 앵커 편집</legend>
-    <div className="sprite-frame-table"><ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
+    <div ref={frameTableRef} className="sprite-frame-table"><ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
       rows:rows.map((row,i)=>[i+1,...fields.map((field,j)=><input aria-label={(i+1)+"번 "+labels[j]} type="number"
-        required step={j<4?1:"any"} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/></div>
+        step="any" aria-invalid={Boolean(frameFieldIssues[i][field]) || undefined} aria-describedby={frameFieldIssues[i][field] ? `${frameErrorId}-${i}-${field}` : undefined} value={row[field]} onChange={e=>update(i,field,e.target.value)}/>)])}}/></div>
+    {hasFrameIssues && <p id={frameErrorId}>프레임 크롭과 앵커 입력을 확인하세요. <button type="button" onClick={()=>frameTableRef.current?.querySelector('input[aria-invalid="true"]')?.focus()}>첫 오류로 이동</button></p>}
+    {frameFieldIssues.map((issues,i)=>Object.entries(issues).map(([field,issue])=><p id={`${frameErrorId}-${i}-${field}`} key={`${i}-${field}`}>{i+1}번 {labels[fields.indexOf(field)]}: {issue}</p>))}
     <BulkEdit rows={rows} onEdit={editRows}/>
     {original?.animation?.animationId && original.animation.version && <SpriteAnchorRestore original={original} rows={rows}
       onRestore={snapshot=>{editRows(snapshot.rows);setRestoredFeet(snapshot.feet);}}/>}
     <SpritePreview restoredFeet={restoredFeet} canvas={canvas} onReferenceEdit={()=>setReview(null)} onEdit={editRows} rows={rows} image={image} bounds={bounds} fps={fps} original={original}/>
-    <label>출력 열 수<input type="number" min="1" max="128" required value={columns}
-      onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/></label>
-    <button>시트와 좌표맵 내보내기</button>
-    {original?.metadataSha256 && <button value="review">원본 갱신 검토</button>}
+    <label>출력 열 수<input type="number" step="any" aria-invalid={invalidOutputColumns || undefined} aria-describedby={invalidOutputColumns ? outputColumnsErrorId : undefined} value={columns}
+      onChange={e=>{setColumns(e.target.value);setReview(null);setResult(null);}}/>{invalidOutputColumns && <small id={outputColumnsErrorId}>1~128의 정수를 입력하세요.</small>}</label>
+    <button disabled={invalidOutputColumns || hasFrameIssues} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId].filter(Boolean).join(" ") || undefined}>시트와 좌표맵 내보내기</button>
+    {original?.metadataSha256 && <button value="review" disabled={invalidOutputColumns || hasFrameIssues} aria-describedby={[invalidOutputColumns && outputColumnsErrorId,hasFrameIssues && frameErrorId].filter(Boolean).join(" ") || undefined}>원본 갱신 검토</button>}
     {review && <section ref={reviewRef} tabIndex={-1} aria-label="원본 갱신 검토"><h3>{original.path}</h3><p>좌표 변경 {review.changed} / {rows.length}프레임 · 출력 {columns}열</p>
       {review.bodyReference && <p>머리 기준 · {review.bodyReference.frame}번 프레임 · Y {review.bodyReference.headY}px</p>}
       <p>{original.source==="baseline"?"베이스라인 이미지·좌표맵·YAML":"등록 이미지·좌표맵·등록부와 잠금 해시"}를 갱신합니다.</p>
       <button type="button" onClick={save}>확인 후 원본 갱신</button>
       <button type="button" onClick={()=>{const focused=document.activeElement;setReview(null);requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===focused) && reviewTrigger.current?.isConnected)reviewTrigger.current.focus();});}}>취소</button></section>}
     <fieldset onChange={()=>{setResult(null);setError("");}}><legend>GIF 내보내기</legend>
-      <label>시작 프레임<input type="number" value={first} onChange={e=>setFirst(e.target.value)}/></label>
-      <label>끝 프레임<input type="number" value={last} onChange={e=>setLast(e.target.value)}/></label>
+      <label>시작 프레임<input type="number" step="any" aria-invalid={invalidRange || undefined} aria-describedby={invalidRange ? rangeErrorId : undefined} value={first} onChange={e=>setFirst(e.target.value)}/></label>
+      <label>끝 프레임<input type="number" step="any" aria-invalid={invalidRange || undefined} aria-describedby={invalidRange ? rangeErrorId : undefined} value={last} onChange={e=>setLast(e.target.value)}/></label>{invalidRange && <p id={rangeErrorId}>1~{rows.length}의 정수로 시작이 끝보다 크지 않게 입력하세요.</p>}
       <label>재생 속도 (FPS)<select value={fps} onChange={e=>setFps(e.target.value)}>
         {[4,6,8,12,16,24,30].map(rate=><option key={rate}>{rate}</option>)}</select></label>
-      <button value="gif">선택 범위 GIF 내보내기</button>
+      <button value="gif" disabled={invalidRange || (!invalidRange && frameIssues.slice(Number(first)-1,Number(last)).some(Boolean))} aria-describedby={[invalidRange && rangeErrorId,!invalidRange && frameIssues.slice(Number(first)-1,Number(last)).some(Boolean) && frameErrorId].filter(Boolean).join(" ") || undefined}>선택 범위 GIF 내보내기</button>
     </fieldset></fieldset>
     {error && <p role="alert">{error}</p>}
     {result && <section><p role="status">내보내기 완료 · {result.id}</p>
@@ -230,11 +242,13 @@ export function GridReplaceConfirmation({dimensions,onConfirm,onCancel,returnFoc
 function GridEditor({detail,size,onSaved}){
   const [columns,setColumns]=useState(detail.layout?.columns ?? 4),[rows,setRows]=useState(detail.layout?.rows ?? 2);
   const [grid,setGrid]=useState(null),[pending,setPending]=useState(null),[error,setError]=useState("");
-  const changeTrigger=useRef(null);
+  const changeTrigger=useRef(null),columnsError=useId(),rowsError=useId();
+  const invalidColumns=invalidSpriteGridCount(columns),invalidRows=invalidSpriteGridCount(rows);
+  const invalidGrid=!invalidColumns && !invalidRows && size && invalidSpriteGrid(columns,rows,size);
   function split(event){
     event.preventDefault();
     const cols=Number(columns),lines=Number(rows);
-    if(!size || cols*lines>128 || cols>size.width || lines>size.height){
+    if(invalidSpriteGrid(columns,rows,size)){
       setError("최대 128프레임이며 각 셀은 최소 1픽셀이어야 합니다.");return;
     }
     const xs=gridEdges(size.width,cols),ys=gridEdges(size.height,lines);
@@ -250,9 +264,9 @@ function GridEditor({detail,size,onSaved}){
     setError("");
   }
   return <><form onSubmit={split}><fieldset disabled={!!pending}><legend>원본 시트 분할</legend>
-    <label>원본 열<input type="number" min="1" max="128" required value={columns} onChange={e=>setColumns(e.target.value)}/></label>
-    <label>원본 행<input type="number" min="1" max="128" required value={rows} onChange={e=>setRows(e.target.value)}/></label>
-    <button disabled={!size}>프레임 나누기</button>
+    <label>원본 열<input type="number" min="1" max="128" required aria-invalid={invalidColumns || undefined} aria-describedby={invalidColumns ? columnsError : undefined} value={columns} onChange={e=>setColumns(e.target.value)}/>{invalidColumns && <small id={columnsError}>1~128의 정수를 입력하세요.</small>}</label>
+    <label>원본 행<input type="number" min="1" max="128" required aria-invalid={invalidRows || undefined} aria-describedby={invalidRows ? rowsError : undefined} value={rows} onChange={e=>setRows(e.target.value)}/>{invalidRows && <small id={rowsError}>1~128의 정수를 입력하세요.</small>}</label>
+    <ActionButton type="submit" reasons={[!size && "원본 이미지가 열리면 나눌 수 있습니다.",(invalidColumns || invalidRows) && "원본 열과 행을 확인하세요.",invalidGrid && "최대 128프레임이며 각 셀은 최소 1픽셀이어야 합니다."]}>프레임 나누기</ActionButton>
     {error && <p role="alert">{error}</p>}</fieldset></form>
     {pending && <GridReplaceConfirmation dimensions={pending.key} returnFocus={changeTrigger.current} onConfirm={()=>{setGrid(pending);setPending(null);}} onCancel={()=>setPending(null)}/>}
     {grid && <FrameEditor key={grid.key+"/"+grid.revision} frames={grid.frames} image={detail.image} original={detail} onSaved={onSaved}/>}</>;
@@ -282,10 +296,11 @@ function Sheet({path,source}){
 function AutoCrop({image,size,onApply}){
   const [padding,setPadding]=useState(30),[busy,setBusy]=useState(false);
   const [candidate,setCandidate]=useState(null),[error,setError]=useState("");
-  const request=useRef(null);
+  const request=useRef(null),paddingErrorId=useId();
+  const invalidPadding=String(padding).trim()==="" || !Number.isInteger(Number(padding)) || Number(padding)<0 || Number(padding)>500;
   useEffect(()=>()=>request.current?.abort(),[]);
   async function detect(event){
-    event.preventDefault();if(request.current || !size)return;
+    event.preventDefault();if(request.current || !size || invalidPadding)return;
     const controller=new AbortController();request.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setCandidate(null);setError("");
@@ -295,10 +310,10 @@ function AutoCrop({image,size,onApply}){
     }catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? "크롭 후보 검출 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}
     finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut)setBusy(false);}
   }
-  return <details><summary>자동 크롭</summary><form onSubmit={detect}><fieldset disabled={busy}>
-    <label>상하좌우 최소 여백 (px)<input type="number" min="0" max="500" required value={padding}
-      onChange={e=>{setPadding(e.target.value);setCandidate(null);setError("");}}/></label>
-    <ActionButton type="submit" reasons={[!size && "원본 이미지가 열리면 크롭 후보를 검출할 수 있습니다."]}>크롭 후보 검출</ActionButton></fieldset></form>
+  return <details><summary>자동 크롭{invalidPadding && " · 입력 확인 필요"}</summary><form onSubmit={detect}><fieldset disabled={busy}>
+    <label>상하좌우 최소 여백 (px)<input type="number" min="0" max="500" required aria-invalid={invalidPadding || undefined} aria-describedby={invalidPadding ? paddingErrorId : undefined} value={padding}
+      onChange={e=>{setPadding(e.target.value);setCandidate(null);setError("");}}/>{invalidPadding && <small id={paddingErrorId}>0~500의 정수를 입력하세요.</small>}</label>
+    <ActionButton type="submit" reasons={[!size && "원본 이미지가 열리면 크롭 후보를 검출할 수 있습니다.",invalidPadding && "최소 여백을 확인하세요."]}>크롭 후보 검출</ActionButton></fieldset></form>
     {busy && <p role="status">크롭 후보를 검출하고 있습니다.</p>}
     {error && <p role="alert">{error}</p>}
     {candidate && <><svg viewBox={`0 0 ${size.width} ${size.height}`} style={{width:"100%",maxWidth:size.width}} aria-label="크롭 후보 영역">

@@ -95,3 +95,25 @@ test('최초 등록은 버전 2의 작은 그림자 배율로 검토할 수 있�
   let calls=0;const context=vm.createContext({document:{activeElement:{}},busy:false,source:{initial:true,revision:'r',properties:{shadowScaleX:1}},edits:{shadowScaleX:'0.001'},texture:'x',reviewTrigger:{current:null},restoreReviewFocus:{current:false},invalidFootprint:()=>false,invalidDisplayHeight:()=>false,invalidShadowOffset:()=>false,invalidBillboardAnchor:()=>false,setBusy:()=>{},setNotice:()=>{},setReview:()=>{},billboardPreviewError:problem=>problem.message,read:async()=>{calls++;throw new Error('검사 종료');}});
   const start=code.indexOf('  async function preview(event){'),end=code.indexOf('\n  async function save()',start);vm.runInContext(min[0].replace('export ','')+'\n'+invalid[0].replace('export ','')+'\n'+code.slice(start,end)+'\nthis.preview=preview;',context);await context.preview({preventDefault(){}});assert.equal(calls,1);
 });
+
+
+test('비어 있는 숫자 속성은 검토 요청으로 전달하지 않는다',async()=>{
+  const code=readFileSync(new URL('../../gui/BillboardProperties.jsx',import.meta.url),'utf8');
+  const start=code.indexOf('  async function preview(event){'),end=code.indexOf('\n  async function save()',start);
+  let calls=0,notice='';
+  const context=vm.createContext({document:{activeElement:{}},busy:false,source:{properties:{displayHeight:100}},edits:{displayHeight:''},reviewTrigger:{current:null},restoreReviewFocus:{current:false},setBusy:()=>{},setNotice:value=>notice=value,setReview:()=>{},billboardPreviewError:problem=>problem.message,read:()=>calls++});
+  vm.runInContext(code.slice(start,end)+'\nthis.preview=preview;',context);await context.preview({preventDefault(){}});
+  assert.equal(calls,0);assert.match(notice,/비어 있는 숫자/);
+});
+
+test('원래 값으로 복구한 필드만 변경 목록에서 제거한다',()=>{
+  const code=readFileSync(new URL('../../gui/BillboardProperties.jsx',import.meta.url),'utf8');
+  const start=code.indexOf('  function edit(key,value){'),end=code.indexOf('\n  async function preview',start);
+  let dirty=null,updated;
+  const context=vm.createContext({source:{properties:{displayHeight:84.12,billboardBlocksMovement:false}},edits:{displayHeight:'85',shadowOffsetColumn:'1'},setEdits:value=>updated=value,onDirtyChange:value=>dirty=value,setReview:()=>{},setNotice:()=>{}});
+  vm.runInContext(code.slice(start,end)+'\nthis.edit=edit;',context);
+  context.edit('displayHeight','84.120');assert.deepEqual({...updated},{shadowOffsetColumn:'1'});assert.equal(dirty,true);
+  context.edits=updated;context.edit('billboardBlocksMovement',false);assert.deepEqual({...updated},{shadowOffsetColumn:'1'});
+  context.edits={};context.edit('displayHeight','');assert.deepEqual({...updated},{displayHeight:''});assert.equal(dirty,true);
+  context.edits={displayHeight:'85'};context.edit('displayHeight','84.12');assert.deepEqual({...updated},{});assert.equal(dirty,false);
+});
