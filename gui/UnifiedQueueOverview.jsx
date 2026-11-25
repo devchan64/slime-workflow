@@ -17,11 +17,12 @@ export default function UnifiedQueueOverview(props){
   return <QueueForSession key={props.session} {...props}/>;
 }
 
-function QueueForSession({session,call,running=[],completed=[],ready,failures=[],refreshRef,onRefresh,editRequest,localQueue=[],extraPending=[],other=[]}){
+function QueueForSession({session,call,linkedRow,running=[],completed=[],ready,failures=[],refreshRef,onRefresh,editRequest,localQueue=[],extraPending=[],other=[]}){
   const [page,setPage]=useState(0),[size,setSize]=useState(5);
   const [snapshot,setSnapshot]=useState(null),[error,setError]=useState(""),[filter,setFilter]=useState("all"),[revision,refresh]=useState(0);
   const [checkedAt,setCheckedAt]=useState(null),[checking,setChecking]=useState(true);
   useEffect(()=>{
+    if(!session){setChecking(false);return;}
     let active=true,timer,controller;
     async function load(){
       controller=new AbortController();let timedOut=false;
@@ -60,6 +61,11 @@ function QueueForSession({session,call,running=[],completed=[],ready,failures=[]
   const groups=[["running","진행 중",running],["pending","다음 후보",[...extraPending,...pending]],["completed","완료",completed],...(other.length ? [["other","기타 상태",other]] : [])];
   const entries=groups.filter(([key])=>filter==="all" || filter===key)
     .flatMap(([key,label,items])=>items.map(item=>({key:key+":"+item.key,label,item})));
+  if(linkedRow && filter==="all"){
+    const index=entries.findIndex(({item})=>item.props.id===linkedRow.props.id);
+    if(index>=0)entries.unshift(...entries.splice(index,1));
+    else entries.unshift({key:linkedRow.key,label:"연결된 작업",item:linkedRow});
+  }
   const failedSources=[...failures,["공용 대기열",error,Boolean(current)]].filter(([,reason])=>reason);
   const currentPage=Math.min(page,Math.max(0,Math.ceil(entries.length/size)-1));
   return <section className="panel unified-queue-overview" aria-label="작업 일정 목록">
@@ -70,7 +76,7 @@ function QueueForSession({session,call,running=[],completed=[],ready,failures=[]
         {groups.map(([key,label])=><option key={key} value={key}>{label}</option>)}
       </select>
     </label>
-      <button ref={refreshRef} type="button" disabled={checking} aria-disabled={checking} onClick={()=>{refresh(n=>n+1);onRefresh();}}>새로고침</button>
+      <button ref={refreshRef} type="button" disabled={checking || !session} aria-disabled={checking || !session} onClick={()=>{refresh(n=>n+1);onRefresh();}}>새로고침</button>
     </div>
     {failedSources.length>0 && <details className="schedule-query-error">
       <summary><span role="status">조회 실패 · {failedSources.map(([label])=>label).join(", ")}</span></summary>

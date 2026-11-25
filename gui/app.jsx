@@ -60,7 +60,7 @@ import ResidentModelStatus from "./ResidentModelStatus.jsx";
 import CopyTextButton from "./CopyTextButton.jsx";
 import ResultTable from "./ResultTable.jsx";
 import WorldMap from "./WorldMap.jsx";
-import GpuPanel from "./GpuPanel.jsx";
+import GpuPanel,{useGpuTelemetry} from "./GpuPanel.jsx";
 import {GpuHandoffDisclosure} from "./GpuHandoffHistory.jsx";
 import WorkflowResults from "./WorkflowResults.jsx";
 import QueuePriority from "./QueuePriority.jsx";
@@ -247,7 +247,17 @@ function completedMessages(messages){
   }));
 }
 
-function ChatQueuePanel({session,children,openDetails,messages}){
+function QueueJobRecord({id,session,summary,children,initialOpen=false,status}){
+  const [expanded,setExpanded]=useState(initialOpen);
+  return <details className="queue-record" open={expanded} onToggle={event=>{if(event.target===event.currentTarget)setExpanded(event.currentTarget.open);}}>
+    <summary>{summary}</summary>{children}
+    {expanded && <OperationsJobs detailOnly session={session} linkedJob={id} linkedStatus={status}/>}
+  </details>;
+}
+function linkedQueueRow(id,session){
+  return id && <QueueJobRecord key={id} id={id} session={session} initialOpen summary={<>운영 작업 · <code>{id}</code></>}/>;
+}
+function ChatQueuePanel({session,children,openDetails,messages,linkedJob}){
   const [data,setData]=useState(null),[error,setError]=useState(""),[revision,refresh]=useState(0),[stopJobs,setStopJobs]=useState(()=>new Set()),[stopNotices,setStopNotices]=useState({});
   const editKey="hermes-queue-edit-"+session;
   const [editingItem,setEditingItem]=useState(()=>{try{const saved=JSON.parse(sessionStorage.getItem(editKey));return saved && typeof saved.request_id==="string" && typeof saved.text==="string" && Number.isInteger(saved.revision) ? saved : null;}catch{return null;}});
@@ -339,20 +349,19 @@ function ChatQueuePanel({session,children,openDetails,messages}){
   },[session,snapshot,offset,revision]);
   const completed=[...scheduleRows("completed"),...completedMessages(data?.messages || messages || []),...older];
   function records(rows){
-    return Array.from(new Map(rows.map(row=>[row.kind+row.id,row])).values()).map(row=><details key={row.kind+row.id} className="queue-record">
+    return Array.from(new Map(rows.map(row=>[row.kind+row.id,row])).values()).map(row=>!row.step ? <QueueJobRecord key={row.kind+row.id} session={session} id={row.id} initialOpen={linkedJob===row.id} summary={<><strong>{row.kind}</strong> · <code>{row.id}</code></>}><p>{row.text}</p></QueueJobRecord> : <details key={row.kind+row.id} className="queue-record">
       <summary><strong>{row.kind}</strong> · <code>{row.id}</code></summary><p>{row.text}</p>{row.step ? <><p>{sessionQueueStateLabel(statusLabels,row.step.source_state || row.step.state)}</p><ScheduleStepControls step={row.step} session={session} onRefresh={()=>refresh(n=>n+1)}/></> : <a href={jobLink(row.id,session)}>작업 상세 보기</a>}
     </details>);
   }
   function renderEdit(item){return <ChatQueueItem item={item} savedEdit={editingItem?.request_id===item.request_id ? editingItem : null} unavailable={Boolean(error)} mutationLocked={Boolean(pendingUpdate)} disableEdit={Boolean(editingItem && editingItem.request_id!==item.request_id)} onEditing={rememberEdit} onChange={sendUpdate}/>;}
   const activeRows=records(running);
   const extraPending=[];
-  if(data?.chat_active)(data.chat_active.status==="running" ? activeRows : extraPending).unshift(<details key={data.chat_active.job_id} className="queue-record">
-    <summary><strong>대화 요청</strong> · <code>{data.chat_active.job_id}</code></summary>
+  if(data?.chat_active)(data.chat_active.status==="running" ? activeRows : extraPending).unshift(<QueueJobRecord key={data.chat_active.job_id} session={session} id={data.chat_active.job_id} initialOpen={linkedJob===data.chat_active.job_id} status={data.chat_active.status} summary={<><strong>대화 요청</strong> · <code>{data.chat_active.job_id}</code></>}>
     {data.chat_active.status==="running" ? <CurrentQueueCommand data={data} session={session}/> : <p>{data.chat_active.prompt}</p>}
     {data.chat_active.status==="running" && (data.chat_active.control_ready ? <LiveInstructionForm key={data.chat_active.job_id} session={session} job={data.chat_active.job_id} receipts={data.live_instructions} unavailable={Boolean(error)} onRefresh={()=>refresh(n=>n+1)}/> : <p>실행 중 지시 전달 경로가 준비되지 않았습니다. 준비 중이거나 이전 방식으로 시작된 작업일 수 있습니다.</p>)}{["running","queued"].includes(data.chat_active.status) && <button type="button" aria-disabled={stopJobs.has(data.chat_active.job_id) || Boolean(error)} onClick={stopCurrent}>{stopJobs.has(data.chat_active.job_id)?"중단 요청 중":"지시 중단"}</button>}{stopNotices[data.chat_active.job_id] && <p role="status">{stopNotices[data.chat_active.job_id]}</p>}
-  </details>);
+  </QueueJobRecord>);
   return <section className="chat-queue-panel" aria-label="작업 일정">
-    <UnifiedQueueOverview session={session} call={call} refreshRef={queueRefreshRef} onRefresh={()=>refresh(n=>n+1)} editRequest={renderEdit} localQueue={data?.chat_queue || []} extraPending={extraPending} other={records(scheduleRows("other"))} running={activeRows} completed={records(completed)} failures={[["완료 이력",historyError,Boolean(older.length)],["대화 요청",error,Boolean(data)],["생성 작업",workflowError,Boolean(workflow)]]} ready={Boolean(data && workflow && !error && !workflowError)}/>
+    <UnifiedQueueOverview linkedRow={linkedQueueRow(linkedJob,session)} session={session} call={call} refreshRef={queueRefreshRef} onRefresh={()=>refresh(n=>n+1)} editRequest={renderEdit} localQueue={data?.chat_queue || []} extraPending={extraPending} other={records(scheduleRows("other"))} running={activeRows} completed={records(completed)} failures={[["완료 이력",historyError,Boolean(older.length)],["대화 요청",error,Boolean(data)],["생성 작업",workflowError,Boolean(workflow)]]} ready={Boolean(data && workflow && !error && !workflowError)}/>
 
 
     {editStorageError && editingItem && <p role="alert">편집 내용을 이 탭에 보관하지 못했습니다. 패널을 닫기 전에 내용을 복사하세요. <CopyTextButton value={editingItem.text} label="대기 요청 편집 내용 복사" buttonLabel="편집 내용 복사"/></p>}
@@ -463,7 +472,7 @@ function ObservationStatus({observation}){
   const executor={verified:'실행기 확인됨',unknown:'실행기 확인 불가',not_running:'실행 종료'}[observation.executor] || '실행기 확인 불가';
   const model={ready:'준비됨',running:'준비 중',queued:'대기 중',released:'해제됨',unknown:'확인 불가'}[observation.model?.state] || '확인 불가';
   const request=observation.request, tokens=observation.model?.tokens;
-  return <p className="hermes-observation" role="status">{executor} · 마지막 도구 활동 {formatted(observation.last_event_at)}<br/>{request ? <>{request.active>0?'이 작업의 모델 연결 중':'이 작업의 모델 연결 없음'} · 마지막 응답 수신 {formatted(request.last_response_at)} <small>(연결 중이어도 추론 진행 여부는 확인되지 않습니다)</small><br/></> : <>이 작업의 모델 연결 정보 확인 불가<br/></>}상주 모델 {model} · 모델 로그 갱신 {formatted(observation.model?.last_log_at)} <small>(상주 모델 전체 신호)</small>{tokens?.input && <><br/>최근 입력 처리 {tokens.input.tokens.toLocaleString()}토큰 · {Math.round(tokens.input.tokens_per_second)}토큰/초 · {Math.round(tokens.input.fraction*100)}% (마지막 기록)</>}{tokens?.output_completed && <><br/>최근 완료 응답 {tokens.output_completed.tokens.toLocaleString()}토큰 · {tokens.output_completed.tokens_per_second.toFixed(1)}토큰/초</>}</p>;
+  return <p className="hermes-observation" role="status">{executor} · 마지막 도구 활동 {formatted(observation.last_event_at)}<br/>{request ? <>{request.active>0?'이 작업의 모델 연결 중':'이 작업의 모델 연결 없음'} · 마지막 응답 수신 {formatted(request.last_response_at)} <small>(연결 중이어도 추론 진행 여부는 확인되지 않습니다)</small><br/></> : <>이 작업의 모델 연결 정보 확인 불가<br/></>}상주 모델 {model} · 모델 로그 갱신 {formatted(observation.model?.last_log_at)} <small>(상주 모델 전체 신호)</small>{tokens?.input && <><br/>최근 입력 처리 {tokens.input.tokens.toLocaleString()}토큰 · {Math.round(tokens.input.tokens_per_second)}토큰/초 · {Math.round(tokens.input.fraction*100)}% (마지막 기록)</>}{tokens?.output_sample && <><br/>출력 생성 최근 기록 · {tokens.output_sample.tokens.toLocaleString()}토큰 · 최근 3초 {tokens.output_sample.tokens_per_second.toFixed(1)}토큰/초 (상주 모델)</>}{tokens?.output_completed && <><br/>최근 완료 응답 {tokens.output_completed.tokens.toLocaleString()}토큰 · {tokens.output_completed.tokens_per_second.toFixed(1)}토큰/초</>}</p>;
 }
 function ActivitySection({activity,running=false}){
   const [open,setOpen]=useState(false);
@@ -606,7 +615,12 @@ function SidePanel({title,subtitle,onClose,onKeyDown,width,minWidth,maxWidth,onR
     <div className="fun-drawer-body" ref={body}>{children}</div>
   </section>;
 }
+function scheduleFromUrl(){
+  return query().get("panel")==="jobs" ? {run:"",job:query().get("job")} : null;
+}
 function App() {
+  const gpuTelemetry=useGpuTelemetry();
+  const gpuPercent=gpuTelemetry.error ? null : gpuTelemetry.status?.gpu_activity_percent;
   const [showFunControl,setShowFunControl]=useState(false);
   const [funMounted,setFunMounted]=useState(false);
   useEffect(()=>{if(showFunControl)setFunMounted(true);},[showFunControl]);
@@ -623,7 +637,7 @@ function App() {
   const formInputSession=useRef(session),currentFormInputs=formInputSession.current===session;
   useEffect(()=>{setGeneratorPanel(null);setMountedGenerators([]);setKimodoProposal(null);setVideoFormId("");setSeedProposal(null);setKimodoMounted(showKimodo);setFunMounted(showFunControl);formInputSession.current=session;},[session]);
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
-  const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));
+  const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>!scheduleFromUrl() && (query().has("category") || query().has("search") || query().get("panel")==="capabilities"));
   const [catalogError,setCatalogError]=useState(""),[catalogLoading,setCatalogLoading]=useState(true),[catalogRevision,retryCatalog]=useState(0);
   const [category,setCategory]=useState(initialToolCategory);
   const [archived,setArchived]=useState(false),[error,setError]=useState(""),[busy,setBusy]=useState(false);
@@ -635,7 +649,7 @@ function App() {
   function resetSessionList(){
     setSessionQuery("");setListRequest({offset:0,query:""});
   }
-  const [queue,setQueue]=useState(null),[refresh,setRefresh]=useState(0);
+  const [queue,setQueue]=useState(scheduleFromUrl),[refresh,setRefresh]=useState(0);
   const [historyPage,setHistoryPage]=useState(null);
   const [viewError,setViewError]=useState("");
   const [viewLoading,setViewLoading]=useState(false);
@@ -679,7 +693,7 @@ function App() {
     if(next)url.searchParams.set("session",next);else url.searchParams.delete("session");
     history.pushState(null,"",url);setSession(next);setView({});setHistoryPage(null);setQueue(null);setError("");setViewError("");setViewLoading(false);setTargetForm("");setTargetProposal("");
   }
-  useEffect(()=>{const cb=()=>{setSearchMode(["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(query().has("category") || query().has("search") || ["jobs","capabilities"].includes(query().get("panel")));setShowFunControl(false);setShowKimodo(false);setKimodoProposal(null);setSeedProposal(null);setVideoFormId("");setSession(query().get("session")||"");setView({});setHistoryPage(null);setQueue(null);setError("");setViewError("");setViewLoading(false);setTargetForm("");setTargetProposal("");};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
+  useEffect(()=>{const cb=()=>{setSearchMode(query().get("panel")==="capabilities"?query().get("panel"):"tools");setCategory(initialToolCategory());setSearch(query().get("search") || "");setShowTools(!scheduleFromUrl() && (query().has("category") || query().has("search") || query().get("panel")==="capabilities"));setShowFunControl(false);setShowKimodo(false);setKimodoProposal(null);setSeedProposal(null);setVideoFormId("");setSession(query().get("session")||"");setView({});setHistoryPage(null);setShowGpu(false);setQueue(scheduleFromUrl());setError("");setViewError("");setViewLoading(false);setTargetForm("");setTargetProposal("");};window.addEventListener("popstate",cb);return()=>window.removeEventListener("popstate",cb);},[]);
   useEffect(()=>{let active=true,timedOut=false;const controller=new AbortController();const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);setCatalogLoading(true);setCatalogError("");fetch(base+"tools",{signal:controller.signal}).then(r=>{if(!r.ok)throw new Error("도구 목록을 불러올 수 없습니다.");return r.json();}).then(v=>{if(!Array.isArray(v) || v.some(item=>!item || typeof item!=="object" || ["id","label","category"].some(key=>typeof item[key]!=="string" || !item[key])))throw new Error("도구 목록 응답을 읽을 수 없습니다.");if(active)setTools(v)}).catch(e=>{if(active)setCatalogError(timedOut ? "도구 목록 조회 시간이 초과됐습니다. 다시 조회하세요." : e.message || "도구 목록을 불러올 수 없습니다.")}).finally(()=>{clearTimeout(timeout);if(active)setCatalogLoading(false)});
     return()=>{active=false;clearTimeout(timeout);controller.abort();};},[catalogRevision]);
   useEffect(()=>{
@@ -844,7 +858,7 @@ function App() {
     }catch(e){setError(e.message)}finally{setBusy(false);}
   }
   const [showGpu,setShowGpu]=useState(false);
-  const [searchMode,setSearchMode]=useState(()=>["jobs","capabilities"].includes(query().get("panel"))?query().get("panel"):"tools");
+  const [searchMode,setSearchMode]=useState(()=>query().get("panel")==="capabilities"?query().get("panel"):"tools");
   const appendSelection=(label,id)=>{edit([draft,label+" "+id].filter(Boolean).join("\n"));closeTools(text);};
   function openFunFromTools(){
     if(showTools)closeTools();
@@ -864,7 +878,7 @@ function App() {
     setShowTools(false);setShowGpu(false);setQueue(null);setShowKimodo(false);setShowFunControl(false);
     setGeneratorPanel({id:"saved-form",label:"생성 접수폼",formId,session});
   }
-  function closeQueue(){setQueue(null);queueToggle.current?.focus();}
+  function closeQueue(){if(scheduleFromUrl()){const url=new URL(location.href);url.searchParams.delete("job");url.searchParams.delete("panel");history.replaceState(history.state,"",url);}setQueue(null);queueToggle.current?.focus();}
   function openKimodo(inputs=null) {
     if(showTools)closeTools();
     setShowGpu(false);setQueue(null);setGeneratorPanel(null);setShowFunControl(false);
@@ -956,25 +970,26 @@ function App() {
     <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openMinimaxForm,openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory} refreshPending={()=>retryView(n=>n+1)}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
 
     <form onSubmit={e=>{e.preventDefault();send()}}>
-    {session && view.context && <details name="composer-popover" className="composer-context"><summary>대화 문맥{view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}{view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) && " · 정리 진행 중"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
+    {session && view.context && <details name="composer-popover" className="composer-context"><summary>대화 문맥{view.context.usage?.state==="compressing" ? " · 요약 중" : view.context.usage?.state==="summary_failed" ? " · 요약 미완료" : view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) ? " · 정리 상태 확인 중" : view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
+      {view.context.usage && <section aria-label="문맥 토큰 측정">
+        <strong role="status">{{checking_budget:"보호 입력 확인 중",compressing:"요약 진행 중",compressed:"요약 완료",summary_failed:"요약 미완료",disabled:"자동 정리 꺼짐",not_needed:"정리 기준 미도달",unchanged:"정리할 범위 없음"}[view.context.usage.state] || "문맥 측정"}</strong>
+        <div>정리 전 · {view.context.usage.tokens.toLocaleString()} 토큰</div>
+        {Number.isInteger(view.context.usage.protected_tokens) && <div>보호 입력 · {view.context.usage.protected_tokens.toLocaleString()} 토큰</div>}
+        <div>정리 후 · {view.context.usage.state==="compressed" && Number.isInteger(view.context.usage.tokens_after) ? view.context.usage.tokens_after.toLocaleString()+" 토큰" : view.context.usage.state==="compressing" ? "측정 대기" : "결과 없음"}</div>
+        {view.context.usage.threshold && <small>적용 기준 · {view.context.usage.threshold.toLocaleString()} 토큰 (시스템·도구 지시 포함)</small>}
+      </section>}
       <p>이전 대화를 요약해 이후 요청의 문맥으로 사용합니다. 대화 기록은 유지됩니다.</p>
       <label><input type="checkbox" checked={view.context.automatic} disabled={busy} onChange={event=>setAutomaticContext(event.target.checked)}/> 자동 대화 정리</label>{" "}
-      <label> 정리 시작 기준 <select aria-label="대화 정리 시작 기준" disabled={busy || !view.context.automatic} value={view.context.threshold ?? 'default'} onChange={event=>setContextThreshold(event.target.value)}><option value="default">기본값 · 54,400 토큰</option><option value="32000">32,000 토큰</option><option value="16000">16,000 토큰</option><option value="8000">8,000 토큰</option><option value="54400">54,400 토큰</option></select></label><p>정리 기준은 다음에 실행되는 요청부터 적용됩니다. 현재 지시와 최근 대화를 우선 보존합니다.</p>
+      <label className="context-threshold">정리 시작 기준<select aria-label="대화 정리 시작 기준" disabled={busy || !view.context.automatic} value={view.context.threshold ?? 'default'} onChange={event=>setContextThreshold(event.target.value)}><option value="default">기본값 · 24,000 토큰</option><option value="32000">32,000 토큰</option><option value="24000">24,000 토큰</option><option value="16000">16,000 토큰</option><option value="8000">8,000 토큰</option><option value="54400">54,400 토큰</option></select></label><p>정리 기준은 다음에 실행되는 요청부터 적용됩니다. 현재 지시와 최근 대화를 우선 보존합니다.</p>
       <button type="button" title={!view.message_count?"정리할 대화가 없습니다.":undefined} disabled={busy || !view.message_count || Boolean(view.context.operation?.job_id && ["queued","running","unknown"].includes(view.context.operation.status))} onClick={compactContext}>
         {view.context.operation && !view.context.operation.job_id ? "정리 접수 다시 확인" : "대화 정리"}</button>
       {view.context.operation && <small role="status"> 정리 작업: {sessionQueueStateLabel(statusLabels,view.context.operation.status)}{view.context.operation.job_id && <> · <a href={jobLink(view.context.operation.job_id,session)}>작업 상세</a></>}</small>}
-      {view.context.operation?.observation && <ObservationStatus observation={view.context.operation.observation}/>}
-      {view.context.usage?.state==="compressing" && !view.context.operation?.observation && <ObservationStatus observation={[...(view.messages || [])].reverse().find(message=>message.job?.status?.status==="running")?.job?.tool_activity?.observation}/>}
-      {view.context.usage && <small> · 최근 입력 추정 {(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()} 토큰{view.context.usage.threshold && " / 정리 기준 "+view.context.usage.threshold.toLocaleString()} (시스템·도구 지시 포함)</small>}
-      {view.context.usage?.state==="compressed" && <small role="status"> · 대화 정리 완료</small>}
-      {view.context.usage?.state==="compressing" && <small role="status"> · 대화 요약 요청 중 · 전체 완료율과 남은 시간은 확인할 수 없습니다.</small>}
-      {view.context.usage?.state==="compressed" && Number.isInteger(view.context.usage.tokens_after) && <small>정리 전 {view.context.usage.tokens.toLocaleString()} → 정리 후 {view.context.usage.tokens_after.toLocaleString()} 토큰</small>}
       {view.queried_at && <small>상태 조회 시각 · {new Date(view.queried_at).toLocaleString('ko-KR')}{historyPage && ' · 이전 대화 조회 중에는 자동 갱신되지 않습니다.'}</small>}
-      {view.context.usage?.state==="unchanged" && <small role="status"> · 정리할 수 있는 대화 범위가 없습니다.</small>}
+
       {view.context.checkpoint && <details><summary>대화 정리 내용 · {view.context.checkpoint.count}개 지시{view.context.checkpoint.created_at && " · "+view.context.checkpoint.created_at}</summary><pre>{view.context.checkpoint.summary || "정리된 대화에 별도 요약 표시가 없습니다."}</pre></details>}
     </section></details>}
     {session && <ResidentModelStatus key={session} session={session}/>}
-    <button type="button" ref={gpuToggle} aria-controls="hermes-side-panel" aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(value=>!value);}}>GPU 현황</button>
+    <button type="button" ref={gpuToggle} aria-controls="hermes-side-panel" aria-expanded={showGpu} onClick={()=>{if(showTools)closeTools();setShowGpu(value=>!value);}} title="GPU 현황 · GPU 연산 사용률"><span ref={gpuTelemetry.live.ref} className="gpu-util-icon" aria-hidden="true" style={{"--gpu-fill":(gpuPercent ?? 0)+"%"}}/> GPU {gpuPercent == null ? "—" : gpuPercent+"%"}</button>
     {session&&<button type="button" ref={queueToggle} aria-expanded={Boolean(queue && !showTools && !showGpu)} onClick={()=>{if(showTools)closeTools();setShowGpu(false);setQueue(value=>value && !showTools && !showGpu ? null : {run:""});}}>작업 일정{view.chat_queue?.length ? " · 대화 "+view.chat_queue.length : ""}</button>}{chosen&&<button type="button" onClick={()=>edit(draft+"\n사용할 도구: "+chosen+"\n")}>{chosen} 요청에 추가</button>}
     <button type="button" ref={toolToggle} aria-expanded={showTools} onClick={()=>{setShowGpu(false);if(showTools)closeTools();else setShowTools(true)}}>도구 탐색</button>
     {pending && <small>접수 확인 중인 요청의 모델: {pending.model_profile || '자동 선택'}</small>}
@@ -997,7 +1012,7 @@ function App() {
       <label className="search-scope">탐색 대상 <select ref={toolScope} value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
         <optgroup label="도구와 기능"><option value="tools">도구 목록</option><option value="capabilities">관리 명령 검색</option></optgroup>
         <optgroup label="저장된 자료"><option value="expressions">표정 프리셋</option><option value="billboards">빌보드 에셋</option><option value="keyframes">Kimodo 키프레임</option></optgroup>
-        <optgroup label="작업과 검수 이력"><option value="history">생성 이력</option><option value="jobs">운영 작업 이력</option><option value="anchors">앵커 검수 이력</option></optgroup>
+        <optgroup label="작업과 검수 이력"><option value="history">생성 이력</option><option value="anchors">앵커 검수 이력</option></optgroup>
         <optgroup label="시스템 상태"><option value="services">서비스 등록 상태</option><option value="content">콘텐츠 DB 상태</option></optgroup>
       </select></label>
       <p className="generator-help-text">탐색 대상은 찾을 정보의 종류입니다.{searchMode==="tools" && " 도구 분야는 목록을 작업 영역별로 좁힙니다."}</p>
@@ -1008,7 +1023,7 @@ function App() {
       {searchMode==="billboards" && <BillboardCatalog choose={appendSelection}/>}
       {searchMode==="keyframes" && <KeyframeCatalog query={search} choose={appendSelection}/>}
       {searchMode==="content" && <ContentDatabaseStatus/>}
-      {searchMode==="jobs" && <OperationsJobs key={session+":"+(query().get("job") || "")} session={session} linkedJob={query().get("panel")==="jobs"?query().get("job"):null} linkedStatus={(view.messages || []).find(message=>message.job_id===query().get("job"))?.job?.status?.status}/>}
+
       {searchMode==="history" && <SourceHistory session={session} choose={appendSelection} tools={tools}/>}
       {searchMode==="services" && <ServiceRegistry query={search}/>}
       {searchMode==="capabilities" && <CapabilitySearch search={search} choose={chooseTool}/>}
@@ -1037,13 +1052,14 @@ function App() {
       </Command>}
     </div>}
       {showGpu && !showTools && <>
-        <GpuPanel embedded/>
+        <GpuPanel embedded telemetry={gpuTelemetry}/>
         {session && <GpuHandoffDisclosure key={session} session={session}/>}
       </>}
-      {queue && session && !showTools && !showGpu && <ChatQueuePanel key={session} session={session} messages={view.id===session ? view.messages : []} openDetails={Boolean(queue.run)}
+      {queue && session && !showTools && !showGpu && <ChatQueuePanel key={session+":"+(queue.job || "")} linkedJob={queue.job} session={session} messages={view.id===session ? view.messages : []} openDetails={Boolean(queue.run)}
         >
         <QueuePanel key={session+queue.run} session={session} initialRun={queue.run} call={call}/>
       </ChatQueuePanel>}
+      {queue?.job && !session && !showTools && !showGpu && <UnifiedQueueOverview linkedRow={linkedQueueRow(queue.job,session)} session={session}/>}
       {generatorPanel?.id==="saved-form" && generatorPanel.session===session && !showTools && !showGpu && !queue &&
         <MiniMaxForms key={session+generatorPanel.formId} session={session} initialFormId={generatorPanel.formId}/>}
       {mountedGenerators.map(id=>{const Generator=embeddedGenerators[id];return <div key={id} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!==id} className="embedded-generator"><Generator embedded session={session}/></div>;})}

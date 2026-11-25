@@ -6,6 +6,7 @@ import re
 
 
 _PROMPT_PROGRESS = re.compile(r'task\s+(\d+)\s+\| prompt processing, n_tokens\s*=\s*(\d+), progress\s*=\s*([0-9.]+),.*?/\s*([0-9.]+) tokens per second')
+_GENERATION = re.compile(r'\bn_gen\s*=\s*(\d+),\s*tg\s*=\s*[\d.]+ t/s,\s*tg_3s\s*=\s*(\d+(?:\.\d+)?) t/s')
 _FINAL_SPEED = re.compile(r'task\s+(\d+)\s+\|\s+eval time\s*=.*?\s+(\d+) tokens.*?([0-9.]+) tokens per second')
 _TASK = re.compile(r'task\s+(\d+)\s+\|')
 
@@ -14,18 +15,21 @@ def model_token_signal(log):
     try:
         with log.open('rb') as f:
             f.seek(max(0,log.stat().st_size-131072)); lines=f.read().decode('utf-8',errors='replace').splitlines()
-        task=None;progress=None;speed=None
+        task=None;progress=None;speed=None;generation=None
         for line in lines:
             match=_TASK.search(line)
             if not match: continue
-            if match.group(1)!=task: task=match.group(1);progress=None;speed=None
+            if match.group(1)!=task: task=match.group(1);progress=None;speed=None;generation=None
             match=_PROMPT_PROGRESS.search(line)
             if match: progress={'tokens':int(match.group(2)),'fraction':float(match.group(3)),'tokens_per_second':float(match.group(4))}
+            sample=_GENERATION.search(line)
+            if sample: generation={'tokens':int(sample[1]), 'tokens_per_second':float(sample[2])}
             match=_FINAL_SPEED.search(line)
             if match: speed={'tokens':int(match.group(2)),'tokens_per_second':float(match.group(3))}
         result={}
         if progress: result['input']=progress
         if speed: result['output_completed']=speed
+        elif generation: result['output_sample']=generation
         return result
     except (OSError,ValueError,OverflowError): return {}
 

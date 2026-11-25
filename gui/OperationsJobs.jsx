@@ -36,7 +36,7 @@ function validOperationsPage(value,query,status,direction,previous){
     (!value.statuses || typeof value.statuses==="object" && !Array.isArray(value.statuses) && Object.values(value.statuses).every(item=>typeof item==="string")));
 }
 
-export default function OperationsJobs({session,linkedJob,linkedStatus}){
+export default function OperationsJobs({session,linkedJob,linkedStatus,detailOnly=false}){
   const storageKey="hermes-operations-search-"+(session || "");
   const [query,setQuery]=useState(()=>sessionStorage.getItem(storageKey) || "");
   const [status,setStatus]=useState(()=>sessionStorage.getItem(storageKey+"-status") || "전체");
@@ -271,6 +271,30 @@ export default function OperationsJobs({session,linkedJob,linkedStatus}){
   const verificationLabels={...statusLabels,not_requested:"요청하지 않음",unknown:"확인 불가"};
   const filterStatuses=result?.statuses || {queued:"대기",running:"실행 중",completed:"완료",failed:"실패",cancelled:"취소",paused:"일시정지",unknown:"확인 불가"};
   const pagination=position=> <OperationsPagination position={position} canPrevious={!listError && Boolean(same && page.offset)} canNext={!listError && Boolean(same && page.next_offset!=null)} onPage={load}/>;
+  const detailSection = detail && <section ref={detailRef} tabIndex={-1} className="operations-job-detail operations-focus" aria-label="운영 작업 상세"><div className="operations-job-heading">{!detailOnly && <h3>작업 상세</h3>}<span className="operations-job-status">{statusLabels[detail.status.status] || detail.status.status}</span></div>
+      {!detailOnly && <JobIdentifier id={detail.id} compact/>}
+      {!detailOnly && <p>선택한 작업 상세는 목록 검색이나 페이지가 바뀌어도 유지됩니다.</p>}
+      {detailError && <p role="alert">{detailError}</p>}
+      {detail.status.queue_position && <p>대기 순서 · {detail.status.queue_position}</p>}
+      {detail.status.message && <p>{detail.status.message}</p>}
+      {detail.status.error && <p role="alert">{detail.status.error}</p>}
+      <h4>작업 지시</h4><pre tabIndex={0} aria-label="작업 지시 내용">{detail.request?.prompt || "기록된 지시가 없습니다."}</pre>
+      <h4>최종 응답</h4><pre tabIndex={0} aria-label="최종 응답 내용">{detail.final_response || "기록된 최종 응답이 없습니다."}</pre>
+      {detail.final_response_truncated && <p>응답 일부만 표시했습니다.</p>}
+      {detail.result?.verification && <section aria-label="독립 검증 결과"><h4>독립 검증</h4><p>{verificationLabels[detail.result.verification.status] || detail.result.verification.status || "상태 확인 불가"}{Number.isInteger(detail.result.verification.exit_code) && " · 종료 코드 "+detail.result.verification.exit_code}</p>{Array.isArray(detail.result.verification.modules) && detail.result.verification.modules.length>0 && <p>검증 대상 · {detail.result.verification.modules.join(", ")}</p>}{detail.result.partial && <p>작업 결과가 부분 완료로 기록됐습니다. 최종 응답과 검증 결과를 함께 확인하세요.</p>}</section>}
+      <details><summary>작업 로그</summary><pre tabIndex={0} aria-label="작업 로그 내용">{detail.log || "기록된 로그가 없습니다."}</pre></details>
+      <details><summary>변경 내역</summary>{detail.diff_truncated && <p>변경 내역 일부만 표시했습니다.</p>}<pre ref={diffText} className="operations-focus" tabIndex={0} aria-label="변경 내역 내용">{diffPage?.text ?? (detail.diff || "기록된 변경이 없습니다.")}</pre>
+        {diffError && <p role="alert">{diffError}</p>}
+        {detail.diff_truncated && <><button onClick={event=>readDiff(null,event)}>처음 부분부터 조회</button>
+          {diffPage && <p>{diffPage.notice}</p>}
+          {diffPage?.cursor.next_offset!=null && <button onClick={event=>readDiff(diffPage.cursor,event)}>다음 부분 조회</button>}</>}
+      </details>
+      {detail.result && <details><summary>결과 기록</summary><pre tabIndex={0} aria-label="결과 기록 내용">{JSON.stringify(detail.result,null,2)}</pre></details>}
+      {detailCheckedAt && <p>조회 시각 · {detailCheckedAt.toLocaleString("ko-KR")}</p>}
+      <button onClick={event=>inspectJob(detail.id,event)}>상세 새로고침</button>
+      {!detailOnly && <button type="button" onClick={()=>{setDetail(null);(detailTriggerRef.current?.isConnected ? detailTriggerRef.current : searchRef.current)?.focus();}}>상세 닫기</button>}
+    </section>;
+  if(detailOnly)return <div aria-busy={busy}>{busy && <p role="status">작업 이력 조회 중…</p>}{error && <p role="alert">{error} <button type="button" onClick={()=>inspectJob(linkedJob)}>다시 조회</button></p>}{detailSection}</div>;
   return <fieldset className="operations-jobs" disabled={busy}><legend>운영 작업 이력</legend>
     {busy && <p role="status">요청을 처리하고 있습니다.</p>}
     <MapDatabaseReceipt/>
@@ -295,29 +319,7 @@ export default function OperationsJobs({session,linkedJob,linkedStatus}){
         <button type="button" onClick={e=>{detailTriggerRef.current=e.currentTarget;inspectJob(id,e);}}>상세 보기</button>
       </article>)}</div> : <p>조회된 작업이 없습니다.</p>}</section>
       {pagination("아래")}</>}
-    {detail && <section ref={detailRef} tabIndex={-1} className="operations-job-detail operations-focus" aria-label="운영 작업 상세"><div className="operations-job-heading"><h3>작업 상세</h3><span className="operations-job-status">{statusLabels[detail.status.status] || detail.status.status}</span></div>
-      <JobIdentifier id={detail.id} compact/>
-      <p>선택한 작업 상세는 목록 검색이나 페이지가 바뀌어도 유지됩니다.</p>
-      {detailError && <p role="alert">{detailError}</p>}
-      {detail.status.queue_position && <p>대기 순서 · {detail.status.queue_position}</p>}
-      {detail.status.message && <p>{detail.status.message}</p>}
-      {detail.status.error && <p role="alert">{detail.status.error}</p>}
-      {detailCheckedAt && <p>조회 시각 · {detailCheckedAt.toLocaleString("ko-KR")}</p>}
-      {detail.result?.verification && <section aria-label="독립 검증 결과"><h4>독립 검증</h4><p>{verificationLabels[detail.result.verification.status] || detail.result.verification.status || "상태 확인 불가"}{Number.isInteger(detail.result.verification.exit_code) && " · 종료 코드 "+detail.result.verification.exit_code}</p>{Array.isArray(detail.result.verification.modules) && detail.result.verification.modules.length>0 && <p>검증 대상 · {detail.result.verification.modules.join(", ")}</p>}{detail.result.partial && <p>작업 결과가 부분 완료로 기록됐습니다. 최종 응답과 검증 결과를 함께 확인하세요.</p>}</section>}
-      <details><summary>작업 로그</summary><pre tabIndex={0} aria-label="작업 로그 내용">{detail.log || "기록된 로그가 없습니다."}</pre></details>
-      <h4>작업 지시</h4><pre tabIndex={0} aria-label="작업 지시 내용">{detail.request?.prompt || "기록된 지시가 없습니다."}</pre>
-      <h4>최종 응답</h4><pre tabIndex={0} aria-label="최종 응답 내용">{detail.final_response || "기록된 최종 응답이 없습니다."}</pre>
-      {detail.final_response_truncated && <p>응답 일부만 표시했습니다.</p>}
-      <details><summary>변경 내역</summary>{detail.diff_truncated && <p>변경 내역 일부만 표시했습니다.</p>}<pre ref={diffText} className="operations-focus" tabIndex={0} aria-label="변경 내역 내용">{diffPage?.text ?? (detail.diff || "기록된 변경이 없습니다.")}</pre>
-        {diffError && <p role="alert">{diffError}</p>}
-        {detail.diff_truncated && <><button onClick={event=>readDiff(null,event)}>처음 부분부터 조회</button>
-          {diffPage && <p>{diffPage.notice}</p>}
-          {diffPage?.cursor.next_offset!=null && <button onClick={event=>readDiff(diffPage.cursor,event)}>다음 부분 조회</button>}</>}
-      </details>
-      {detail.result && <details><summary>결과 기록</summary><pre tabIndex={0} aria-label="결과 기록 내용">{JSON.stringify(detail.result,null,2)}</pre></details>}
-      <button onClick={event=>inspectJob(detail.id,event)}>상세 새로고침</button>
-      <button type="button" onClick={()=>{setDetail(null);(detailTriggerRef.current?.isConnected ? detailTriggerRef.current : searchRef.current)?.focus();}}>상세 닫기</button>
-    </section>}
+    {detailSection}
     <button ref={gpuReload} onClick={loadGpu}>GPU 대기열·예약 조회</button>
     {gpuError && <p ref={priorityError} tabIndex={-1} className="operations-focus" role="alert">{gpuError}</p>}
     {!gpu && !gpuError && !busy && <p>GPU 대기열과 예약은 조회 버튼을 눌러 확인할 수 있습니다.</p>}

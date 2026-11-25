@@ -220,7 +220,7 @@ class HermesSessionStore:
         return {'session_id': session_id, 'enabled': enabled}
 
     def set_context_threshold(self, session_id, threshold):
-        if threshold is not None and (type(threshold) is not int or threshold not in (8000,16000,32000,54400)):
+        if threshold is not None and (type(threshold) is not int or threshold not in (8000,16000,24000,32000,54400)):
             raise ValueError('지원하지 않는 대화 정리 기준입니다.')
         with self.hold_session_storage_lock():
             session = self.read_session_record_locked(session_id)

@@ -1166,6 +1166,20 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 
 .assistant-markdown .saved-form-link {text-decoration:underline;text-underline-offset:.2em;color:var(--accent);margin-top:.4rem}
 
+.composer-context-panel {display:grid;gap:.65rem}
+.composer-context-panel > :is(label,p,small) {margin:0}
+.composer-context-panel > button {justify-self:start}
+.composer-context-panel > section[aria-label="문맥 토큰 측정"] {display:grid;grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));gap:.35rem .75rem;padding-bottom:.65rem;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.composer-context-panel > section[aria-label="문맥 토큰 측정"] :is(strong,small) {grid-column:1/-1}
+
+.composer-context-panel > .context-threshold {display:grid;gap:.35rem}
+.composer-context-panel .context-threshold select {box-sizing:border-box;width:100%;min-width:0;padding:.5rem .75rem;font:inherit}
+
+:root {--control-height:44px}
+:where(button,select:not([multiple]):not([size])),select[size="1"] {min-height:var(--control-height)}
+
+.gpu-util-icon {display:inline-block;width:1em;height:1em;vertical-align:-.12em;border:1px solid currentColor;border-radius:50%;background:conic-gradient(currentColor var(--gpu-fill),transparent 0)}
+
 .dflash-switch {display:inline-flex;align-items:center;gap:.45rem;min-height:2.75rem;padding-inline:.35rem;font-size:.85rem;cursor:pointer}
 .dflash-switch input[role=switch] {appearance:none;box-sizing:border-box;display:inline-flex;align-items:center;width:2.25rem;height:1.35rem;margin:0;padding:.13rem;border:1px solid var(--muted);border-radius:1rem;background:var(--surface);color:var(--ink);cursor:inherit}
 .dflash-switch input::before {content:"";width:.9rem;height:.9rem;border-radius:50%;background:currentColor}

@@ -62,7 +62,9 @@ def select_workflow_skills(prompt, context=None, workspace=DEFAULT_WORKSPACE):
         raise ValueError('스킬 선택 요청은 문자열이어야 합니다.')
     messages = context.get('messages', []) if isinstance(context, dict) else []
     previous = [item.get('content', '') for item in messages if isinstance(item, dict) and item.get('role') == 'user' and isinstance(item.get('content'), str)] if isinstance(messages, list) else []
-    text = '\n'.join([*previous[-3:], prompt]).casefold()
+    # Carry the previous subject only for referential follow-ups.
+    followup_subject = re.search(r'^\s*(그거|그걸|그것|방금|이어서|다시|결과를?\s*(확인|보여)|이 폼)', prompt)
+    text = '\n'.join([*previous[-1:], prompt] if followup_subject else [prompt]).casefold()
     def matches(term):
         if term.isascii():
             return re.search(r'(?<![a-z0-9_])' + re.escape(term) + r'(?![a-z0-9_])', text) is not None

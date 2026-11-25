@@ -18,6 +18,13 @@ class ContextBudgetTest(unittest.TestCase):
     def prepare(self, counter, compressor=Summary):
         with patch('workflow.domains.hermes_agent.context_runtime.compress_context',return_value=self.result):
             return prepare_context_request([{'role':'user','content':'원문'}], '현재 요청', counter, 'local', compressor_factory=compressor)
+    def test_rejects_protected_input_before_model_summary(self):
+        counts = iter([30000, 24100])
+        with patch('workflow.domains.hermes_agent.context_runtime.compress_context') as compress:
+            with self.assertRaisesRegex(RuntimeError, '24,100'):
+                prepare_context_request(self.tail, '현재 요청', lambda _: next(counts), 'local')
+            compress.assert_not_called()
+
     def test_over_budget_summarizes_prefix_and_preserves_tail_and_query(self):
         counts=iter([100,70,20,35])
         result=self.prepare(lambda q: next(counts))

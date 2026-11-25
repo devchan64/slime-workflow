@@ -82,7 +82,7 @@ class HermesContextCheckpointTest(unittest.TestCase):
         self.assertEqual(compress_context(messages, 54400, 'http://localhost', compressor_factory=Compressor)['state'], 'compressed')
         self.assertEqual(compress_context(messages, 100, 'http://localhost', force=True, compressor_factory=Compressor)['state'], 'compressed')
         measured = []
-        result = prepare_context_request(messages, '현재 요청', lambda query: measured.append(query) or 54400,
+        result = prepare_context_request(messages, '현재 요청', lambda query: measured.append(query) or 24000,
                                          'http://localhost', compressor_factory=Compressor)
         self.assertIn('현재 요청', measured[0])
         self.assertIn('현재 요청', result['query'])

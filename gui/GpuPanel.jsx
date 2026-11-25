@@ -21,7 +21,7 @@ function processJobLink(process) {
   return `/management/frame/${page}/?${parameters}`;
 }
 
-export default function GpuPanel({embedded=false}) {
+export function useGpuTelemetry() {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState("");
   const [checkedAt,setCheckedAt]=useState(null),[revision,setRevision]=useState(0),[loading,setLoading]=useState(true);
@@ -30,7 +30,7 @@ export default function GpuPanel({embedded=false}) {
     if(pending.current)return;
     pending.current=true;setLoading(true);setRevision(value=>value+1);
   }
-  const live=useLiveRefresh(requestRefresh);
+  const live=useLiveRefresh(requestRefresh,true,3000);
   useEffect(() => {
     const controller = new AbortController();
     let active=true,deadline;
@@ -51,20 +51,26 @@ export default function GpuPanel({embedded=false}) {
     refresh();
     return () => {active=false;clearTimeout(deadline);controller.abort();};
   }, [revision]);
+  return {status,error,checkedAt,loading,live,requestRefresh};
+}
+
+export default function GpuPanel({embedded=false,telemetry}) {
+  const {status,error,checkedAt,loading,live,requestRefresh}=telemetry;
   const processes = Array.isArray(status?.processes) ? status.processes : null;
   const domains = ["vram","gtt"].filter(domain=>status?.[domain+"_total_mib"] != null);
   const vramPercent=memoryPercent(status?.vram_used_mib,status?.vram_total_mib);
   const vramMismatch=Number.isFinite(status?.vram_used_mib) && Number.isFinite(status?.vram_total_mib) && status.vram_total_mib>0 && status.vram_used_mib>status.vram_total_mib;
-  return <section ref={live.ref} id="gpu-panel" className={embedded?"gpu-panel-content":"floating-panel"} aria-label="GPU 프로세스 정보">
+  return <section id="gpu-panel" className={embedded?"gpu-panel-content":"floating-panel"} aria-label="GPU 프로세스 정보">
     {!embedded && <h2>GPU 프로세스 정보</h2>}
     {status && <>
       <p>{status.status==="idle" && !processes ? "GPU 상태 확인 불가" : ({busy:"GPU 사용 중",idle:"실행 중인 GPU 작업 없음"}[status.status] || "GPU 상태 확인 불가")}</p>
+      <p>GPU 연산 사용률 · {status.gpu_activity_percent == null ? "미측정" : status.gpu_activity_percent+"%"}</p>
       {vramPercent && <div className="gpu-memory-meter"><span>VRAM 사용률 · {vramPercent}</span><meter aria-label="VRAM 사용률" min="0" max={status.vram_total_mib} value={status.vram_used_mib} aria-valuetext={vramPercent}/></div>}
     </>}
     <div className="gpu-refresh"><LiveRefreshControl live={live} label="GPU 상태 자동 갱신"/><button type="button" aria-disabled={loading} onClick={requestRefresh}>{loading?"조회 중…":"새로고침"}</button></div>
     {checkedAt && <p className="gpu-checked">최근 확인 · <time dateTime={checkedAt.toISOString()}>{checkedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
     {error && <p role="alert">{error}{status && " · 아래는 마지막으로 조회한 정보입니다."}</p>}
-    {loading && <p role="status">{status ? "GPU 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다." : "GPU 상태를 조회하고 있습니다."}</p>}
+    {loading && !status && <p role="status">{status ? "GPU 상태를 다시 조회하고 있습니다. 아래는 마지막 조회 결과입니다." : "GPU 상태를 조회하고 있습니다."}</p>}
     {status && <>
       {vramMismatch && <p role="status">VRAM 사용량이 총량보다 커서 사용률을 계산할 수 없습니다. 다시 조회해 주세요.</p>}
       <details><summary>메모리{status.vram_total_mib != null && <> · VRAM {memory(status.vram_used_mib)} / {memory(status.vram_total_mib)}{vramPercent && ` · ${vramPercent}`}</>}</summary>
@@ -75,7 +81,7 @@ export default function GpuPanel({embedded=false}) {
         {!processes && <p>프로세스 목록을 제공받지 못했습니다. 다시 조회해 주세요.</p>}
         {processes?.length===0 && <p>조회된 프로세스 없음</p>}
         {processes?.map((process,index)=><details key={process.pid ?? process.id ?? index}>
-          <summary>{process.command || "식별되지 않은 GPU 프로세스"} · PID {process.pid ?? "?"}</summary>
+          <summary>{process.command || "식별되지 않은 GPU 프로세스"} · PID {process.pid ?? "?"} · 연산 유닛 점유율 {process.cu_occupancy_percent == null ? "미측정" : process.cu_occupancy_percent+"%"}</summary>
           {process.gpu_parent_pid && <p>부모 PID {process.gpu_parent_pid}</p>}
           <p>VRAM {memory(process.vram_memory_mib)} · GTT {memory(process.gtt_memory_mib)}</p>
           {process.id && <><p>프로세스 명령에서 추정한 작업 ID</p><JobIdentifier id={process.id} compact/>{processJobLink(process) && <p><a href={processJobLink(process)}>생성기 작업 진행 상세 보기</a></p>}</>}

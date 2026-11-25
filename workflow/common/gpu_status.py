@@ -41,7 +41,7 @@ def read_gpu_status():
     if not _status_lock.acquire(blocking=False):
         return _status_cache[1] or {'status':'unavailable','processes':[]}
     try:
-        if time.monotonic()-_status_cache[0] < 3:
+        if time.monotonic()-_status_cache[0] < 2:
             return _status_cache[1]
         try:
             result = subprocess.run(['amd-smi','process','--json'],capture_output=True,text=True,timeout=10,check=True)
@@ -56,11 +56,12 @@ def read_gpu_status():
                     current_gpu_memory = [current_memory_records['vram_mem'], current_memory_records['gtt_mem']]
                     current_memory_value = (sum(current_memory_record['value'] for current_memory_record in current_gpu_memory) + 1048575) // 1048576 if all(current_memory_record['unit'] == 'B' for current_memory_record in current_gpu_memory) else None
                     current_process_memory = {f'{current_domain_name}_memory_mib': (current_memory_records[f'{current_domain_name}_mem']['value'] + 1048575) // 1048576 if current_memory_records[f'{current_domain_name}_mem']['unit'] == 'B' else None for current_domain_name in ('gtt','vram')}
-                    processes.append({'pid':pid,'memory_mib':current_memory_value,**current_process_memory,**identify_gpu_command(pid)})
+                    occupancy = current_process_values.get('cu_occupancy')
+                    processes.append({'pid':pid,'cu_occupancy_percent':occupancy if type(occupancy) in (int,float) and 0 <= occupancy <= 100 else None,'memory_mib':current_memory_value,**current_process_memory,**identify_gpu_command(pid)})
             current_gpu_process_ids = {current_process_record['pid'] for current_process_record in processes}
             for current_process_record in processes:
                 current_process_record['gpu_parent_pid'] = next((current_parent_pid for current_parent_pid in current_process_record.get('ancestor_pids', []) if current_parent_pid in current_gpu_process_ids), None)
-            memory_result = subprocess.run(['amd-smi','metric','-m','--json'],capture_output=True,text=True,timeout=10,check=True)
+            memory_result = subprocess.run(['amd-smi','metric','-m','-u','--json'],capture_output=True,text=True,timeout=10,check=True)
             current_memory_totals = {f'{current_domain_name}_{current_measure_name}_mib':0 for current_domain_name in ('gtt','vram') for current_measure_name in ('total','used','free')}
             current_gpu_records=json.loads(memory_result.stdout)['gpu_data']
             if not isinstance(current_gpu_records,list) or not current_gpu_records:raise ValueError('GPU 장치 정보가 없습니다.')
@@ -73,10 +74,14 @@ def read_gpu_status():
                         current_memory_totals[f'{current_domain_name}_{current_measure_name}_mib'] += int(current_memory_values[f'{current_measure_name}_{current_domain_name}']['value'])
             if current_memory_totals['gtt_total_mib'] <= 0:
                 raise ValueError('GPU 메모리 정보를 읽을 수 없습니다.')
-            record = {'status':'busy' if processes else 'idle','processes':processes,'gpu_count':len(current_gpu_records),'queue_device_memory':current_queue_device,
+            activity = (current_gpu_records[0].get('usage') or {}).get('gfx_activity')
+            percent = activity.get('value') if isinstance(activity, dict) and activity.get('unit') == '%' else None
+            record = {'gpu_activity_percent':percent if type(percent) in (int,float) and 0 <= percent <= 100 else None,'status':'busy' if processes else 'idle','processes':processes,'gpu_count':len(current_gpu_records),'queue_device_memory':current_queue_device,
                 **current_memory_totals, **{f'memory_{current_measure_name}_mib':current_memory_totals[f'gtt_{current_measure_name}_mib'] for current_measure_name in ('total','used','free')}}
         except (OSError,subprocess.SubprocessError,ValueError,KeyError,TypeError):
-            record = {'status':'unavailable','processes':[]}
+            activity = (current_gpu_records[0].get('usage') or {}).get('gfx_activity')
+            percent = activity.get('value') if isinstance(activity, dict) and activity.get('unit') == '%' else None
+            record = {'gpu_activity_percent':percent if type(percent) in (int,float) and 0 <= percent <= 100 else None,'status':'unavailable','processes':[]}
         _status_cache = (time.monotonic(),record)
         return record
     finally:

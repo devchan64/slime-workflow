@@ -60,7 +60,7 @@ class GpuStatusTests(unittest.TestCase):
         self.assertEqual(current_first_result['status'],'idle')
         self.assertEqual(current_command_mock.call_count,2)
         self.assertEqual(current_command_mock.call_args_list[0].args[0],['amd-smi','process','--json'])
-        self.assertEqual(current_command_mock.call_args_list[1].args[0],['amd-smi','metric','-m','--json'])
+        self.assertEqual(current_command_mock.call_args_list[1].args[0],['amd-smi','metric','-m','-u','--json'])
 
     def test_hermes_capacity_uses_queue_device_instead_of_gpu_sum(self):
         from workflow.domains.hermes_agent.management_observer import read_hermes_memory_capacity

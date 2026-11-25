@@ -231,7 +231,7 @@ HERMES_FIELD_SCHEMAS = {
     'confirmed': {'const':True},
     'cancel': {'type':'boolean'},
     'enabled': {'type':'boolean'},
-    'threshold': {'enum':[None,8000,16000,32000,54400]},
+    'threshold': {'enum':[None,8000,16000,24000,32000,54400]},
     'mode': {'type':'string'},
     'video_info': {'type':['object','null']},
     'model_profile': {'type':'string','enum':['qwen3.8-27b']},

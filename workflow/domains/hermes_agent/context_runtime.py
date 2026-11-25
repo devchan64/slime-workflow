@@ -1,6 +1,8 @@
 """격리 작업에서 설치된 Hermes의 압축 정책을 호출한다."""
 import copy
 
+DEFAULT_CONTEXT_THRESHOLD = 24000
+
 
 def format_context_query(messages, query):
     """과거 대화는 참고 자료로 표시하고 현재 요청은 원래 지시와 함께 유지한다."""
@@ -21,8 +23,21 @@ def prepare_context_request(messages, query, count_tokens, base_url, *, automati
     if not automatic and not force:
         return {'state': 'disabled', 'messages': messages, 'tokens': token_count,
                 'tokens_after': token_count, 'threshold': None, 'query': initial_query}
+    threshold = DEFAULT_CONTEXT_THRESHOLD if threshold_tokens is None else threshold_tokens
+    if type(threshold) is not int or threshold not in (8000, 16000, 24000, 32000, 54400):
+        raise ValueError('대화 정리 기준 오류')
+    protected_tokens = None
+    if force or token_count >= threshold:
+        protected_tokens = count_tokens(format_context_query(messages[-2:], query))
+        if on_progress:
+            on_progress({'state': 'checking_budget', 'tokens': token_count, 'protected_tokens': protected_tokens, 'threshold': threshold})
+        if protected_tokens > threshold:
+            raise RuntimeError(f'요약 전 보호 입력 {protected_tokens:,}토큰이 기준 {threshold:,}토큰을 초과합니다. 기존 대화는 유지됩니다.')
+    def progress(record):
+        if on_progress:
+            on_progress({**record, 'protected_tokens': protected_tokens})
     result = compress_context(messages, token_count, base_url, force=force,
-                              compressor_factory=compressor_factory, on_progress=on_progress, threshold_tokens=threshold_tokens)
+                              compressor_factory=compressor_factory, on_progress=progress, threshold_tokens=threshold_tokens)
     final_query = format_context_query(result['messages'], query)
     tokens_after = count_tokens(final_query) if result['state'] == 'compressed' else token_count
     if result['state'] == 'unchanged' and tokens_after > result['threshold']:
@@ -47,7 +62,7 @@ def prepare_context_request(messages, query, count_tokens, base_url, *, automati
                                         api_key='none', config_context_length=64000,
                                         abort_on_summary_failure=True)
         if on_progress:
-            on_progress({'state': 'compressing', 'tokens': tokens_after, 'threshold': result['threshold']})
+            progress({'state': 'compressing', 'tokens': token_count, 'threshold': result['threshold']})
         # The runtime also elides individual message bodies above 6,000
         # characters before summarizing. Split them so the model sees every part.
         summary_input = []
@@ -68,7 +83,7 @@ def prepare_context_request(messages, query, count_tokens, base_url, *, automati
         if tokens_after > result['threshold']:
             raise RuntimeError('추가 요약 후에도 정리 기준을 초과합니다. 기존 대화는 유지됩니다.')
         result = {**result, 'messages': final_messages}
-    return {**result, 'tokens_after': tokens_after, 'query': final_query}
+    return {**result, 'protected_tokens': protected_tokens, 'tokens_after': tokens_after, 'query': final_query}
 
 
 def compress_context(messages, token_count, base_url, *, force=False, compressor_factory=None, on_progress=None, threshold_tokens=None):
@@ -80,11 +95,10 @@ def compress_context(messages, token_count, base_url, *, force=False, compressor
     compressor = compressor_factory(model='hermes-local', base_url=base_url, api_key='none',
                                     provider='custom', config_context_length=64000,
                                     abort_on_summary_failure=True)
-    if threshold_tokens is not None:
-        if type(threshold_tokens) is not int or threshold_tokens not in (8000,16000,32000,54400):
-            raise ValueError('대화 정리 기준 오류')
-        compressor.threshold_tokens = threshold_tokens
-    threshold = compressor.threshold_tokens
+    threshold = DEFAULT_CONTEXT_THRESHOLD if threshold_tokens is None else threshold_tokens
+    if type(threshold) is not int or threshold not in (8000, 16000, 24000, 32000, 54400):
+        raise ValueError('대화 정리 기준 오류')
+    compressor.threshold_tokens = threshold
     if not force and not compressor.should_compress(token_count):
         return {'state': 'not_needed', 'messages': messages, 'tokens': token_count, 'threshold': threshold}
     if on_progress:

@@ -21,7 +21,7 @@ class BudgetModel(MockModel):
 class BudgetSandboxTest(unittest.TestCase):
     def test_real_runtime_second_summary_is_bounded(self):
         if not shutil.which('bwrap') or not (RUNTIME / '.venv/bin/python').is_file(): self.skipTest('런타임 또는 bubblewrap 없음')
-        BudgetModel.counts=iter([100000,70000,20000,40000]); BudgetModel.summaries=0
+        BudgetModel.counts=iter([100000,2000,12000,2000,4000]); BudgetModel.summaries=0
         with tempfile.TemporaryDirectory(prefix='hermes-budget-') as tmp:
             root=Path(tmp); (root/'workspace').mkdir(); exchange=root/'exchange'; exchange.mkdir()
             messages=[{'role':'user' if n%2==0 else 'assistant','content':('task %s '%n)*300} for n in range(20)]
@@ -36,6 +36,6 @@ class BudgetSandboxTest(unittest.TestCase):
                     if completed.returncode and ('No permissions to create a new namespace' in completed.stderr or 'Creating new namespace failed' in completed.stderr): self.skipTest('네임스페이스 불가')
                     self.assertEqual(completed.returncode,0,completed.stderr[-3000:])
                     result=json.loads((exchange/'result.json').read_text())
-                    self.assertEqual(result['state'],'compressed');self.assertEqual(result['tokens_after'],40000);self.assertLessEqual(result['tokens_after'],result['threshold']);self.assertEqual(BudgetModel.summaries,2)
+                    self.assertEqual(result['state'],'compressed');self.assertEqual(result['tokens_after'],4000);self.assertLessEqual(result['tokens_after'],result['threshold']);self.assertEqual(BudgetModel.summaries,2)
                     self.assertEqual(result['messages'][-2:],[dict(m,_compaction_tail=True) for m in messages[-2:]])
             finally: server.shutdown();server.server_close();thread.join(timeout=5)

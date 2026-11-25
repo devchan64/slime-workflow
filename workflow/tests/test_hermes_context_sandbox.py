@@ -27,7 +27,7 @@ class MockModel(BaseHTTPRequestHandler):
             body = json.dumps({'prompt': json.dumps(request, ensure_ascii=False)}).encode()
             content_type = 'application/json'
         elif self.path == '/tokenize':
-            body = json.dumps({'tokens': [0] * 54400}).encode()
+            body = json.dumps({'tokens': [0] * 24000}).encode()
             content_type = 'application/json'
         elif self.path == '/v1/chat/completions':
             common = {'id': 'mock', 'object': 'chat.completion.chunk', 'model': 'hermes-local'}
@@ -80,7 +80,7 @@ class ContextSandboxTest(unittest.TestCase):
                     self.assertEqual(completed.returncode, 0, completed.stderr[-3000:])
                     result = json.loads((exchange / 'result.json').read_text())
                     self.assertEqual(result['state'], 'compressed')
-                    self.assertEqual(result['threshold'], 54400)
+                    self.assertEqual(result['threshold'], 24000)
                     self.assertLess(len(result['messages']), len(messages))
                     self.assertIn('follow-up task', result['query'])
             finally:

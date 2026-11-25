@@ -25,9 +25,11 @@ class ContextThresholdTests(unittest.TestCase):
                 self._generate_summary(messages)
                 return [{'role':'assistant','content':'요약','_compressed_summary':True}]
         messages=[{'role':'user','content':'기존 내용'}]
-        self.assertEqual(compress_context(messages,20000,'local',compressor_factory=Compressor)['state'],'not_needed')
-        result=compress_context(messages,20000,'local',compressor_factory=Compressor,threshold_tokens=16000)
-        self.assertEqual(result['state'],'compressed');self.assertEqual(result['threshold'],16000)
+        self.assertEqual(compress_context(messages,23999,'local',compressor_factory=Compressor)['state'],'not_needed')
+        default=compress_context(messages,24000,'local',compressor_factory=Compressor)
+        self.assertEqual((default['state'],default['threshold']),('compressed',24000))
+        result=compress_context(messages,8000,'local',compressor_factory=Compressor,threshold_tokens=8000)
+        self.assertEqual(result['state'],'compressed');self.assertEqual(result['threshold'],8000)
         with self.assertRaises(ValueError):compress_context(messages,20000,'local',compressor_factory=Compressor,threshold_tokens=True)
 
     def test_gateway_settings_and_capability_contract(self):
