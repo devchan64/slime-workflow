@@ -355,16 +355,28 @@ class HermesServiceManager:
                 order = row.get('queue_order_ns')
                 if order is not None and (type(order) is not int or order <= 0):
                     raise ValueError('대화 요청의 대기 순서를 확인할 수 없습니다.')
-                resident = ensure_session_resident(session_id, row['request_id'], queue_order_ns=order, runtime_prevalidated=runtime_prevalidated, defer_runtime_validation=True)
+                desired_dflash = row['dflash_enabled']
+                if type(desired_dflash) is not bool:
+                    raise ValueError('대기 요청 DFlash2 설정 오류')
+                resident = ensure_session_resident(session_id, row['request_id'], queue_order_ns=order, runtime_prevalidated=runtime_prevalidated, defer_runtime_validation=True, dflash_enabled=desired_dflash)
                 if resident.get('state') == 'retry':
                     return None
                 if resident.get('state') != 'accepted' or not resident.get('id'):
                     raise ValueError('상주 모델 접수를 확인할 수 없습니다.')
-                resident_state = inspect_resident(resident['id'], session_id).get('state')
+                resident_info = inspect_resident(resident['id'], session_id)
+                resident_state = resident_info.get('state')
                 if resident_state in ('queued', 'running'):
                     return None
                 if resident_state != 'ready':
                     raise ValueError('상주 모델 준비 또는 GPU 예약을 확인할 수 없습니다.')
+                if (resident_info.get('dflash') is True) != desired_dflash:
+                    self.ensure_context_operation_finished(session)
+                    build_context_messages(session, self.read_context_job)
+                    from workflow.domains.hermes_agent.resident_queue import request_resident_release
+                    from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
+                    GpuHandoffStore().run_without_open_session_handoff(
+                        session_id, lambda: request_resident_release(resident['id'], session_id), all_sessions=True)
+                    return None
             self.ensure_context_operation_finished(session)
             existing = next((item for item in session['messages'] if item.get('request_id') == row['request_id']), None)
             if existing is None:

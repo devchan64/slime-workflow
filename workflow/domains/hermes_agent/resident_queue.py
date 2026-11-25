@@ -37,7 +37,7 @@ def _lock(root):
         yield
 
 
-def enqueue_resident_once(request_id, session_id, *, root=RESIDENT_ROOT, launcher=launch_gpu_process, recovered_failure_id=None, queue_order_ns=None):
+def enqueue_resident_once(request_id, session_id, *, root=RESIDENT_ROOT, launcher=launch_gpu_process, recovered_failure_id=None, queue_order_ns=None, dflash_enabled=None):
     if not isinstance(request_id, str) or not _ID.fullmatch(request_id) or not isinstance(session_id, str) or not _SESSION.fullmatch(session_id):
         raise ValueError('상주 모델 접수 ID 또는 세션 ID 오류')
     if queue_order_ns is not None:
@@ -110,6 +110,8 @@ def enqueue_resident_once(request_id, session_id, *, root=RESIDENT_ROOT, launche
         def launch_verified():
             directory.mkdir(mode=0o700)
             request = {'model_profile':'qwen3.8-27b', 'context':{'session_id':session_id}, 'release_token':secrets.token_hex(16)}
+            if dflash_enabled is not None:
+                request['dflash_enabled'] = dflash_enabled
             if queue_order_ns is not None:
                 request['queue_order_ns'] = queue_order_ns
             if recovered_failure_id is not None:
@@ -608,7 +610,7 @@ def cancel_unused_queued_resident(chat_session_identifier, chat_request_identifi
             return True
 
 
-def ensure_session_resident(session_id, request_id, *, root=RESIDENT_ROOT, handoff_store=None, launcher=launch_gpu_process, queue_order_ns=None, runtime_prevalidated=False, defer_runtime_validation=False):
+def ensure_session_resident(session_id, request_id, *, root=RESIDENT_ROOT, handoff_store=None, launcher=launch_gpu_process, queue_order_ns=None, runtime_prevalidated=False, defer_runtime_validation=False, dflash_enabled=None):
     """사용자가 선택한 3.8 대화의 상주 모델을 한 번만 접수한다."""
     import hashlib
     from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
@@ -631,5 +633,5 @@ def ensure_session_resident(session_id, request_id, *, root=RESIDENT_ROOT, hando
                     return {'state':'retry', 'id':resident_id}
                 validate_hermes_runtime_ready('qwen3.8-27b')
             begin_chat_admission(gpu_job_queue.GPU_QUEUE_DIRECTORY, session_id, request_id, queue_order_ns)
-        return enqueue_resident_once(resident_id, session_id, root=root, launcher=launcher, queue_order_ns=queue_order_ns)
+        return enqueue_resident_once(resident_id, session_id, root=root, launcher=launcher, queue_order_ns=queue_order_ns, dflash_enabled=dflash_enabled)
     return (handoff_store or GpuHandoffStore()).run_without_open_session_handoff(session_id, ensure, all_sessions=True)

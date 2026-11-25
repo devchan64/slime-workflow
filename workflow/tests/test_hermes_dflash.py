@@ -43,6 +43,22 @@ class ResidentDflashTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     save('false')
 
+    def test_queue_retries_preserve_original_mode(self):
+        from workflow.domains.hermes_agent.chat_queue_store import enqueue
+        from workflow.domains.hermes_agent.session_store import HermesSessionStore
+        with tempfile.TemporaryDirectory() as root:
+            store = HermesSessionStore(Path(root))
+            session = 'a' * 32
+            store.create_session_record(session)
+            store.set_dflash(session, True)
+            first = enqueue(store, session, 'request_001', '확인', require_resident=True)
+            store.set_dflash(session, False)
+            retry = enqueue(store, session, 'request_001', '확인', require_resident=True)
+            second = enqueue(store, session, 'request_002', '확인', require_resident=True)
+            self.assertTrue(first['request']['dflash_enabled'])
+            self.assertEqual(retry['request'], first['request'])
+            self.assertFalse(second['request']['dflash_enabled'])
+
     def test_incomplete_download_cannot_enable_dflash(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / 'draft.gguf'

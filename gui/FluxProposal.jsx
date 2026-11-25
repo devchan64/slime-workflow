@@ -1,12 +1,10 @@
 import React,{useEffect,useState} from "react";
 import {managementCommand} from "./managementCommand.js";
-import FluxImagePage from "./FluxImagePage.jsx";
 import {useMinimaxReportReceipt,MinimaxReportStatus,PreparedMinimaxForm} from "./useMinimaxReportReceipt.jsx";
 import {verifyFluxProposal} from "./fluxProposalReceipt.mjs";
 
-export default function FluxProposal({job,session,snapshot,offset,onOpenForm}) {
+export default function FluxProposal({job,session,snapshot,offset,onOpenForm,onOpenFluxForm}) {
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
-  const [open,setOpen]=useState(false),[mounted,setMounted]=useState(false);
   const [prepared,setPrepared]=useState(null);
   const minimaxReceipt=useMinimaxReportReceipt(proposal?.service==="minimax-h3-image" ? {session,job} : null,"minimax-h3-image");
   useEffect(()=>{
@@ -40,7 +38,6 @@ export default function FluxProposal({job,session,snapshot,offset,onOpenForm}) {
   if(prepared)return <section aria-label="이미지 생성 제안"><PreparedMinimaxForm form={prepared} label="이미지" onOpenForm={onOpenForm} receipt={minimaxReceipt}/>{error && <p role="alert">{error}</p>}</section>;
   if(service==="minimax-h3-image")return <section aria-label="이미지 생성 제안"><p>이 제안에 연결된 MiniMax 이미지 접수폼이 아직 확인되지 않았습니다. 준비된 폼은 이 대화의 우측 패널에서 확인할 수 있습니다.</p><MinimaxReportStatus receipt={minimaxReceipt}/>{error && <p role="alert">{error}</p>}</section>;
   return <section aria-label="이미지 생성 제안"><p>선택 생성기: {service}{selection_reason && " · "+selection_reason}</p>{error && <p role="alert">{error}</p>}{service==="minimax-h3-image" && <MinimaxReportStatus receipt={minimaxReceipt}/>}<p>생성 폼에서 입력과 필요한 참조를 확인한 뒤 접수하세요. 접수와 보고 상태는 이 생성 폼에서 다시 확인할 수 있습니다.</p>
-    <button type="button" aria-expanded={open} onClick={()=>{setMounted(true);setOpen(value=>!value);}}>{open?"생성 폼 접기":"생성 폼 검토"}</button>
-    {mounted && <div hidden={!open}><FluxImagePage serviceOverride={service} embedded initialInputs={inputs} receiptScope={{session,job,snapshot,offset,proposal}}/></div>}
+    <button type="button" aria-controls="hermes-side-panel" onClick={()=>onOpenFluxForm({service,inputs,receiptScope:{session,job,snapshot,offset,proposal}})}>생성 폼 보기</button>
   </section>;
 }

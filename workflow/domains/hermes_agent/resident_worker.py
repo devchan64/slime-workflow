@@ -150,7 +150,7 @@ def run_resident_worker(job_directory):
                      '--jinja', '--no-context-shift', '--verbosity', '4']
         from workflow.domains.hermes_agent.session_store import HermesSessionStore
         session = HermesSessionStore().read_session_record(request['context']['session_id'])
-        dflash = session.get('dflash_enabled') is True
+        dflash = request.get('dflash_enabled', session.get('dflash_enabled')) is True
         arguments.extend(dflash_arguments(dflash))
         runtime_temp_directory = ROOT / '.tmp' / 'hermes-resident-runtime-tmp'
         if runtime_temp_directory.is_symlink():

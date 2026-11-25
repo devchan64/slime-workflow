@@ -516,6 +516,6 @@ class QueueBeforeModelTests(unittest.TestCase):
                 inspect.return_value = {'state':'ready'}
                 manager.dispatch_chat_queue(session)
                 self.assertEqual(resident.call_count, 3)
-                resident.assert_called_with(session, 'request_123', queue_order_ns=first['request']['queue_order_ns'], runtime_prevalidated=True, defer_runtime_validation=True)
+                resident.assert_called_with(session, 'request_123', queue_order_ns=first['request']['queue_order_ns'], runtime_prevalidated=True, defer_runtime_validation=True, dflash_enabled=False)
             self.assertEqual(store.read_session_record(session)['chat_queue'][0]['state'], 'dispatched')
             self.assertFalse(queue_intent_path.exists())

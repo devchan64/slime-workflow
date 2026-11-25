@@ -49,7 +49,7 @@ def enqueue(store: HermesSessionStore, session_id, request_id, prompt, model_pro
             raise ValueError('대기열 한도에 도달했습니다.')
         now = datetime.now(timezone.utc).isoformat()
         row = {'request_id':request_id, 'original_prompt':prompt, 'prompt':prompt,
-               'revision':1, 'state':'queued', 'created_at':now}
+               'revision':1, 'state':'queued', 'created_at':now, 'dflash_enabled':session.get('dflash_enabled') is True}
         if model_profile is not None:
             row['model_profile'] = model_profile
         if require_resident:
@@ -72,6 +72,9 @@ def prepare_legacy_chat_request(session_store_instance, chat_session_identifier)
         pending_request_record = next((chat_request_record for chat_request_record in session_queue_rows if chat_request_record.get('state') in ('queued', 'dispatching')), None)
         if pending_request_record is None:
             return None
+        if 'dflash_enabled' not in pending_request_record:
+            pending_request_record['dflash_enabled'] = session_queue_record.get('dflash_enabled') is True
+            write_record_atomically(session_store_instance.resolve_session_record_path(chat_session_identifier), session_queue_record)
         if ('require_resident' in pending_request_record or pending_request_record.get('model_profile') not in (None, COMPLEX_MODEL)
                 or any(session_message_record.get('request_id') == pending_request_record.get('request_id') for session_message_record in session_queue_record['messages'])):
             return dict(pending_request_record)

@@ -525,7 +525,7 @@ function Message() {
     {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} append={actions.append} openStep={actions.openStep}/>}
     {meta.generationProposal && meta.job && <GenerationProposal key={meta.job} kind={meta.generationProposal} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} onOpenForm={actions.openMinimaxForm}/>}
     {meta.captureProposal && meta.job && <CaptureProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
-    {meta.fluxProposal && meta.job && <FluxProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} onOpenForm={actions.openMinimaxForm}/>}
+    {meta.fluxProposal && meta.job && <FluxProposal onOpenFluxForm={actions.openFluxForm} key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} onOpenForm={actions.openMinimaxForm}/>}
     {meta.buildingProposal && meta.job && <BuildingProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
     {meta.billboardProposal && meta.job && <BillboardProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
     {meta.spriteProposal && meta.job && <SpriteProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset}/>}
@@ -627,6 +627,7 @@ function App() {
   const [showKimodo,setShowKimodo]=useState(false);
   const [kimodoMounted,setKimodoMounted]=useState(false);
   const [generatorPanel,setGeneratorPanel]=useState(null);
+  const [fluxForms,setFluxForms]=useState([]);
   const [mountedGenerators,setMountedGenerators]=useState([]);
   const [kimodoProposal,setKimodoProposal]=useState(null);
   const [kimodoRevision,setKimodoRevision]=useState(0);
@@ -635,7 +636,7 @@ function App() {
   const [seedProposal,setSeedProposal]=useState(null);
   const [session,setSession]=useState(query().get("session") || "");
   const formInputSession=useRef(session),currentFormInputs=formInputSession.current===session;
-  useEffect(()=>{setGeneratorPanel(null);setMountedGenerators([]);setKimodoProposal(null);setVideoFormId("");setSeedProposal(null);setKimodoMounted(showKimodo);setFunMounted(showFunControl);formInputSession.current=session;},[session]);
+  useEffect(()=>{setGeneratorPanel(null);setMountedGenerators([]);setFluxForms([]);setKimodoProposal(null);setVideoFormId("");setSeedProposal(null);setKimodoMounted(showKimodo);setFunMounted(showFunControl);formInputSession.current=session;},[session]);
   const [sessions,setSessions]=useState([]), [view,setView]=useState({}), [tools,setTools]=useState([]);
   const [draft,setDraft]=useState(""),[search,setSearch]=useState(()=>query().get("search") || ""),[showTools,setShowTools]=useState(()=>!scheduleFromUrl() && (query().has("category") || query().has("search") || query().get("panel")==="capabilities"));
   const [catalogError,setCatalogError]=useState(""),[catalogLoading,setCatalogLoading]=useState(true),[catalogRevision,retryCatalog]=useState(0);
@@ -873,6 +874,13 @@ function App() {
   }
   function closeGenerator(){setGeneratorPanel(null);toolToggle.current?.focus();}
   function closeGpu(){setShowGpu(false);gpuToggle.current?.focus();}
+  function openFluxForm(form){
+    if(form.receiptScope.session!==session)return;
+    setShowTools(false);setShowGpu(false);setQueue(null);setShowKimodo(false);setShowFunControl(false);
+    const job=form.receiptScope.job;
+    setFluxForms(forms=>forms.some(item=>item.receiptScope.job===job)?forms:[...forms,form]);
+    setGeneratorPanel({id:"flux-proposal",job,label:"이미지 생성 폼"});
+  }
   function openMinimaxForm(formId){
     if(!/^[a-f0-9]{32}$/.test(formId))return;
     setShowTools(false);setShowGpu(false);setQueue(null);setShowKimodo(false);setShowFunControl(false);
@@ -967,7 +975,7 @@ function App() {
     }}>{folded?"세션 목록 펼치기":"세션 목록 접기"}</button><h1>{view.title || "헤르메스와 대화"}</h1></header>
 
 
-    <ProposalActions.Provider value={{append:appendSelection,openStep:inputs=>openKimodo(inputs),openMinimaxForm,openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory} refreshPending={()=>retryView(n=>n+1)}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
+    <ProposalActions.Provider value={{append:appendSelection,openFluxForm,openStep:inputs=>openKimodo(inputs),openMinimaxForm,openQueue:()=>{if(showTools)closeTools();setShowGpu(false);setShowKimodo(false);setShowFunControl(false);setGeneratorPanel(null);setQueue({run:""});},openVideoForm:formId=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setSeedProposal(null);setVideoFormId(formId);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openSeedForm:proposal=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal(proposal);setVideoFormRevision(n=>n+1);setShowFunControl(true);},openJobForm:job_id=>{if(showTools)closeTools();setShowGpu(false);setQueue(null);setShowKimodo(false);setGeneratorPanel(null);setVideoFormId("");setSeedProposal({job_id,reuse:true});setVideoFormRevision(n=>n+1);setShowFunControl(true);}}}><Conversation key={session} view={view} historyPage={view.offset>0 ? {offset:view.offset,snapshot:view.snapshot} : null} changeHistory={changeHistory} refreshPending={()=>retryView(n=>n+1)}/></ProposalActions.Provider>{viewLoading && <p role="status">대화를 불러오는 중입니다. 현재 화면은 이전 조회 결과입니다.</p>}{viewError && <div role="alert"><p>{viewError.includes("세션 이력이 변경") ? (historyPage ? "대화 이력이 변경되었습니다. 최신 대화를 다시 불러온 뒤 이전 메시지를 조회하세요." : "대화 이력이 변경되었습니다. 작업·대기열을 다시 조회한 뒤 관련 대화를 열어 주세요.") : viewError.includes("조회 시간이 초과") ? "대화 조회 시간이 초과됐습니다. 다시 시도하세요." : "대화를 불러오지 못했습니다. 연결 상태를 확인해 주세요."}{view.id && " 표시된 대화는 마지막으로 조회한 내용입니다."}</p><div className="conversation-error-actions"><button type="button" onClick={()=>{document.querySelector(".thread .viewport")?.focus({preventScroll:true});retryView(n=>n+1);}}>다시 시도</button>{historyPage && <button type="button" onClick={()=>{changeHistory(null);document.querySelector(".thread .viewport")?.focus({preventScroll:true});}}>최신 대화 불러오기</button>}</div></div>}{error&&<p role="alert">{error}</p>}
 
     <form onSubmit={e=>{e.preventDefault();send()}}>
     {session && view.context && <details name="composer-popover" className="composer-context"><summary>대화 문맥{view.context.usage?.state==="compressing" ? " · 요약 중" : view.context.usage?.state==="summary_failed" ? " · 요약 미완료" : view.context.operation && ["queued","running","unknown"].includes(view.context.operation.status) ? " · 정리 상태 확인 중" : view.context.usage && " · "+(view.context.usage.tokens_after ?? view.context.usage.tokens).toLocaleString()+" 토큰"}</summary><section className="composer-context-panel" aria-label="대화 문맥 정리">
@@ -1007,7 +1015,7 @@ function App() {
     {pending && pending.prompt===draft && <small className="composer-reason" role="status">이전 요청의 접수 여부를 같은 요청 ID로 다시 확인합니다.</small>}
     {submitDisabledReason && <small id="composer-submit-reason" className={submitDisabledReason === "메시지를 입력해 주세요." ? "composer-reason-hidden" : "composer-reason"} role="status">{submitDisabledReason}</small>}
     <button type="submit" disabled={Boolean(submitDisabledReason)} title={submitDisabledReason || undefined}>{busy?"접수 중":pending && pending.prompt===draft?"접수 다시 확인":"보내기"}</button></form></article>
-    {(showFunControl || showKimodo || showTools || showGpu || queue || generatorPanel || funMounted || kimodoMounted || mountedGenerators.length>0) && <SidePanel hidden={!panelOpen} width={panelActual} minWidth={panelMin} maxWidth={panelMax} onResize={resizePanel} title={showTools?"도구 탐색":showGpu?"GPU 현황":queue?"작업 일정":generatorPanel?generatorPanel.label:showKimodo?"Kimodo 모션 생성":"Wan Fun Control"} subtitle={showTools?"도구와 관리 기능 찾기":showGpu?"프로세스 정보와 이 대화의 양도 이력":queue?"현재 진행 · 다음 후보 · 완료":"생성 입력 검토"} onClose={showTools?()=>closeTools():showGpu?closeGpu:queue?closeQueue:generatorPanel?closeGenerator:showKimodo?closeKimodo:closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();showGpu?closeGpu():queue?closeQueue():generatorPanel?closeGenerator():showKimodo?closeKimodo():closeFun();}}}>
+    {(showFunControl || showKimodo || showTools || showGpu || queue || generatorPanel || funMounted || kimodoMounted || mountedGenerators.length>0 || fluxForms.length>0) && <SidePanel hidden={!panelOpen} width={panelActual} minWidth={panelMin} maxWidth={panelMax} onResize={resizePanel} title={showTools?"도구 탐색":showGpu?"GPU 현황":queue?"작업 일정":generatorPanel?generatorPanel.label:showKimodo?"Kimodo 모션 생성":"Wan Fun Control"} subtitle={showTools?"도구와 관리 기능 찾기":showGpu?"프로세스 정보와 이 대화의 양도 이력":queue?"현재 진행 · 다음 후보 · 완료":"생성 입력 검토"} onClose={showTools?()=>closeTools():showGpu?closeGpu:queue?closeQueue:generatorPanel?closeGenerator:showKimodo?closeKimodo:closeFun} onKeyDown={showTools?handleToolKeys:event=>{if(event.key==="Escape" && !event.nativeEvent.isComposing){event.preventDefault();showGpu?closeGpu():queue?closeQueue():generatorPanel?closeGenerator():showKimodo?closeKimodo():closeFun();}}}>
     {showTools && <div className="tool-drawer-content">
       <label className="search-scope">탐색 대상 <select ref={toolScope} value={searchMode} onChange={e=>setSearchMode(e.target.value)}>
         <optgroup label="도구와 기능"><option value="tools">도구 목록</option><option value="capabilities">관리 명령 검색</option></optgroup>
@@ -1062,6 +1070,10 @@ function App() {
       {queue?.job && !session && !showTools && !showGpu && <UnifiedQueueOverview linkedRow={linkedQueueRow(queue.job,session)} session={session}/>}
       {generatorPanel?.id==="saved-form" && generatorPanel.session===session && !showTools && !showGpu && !queue &&
         <MiniMaxForms key={session+generatorPanel.formId} session={session} initialFormId={generatorPanel.formId}/>}
+      {fluxForms.filter(form=>form.receiptScope.session===session).map(({service,inputs,receiptScope})=>
+        <div key={receiptScope.job} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!=="flux-proposal" || generatorPanel.job!==receiptScope.job} className="embedded-generator">
+          <FluxImagePage serviceOverride={service} embedded initialInputs={inputs} receiptScope={receiptScope}/>
+        </div>)}
       {mountedGenerators.map(id=>{const Generator=embeddedGenerators[id];return <div key={id} hidden={showTools || showGpu || Boolean(queue) || generatorPanel?.id!==id} className="embedded-generator"><Generator embedded session={session}/></div>;})}
       {kimodoMounted && <div hidden={!showKimodo || showTools || showGpu || Boolean(queue) || Boolean(generatorPanel)} className="embedded-generator"><KimodoPage key={session+":"+kimodoRevision} embedded session={session} initialInputs={currentFormInputs ? kimodoProposal : null} onChoose={(label,value)=>{edit([draft,label+" "+value].filter(Boolean).join("\n"));text.current?.focus();}}/></div>}
       {funMounted && <div hidden={!showFunControl || showTools || showGpu || Boolean(queue) || showKimodo || Boolean(generatorPanel)}><FunControlPage key={session+(currentFormInputs ? videoFormId : "")+videoFormRevision} embedded session={session} restoreFormId={currentFormInputs ? videoFormId : ""} seedProposal={currentFormInputs ? seedProposal : null} onSaved={()=>setRefresh(n=>n+1)}/></div>}
