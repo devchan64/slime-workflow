@@ -8,6 +8,28 @@ from workflow.domains.hermes_agent.minimax_form_store import MiniMaxFormStore
 
 
 class MiniMaxFormCommandsTests(unittest.TestCase):
+    def test_prepare_restores_snapshot_reference_only_on_pristine_form(self):
+        from workflow.domains.hermes_agent.flux_reports import proposal_request_id
+        import hashlib
+        with tempfile.TemporaryDirectory() as directory:
+            session, job = 'a'*32, '2026-11-25_23-24-11-76adffd1'
+            forms = MiniMaxFormStore(Path(directory)/'forms.sqlite3')
+            sessions, receipts = Mock(), Mock()
+            sessions.read_session_record.return_value = {'messages':[{'job_id':job,'text':'/workspace/baseline/a.png 참조'}]}
+            receipts.read_service_delegation.return_value = {'state':'not_found'}
+            proposal = {'service':'minimax-h3-image','prompt':'참조 이미지','width':832,'height':480,'seed':42}
+            detail = {'final_response':'참조 /workspace/baseline/a.png','request':{}}
+            rid=proposal_request_id(session,job,'minimax-h3-image')
+            form_id=hashlib.sha256(('minimax-form:'+rid).encode()).hexdigest()[:32]
+            original={'action':'generate','prompt':proposal['prompt'],'images':[],'width':832,'height':480,'steps':6,'seed':42}
+            forms.create(session,form_id,'minimax-h3-image',job,original)
+            args=dict(sessions=sessions,read_job=lambda _:detail,dispatch=Mock(),forms=forms,receipts=receipts,resolve_job_path=lambda _:Path(directory))
+            payload={'session_id':session,'proposal_job_id':job,'service':'minimax-h3-image'}
+            with patch('workflow.domains.hermes_agent.minimax_form_commands.resolve_proposal',return_value=(proposal,None)), \
+                 patch('workflow.domains.hermes_agent.flux_chat_submission.snapshot_reference_images',return_value=['image-data']):
+                restored=execute_minimax_form_command('hermes-minimax-form-prepare',payload,**args)
+                self.assertEqual((restored['revision'],restored['request']['images']),(2,['image-data']))
+                self.assertEqual(execute_minimax_form_command('hermes-minimax-form-prepare',payload,**args)['revision'],2)
     def test_question_approval_does_not_submit_a_form_edited_after_the_question(self):
         from workflow.domains.hermes_agent.minimax_form_action import submit_requested_form
         with tempfile.TemporaryDirectory() as directory:

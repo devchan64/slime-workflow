@@ -1170,6 +1170,8 @@ MiniMax가 참조하는 Hugging Face 캐시는 프로젝트의 `.cache/huggingfa
 
 공용 게이트웨이의 `hermes-agent`는 `hermes-submit`, `hermes-detail`, `hermes-history`, `hermes-diff`, `hermes-cancel` 명령을 제공한다. GUI와 MCP가 같은 작업 ID와 기록을 사용하며, 고정된 요청 식별자로 중복 접수를 막는다. 공용 GPU 대기열에서 서로 다른 세션의 Hermes 작업은 메모리 여유가 있으면 최대 두 개까지 병렬 실행하고 같은 세션은 순차 실행한다. 다른 GPU 작업은 메모리 예약과 독점 작업 제한을 충족하면 함께 실행하며 원본 작업 트리에는 자동 적용하지 않는다. 실행환경 준비, 결과·부분 diff, Codex 설정과 현재 검증 범위는 [Hermes 실행 안내](../generators/hermes_agent/README.md)를 따른다.
 
+`hermes-tool-result`는 `session_id`, 작업 `id`, `call_id`를 받아 해당 대화의 도구 결과 원문을 조회한다. 결과가 없거나 중복되거나 원문이 1 MiB를 초과하면 오류를 반환하며, GUI는 오른쪽 패널에 원문을 표시한다. 통합 CLI에서는 같은 필드를 JSON payload로 전달한다.
+
 모델 관리의 **AnimationGPT 전투 모션 FP16 (파일만)**은 Kijai의 제3자 변환본 `AnimationGPT_fp16.safetensors`를 고정 리비전과 SHA-256으로 검증해 `.model/animationgpt/`에 저장한다. GUI와 CLI `tools/manager.py model status animationgpt`, `tools/manager.py model prepare animationgpt`는 같은 게이트웨이를 사용한다. 다운로드는 이어받기를 지원하며 기존 파일의 해시 불일치 시 덮어쓰지 않는다. 파일 준비는 공식 원본과의 동일성, CombatMotion 학습 출처, 생성 환경, 무기 출력 또는 ROCm 추론을 검증하지 않는다. 준비 실패 로그는 `.local/model-preparation/animationgpt/worker.log`에 남는다.
 
 AnimationGPT 모델 관리는 전체 학습 데이터셋 대신 FP16 가중치, FLAN-T5 설정·토크나이저, MotionGPT 웹 UI의 정규화 통계 파일만 고정 해시로 받는다. 공식 데모는 데이터셋을 읽고 원본 체크포인트 및 별도 FLAN-T5 가중치를 기대한다. 파일만으로 실행하려면 별도 어댑터가 필요하며, 파일 준비가 정상 모션 생성이나 무기 포함 출력을 보장하지 않는다.

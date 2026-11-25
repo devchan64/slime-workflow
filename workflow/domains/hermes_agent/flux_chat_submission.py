@@ -48,6 +48,20 @@ def proposal_reference_paths(message, detail, answer):
     return []
 
 
+def snapshot_reference_images(directory, paths):
+    """Read requested baseline PNGs from the immutable proposal snapshot."""
+    commit = json.loads((directory/'baseline.json').read_text())['baseline_commit']
+    if not re.fullmatch('[0-9a-f]{40}', commit):
+        raise ValueError('제안 시점의 참조 버전을 확인하세요.')
+    images = []
+    for path in paths:
+        blob = subprocess.check_output(['git','-C',str(directory/'workspace'),'show',commit+':'+path],timeout=10)
+        if len(blob)>3*1024*1024 or not blob.startswith(b'\x89PNG\r\n\x1a\n'):
+            raise ValueError('참조 PNG를 확인하세요.')
+        images.append(base64.b64encode(blob).decode('ascii'))
+    return images
+
+
 def image_submission_intent(prompt):
     if not isinstance(prompt, str):
         return None

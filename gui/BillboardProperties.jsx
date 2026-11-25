@@ -63,7 +63,7 @@ export default function BillboardProperties({texture,onCrop,onDirtyChange=()=>{}
       const result=await read("hermes-billboard-load",{texture});
       if(result.texture!==texture || !result.properties || !result.revision)throw new Error("선택한 에셋 속성을 확인할 수 없습니다.");
       setSource(result);setEdits({});onDirtyChange(false);
-    }catch(problem){if(problem?.name!=="AbortError")setNotice(requestErrorMessage(problem));}
+    }catch(problem){if(problem?.name!=="AbortError")setNotice(requestErrorMessage(problem)+(source ? " 마지막으로 불러온 속성을 표시합니다." : ""));}
     finally{setBusy(false);}
   }
   function edit(key,value){

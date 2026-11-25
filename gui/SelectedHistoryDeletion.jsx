@@ -33,7 +33,7 @@ export default function SelectedHistoryDeletion({service,id,onDeleted,allowPrior
 
 function SelectedHistoryDeletionForJob({service,id,onDeleted,allowPriority=false}) {
   const mounted=useRef(false),deleteButton=useRef(null),reviewRef=useRef(null);
-  const priorityHelp=useId(),deleteHelp=useId();
+  const priorityHelp=useId(),deleteHelp=useId(),confirmHelp=useId();
   const [state,setState]=useState(null),[error,setError]=useState("");
   const [revision,setRevision]=useState(0);
   const [controlActive,setControlActive]=useState(false),[priorityActive,setPriorityActive]=useState(false);
@@ -50,7 +50,7 @@ function SelectedHistoryDeletionForJob({service,id,onDeleted,allowPriority=false
         const current=await readState(service,id,controller.signal);
         if (!active) return;
         setState(current);setError("");
-      } catch(problem) {if(active){setState(null);setError(timedOut ? "작업 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : problem instanceof TypeError ? "작업 상태를 조회할 수 없습니다. 연결을 확인하고 다시 시도하세요." : problem.message);}}
+      } catch(problem) {if(active){setState(null);setError(timedOut ? "작업 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : problem instanceof TypeError ? "작업 상태를 조회할 수 없습니다. 연결을 확인하고 다시 시도하세요." : problem?.message || "작업 상태를 확인할 수 없습니다. 다시 확인하세요.");}}
       finally{clearTimeout(timeout);}
     }
     read();return ()=>{active=false;mounted.current=false;clearTimeout(timeout);controller.abort();};
@@ -73,7 +73,7 @@ function SelectedHistoryDeletionForJob({service,id,onDeleted,allowPriority=false
       if (!validCleanupResult(result,true))
         throw new Error("삭제 응답을 확인할 수 없습니다.");
       onDeleted(id,formatCleanupResult(result));
-    } catch(problem){setState(null);setError(problem.message+(deleteStarted ? " · 삭제 결과가 불확실하면 이력을 다시 조회하세요." : " · 삭제 요청은 전송하지 않았습니다."));setReview(false);setAck(false);}
+    } catch(problem){setState(null);setError((problem?.message || "요청 결과를 확인할 수 없습니다.")+(deleteStarted ? " · 삭제 결과가 불확실하면 이력을 다시 조회하세요." : " · 삭제 요청은 전송하지 않았습니다."));setReview(false);setAck(false);}
     finally{setBusy(false);}
   }
   return <section className="history-selected-actions" aria-label="선택 작업 관리">
@@ -83,15 +83,16 @@ function SelectedHistoryDeletionForJob({service,id,onDeleted,allowPriority=false
         <button className="history-action-priority" type="button" disabled aria-describedby={priorityHelp}>우선 실행 검토</button> : null}/>
     {allowPriority && <p className="history-action-detail" id={priorityHelp}>{state===null ? "현재 작업 상태를 확인해야 우선 실행을 검토할 수 있습니다." : state==="queued" ? "대기 순서는 검토할 때 다시 확인합니다." : "우선 실행은 대기 중인 작업에서 사용할 수 있습니다."}</p>}
     <button ref={setDeleteButton} className="history-action-delete" type="button" disabled={busy || review || controlActive || priorityActive || !terminalStates.has(state)} aria-describedby={deleteHelp} onClick={()=>{setReview(true);setAck(false);requestAnimationFrame(()=>reviewRef.current?.focus());}}>선택 이력 삭제 검토</button>
-    <p className="history-action-detail" id={deleteHelp}>{state===null ? "선택 작업의 상태를 확인할 수 있어야 삭제할 수 있습니다." : terminalStates.has(state) ? "삭제 전에 대상과 범위를 확인합니다." : state==="canceled" ? "이 취소 상태는 현재 이력 정리에서 지원하지 않아 삭제할 수 없습니다." : state==="unknown" ? "기록된 작업 상태를 확인할 수 없어 삭제할 수 없습니다." : "종료된 작업만 삭제할 수 있습니다. 종료 후 다시 확인하세요."}</p>
+    <p className="history-action-detail" id={deleteHelp}>{busy ? "삭제 요청을 처리하고 있습니다." : review ? "삭제 확인을 마치거나 취소하세요." : controlActive || priorityActive ? "열린 작업 제어를 마치거나 취소하세요." : state===null ? "선택 작업의 상태를 확인할 수 있어야 삭제할 수 있습니다." : terminalStates.has(state) ? "삭제 전에 대상과 범위를 확인합니다." : state==="canceled" ? "이 취소 상태는 현재 이력 정리에서 지원하지 않아 삭제할 수 없습니다." : state==="unknown" ? "기록된 작업 상태를 확인할 수 없어 삭제할 수 없습니다." : "종료된 작업만 삭제할 수 있습니다. 종료 후 다시 확인하세요."}</p>
     {error && <div className="history-action-detail"><p role="alert">{error}</p>
       <button type="button" disabled={busy} onClick={event=>{event.currentTarget.closest(".generator-history-item")?.querySelector(".generator-history-select")?.focus();setRevision(value=>value+1);}}>작업 상태 다시 확인</button></div>}
-    {review && <section ref={reviewRef} tabIndex={-1} aria-label="선택 이력 삭제 확인" className="history-action-detail history-confirmation">
+    {review && <section ref={reviewRef} tabIndex={-1} aria-label="선택 이력 삭제 확인" className="history-action-detail history-confirmation ui-focus-target">
       <p>{service} · 선택 작업</p><JobIdentifier id={id} compact/>
       <p>작업 폴더의 입력 사본·중간 산출물·결과·모든 실행 시도의 요청·상태·로그와 이력 기록을 삭제하며 복구할 수 없습니다. 외부 원본과 등록된 에셋은 보존합니다.</p>
       <label><input type="checkbox" checked={ack} disabled={busy} onChange={e=>setAck(e.target.checked)}/>삭제 범위와 복구 불가를 확인했습니다.</label>
+      {(busy || !ack || !terminalStates.has(state)) && <p id={confirmHelp}>{busy ? "삭제 요청을 처리하고 있습니다." : !terminalStates.has(state) ? "종료된 작업 상태를 다시 확인하세요." : "삭제 범위와 복구 불가를 확인해 주세요."}</p>}
       <div className="choice-buttons"><button type="button" disabled={busy} onClick={()=>{setReview(false);setAck(false);requestAnimationFrame(()=>deleteButton.current?.focus());}}>삭제 취소</button>
-      <button type="button" disabled={busy || !ack || !terminalStates.has(state)} onClick={remove}>확인한 이력 삭제</button></div>
+      <button type="button" disabled={busy || !ack || !terminalStates.has(state)} aria-describedby={busy || !ack || !terminalStates.has(state) ? confirmHelp : undefined} onClick={remove}>확인한 이력 삭제</button></div>
     </section>}
   </section>;
 }

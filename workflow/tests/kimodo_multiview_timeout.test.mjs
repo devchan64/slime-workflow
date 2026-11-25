@@ -110,7 +110,7 @@ test('선택 파일 제거는 잠금 상태를 지키고 입력과 보고서를 
 
 test('가중치 검증의 요청과 응답 지연은 편집 내용을 유지하고 대기를 해제한다',async()=>{
  const source=readFileSync(new URL('../../gui/KimodoJointWeights.jsx',import.meta.url),'utf8');
- const code=source.slice(source.indexOf('  async function validate()'),source.indexOf('  return <details>'));
+ const code=source.slice(source.indexOf('  async function validate()'),source.indexOf('  return <details className="kimodo-joint-weights">'));
  for(const stage of ['request','json']){
   let timer,resolve,error='',busy=false,download='old';
   const delayed=()=>new Promise(done=>resolve=done),response={ok:true,json:()=>stage==='json'?delayed():Promise.resolve({views:[]})};
@@ -123,7 +123,7 @@ test('가중치 검증의 요청과 응답 지연은 편집 내용을 유지하�
 
 test('가중치 검증 결과가 입력과 일치할 때만 다운로드를 제공한다',async()=>{
  const source=readFileSync(new URL('../../gui/KimodoJointWeights.jsx',import.meta.url),'utf8');
- const code=source.slice(source.indexOf('  async function validate()'),source.indexOf('  return <details>'));
+ const code=source.slice(source.indexOf('  async function validate()'),source.indexOf('  return <details className="kimodo-joint-weights">'));
  const weights={schema:'schema',views:[{observation:1,joints:[{joint:0,weight:0.5,reason:'ok'}]}]};
  for(const valid of [true,false]){
   let error='',download='';const checked=structuredClone(weights);if(!valid)checked.views[0].joints[0].weight=0.8;
@@ -137,7 +137,7 @@ test('가중치 검증 결과가 입력과 일치할 때만 다운로드를 제�
 
 test('다른 방향의 잘못된 가중치와 빈 근거는 위치를 안내하고 요청하지 않는다',async()=>{
  const source=readFileSync(new URL('../../gui/KimodoJointWeights.jsx',import.meta.url),'utf8');
- const code=source.slice(source.indexOf('  async function validate()'),source.indexOf('  return <details>'));
+ const code=source.slice(source.indexOf('  async function validate()'),source.indexOf('  return <details className="kimodo-joint-weights">'));
  for(const [weight,reason,expected] of [['','ok',/가중치/],[1.1,'ok',/가중치/],[0.5,'  ',/판단 근거/]]){
   let error='',download='old',calls=0,target=null;
   const weights={views:[{joints:[{joint:0,weight:0.5,reason:'ok'}]},{joints:[{joint:3,weight,reason}]}]};

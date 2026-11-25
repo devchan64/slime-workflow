@@ -8,7 +8,7 @@ from workflow.domains.hermes_agent.minimax_submission import resolve_proposal, s
 from workflow.domains.hermes_agent.delegation_store import HermesDelegationStore
 
 
-def execute_minimax_form_command(command, payload, *, sessions, read_job, dispatch, forms=None, receipts=None):
+def execute_minimax_form_command(command, payload, *, sessions, read_job, dispatch, forms=None, receipts=None, resolve_job_path=None):
     fields = {
         'hermes-minimax-form-create': {'session_id', 'form_id', 'proposal_job_id', 'service', 'request'},
         'hermes-minimax-form-prepare': {'session_id', 'proposal_job_id', 'service'},
@@ -66,6 +66,20 @@ def execute_minimax_form_command(command, payload, *, sessions, read_job, dispat
         existing = next((item for item in forms.list(session_id) if item['form_id'] == form_id), None)
         if not existing and (receipts or HermesDelegationStore()).read_service_delegation(request_id, service).get('state') != 'not_found':
             raise ValueError('기존 접수가 있어 폼을 새로 만들 수 없습니다. 원 접수 상태를 확인하세요.')
+        if service == 'minimax-h3-image' and resolve_job_path:
+            from workflow.domains.hermes_agent.flux_chat_submission import proposal_reference_paths, snapshot_reference_images
+            detail = read_job(job)
+            session = sessions.read_session_record(session_id)
+            message = next(item for item in session['messages'] if item.get('job_id') == job)
+            paths = proposal_reference_paths(message, detail, detail.get('final_response') or '')
+            if paths:
+                request['images'] = snapshot_reference_images(resolve_job_path(job), paths)
+                if existing:
+                    current = reconcile(forms.read(session_id, form_id))
+                    pristine = {**request, 'images':[]}
+                    if current['state'] == 'editing' and current['revision'] == 1 and current['request'] == pristine:
+                        return forms.save(session_id, form_id, current['revision'], request)
+                    return current
         return forms.create(session_id, form_id, service, job, request)
     form_id = payload['form_id']
     if command == 'hermes-minimax-form-create':

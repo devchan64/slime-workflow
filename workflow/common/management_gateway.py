@@ -118,6 +118,7 @@ HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-writer-proposal-submit','hermes-writer-
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-gpu-handoff-retry-reload',)
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-minimax-submit', 'hermes-minimax-report-status', 'hermes-minimax-report-retry')
 HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-minimax-form-prepare', 'hermes-minimax-form-create', 'hermes-minimax-form-list', 'hermes-minimax-form-read', 'hermes-minimax-form-save', 'hermes-minimax-form-update', 'hermes-minimax-form-submit')
+HERMES_PAYLOAD_COMMAND_NAMES += ('hermes-tool-result',)
 MANAGEMENT_SERVICE_COMMANDS['hermes-agent'] = HERMES_PAYLOAD_COMMAND_NAMES
 MANAGEMENT_COMMAND_ROUTES.update({current_command_name: ('POST', '/' + current_command_name) for current_command_name in HERMES_PAYLOAD_COMMAND_NAMES})
 MANAGEMENT_SERVICE_ROUTES['prompt-translation'] = '/prompt-translation'
