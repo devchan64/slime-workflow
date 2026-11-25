@@ -15,6 +15,7 @@ import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import {FunControlFields,FunControlResult} from "./FunControlSchema.jsx";
+import {funNumericIssues} from "./funNumericIssues.mjs";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import JobIdentifier from "./JobIdentifier.jsx";
@@ -313,13 +314,14 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
         {template?.examples.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         <button type="button" disabled={!selected} onClick={()=>load()}>선택한 예제로 입력 교체</button></details>
     </fieldset>
-      <FunControlFields request={request} setRequest={setRequest} attach={attach} onImageSelectionStart={()=>{attachmentRevision.current++;}} onImageCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} removePose={()=>{setRequest(current=>({...current,pose_video:""}));setVideoInfo(null);setError(current=>current===poseError?"":current);setPoseError("");}} videoInfo={videoInfo} frameLimit={frameLimit} template={template} sourceSeed={sourceSeed} busy={busy || !!pending || Boolean(handoffId)}/>
+      <FunControlFields request={request} numericIssues={funNumericIssues(request,frameLimit,template.maximum_seed)} setRequest={setRequest} attach={attach} onImageSelectionStart={()=>{attachmentRevision.current++;}} onImageCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} removePose={()=>{setRequest(current=>({...current,pose_video:""}));setVideoInfo(null);setError(current=>current===poseError?"":current);setPoseError("");}} videoInfo={videoInfo} frameLimit={frameLimit} template={template} sourceSeed={sourceSeed} busy={busy || !!pending || Boolean(handoffId)}/>
       {embedded && <button type="button" onClick={saveDraft}>폼을 대화에 저장</button>}
       <ActionButton type="submit" reasons={[
         imageCheckPending && "선택한 이미지 확인이 끝날 때까지 기다리세요.",
         !request.prompt.trim() && "동작 프롬프트를 입력하세요.",
         !request.images[0] && "외형 참조 이미지를 선택하세요.",
-        !request.pose_video && "포즈 영상을 선택하세요."
+        !request.pose_video && "포즈 영상을 선택하세요.",
+        ...Object.values(funNumericIssues(request,frameLimit,template.maximum_seed))
       ]}>생성 요청 검토</ActionButton>
     </fieldset></form>}
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/>
