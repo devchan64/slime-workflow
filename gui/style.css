@@ -326,7 +326,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
   padding:clamp(.75rem,2vw,1rem);
   gap:.75rem;
 }
-.fun-control-page > form {display:block;margin:0;padding:0;max-width:none}
+.fun-control-page > form,.fun-control-page .generator-section-card-body > form {display:block;width:100%;margin:0;padding:0;max-width:none}
 .fun-control-page > form > fieldset {
   min-width:0;
   margin:0;
@@ -421,6 +421,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .translation-page .translation-input > label select {font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
 .translation-evidence :is(h3,p) {overflow-wrap:anywhere}
 .effect-editor-page {width:min(100% - 2rem,90rem);margin:1.5rem auto;gap:.8rem}
+.conversation-return-link {align-self:start;justify-self:start;overflow-wrap:anywhere;text-underline-offset:.2em}
 .effect-editor-page > h1 {flex:none;font-size:1.5rem}
 .effect-editor-picker {min-width:0;padding:1rem;border:1px solid var(--line);border-radius:.75rem}
 .effect-editor-picker select {width:min(100%,24rem);font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem;margin:.2rem .4rem .2rem 0}
@@ -536,6 +537,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .flux-standalone > form > fieldset > label :is(input,textarea,select) {width:100%;min-width:0}
 .flux-standalone > form > fieldset > label textarea {min-height:5rem;resize:vertical}
 .flux-standalone > form > fieldset > label select {font:inherit;color:inherit;background:var(--surface,#25292c);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
+.flux-page .generator-section-card-body > form {display:block;width:100%;max-width:none;margin:0;padding:0}
 .flux-page .generator-section-card-body > form > fieldset {border:0;margin:0;padding:0;min-width:0;box-sizing:border-box}
 .flux-page .generator-section-card-body > form > fieldset > label {display:grid;gap:.35rem;margin:.75rem 0}
 .flux-page .generator-section-card-body > form > fieldset > label :is(input,textarea,select) {width:100%;min-width:0}
@@ -607,6 +609,8 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .single-generator-page > h1 {flex:none;font-size:1.5rem}
 .kimodo-standalone-form form {display:block;width:100%;max-width:none;margin:0;padding:0}
 .kimodo-standalone-form fieldset {min-width:0;margin:.65rem 0;padding:.8rem;border:1px solid var(--line);border-radius:.6rem}
+.generator-page-common .generator-section-card-body > [aria-label="Kimodo 생성 입력"] form {display:block;width:100%;max-width:none;margin:0;padding:0}
+.generator-page-common .generator-section-card-body > [aria-label="Kimodo 생성 입력"] form > fieldset {margin:0;padding:0;border:0}
 .kimodo-standalone-form label:not(.reference-image-file):not(.kimodo-mode-options label) {display:grid;gap:.3rem;margin:.65rem 0;color:var(--muted);font-size:.9rem}
 .kimodo-standalone-form :is(input,select,textarea,video,img) {max-width:100%;min-width:0}
 .kimodo-standalone-form input:not([type=file]):not([type=checkbox]):not([type=radio]),.kimodo-standalone-form :is(select,textarea) {width:100%}
@@ -655,6 +659,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .audio-generator-page form > fieldset {width:100%;min-width:0}
 .audio-generator-page :where([tabindex="-1"]):focus {outline:2px solid var(--accent,#b5d8ff);outline-offset:3px}
 .audio-generator-page > :is(.audio-history-controls,.audio-examples-controls) {min-width:0;margin:0;padding:0;border:0}
+.audio-generator-page .generator-section-card-body > form {display:block;width:100%;max-width:none;margin:0;padding:0}
 .audio-generator-page .generator-section-card-body > .audio-examples-controls,.audio-generator-page .generator-section-card-body > form > fieldset {min-width:0;margin:0;padding:0;border:0;box-sizing:border-box}
 .audio-standalone {width:min(100% - 2rem,56rem);margin:1.5rem auto;gap:.8rem}
 .audio-standalone > h1 {flex:none;font-size:1.5rem}
@@ -684,6 +689,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .model-management-page {width:min(100% - 2rem,56rem);margin:1.5rem auto;gap:1rem}
 .model-management-page h1 {flex:none;font-size:1.5rem;line-height:1.25}
 .model-management-page > a {align-self:start;text-underline-offset:.2em}
+.model-management-page > button {align-self:start;max-width:100%}
 .model-management-page > label {display:grid;gap:.4rem;max-width:32rem}
 .model-management-page select {width:100%;font:inherit;color:inherit;background:var(--surface,#202326);border:1px solid var(--line,#484d50);border-radius:.5rem;padding:.55rem .8rem}
 .model-management-page > section {padding:1rem;border:1px solid var(--line,#484d50);border-radius:.75rem;background:var(--surface,#202326);overflow-wrap:anywhere}
@@ -949,6 +955,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .animate-page.generator-page-common {--generator-section-gap:1.25rem;display:grid;align-content:start;max-width:var(--generator-page-width);margin-inline:auto}
 .animate-standalone.generator-page-common {width:min(100% - 2rem,var(--generator-page-width))}
 .animate-page.generator-page-common > fieldset {border:0;padding:0;margin:0;min-width:0}
+.animate-page.generator-page-common .generator-section-card-body > section > form {display:block;width:100%;max-width:none;margin:0;padding:0}
 .animate-page.generator-page-common form > fieldset {padding:var(--generator-fieldset-padding)}
 .animate-page.generator-page-common form > fieldset.animate-inputs {flex:1;width:100%;box-sizing:border-box;padding:0;margin:0;border:0;min-width:0}
 .animate-page.generator-page-common form label:not(.reference-image-file) {display:grid;gap:var(--generator-field-gap);margin:var(--generator-field-margin) 0;color:var(--muted);font-size:.9rem}

@@ -1,5 +1,7 @@
 import hashlib
+import io
 import json
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -12,6 +14,55 @@ from workflow.common.model_backup_sync import sync_snapshot
 
 
 class CatalogBackupTargetTest(unittest.TestCase):
+    def test_corrupt_snapshot_falls_back_to_verified_download_without_changing_backup(self):
+        from workflow.common.model_http_download import download_verified_http
+        @contextmanager
+        def track(*args, **kwargs):
+            yield {}
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'local', root/'backup'
+            model = source/'example'
+            model.mkdir(parents=True)
+            backup.mkdir()
+            content = b'correct model bytes'
+            target = model/'weights'
+            target.write_bytes(content)
+            result = sync_snapshot('example', 'd'*32, roots=(source, backup, None))
+            target.rename(root/'preserved-original')
+            snapshot_file = Path(result['path'])/'weights'
+            snapshot_file.write_bytes(b'corrupted model data')
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            response = io.BytesIO(content)
+            response.status = 200
+            response.headers = {'Content-Length': str(len(content))}
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config), \
+                 patch('workflow.common.model_http_download.track_model_download', track), \
+                 patch('urllib.request.urlopen', return_value=response) as download:
+                download_verified_http('https://example.invalid/weights', target, hashlib.sha256(content).hexdigest(), 'example')
+            self.assertEqual(download.call_count, 1)
+            self.assertEqual(target.read_bytes(), content)
+            self.assertEqual((root/'preserved-original').read_bytes(), content)
+            self.assertEqual(snapshot_file.read_bytes(), b'corrupted model data')
+
+    def test_existing_unverified_model_is_preserved_without_backup_or_download(self):
+        from workflow.common.model_http_download import download_verified_http
+        @contextmanager
+        def track(*args, **kwargs):
+            yield {}
+        with TemporaryDirectory() as temporary:
+            target = Path(temporary)/'weights'
+            target.write_bytes(b'existing data')
+            with patch('workflow.common.model_http_download.track_model_download', track), \
+                 patch('workflow.common.model_backup_restore.restore_verified_backup') as restore, \
+                 patch('urllib.request.urlopen') as download:
+                with self.assertRaisesRegex(ValueError, '기존 파일 해시 불일치'):
+                    download_verified_http('https://example.invalid/weights', target, hashlib.sha256(b'expected').hexdigest(), 'example')
+            restore.assert_not_called()
+            download.assert_not_called()
+            self.assertEqual(target.read_bytes(), b'existing data')
+
     def test_new_snapshot_reports_copy_verification_progress(self):
         with TemporaryDirectory() as temporary:
             root = Path(temporary)

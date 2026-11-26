@@ -21,6 +21,7 @@ export default function ModelBackupCompare({requestedSelection}) {
   const [selectionNeedsConfirmation,setSelectionNeedsConfirmation]=useState(false);
   const [modelQuery, setModelQuery] = useState('');
   const [target, setTarget] = useState('canonical');
+  const automaticSnapshotTarget = useRef(false);
   const [comparison, setComparison] = useState(null);
   const [comparisonOrigin, setComparisonOrigin] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -58,6 +59,17 @@ export default function ModelBackupCompare({requestedSelection}) {
   const [pendingRequest, setPendingRequest] = useState(() => {
     try {return readPendingBackupRequest(sessionStorage);} catch {return null;}
   });
+
+  function selectModel(model) {
+    if (model.local_present === false && model.snapshot_present === true) {
+      setTarget('snapshot_manifest');
+      automaticSnapshotTarget.current = true;
+    } else if (automaticSnapshotTarget.current) {
+      setTarget('canonical');
+      automaticSnapshotTarget.current = false;
+    }
+    setSelected(model.name);
+  }
 
   useEffect(() => {
     if (target === 'legacy' && !legacyModels.has(selected)) setTarget('canonical');
@@ -121,7 +133,7 @@ export default function ModelBackupCompare({requestedSelection}) {
       return;
     }
     handledSelection.current = requestedSelection;
-    setSelectionNotice(''); setSelectionNeedsConfirmation(false); setSelected(requestedSelection.name); setModelQuery('');
+    setSelectionNotice(''); setSelectionNeedsConfirmation(false); selectModel(models.find(model => model.name === requestedSelection.name)); setModelQuery('');
     setComparison(null); setMetadata(null); setJobResult(null);
     if (requestedSelection.jobId) showJob(requestedSelection.jobId);
   }, [requestedSelection, busy, modelsLoading, modelsError, models]);
@@ -243,13 +255,13 @@ export default function ModelBackupCompare({requestedSelection}) {
     {selectedModel?.equivalent_target && <p>백업 대상 {selectedModel.equivalent_target}은 같은 디렉터리입니다. 각각 백업하면 내용이 여러 스냅샷에 저장됩니다.</p>}
     {(models.length > 0 || (!modelsLoading && !modelsError)) && <p role="status">{modelQuery.trim() ? `검색 결과 ${matchingModels.length}개 / 전체 ${models.length}개` : `디렉터리 ${models.length}개`}{searchTerms.length > 0 && selected && !matchingModels.some(model => model.name === selected) ? ' · 현재 선택은 유지됩니다.' : ''}</p>}
     {matchingModels.length > 0 && <div role="group" aria-label="백업 모델 디렉터리 목록" className="model-choice-list">
-      {matchingModels.map(model => <button key={model.name} type="button" className="generator-history-select" aria-pressed={selected === model.name} disabled={busy || modelsLoading || !!modelsError} onClick={() => {handledSelection.current = requestedSelection; setSelectionNotice(''); setSelectionNeedsConfirmation(false); setSelected(model.name); setComparison(null); setMetadata(null); setJobResult(null);}}><span className="history-card-content"><span className="history-card-heading"><strong>{directoryLabel(model.name, model.relative_path)}</strong>{selected === model.name && <span>{selectionNeedsConfirmation ? '선택 확인 필요' : '선택됨'}</span>}</span><small className="history-card-summary">로컬 {presence(model.local_present)} · 기존 공유 {presence(model.backup_present)} · 완료 스냅샷 {presence(model.snapshot_present)}</small></span></button>)}
+      {matchingModels.map(model => <button key={model.name} type="button" className="generator-history-select" aria-pressed={selected === model.name} disabled={busy || modelsLoading || !!modelsError} onClick={() => {handledSelection.current = requestedSelection; setSelectionNotice(''); setSelectionNeedsConfirmation(false); selectModel(model); setComparison(null); setMetadata(null); setJobResult(null);}}><span className="history-card-content"><span className="history-card-heading"><strong>{directoryLabel(model.name, model.relative_path)}</strong>{selected === model.name && <span>{selectionNeedsConfirmation ? '선택 확인 필요' : '선택됨'}</span>}</span><small className="history-card-summary">로컬 {presence(model.local_present)} · 기존 공유 {presence(model.backup_present)} · 완료 스냅샷 {presence(model.snapshot_present)}</small></span></button>)}
     </div>}
     {modelQuery.trim() && matchingModels.length === 0 && !modelsLoading && !modelsError && <p>일치하는 디렉터리가 없습니다. 다른 이름으로 검색하세요.</p>}
     <p>‘기존 공유’는 현재 복사된 공유 폴더이며, ‘완료 스냅샷’은 이 관리 기능으로 별도 저장한 백업입니다. 있음은 파일 내용이 일치한다는 뜻이 아닙니다.</p>
     <p>스냅샷은 Samba 백업 경로의 숨김 폴더 <code>.model-backup-snapshots/모델/작업ID</code>에 저장됩니다. 파일 관리자에서 숨김 파일을 표시해야 볼 수 있습니다. 복사·검증 중에는 <code>.pending-작업ID</code> 폴더에 있으며 완료 후 작업 ID 폴더로 게시됩니다.</p>
     <p>스냅샷 백업은 모델 루트 안의 심볼릭 링크를 따라 대상 파일을 복사합니다. 링크 자체와 공유 관계는 보존하지 않으므로 복원 시 중복 용량이 생길 수 있습니다.</p>
-    <label>비교 대상 <select value={target} disabled={busy} onChange={event => {setTarget(event.target.value); setComparison(null);}}>
+    <label>비교 대상 <select value={target} disabled={busy} onChange={event => {automaticSnapshotTarget.current = false; setTarget(event.target.value); setComparison(null);}}>
       <option value="canonical">기존 공유 디렉터리</option>
       <option value="legacy" disabled={!legacyModels.has(selected)}>이관 전 공유 디렉터리</option>
       <option value="latest_snapshot">가장 최근 완료 스냅샷</option>

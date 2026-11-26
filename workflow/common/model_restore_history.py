@@ -17,7 +17,9 @@ def write_restore_record(result, *, directory=HISTORY_DIR):
             or type(result.get('files')) is not int or result['files'] <= 0
             or type(result.get('bytes')) is not int or result['bytes'] < 0
             or not isinstance(result.get('timestamp_mismatches'), list)
-            or not isinstance(result.get('partial_files'), list)):
+            or not isinstance(result.get('partial_files'), list)
+            or len(result['timestamp_mismatches']) > result['files']
+            or len(result['partial_files']) > result['files']):
         raise ValueError('복원 관측 기록이 올바르지 않습니다.')
     record = {'version': 1, 'model': model, 'snapshot_id': snapshot,
               'observed_at': datetime.now(timezone.utc).isoformat(),
@@ -55,7 +57,11 @@ def read_restore_record(model, *, directory=HISTORY_DIR):
                 or not isinstance(record.get('snapshot_id'), str) or not re.fullmatch(r'[0-9a-f]{32}', record['snapshot_id'])
                 or not isinstance(record.get('observed_at'), str) or record.get('verification') != 'snapshot_manifest_sha256'
                 or any(type(record.get(key)) is not int or record[key] < 0 for key in ('files', 'bytes', 'partial_files', 'timestamp_mismatches'))
-                or record['files'] == 0):
+                or record['files'] == 0 or record['partial_files'] > record['files']
+                or record['timestamp_mismatches'] > record['files']):
+            return None
+        observed = datetime.fromisoformat(record['observed_at'])
+        if observed.tzinfo is None or observed.utcoffset() is None:
             return None
         return record
     except (OSError, ValueError, TypeError):

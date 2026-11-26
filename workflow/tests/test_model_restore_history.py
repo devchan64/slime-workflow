@@ -30,3 +30,17 @@ class RestoreHistoryTests(unittest.TestCase):
             path.unlink()
             path.symlink_to('/etc/passwd')
             self.assertIsNone(read_restore_record('example', directory=directory))
+
+    def test_rejects_impossible_counts_and_unzoned_or_invalid_observation_time(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = {'model': 'example', 'snapshot_id': 'a' * 32, 'files': 1, 'bytes': 10,
+                      'verification': 'snapshot_manifest_sha256', 'timestamp_mismatches': [], 'partial_files': []}
+            record = write_restore_record(result, directory=directory)
+            path = Path(directory) / 'example.json'
+            for change in ({'partial_files': 2}, {'timestamp_mismatches': 2},
+                           {'observed_at': 'not-a-date'}, {'observed_at': '2026-11-26T12:00:00'}):
+                with self.subTest(change=change):
+                    path.write_text(json.dumps({**record, **change}))
+                    self.assertIsNone(read_restore_record('example', directory=directory))
+            with self.assertRaises(ValueError):
+                write_restore_record({**result, 'partial_files': ['a', 'b']}, directory=directory)

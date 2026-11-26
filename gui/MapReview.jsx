@@ -6,6 +6,8 @@ import {progressDeadline} from "./progressDeadline.mjs";
 import ActionButton from "./ActionButton.jsx";
 import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import {validMapDraftPreview,mapDraftSaveReason,isMapCellDirty,invalidMapCellHeight,readMapCell} from "./mapDraftPreview.mjs";
+import usePageTitle from "./usePageTitle.js";
+import ConversationLink from "./ConversationLink.jsx";
 
 export function MapDraftFileInput({cellDirty,error,onFile,inputRef}){
   return <><label>초안 JSON 불러오기<input ref={inputRef} type="file" accept=".json,application/json" disabled={cellDirty} aria-invalid={error ? true : undefined} aria-describedby={[cellDirty && "map-cell-pending-reason",error && "map-import-error"].filter(Boolean).join(" ") || undefined} onChange={event=>{
@@ -43,6 +45,7 @@ export function MapBrushErrors({errors,onDismiss}){
 export default function MapReview(){
   const field=location.pathname.replace(/\/$/,"").endsWith("/field-map");
   const title=field?"야외필드":"도시맵";
+  usePageTitle(title+" 검수",false);
   const [cell,setCell]=useState(null),[reading,setReading]=useState(false);
   const heightErrorId=useId();
   const [cellOriginal,setCellOriginal]=useState(null);
@@ -364,7 +367,7 @@ export default function MapReview(){
     const brushPending=field && (window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length);
     if((cellDirty || unsafeAutosave || saving || brushPending) && event.button===0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey){event.preventDefault();setFeedback(saving ? "지도 저장 결과를 확인하는 중입니다." : brushPending ? "진행 중이거나 대기 중인 브러시 편집을 먼저 처리하세요. 셀 입력이 변경됐다면 취소한 뒤 다시 시도하세요." : cellDirty ? "변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요." : "탭 임시저장을 확인하지 못했습니다. 이동 전 초안을 저장하거나 JSON으로 내려받으세요.");}
   }
-  return <article className="map-review"><MapReviewNavigation field={field} destination={destination} onNavigate={guardNavigation} saving={saving} cellDirty={cellDirty} unsafeAutosave={unsafeAutosave}/>
+  return <article className="map-review"><ConversationLink/><MapReviewNavigation field={field} destination={destination} onNavigate={guardNavigation} saving={saving} cellDirty={cellDirty} unsafeAutosave={unsafeAutosave}/>
     <h1 id="map-title" tabIndex={-1}>{title} 검수</h1>
     <fieldset className="map-view-controls" disabled={!ready} aria-describedby={!ready ? "status" : undefined}><legend>지도와 시점</legend>
       <div className="map-selection-row"><label>맵 선택<select id="map-select" disabled={Boolean(draft) || reading} aria-describedby={mapSelectionReasons({draft,field,reading,saving})}/></label><button id="load-map" disabled={Boolean(draft) || reading} aria-describedby={mapSelectionReasons({draft,field,reading,saving})}>맵 불러오기</button></div>

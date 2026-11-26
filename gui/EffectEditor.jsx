@@ -1,5 +1,6 @@
 import SnapshotStatus from "./SnapshotStatus.jsx";
 import React,{useEffect,useId,useRef,useState} from "react";
+import ConversationLink from "./ConversationLink.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {validEffectDetail,validWaypointFrames} from "./effectDetailValidation.mjs";
@@ -264,7 +265,7 @@ export default function EffectEditor(){
   const choices=choiceLabels(effects.map(item=>[item.name,item.id]));
   const detailMissing=Boolean(detail && listCheckedAt && !effects.some(item=>item.id===detail.document.id));
   useEffect(()=>{if((detailStale || detailMissing) && restoreStaleFocus.current){restoreStaleFocus.current=false;restoreLostFocus(document,staleDetailRef.current);}},[detailStale,detailMissing]);
-  return <article className="effect-editor-page"><h1 ref={pageHeading} tabIndex={-1}>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy || editorBusy} aria-describedby={busy || editorBusy ? pickerBusyId : undefined}><legend>이펙트 선택</legend>
+  return <article className="effect-editor-page"><ConversationLink/><h1 ref={pageHeading} tabIndex={-1}>이펙트 좌표 검수</h1><fieldset className="effect-editor-picker" disabled={busy || editorBusy} aria-describedby={busy || editorBusy ? pickerBusyId : undefined}><legend>이펙트 선택</legend>
     <select ref={selectRef} aria-label="이펙트" aria-describedby={dirty ? dirtyHelpId : !effects.length ? selectionHelpId : undefined} disabled={dirty || !effects.length} value={selected} onChange={e=>{select(e.target.value);setDetail(null);setDetailStale(false);}}>
       {selected && !effects.some(item=>item.id===selected) && <option value={selected}>{selected} · 현재 목록에 없음</option>}
       {!effects.length && <option value="">{busy ? "목록 조회 중…" : error ? "이펙트 목록 조회 실패" : "선택할 이펙트가 없습니다"}</option>}

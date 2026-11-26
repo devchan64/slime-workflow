@@ -1,4 +1,5 @@
 import React,{useEffect,useId,useRef,useState} from "react";
+import ConversationLink from "./ConversationLink.jsx";
 import {untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {validBattlefieldState,battlefieldLoadFailed,sameBattlefieldState} from "./battlefieldState.mjs";
@@ -97,7 +98,7 @@ export default function BattlefieldReview(){
   }
   const back=new URL(location.href);back.pathname="/management/frame/map-review/";back.searchParams.set("mapKind","field");back.searchParams.delete("field");
   const defaultField=new URL(location.href);const hasField=defaultField.searchParams.has("field");defaultField.searchParams.delete("field");
-  return <article className="battlefield-review"><a href={back.href}>지도 검수로 돌아가기</a><h1>전투필드 검수</h1>
+  return <article className="battlefield-review"><ConversationLink/><a href={back.href}>지도 검수로 돌아가기</a><h1>전투필드 검수</h1>
     {error && <BattlefieldError error={error} cleanupFailed={cleanupFailed} retryRef={retryRef} href={location.href} defaultHref={hasField ? defaultField.href : undefined} onRetry={event=>{if(retryPending.current)return;retryPending.current=true;restoreFocus.current=document.activeElement===event.currentTarget;setError("");retry(value=>value+1);}}/>}
     {!state && !error && <p role="status">전장 검수 화면을 불러오는 중입니다.</p>}
     {state && <BattlefieldControls state={state} controlsRef={controls} selectRef={selectRef} cameraReasonId={cameraReasonId} onSelect={select}

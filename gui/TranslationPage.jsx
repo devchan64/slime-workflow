@@ -24,6 +24,7 @@ import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {parseTranslationGlossary} from "./translationGlossary.mjs";
 import {generationReady} from "./generationReady.mjs";
+import usePageTitle from "./usePageTitle.js";
 
 const service="prompt-translation";
 const callHermes=(command,payload,options)=>managementCommand("hermes-agent","hermes-"+command,payload,options);
@@ -52,7 +53,7 @@ export default function TranslationPage({embedded=false,session:embeddedSession=
   const [historyRevision,setHistoryRevision]=useState(0);
   const sending=useRef(false),submitRequest=useRef(null);
   const live=useLiveRefresh(()=>setRevision(value=>value+1),Boolean(job) && (!record || ["queued","running"].includes(record.status?.status)));
-  useEffect(()=>{if(!embedded)document.title="프롬프트 번역";},[embedded]);
+  usePageTitle("프롬프트 번역",embedded);
   useEffect(()=>()=>{if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);const current=submitRequest.current;submitRequest.current=null;current?.controller.abort();},[]);
   useEffect(()=>{setStatusError("");setStatusCheckedAt(null);setStatusFailedAt(null);},[job]);
   useEffect(()=>{if(!pending)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===origin) && reviewRef.current?.isConnected)reviewRef.current.focus();});return ()=>cancelAnimationFrame(frame);},[pending]);

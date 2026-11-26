@@ -62,9 +62,33 @@ export function withObservedPartialDownloads(components) {
     (component.alternate_installations || []).some(install => install.storage_observation?.partial_files > 0));
 }
 
+export function partialDownloadCandidates(components) {
+  const candidates = new Map();
+  for (const component of components) {
+    const item = component.declaration;
+    const installs = [{path:item.path, backup_target:item.path.includes('/') ? null : item.path,
+      ...component.presence, storage_observation:component.storage_observation, restore_record:component.restore_record},
+      ...(component.alternate_installations || []).filter(install => !install.retained_original && !install.external_cache)];
+    for (const install of installs) {
+      if (!install.path || !(install.storage_observation?.partial_files > 0)) continue;
+      const key = `${item.id}\0${install.path}`;
+      const previous = candidates.get(key);
+      if (!previous || install.backup_target === install.path) candidates.set(key, {declaration:item, ...install});
+    }
+  }
+  return [...candidates.values()];
+}
+
 export function installationJobs(jobs, target) {
   if (!Array.isArray(jobs) || !target) return [];
   return jobs.filter(job => job && job.model === target);
+}
+
+export function preferredCurrentInstallation(alternates) {
+  const available = (alternates || []).filter(install => install.local_present === true && install.backup_target);
+  const first = available[0];
+  if (!first) return undefined;
+  return available.find(install => install.path === first.path && install.backup_target === first.path) || first;
 }
 
 export function relatedActivity(activity, services) {

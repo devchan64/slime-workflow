@@ -1,6 +1,7 @@
 import {invalidSpriteGridCount,invalidSpriteGrid,invalidSpriteFrameRange,spriteFrameIssue,spriteFrameFieldIssues,spriteOutputSizeIssues} from "./spriteGridValidation.mjs";
 import SpriteAnchorRestore from "./SpriteAnchorRestore.jsx";
 import React,{useEffect,useId,useRef,useState} from "react";
+import ConversationLink from "./ConversationLink.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
@@ -471,7 +472,7 @@ export default function SpriteSheetEditor(){
   function search(nextSource){
     requestChange({kind:"search",source:nextSource,query});
   }
-  return <article className="sprite-editor-page"><h1>스프라이트 시트 편집기</h1><LocalSheet/>
+  return <article className="sprite-editor-page"><ConversationLink/><h1>스프라이트 시트 편집기</h1><LocalSheet/>
     <form className="sprite-search" aria-busy={searchBusy} onSubmit={event=>{event.preventDefault();search(source);}}>
       <label>검색 원본<select value={source} disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} onChange={event=>search(event.target.value)}>
         <option value="assets">에셋 스프라이트</option><option value="baseline">베이스라인 스프라이트</option></select></label>

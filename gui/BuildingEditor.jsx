@@ -1,4 +1,5 @@
 import React,{useEffect,useId,useRef,useState} from "react";
+import ConversationLink from "./ConversationLink.jsx";
 import {drawBuildingPreview} from "./drawBuildingPreview.js";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
@@ -249,7 +250,7 @@ export default function BuildingEditor(){
     finally{if(retiring.current===controller){retiring.current=null;setBusy(false);}}
   }
   const image=id=>"/management/assistant/building-image/"+encodeURIComponent(id);
-  return <article className="building-editor-page"><h1>건물 에셋 관리</h1>
+  return <article className="building-editor-page"><ConversationLink/><h1>건물 에셋 관리</h1>
     <button ref={reloadButton} type="button" disabled={busy || dirty || loading} aria-describedby={[busy && busyId,dirty && dirtyId,loading && loadingId].filter(Boolean).join(" ") || undefined} onClick={()=>refreshCatalog(document.activeElement===reloadButton.current)}>{loading ? "건물 목록 조회 중…" : "건물 목록 다시 읽기"}</button>
     {busy && <p id={busyId} role="status">건물 요청을 처리하고 있습니다.</p>}
     {dirty && <p id={dirtyId} role="status">저장하지 않은 건물 속성이 있습니다. 저장하거나 편집을 취소한 뒤 목록을 다시 읽거나 다른 건물을 선택하세요.</p>}

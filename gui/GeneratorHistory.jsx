@@ -9,6 +9,7 @@ import {validGeneratorHistoryPage} from "./generatorHistoryPage.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import {SavedInputDetails} from "./SavedGeneratorInputs.jsx";
 import {imageRetryUrl} from "./imageRetryUrl.mjs";
+import {startVisibleImageLoadDeadline} from "./imageLoadDeadline.mjs";
 
 function recordedTime(id) {
   const match=typeof id==="string" && id.match(/^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})-/);
@@ -31,8 +32,20 @@ export function HistoryImage({service,record,summary,unavailable,revision=0}) {
 
 function HistoryThumbnail({src}) {
   const [failed,setFailed]=useState(false);
-  if(failed)return <span className="history-card-image-placeholder">미리보기 실패 · 이력 새로고침</span>;
-  return <img className="history-card-image" loading="lazy" decoding="async" src={src} alt="생성 결과 미리보기" onError={()=>setFailed(true)}/>;
+  const image=useRef(null),cancelDeadline=useRef(null),settled=useRef(false);
+  useEffect(()=>{
+    if(settled.current)return;
+    const cancel=startVisibleImageLoadDeadline(image.current,()=>{cancelDeadline.current=null;settled.current=true;setFailed("timeout");});
+    cancelDeadline.current=cancel;
+    return ()=>{cancel();if(cancelDeadline.current===cancel)cancelDeadline.current=null;};
+  },[]);
+  function finish(error){
+    if(settled.current)return;
+    settled.current=true;cancelDeadline.current?.();cancelDeadline.current=null;
+    if(error)setFailed("error");
+  }
+  if(failed)return <span className="history-card-image-placeholder">{failed==="timeout" ? "미리보기 시간 초과" : "미리보기 실패"} · 이력 새로고침</span>;
+  return <img ref={image} className="history-card-image" loading="lazy" decoding="async" src={src} alt="생성 결과 미리보기" onLoad={()=>finish(false)} onError={()=>finish(true)}/>;
 }
 
 export function HistoryPagination({page,query,filter,pageSize,hintId,onPage}) {

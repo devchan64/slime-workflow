@@ -7,6 +7,23 @@ import {requestErrorMessage} from '../../gui/requestError.mjs';
 import {backupDirectories, backupTargetLabel, modelBackupPage, verificationSummary, validBackupJob, validBackupComparison, validBackupMetadata, validBackupModels, backupActionReasons} from '../../gui/modelBackupResults.mjs';
 import {validCatalogHistory} from '../../gui/modelCatalogSearch.mjs';
 
+test('스냅샷만 있는 모델 선택은 자체 무결성으로 이동하고 다음 모델은 기본값으로 돌아간다', () => {
+  const source = readFileSync(new URL('../../gui/ModelBackupCompare.jsx', import.meta.url), 'utf8');
+  const start = source.indexOf('  function selectModel(model)'), end = source.indexOf('\n  useEffect(', start);
+  assert.ok(start >= 0 && end > start);
+  const context = vm.createContext({automaticSnapshotTarget: {current: false}, target: 'legacy', selected: '',
+    setTarget(value) { context.target = value; }, setSelected(value) { context.selected = value; }});
+  vm.runInContext(source.slice(start, end) + '\nthis.selectModel = selectModel;', context);
+  context.selectModel({name: 'snapshot-only', local_present: false, snapshot_present: true});
+  assert.equal(context.target, 'snapshot_manifest');
+  assert.equal(context.selected, 'snapshot-only');
+  context.selectModel({name: 'local', local_present: true, snapshot_present: true});
+  assert.equal(context.target, 'canonical');
+  context.target = 'latest_snapshot';
+  context.selectModel({name: 'unknown', local_present: null, snapshot_present: true});
+  assert.equal(context.target, 'latest_snapshot');
+});
+
 test('작업 결과 조회 시간 초과는 중복을 막고 대기를 해제한다', async () => {
   const source = readFileSync(new URL('../../gui/ModelBackupCompare.jsx', import.meta.url), 'utf8');
   const start = source.indexOf('  async function showJob(jobId)'), end = source.indexOf('  const pageSize', start);

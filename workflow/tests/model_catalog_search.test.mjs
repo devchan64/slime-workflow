@@ -1,10 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {installationJobs, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification, withObservedPartialDownloads} from '../../gui/modelCatalogSearch.mjs';
+import {installationJobs, partialDownloadCandidates, preferredCurrentInstallation, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification, withObservedPartialDownloads} from '../../gui/modelCatalogSearch.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
+
+test('미완료 후보는 동일 설치 경로를 합치고 직접 백업 대상의 상태를 연결한다', () => {
+  const observation={partial_files:2,partial_allocated_bytes:100};
+  const component={declaration:{id:'m',label:'Model',path:'old',services:['worker']},presence:null,
+    alternate_installations:[{path:'new',backup_target:'catalog-m',storage_observation:observation,snapshot_present:false},
+      {path:'new',backup_target:'new',storage_observation:observation,snapshot_present:true},
+      {path:'retained',retained_original:true,storage_observation:observation}]};
+  const candidates=partialDownloadCandidates([component]);
+  assert.equal(candidates.length,1);
+  assert.equal(candidates[0].backup_target,'new');
+  assert.equal(candidates[0].snapshot_present,true);
+  assert.equal(candidates[0].storage_observation.partial_allocated_bytes,100);
+});
+
+test('이관된 설치본은 같은 경로의 직접 백업 대상을 우선한다', () => {
+  const alias={path:'new',backup_target:'catalog-model',local_present:true,snapshot_present:false};
+  const direct={path:'new',backup_target:'new',local_present:true,snapshot_present:true};
+  const another={path:'other',backup_target:'other',local_present:true};
+  assert.equal(preferredCurrentInstallation([alias,direct,another]),direct);
+  assert.equal(preferredCurrentInstallation([alias,another]),alias);
+  assert.equal(preferredCurrentInstallation([{...direct,local_present:false}]),undefined);
+});
 
 test('미완료 확장자 필터는 실제 조사된 설치본만 포함한다',()=>{
   const noSurvey={id:'unknown'}, empty={id:'empty',storage_observation:{partial_files:0}},
@@ -21,7 +43,7 @@ test('카탈로그 조회 지연은 중복을 막고 이전 결과를 유지하�
     const requestRef={current:null};
     const component={declaration:{id:'test',label:'테스트',kind:'model',path:'test',services:[]},alternate_installations:[{retained_original:true},{local_present:true,backup_target:'target'}]};
     const response={components:[component],unclassified:[]};
-    const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validCatalogOverview,validCatalogHistory,validCatalogVerification,requestRef,setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setError:value=>error=value,setJobs:()=>{},setJobsError:()=>{},setVerificationRecords:()=>{},setResult:value=>result=value,setCheckedAt:()=>{},managementCommand:(_service,command)=>{calls++;if(slow && command===delayed)return new Promise(()=>{});return Promise.resolve(command==='catalog-overview' ? response : command==='backup-verify-history' ? {records:[{model:'target',operation:'verify',job_id:'job'}]} : {job_id:'job',model:'target',status:'completed'});}});
+    const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validCatalogOverview,validCatalogHistory,validCatalogVerification,preferredCurrentInstallation,requestRef,setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setError:value=>error=value,setJobs:()=>{},setJobsError:()=>{},setVerificationRecords:()=>{},setResult:value=>result=value,setCheckedAt:()=>{},managementCommand:(_service,command)=>{calls++;if(slow && command===delayed)return new Promise(()=>{});return Promise.resolve(command==='catalog-overview' ? response : command==='backup-verify-history' ? {records:[{model:'target',operation:'verify',job_id:'job'}]} : {job_id:'job',model:'target',status:'completed'});}});
     vm.runInContext(source.slice(start,end),context);
     const first=context.load();await context.load();await new Promise(done=>setImmediate(done));const initialCalls=calls;
     timeout();await first;assert.match(error,/시간이 초과/);assert.equal(busy,false);assert.equal(result,'old');assert.equal(requestRef.current,null);

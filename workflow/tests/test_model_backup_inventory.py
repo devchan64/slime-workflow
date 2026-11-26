@@ -375,6 +375,10 @@ class ModelBackupInventoryTest(unittest.TestCase):
             config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
             models = list_backup_models(config)['models']
             self.assertEqual(models, [{'name': 'model', 'local_present': False, 'backup_present': False, 'snapshot_present': True}])
+            from workflow.common.model_catalog import catalog_overview, read_catalog
+            overview = catalog_overview(read_catalog(), {'models': models}, include_manifests=False)
+            self.assertEqual([(item['name'], item['local_present'], item['backup_present'], item['snapshot_present'])
+                              for item in overview['unclassified']], [('model', False, False, True)])
             recovered_metadata = model_metadata('model', config_path=config, service_paths={})
             self.assertEqual(recovered_metadata['origin'], 'backup_snapshot')
             self.assertEqual(recovered_metadata['declared_sources'], metadata['declared_sources'])

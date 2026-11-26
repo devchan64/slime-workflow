@@ -1,7 +1,7 @@
 import React, {useEffect, useId, useRef, useState} from 'react';
 import {managementCommand, untilAborted} from './managementCommand.js';
 import {requestErrorMessage} from './requestError.mjs';
-import {installationJobs, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification, withObservedPartialDownloads} from './modelCatalogSearch.mjs';
+import {installationJobs, partialDownloadCandidates, preferredCurrentInstallation, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification, withObservedPartialDownloads} from './modelCatalogSearch.mjs';
 import {backupTargetLabel, verificationSummary} from './modelBackupResults.mjs';
 
 const kindLabels = {model: '모델', shared: '공유 구성요소', cache: '캐시', collection: '구성요소 모음'};
@@ -47,7 +47,7 @@ export default function ModelCatalog({onCompare}) {
         if (!entries.some(entry => entry.retained_original)) return [];
         const path = component.declaration.path;
         const active = component.presence?.local_present === true && !path.includes('/')
-          ? {backup_target: path} : entries.find(entry => entry.local_present === true && entry.backup_target);
+          ? {backup_target: path} : preferredCurrentInstallation(entries);
         return active ? [active.backup_target] : [];
       });
       const checks = await untilAborted(Promise.all(targets.map(async target => {
@@ -84,12 +84,22 @@ export default function ModelCatalog({onCompare}) {
           {(result.activity.reservations?.records || []).map((job, index) => <li key={`reservation-${index}`}>예약 기록 · {job.source_service || job.service || '서비스 확인 불가'} · {job.job_id || '작업 확인 불가'} · {job.state === 'recorded' ? '기록됨' : '상태 확인 필요'}</li>)}</ul>
       </details>}
       {jobs && <details><summary>최근 백업·검증 작업 {jobs.length}건</summary><p>최근 20건 기준이며 완료는 해시 일치를 뜻하지 않습니다. 복원 시험과 생성기 작업 상태는 여기에 포함되지 않습니다.</p><ul>{jobs.map(job => <li key={job.job_id}>{job.model || '대상 확인 불가'} · {job.operation === 'sync' ? '백업' : '검증'} · {({running: '진행 중', completed: '완료', failed: '실패', interrupted: '중단됨'}[job.status] || '상태 확인 불가')} · {job.started_at || '시각 확인 불가'} {job.model && <button type="button" aria-label={`${job.model} · ${job.job_id} 이 작업의 상태·결과 보기`} onClick={() => onCompare?.(job.model, job.job_id)}>이 작업의 상태·결과 보기</button>}</li>)}</ul></details>}
+      <details><summary>미완료 다운로드 관측 · {result.storage_survey ? `${partialDownloadCandidates(result.components).length}개 경로` : '조사 기록 확인 불가'}</summary>
+        <p>이전 조사에서 확장자로 식별한 파일입니다. 대기열과 예약은 등록 서비스 기준이며 직접 실행한 작업이나 실제 파일 사용 여부는 포함하지 않습니다. 현재 다운로드 진행 여부, 재사용 필요성과 실제 회수 가능 용량은 확인되지 않았습니다. 공유 의존성과 백업·복원 상태를 확인하기 전에는 삭제하지 마세요.</p>
+        {!result.storage_survey ? <p>조사 기록을 사용할 수 없습니다.</p> : <ul>{partialDownloadCandidates(result.components).map(candidate => {
+          const activity = relatedActivity(result.activity, candidate.declaration.services);
+          const matchingJobs = installationJobs(jobs, candidate.backup_target);
+          return <li key={`${candidate.declaration.id}:${candidate.path}`}><strong>{candidate.declaration.label}</strong> · {candidate.path} · 미완료 확장자 {candidate.storage_observation.partial_files}개 · 당시 할당 크기 {gib(candidate.storage_observation.partial_allocated_bytes)} · 등록 서비스 {candidate.declaration.services.join(', ') || '확인되지 않음'}<br/>
+            관련 서비스 대기 {candidate.declaration.services.length && result.activity?.queue?.status === 'available' ? `${activity.queued.length}건` : '확인 불가'} · 예약 {candidate.declaration.services.length && result.activity?.reservations?.status === 'available' && !result.activity.reservations.truncated ? `${activity.reservations.length}건` : '확인 불가'} · 최근 20건 중 백업·검증 작업 {jobs && candidate.backup_target ? `${matchingJobs.length}건 (진행 중 ${matchingJobs.filter(job => job.status === 'running').length}건)` : '확인 불가'}<br/>
+            백업 대상 {candidate.backup_target || '확인 불가'} · 완료 스냅샷 {present(candidate.snapshot_present)} · 과거 복원 기록 {restoreLabel(candidate.restore_record)} {candidate.backup_target && <button type="button" aria-label={`${candidate.path} 미완료 파일의 백업 비교로 이동`} onClick={() => onCompare?.(candidate.backup_target)}>백업 비교로 이동</button>}</li>;
+        })}</ul>}
+      </details>
       <details><summary>이관 후 보존 원본 확인</summary>
         <p>되돌리기용 원본입니다. 관측 크기는 회수 가능 용량이나 삭제 가능 판정이 아닙니다. 백업·검증 작업 수는 전체 대상의 최근 20건 중 해당 설치 경로의 기록이며, 상위 폴더나 이전 경로의 기록은 포함하지 않습니다. 복원 기록은 해당 대상의 과거 관측이며 현재 스냅샷의 상태를 보장하지 않습니다. 실제 파일 사용 여부는 확인되지 않았습니다.</p>
         <ul>{result.components.flatMap(({declaration: item, presence, restore_record: restoreRecord, alternate_installations: alternates = []}) => {
           const current = presence?.local_present === true && !item.path.includes('/')
             ? {...presence, path: item.path, backup_target: item.path, restore_record: restoreRecord}
-            : alternates.find(alt => alt.local_present === true && alt.backup_target);
+            : preferredCurrentInstallation(alternates);
           const activity = relatedActivity(result.activity, item.services);
           const matchingJobs = installationJobs(jobs, current?.backup_target);
           const verification = current && verificationRecords[current.backup_target];
@@ -116,7 +126,7 @@ export default function ModelCatalog({onCompare}) {
       <p role="status">검색 결과 {visibleComponents.length}개 / 등록 {result.components.length}개 · 미분류 디렉터리 {result.unclassified.length}개</p>
       {visibleComponents.length===0 && <p>{result.components.length===0 ? '등록된 카탈로그 항목이 없습니다.' : '일치하는 등록 항목이 없습니다. 검색어나 필터를 확인하세요.'}</p>}
       {visibleComponents.length>0 && <ul>{visibleComponents.map(({declaration: item, declared_version: version, presence: state, installation_metadata: installed, restore_record: restoreRecord, storage_observation: storage, observed_links: links, alternate_installations: alternates}) => {
-        const current = alternates?.find(alt => alt.local_present === true && alt.backup_target);
+        const current = preferredCurrentInstallation(alternates);
         const legacy = current && state?.local_present !== true;
         const currentTarget = legacy ? current.backup_target : (!item.path.includes('/') ? item.path : null);
         const matchingJobs = installationJobs(jobs, currentTarget);
@@ -145,7 +155,7 @@ export default function ModelCatalog({onCompare}) {
       </li>})}</ul>}
       <details><summary>미분류 디렉터리 {result.unclassified.length}개 보기</summary>
         <p>미분류는 미사용이나 삭제 가능을 뜻하지 않습니다.</p>
-        <ul>{result.unclassified.map(item => <li key={item.name}>{item.name} · {item.partially_classified && '일부 구성요소 등록됨 · '}로컬 {present(item.local_present)} · 기존 백업 {present(item.backup_present)}</li>)}</ul>
+        <ul>{result.unclassified.map(item => <li key={item.name}>{item.name} · {item.partially_classified && '일부 구성요소 등록됨 · '}로컬 {present(item.local_present)} · 기존 백업 {present(item.backup_present)} · 완료 스냅샷 {present(item.snapshot_present)} <button type="button" aria-label={`${item.name} 미분류 대상의 백업 비교로 이동`} onClick={() => onCompare?.(item.name)}>백업 비교로 이동</button></li>)}</ul>
         {result.storage_survey && <><p>아래 `models/` 하위 항목은 {result.storage_survey.finished_at || '시각 확인 불가'} 조사 기준이며 현재 파일 존재나 사용 여부를 확정하지 않습니다.</p>
           {!result.nested_survey_available ? <p>이전 `models/` 경로의 하위 조사 정보가 없어 해당 경로의 분류 여부를 확인할 수 없습니다.</p> : result.unclassified_nested?.length ? <ul>{result.unclassified_nested.map(item => <li key={item.path}>{item.path} · 조사 당시 할당 크기 {gib(item.storage_observation.allocated_bytes)} · 파일 {item.storage_observation.files}개</li>)}</ul> : <p>조사된 `models/` 하위 경로 중 별도 미분류 항목이 없습니다.</p>}</>}
       </details>

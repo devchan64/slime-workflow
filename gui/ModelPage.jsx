@@ -161,8 +161,9 @@ export default function ModelPage() {
     selectedRef.current=value;missingRef.current="";select(value);setMissingModel("");
     const url=new URL(location.href);url.searchParams.set("model",value);history.replaceState(history.state,"",url);
   }
-  return <article className="model-management-page"><h1>모델 상태와 파일</h1>
-    <a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 이동</a>
+  return <article className="model-management-page">
+    <a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a>
+    <h1>모델 상태와 파일</h1>
     <button type="button" aria-disabled={loading} aria-describedby={loading ? loadingId : undefined} onClick={()=>{if(!loading)setRevision(value=>value+1);}}>{loading ? "모델 목록 조회 중…" : error ? "모델 목록 다시 조회" : "모델 목록 새로고침"}</button>
     {checkedAt && <p>마지막 목록 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
     {loading && <p id={loadingId} role="status">모델 목록을 조회하고 있습니다.{models.length>0 && " 아래는 마지막 조회 결과입니다."}</p>}
