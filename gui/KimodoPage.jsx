@@ -12,12 +12,13 @@ import GeneratorHistory from "./GeneratorHistory.jsx";
 import KimodoFrames from "./KimodoFrames.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
 import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
+import {untilAborted} from "./managementCommand.js";
 
 export default function KimodoPage({embedded=false,session:embeddedSession="",initialInputs=null,onChoose}={}){
   const params=new URLSearchParams(location.search);
   const session=embedded ? embeddedSession : params.get("session") || "";
   const [selectedJob,setSelectedJob]=useState(embedded ? "" : params.get("job") || "");
-  const resultRef=useRef(null),focusResult=useRef(false);
+  const resultRef=useRef(null);
   const historyRef=useRef(null);
   const generationRef=useRef(null);
   const inputRevision=useRef(0),imageChecking=useRef(false);
@@ -30,18 +31,19 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
   const [restoreRevision,setRestoreRevision]=useState(0);
   const [notice,setNotice]=useState("");
   const [model,setModel]=useState(null),[modelError,setModelError]=useState("");
-  async function readJob(id){
+  async function readJob(id,{signal}={}){
     const revisionAtStart=inputRevision.current,checkingAtStart=imageChecking.current,focusAtStart=document.activeElement;
     const controller=new AbortController();let timedOut=false;
+    const cancel=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener("abort",cancel,{once:true});
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
-    const response=await fetch("/management/assistant/kimodo-input/"+encodeURIComponent(id),{cache:"no-store",signal:controller.signal});
+    const response=await untilAborted(fetch("/management/assistant/kimodo-input/"+encodeURIComponent(id),{cache:"no-store",signal:controller.signal}),controller.signal);
     if(!response.ok)throw new Error("저장된 Kimodo 입력을 확인할 수 없습니다.");
-    const saved=await response.json();
+    let saved;try{saved=await untilAborted(response.json(),controller.signal);}catch(error){controller.signal.throwIfAborted();throw new Error("저장된 Kimodo 입력 형식을 확인할 수 없습니다. 다시 조회하세요.");}
     if(!saved || !saved.inputs)throw new Error("저장된 Kimodo 입력을 확인할 수 없습니다.");
     return {id,request:saved.inputs,revisionAtStart,checkingAtStart,focusAtStart};
     }catch(error){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
-    finally{clearTimeout(timeout);}
+    finally{clearTimeout(timeout);signal?.removeEventListener("abort",cancel);}
   }
   function cleaned(message){setSelectedJob("");setNotice(message);setHistoryRevision(value=>value+1);}
   const conversation="/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"");
@@ -57,10 +59,10 @@ export default function KimodoPage({embedded=false,session:embeddedSession="",in
     <GeneratorSectionCard title="생성 입력" summary="참조 이미지와 동작 설정" defaultOpen>
     <section className={embedded ? undefined : "kimodo-standalone-form"} ref={generationRef} tabIndex={-1} aria-label="Kimodo 생성 입력" onChangeCapture={()=>{inputRevision.current++;}} onClickCapture={trackInputAction}><KimodoGeneration session={session} restoreJob={restoreJob} restoreRevision={restoreRevision} initialInputs={restoreJob ? null : initialInputs} choose={choose} onInputChange={()=>{inputRevision.current++;}} onImageCheckingChange={value=>{imageChecking.current=value;}}/></section></GeneratorSectionCard>
     <KimodoMultiviewReport/>
-    <div ref={historyRef}><GeneratorHistory card footer={<HistoryCleanup service="kimodo" allowSelected={false} onDeleted={cleaned}/>} key={historyRevision} service="kimodo" allowPriority readJob={readJob} resultId={selectedJob}
-      openResult={id=>{focusResult.current=true;setSelectedJob(id);}} onCloseResult={()=>setSelectedJob("")} restore={(_request,record)=>{if(record.checkingAtStart || imageChecking.current || record.revisionAtStart!==inputRevision.current)throw new Error("이미지 확인 중이거나 조회 중 생성 폼이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");const card=generationRef.current?.closest("details.generator-section-card");if(card)card.open=true;requestAnimationFrame(()=>{if(document.activeElement===record.focusAtStart || document.activeElement===document.body)generationRef.current?.focus();});}}
+    <div ref={historyRef}><GeneratorHistory card toggleResult footer={<HistoryCleanup service="kimodo" allowSelected={false} onDeleted={cleaned}/>} key={historyRevision} service="kimodo" allowPriority readJobWithSignal={readJob} resultId={selectedJob}
+      openResult={setSelectedJob} onCloseResult={()=>setSelectedJob("")} restore={(_request,record)=>{if(record.checkingAtStart || imageChecking.current || record.revisionAtStart!==inputRevision.current)throw new Error("이미지 확인 중이거나 조회 중 생성 폼이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");setRestoreJob(record.id);setRestoreRevision(value=>value+1);setNotice("");const card=generationRef.current?.closest("details.generator-section-card");if(card)card.open=true;requestAnimationFrame(()=>{if(document.activeElement===record.focusAtStart || document.activeElement===document.body)generationRef.current?.focus();});}}
       onSelectedDeleted={(id,message)=>{if(selectedJob===id)setSelectedJob("");setNotice(message);setHistoryRevision(value=>value+1);}}
-      renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected && document.activeElement===document.body)node.focus();});}}} tabIndex={-1} aria-label="선택한 Kimodo 작업 결과"><button type="button" onClick={close}>결과 닫고 이력으로</button><button type="button" onClick={()=>choose("kimodo 작업",id)}>선택 작업을 대화 입력에 추가</button><SavedGeneratorInputs id={id} service="kimodo" readJob={readJob}/><KimodoFrames key={id} id={id} choose={choose} onDeleted={cleaned} selectionControls/></section>}/></div>
+      renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 Kimodo 작업 결과"><button type="button" onClick={()=>choose("kimodo 작업",id)}>선택 작업을 대화 입력에 추가</button><SavedGeneratorInputs id={id} service="kimodo" readJobWithSignal={readJob}/><KimodoFrames key={id} id={id} choose={choose} onDeleted={cleaned} selectionControls/></section>}/></div>
     {notice && <p role="status">{notice}</p>}
   </article></main>;
 }
