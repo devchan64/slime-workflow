@@ -39,13 +39,15 @@ def check_restored_audio(service, config_path=None, *, progress=None):
             report = (lambda phase, path, done, total: progress(model, phase, path, done, total)) if progress else None
             snapshot = verify_snapshot_manifest(model, config_path, progress=report)
             local = compare_backup_model(model, config_path, hash_content=True, target='latest_snapshot', progress=report)
+            same_snapshot = snapshot['snapshot_id'] == local['snapshot_id']
             snapshot_files, local_files = snapshot['files'], local['files']
-            valid = (snapshot['complete'] and local['complete'] and snapshot['snapshot_id'] == local['snapshot_id']
+            valid = (snapshot['complete'] and local['complete'] and same_snapshot
                      and bool(snapshot_files) and bool(local_files)
                      and all(item['status'] == 'verified' for item in snapshot_files)
                      and all(item['status'] == 'verified' for item in local_files))
             partials = [item['path'] for item in local_files if item['path'].endswith(('.partial', '.incomplete'))]
-            local_paths = {item['path'] for item in local_files if item['status'] == 'verified'}
+            local_paths = {item['path'] for item in local_files if item['status'] == 'verified'
+                           and isinstance(item.get('source'), dict) and item['source'].get('size', 0) > 0}
             missing_required = [name for name in REQUIRED.get(service, {}).get(model, ()) if name not in local_paths]
             differences = [{'stage': stage, 'path': item['path'], 'status': item['status']}
                            for stage, items in (('snapshot', snapshot_files), ('local', local_files))
@@ -55,7 +57,7 @@ def check_restored_audio(service, config_path=None, *, progress=None):
                                'missing_required': missing_required,
                                'difference_count': len(differences), 'differences': differences[:20],
                                'comparison_complete': snapshot['complete'] and local['complete'],
-                               'same_snapshot': snapshot['snapshot_id'] == local['snapshot_id'],
+                               'same_snapshot': same_snapshot,
                                'local_comparison_snapshot_id': local['snapshot_id'],
                                'inventory_errors': [{'stage': stage, 'path': error.get('path'), 'reason': error.get('reason')}
                                                     for stage, result in (('snapshot', snapshot), ('local', local))

@@ -97,7 +97,12 @@ def execute_music_worker(current_service_name,current_job_root):
         current_model_ready = (resolve_music_paths(current_service_name)[1]/'prepared.json').exists()
         if current_model_ready and current_request_record['action']=='generate':
             current_metrics_recorder.historical_duration_values = collect_music_durations(current_storage_root,current_request_record,current_device_name)
-        current_prepared_record = current_prepare_callback(current_service_name,current_metrics_recorder,current_request_record['action']=='prepare')
+        if current_service_name == 'sfx-dasheng-audiogen' and current_request_record['action'] == 'prepare':
+            from generators.sound_effects.prepare_record_guard import guarded_refresh
+            current_model_root = resolve_music_paths(current_service_name)[1]
+            current_prepared_record = guarded_refresh(current_model_root, lambda: current_prepare_callback(current_service_name,current_metrics_recorder,True))
+        else:
+            current_prepared_record = current_prepare_callback(current_service_name,current_metrics_recorder,current_request_record['action']=='prepare')
         write_record_atomically(current_attempt_root/'model-manifest.json',current_prepared_record)
         if current_request_record['action']=='prepare':
             current_result_record = {'attempt':current_attempt_root.name,'prepared':True,'model_id':current_request_record['model_id']}

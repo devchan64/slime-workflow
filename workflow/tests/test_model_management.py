@@ -235,6 +235,10 @@ class ModelManagementTest(unittest.TestCase):
                 current_destination = Path(current_options['local_dir'])
                 current_destination.mkdir(parents=True, exist_ok=True)
                 (current_destination/'weights.safetensors').write_bytes(current_options['repo_id'].encode())
+                from workflow.common.model_offline_audio_check import REQUIRED
+                name = {'model': 'dasheng-audiogen', 'text-encoder': 'flan-t5-large'}[current_destination.name]
+                for required in REQUIRED['sfx-dasheng-audiogen'][name]:
+                    (current_destination/required).write_bytes(b'fixture')
             with patch.object(audio_model_download, 'WORKFLOW_ROOT_DIRECTORY', current_root), \
                  patch.object(audio_model_download, 'resolve_music_paths', return_value=(None, current_model_root, None)), \
                  patch.object(audio_model_download, 'resolve_audio_download_sources', return_value=current_sources), \
@@ -269,7 +273,8 @@ class ModelManagementTest(unittest.TestCase):
             def prepare_test_separation(current_target_root, current_download_flag):
                 self.assertTrue(current_download_flag)
                 (current_target_root/'demucs').mkdir(parents=True, exist_ok=True)
-                (current_target_root/'demucs/checkpoint.th').write_bytes(b'demucs')
+                from generators.music.heartmula.separation import DEMUCS_CHECKPOINT_NAME
+                (current_target_root/'demucs'/DEMUCS_CHECKPOINT_NAME).write_bytes(b'demucs')
             with patch.object(audio_model_download, 'WORKFLOW_ROOT_DIRECTORY', current_root), \
                  patch.object(audio_model_download, 'resolve_music_paths', return_value=(None, current_model_root, None)), \
                  patch.object(audio_model_download, 'resolve_audio_download_sources', return_value=current_sources), \
@@ -278,7 +283,8 @@ class ModelManagementTest(unittest.TestCase):
                  patch('generators.music.heartmula.separation.prepare_separation_model', side_effect=prepare_test_separation):
                 audio_model_download.download_audio_model_files('music-heartmula')
                 self.assertTrue(audio_model_download.inspect_audio_download_files('music-heartmula'))
-                (current_model_root/'demucs/checkpoint.th').unlink()
+                from generators.music.heartmula.separation import DEMUCS_CHECKPOINT_NAME
+                (current_model_root/'demucs'/DEMUCS_CHECKPOINT_NAME).unlink()
                 self.assertFalse(audio_model_download.inspect_audio_download_files('music-heartmula'))
 
     def test_audio_duplicate_preparation_is_rejected(self):

@@ -68,3 +68,14 @@ class OfflineAudioCheckTests(unittest.TestCase):
             result = check_restored_audio('test')
         self.assertFalse(result['matches'])
         self.assertEqual(result['components'][0]['missing_required'], ['config.json'])
+
+    def test_matching_empty_required_file_is_not_success(self):
+        item = {'path': 'config.json', 'status': 'verified', 'source': {'size': 0}}
+        comparison = {'snapshot_id': 'a'*32, 'complete': True, 'files': [item]}
+        with patch.dict('workflow.common.model_offline_audio_check.COMPONENTS', {'test': ('model',)}), \
+             patch.dict('workflow.common.model_offline_audio_check.REQUIRED', {'test': {'model': ('config.json',)}}), \
+             patch('workflow.common.model_offline_audio_check.verify_snapshot_manifest', return_value=comparison), \
+             patch('workflow.common.model_offline_audio_check.compare_backup_model', return_value=comparison):
+            result = check_restored_audio('test')
+        self.assertFalse(result['matches'])
+        self.assertEqual(result['components'][0]['missing_required'], ['config.json'])

@@ -58,7 +58,11 @@ def format_model_download_status(current_status_values, model_service_name):
         current_resume_text = f'{current_resume_bytes:,}바이트' if current_resume_bytes is not None else '확인 불가'
         current_resume_label = '시작 시 검증 지점' if current_status_value.get('stage') == '기존 부분 파일 검증' else '시작 시 이어받은 바이트'
         current_resume_suffix = f' · {current_resume_label} {current_resume_text}' if current_resume_bytes is not None or current_status_name == 'running' else ''
-        current_result_lines.append(f"- {current_status_value['model']} · {current_status_labels[current_status_name]} · {current_status_value.get('stage', '준비')} · {current_progress_text}{current_resume_suffix}")
+        current_status_label = ('호출 완료 · 확인 필요' if current_status_name == 'completed' and current_status_value.get('integrity_warning')
+                                else current_status_labels[current_status_name])
+        current_result_lines.append(f"- {current_status_value['model']} · {current_status_label} · {current_status_value.get('stage', '준비')} · {current_progress_text}{current_resume_suffix}")
         if current_status_value.get('backup_warning'):
             current_result_lines.append('백업 확인: ' + str(current_status_value['backup_warning']))
+        if current_status_value.get('integrity_warning'):
+            current_result_lines.append('파일 확인: ' + str(current_status_value['integrity_warning']))
     return '\n'.join(current_result_lines) if current_result_lines else '진행 중인 다운로드와 최근 결과가 없습니다.'

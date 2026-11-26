@@ -93,6 +93,11 @@ def execute_huggingface_download(current_function_name, current_argument_values,
         current_download_result = current_download_function(*current_argument_values, **current_download_options)
         if current_snapshot_total is not None:
             current_download_record.update(bytes=current_snapshot_total, total_bytes=current_snapshot_total)
+        elif current_function_name == 'snapshot' and current_keyword_values.get('local_dir'):
+            # The Hub can return a nonempty local directory without confirming
+            # its contents or revision when the provider is unavailable.
+            current_download_record.update(stage='파일 완전성 확인 필요',
+                integrity_warning='공급처 파일 목록을 확인하지 못했습니다. 기존 로컬 디렉터리의 완전성과 리비전은 별도 검증하세요.')
         return current_download_result
 
 

@@ -232,3 +232,28 @@ class DashengAudioEffectsTests(unittest.TestCase):
                 current_metrics_recorder.finish_generation_telemetry.assert_called_with(current_status_name)
         self.assertEqual(len(list((current_job_root/'attempts').iterdir())),3)
         self.assertEqual(len(list((current_job_root/'attempts').glob('*/error.json'))),2)
+
+    def test_worker_restores_previous_record_after_failed_refresh(self):
+        from generators.music.worker import execute_music_worker
+        job = self.current_service_instance.create_music_job({'action': 'prepare'})
+        job_root = self.current_service_instance.resolve_music_job(job['id'])
+        model_root = self.current_test_root/'model'
+        model_root.mkdir()
+        record = model_root/'prepared.json'
+        record.write_text('{"old":true}')
+        metrics = Mock(current_run_state={})
+        torch = Mock()
+        torch.cuda.get_device_name.return_value = 'isolated GPU'
+        def fail_refresh(*args):
+            record.unlink()
+            raise RuntimeError('refresh failed')
+        with patch('generators.music.worker.resolve_music_paths', return_value=(self.current_service_instance.job_storage_root, model_root, self.current_service_instance.runtime_python_path)), \
+             patch('generators.music.worker.signal.signal'), \
+             patch('generators.music.worker.GenerationTelemetryRecorder', return_value=metrics), \
+             patch('generators.sound_effects.runtime.require_effects_cuda', return_value=torch), \
+             patch('generators.sound_effects.runtime.prepare_effects_model', side_effect=fail_refresh), \
+             patch('sys.stdout', new_callable=io.StringIO), patch('sys.stderr', new_callable=io.StringIO):
+            with self.assertRaisesRegex(RuntimeError, 'refresh failed'):
+                execute_music_worker('sfx-dasheng-audiogen', job_root)
+        self.assertEqual(record.read_text(), '{"old":true}')
+        self.assertEqual(json.loads((job_root/'status.json').read_text())['status'], 'failed')

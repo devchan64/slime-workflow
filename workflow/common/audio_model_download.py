@@ -49,6 +49,52 @@ def resolve_audio_download_sources(current_service_name):
     raise ValueError('지원하지 않는 오디오 모델입니다.')
 
 
+def validate_dasheng_required_files(model_root, sources, receipt_files=None):
+    from generators.sound_effects.runtime import resolve_effects_component
+    from workflow.common.model_offline_audio_check import REQUIRED
+    component_names = {'model': 'dasheng-audiogen', 'text-encoder': 'flan-t5-large',
+                       'audio-tokenizer': 'dasheng-tokenizer'}
+    for _, _, component in sources:
+        model = component_names.get(component)
+        if model is None:
+            raise ValueError('알 수 없는 Dasheng 모델 구성요소입니다: ' + component)
+        component_root = resolve_effects_component(model_root, component)
+        for relative in REQUIRED['sfx-dasheng-audiogen'][model]:
+            path = component_root / relative
+            if (receipt_files is not None and f'{component}/{relative}' not in receipt_files):
+                raise ValueError('Dasheng 준비 기록에 필수 파일이 없습니다: ' + relative)
+            if (component_root.is_symlink() or path.is_symlink() or not path.is_file()
+                    or not path.resolve().is_relative_to(component_root.resolve()) or path.stat().st_size == 0):
+                raise ValueError('Dasheng 필수 모델 파일이 없거나 비어 있습니다: ' + relative)
+
+
+def validate_heartmula_required_files(model_root, receipt_files=None):
+    from generators.music.heartmula.separation import DEMUCS_CHECKPOINT_NAME
+
+    def required(name):
+        if receipt_files is not None and name not in receipt_files:
+            raise ValueError('HeartMuLa 준비 기록에 필수 파일이 없습니다: ' + name)
+        path = resolve_audio_receipt_file('music-heartmula', model_root, name)
+        if not path.is_file() or path.stat().st_size == 0:
+            raise ValueError('HeartMuLa 필수 모델 파일이 없거나 비어 있습니다: ' + name)
+        return path
+
+    for name in ('bundle/tokenizer.json', 'bundle/gen_config.json', 'demucs/' + DEMUCS_CHECKPOINT_NAME):
+        required(name)
+    for component in ('HeartMuLa-oss-3B', 'HeartCodec-oss'):
+        prefix = 'bundle/' + component + '/'
+        required(prefix + 'config.json')
+        index = required(prefix + 'model.safetensors.index.json')
+        if index.stat().st_size > 16 * 1024 * 1024:
+            raise ValueError('HeartMuLa 가중치 목록이 너무 큽니다.')
+        index_data = json.loads(index.read_text(encoding='utf-8'))
+        weights = index_data.get('weight_map') if isinstance(index_data, dict) else None
+        if not isinstance(weights, dict) or not weights or any(not isinstance(name, str) or not name for name in weights.values()):
+            raise ValueError('HeartMuLa 가중치 목록이 올바르지 않습니다.')
+        for name in set(weights.values()):
+            required(prefix + name)
+
+
 def inspect_audio_download_files(current_service_name):
     """다운로드한 파일이 완료 확인 이후 바뀌지 않았는지 확인한다."""
     current_profile_name = AUDIO_DOWNLOAD_PROFILES[current_service_name]
@@ -61,6 +107,10 @@ def inspect_audio_download_files(current_service_name):
         current_files_record = current_receipt_record['files']
         if not isinstance(current_files_record, dict) or not current_files_record:
             return False
+        if current_service_name == 'sfx-dasheng-audiogen':
+            validate_dasheng_required_files(current_model_root, resolve_audio_download_sources(current_service_name), current_files_record)
+        elif current_service_name == 'music-heartmula':
+            validate_heartmula_required_files(current_model_root, current_files_record)
         for current_relative_name, current_file_record in current_files_record.items():
             current_file_path = resolve_audio_receipt_file(current_service_name, current_model_root, current_relative_name)
             if not current_file_path.is_file():
@@ -100,6 +150,8 @@ def download_audio_model_files(current_service_name):
             if current_service_name == 'sfx-dasheng-audiogen':
                 current_download_options['allow_patterns'] = ['*.json', '*.py', '*.safetensors', '*.model', '*.txt', 'README.md', 'LICENSE*']
             tracked_snapshot_download(**current_download_options)
+        if current_service_name == 'sfx-dasheng-audiogen':
+            validate_dasheng_required_files(current_model_root, current_source_records)
         if current_service_name == 'music-heartmula':
             from generators.music.heartmula.separation import prepare_separation_model
             prepare_separation_model(current_model_root, True)
@@ -120,6 +172,7 @@ def download_audio_model_files(current_service_name):
                     if (not current_shard_path.resolve().is_relative_to(current_component_root.resolve()) or
                             current_shard_path.is_symlink() or not current_shard_path.is_file() or not current_shard_path.stat().st_size):
                         raise ValueError('HeartMuLa 가중치 파일이 없거나 올바르지 않습니다: ' + str(current_shard_name))
+            validate_heartmula_required_files(current_model_root)
         current_file_records = {}
         current_source_paths = [current_model_root/current_source[2] for current_source in current_source_records]
         if current_service_name == 'music-heartmula':
