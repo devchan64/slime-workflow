@@ -1,0 +1,27 @@
+schema_version: 1
+description: 기본복장 한손검 전투 기본자세 · 화면 오른쪽 방향 · 480p
+status: 사용자 지정 기준 자료 · 자세와 신체 비율 정밀 검수 필요
+date: '2026-11-26'
+image: default-broadsword-combat-right-480p-v2.png
+image_size: [832, 480]
+image_sha256: 11651967c9d77ffa3be8576b9fe47c428fd2773d801a3d82f22d417d12020ca6
+previous_baseline: default-broadsword-combat-right-480p-v1.png
+reference: default-body-front-right-480p-v1.png
+reference_sha256: 55fa29f410a7ebd42eeb4e39a291bc391cda43d40aa480d7b3aeda86518d486f
+reference_role: 캐릭터 외형과 화풍
+pose_reference_job: 2026-11-26_12-44-55-4fdfecbd
+pose_reference_sha256: 0b50d4255cf6c3cfb4a9e96f6cdc5d061ab605472384ead2486072d2aebb49c8
+pose_reference_role: 왼손 한손검 자세와 구도
+operation: imagegen-edit-and-resize
+provenance:
+  pose: MiniMax H3 Image · LCM 6스텝 · 1664×960 생성 후 832×480 축소
+  identity_edit: image_gen_builtin · 자세 이미지를 캐릭터 기준 외형과 화풍에 맞춰 보정
+  framing_edit: image_gen_builtin · 머리 위 약 20% 여백과 전신·검이 보이는 구도 요청
+  resize: 이미지젠 결과를 Pillow LANCZOS 비율 유지 및 흰색 여백으로 832×480 변환
+  selected_source_sha256: 11651967c9d77ffa3be8576b9fe47c428fd2773d801a3d82f22d417d12020ca6
+  source_status: 생성 중간 자료는 .tmp/test/에 보관 · 추적 이미지와 해시가 최종 기준
+visual_notes:
+  - 왼손에 한손검을 들고 빈 오른손을 들어 올린 전신 자세
+  - 화면 오른쪽을 바라보지만 몸통은 정면에 가까운 3/4 시점
+  - 상단 여백은 약 20%이며 정확한 비율이나 측면 자세를 보장하지 않음
+  - 외형·방향·검 길이·손과 자세는 게임 적용 전 정밀 검수 필요
