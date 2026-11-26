@@ -1,0 +1,18 @@
+schema_version: 1
+description: 기본복장 한손검 기본자세 · 화면 오른쪽 방향 · 좁은 스탠스 · 480p
+status: 사용자 지정 기준 자료
+date: '2026-11-26'
+image: default-broadsword-combat-right-480p-v3.png
+image_size: [832, 480]
+image_sha256: 9a0bb376b4e1ac8511145735967d81b69fa50615700f09cc0a3d69dae308a9a8
+previous_baseline: default-broadsword-combat-right-480p-v2.png
+reference_sha256: 11651967c9d77ffa3be8576b9fe47c428fd2773d801a3d82f22d417d12020ca6
+operation: imagegen-edit-and-resize
+provenance:
+  stance_edit: image_gen_builtin · v2를 참조하여 양발 간격을 어깨너비 정도로 좁힘
+  resize: Pillow LANCZOS 비율 유지 및 흰색 여백으로 832×480 변환
+  experiment: .tmp/test/imagegen-narrow-stance/2026-11-26_21-16-31
+visual_notes:
+  - 왼손에 한손검을 들고 빈 오른손을 들어 올린 전신 자세
+  - 화면 오른쪽을 바라보며 몸통은 정면에 가까운 3/4 시점
+  - 머리 위 여백과 전신 및 검이 보이는 흰 배경
