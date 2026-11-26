@@ -200,6 +200,7 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     <h1 className={embedded ? "embedded-page-title" : undefined}>{music?"HeartMuLa 음악 생성":"Dasheng 효과음 생성"}</h1>
     <GeneratorChangelog generator={service} card/>
     <GeneratorSectionCard title="사용설명" summary="사용 방법과 제한 사항">{music ? <p>태그는 쉼표로 구분합니다. 가사·구간 태그와 최대 출력 시간을 입력하세요. 원곡 생성 후 Demucs가 MR과 보컬을 분리합니다.</p> : <p>원하는 효과음을 설명하고 반복 구조가 필요하면 선택하세요. 길이는 자동 예측하며 결과는 16kHz WAV입니다. <a href="https://huggingface.co/mispeech/Dasheng-AudioGen">모델과 라이선스</a></p>}<p>모델 준비를 확인하고 생성 요청을 검토한 뒤 접수하세요. 작업 상태와 결과는 생성 이력에서 확인할 수 있습니다.</p></GeneratorSectionCard>
+    <GeneratorSectionNavigation inputRef={inputRegion} historyRef={historyRegion} resultRef={resultRegion} inputReady={Boolean(form)} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}>
       <ModelReadiness session={session} service={service} onStatus={setModel} onError={setModelError}/>
       <details ref={prepareDetails}><summary ref={prepareSummary}>모델 다운로드·준비</summary>
@@ -211,7 +212,6 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
     <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRegion,id,setJob)}>
       <AudioActiveStatus statusRef={activeErrorRef} retryRef={activeRetryRef} loading={activeLoading} notice={activeNotice} error={activeError} activeId={activeId} job={job} onOpen={()=>openGeneratorHistory(historyRegion,activeId,setJob)} onRetry={()=>{if(activePending.current)return;activePending.current=true;activeRetryFocus.current=document.activeElement===activeRetryRef.current;setActiveLoading(true);setActiveError("");retryActive(value=>value+1);}}/>
     </ActiveGeneratorProgress>
-    <GeneratorSectionNavigation inputRef={inputRegion} historyRef={historyRegion} resultRef={resultRegion} inputReady={Boolean(form)} resultReady={Boolean(job)} openOnNavigate/>
     {!form && (inputError ? <div><p role="alert">{inputError}</p><button ref={inputRetryRef} type="button" onClick={()=>{if(inputPending.current)return;inputPending.current=true;inputRetryFocus.current=document.activeElement===inputRetryRef.current;setInputError("");retryInput(value=>value+1);}}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
     <AudioReviewPending busy={busy} review={review}/>

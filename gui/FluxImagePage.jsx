@@ -335,9 +335,9 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
       {profile.layouts && <p>점유 가이드와 생성 대상을 선택해 첫 참조와 프롬프트를 구성할 수 있습니다.</p>}
       {!profile.expressions && <p>번역할 한국어 설명을 입력하면 생성 시 번역문을 프롬프트에 추가합니다.</p>}
     </> : <p>생성기 설정을 불러오면 사용 방법을 표시합니다.</p>}</GeneratorSectionCard>
+    <GeneratorSectionNavigation inputRef={inputFormRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(profile)} historyReady={Boolean(profile)} resultReady={Boolean(profile && job)} resultReason={job && !profile ? "생성기 설정을 확인해야 작업 결과를 볼 수 있습니다." : undefined} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : model ? (fluxModelReady(model) ? "준비 완료" : "준비 필요") : "상태 확인 중"}><ModelReadiness service={service} session={session} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
-    <GeneratorSectionNavigation inputRef={inputFormRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(profile)} historyReady={Boolean(profile)} resultReady={Boolean(profile && job)} resultReason={job && !profile ? "생성기 설정을 확인해야 작업 결과를 볼 수 있습니다." : undefined} openOnNavigate/>
     {!profile && (profileError ? <div role="alert">{profileError} <button ref={profileRetryRef} type="button" onClick={retryProfile}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={receiptKey && handoffStatus?.state!=="withdrawn" ? undefined : ()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);if(receiptKey){setReceiptState("unknown");setReceiptNotice("이 제안의 양도 요청은 철회됐습니다. 새 작업은 생성기 화면에서 요청하세요.");}}}/>}
