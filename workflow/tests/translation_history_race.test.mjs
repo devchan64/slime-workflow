@@ -49,7 +49,7 @@ test('번역 검토 취소 초점은 새 검토나 사용자의 이동을 방해
  const code=source.slice(source.indexOf('  function cancelReview(){'),source.indexOf('  async function submit(){'));
  for(const mode of ['lost','moved','review']){
   const body={},origin={},other={},document={body,activeElement:origin};let frame,focused=0;
-  const context=vm.createContext({document,reviewEpoch:{current:1},reviewRef:{current:{contains:element=>element===origin}},restoreFrame:{current:null},textRef:{current:{isConnected:true,disabled:false,focus:()=>focused++}},setPending:()=>{},requestAnimationFrame:fn=>(frame=fn,1),cancelAnimationFrame:()=>{},restoreLostFocus:(doc,target)=>{if(doc.activeElement===doc.body && target.isConnected && !target.disabled)target.focus();}});
+  const context=vm.createContext({document,reviewEpoch:{current:1},reviewRef:{current:{contains:element=>element===origin}},restoreFrame:{current:null},textRef:{current:{isConnected:true,disabled:false,focus:()=>focused++}},setPending:()=>{},requestAnimationFrame:fn=>(frame=fn,1),cancelAnimationFrame:()=>{},visibleFocusTarget:target=>target,restoreLostFocus:(doc,target)=>{if(doc.activeElement===doc.body && target.isConnected && !target.disabled)target.focus();}});
   vm.runInContext(code+'\nthis.cancelReview=cancelReview;',context);context.cancelReview();
   document.activeElement=mode==='moved'?other:body;if(mode==='review')context.reviewEpoch.current++;
   frame();assert.equal(focused,mode==='lost'?1:0);
