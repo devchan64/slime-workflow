@@ -24,7 +24,12 @@ export async function managementCommand(service, command, payload = {}, {signal}
   });
   if(response.ok && command==="logs" && !response.headers.get("content-type")?.includes("application/json"))
     return {log:await response.text()};
-  const value = await response.json();
-  if (!response.ok) throw new Error(value.error || value.detail || "요청을 처리할 수 없습니다.");
+  let value;
+  try{value=await response.json();}
+  catch(problem){signal?.throwIfAborted();throw new Error("서버 응답을 확인할 수 없습니다. 다시 시도하세요.");}
+  if (!response.ok) {
+    const message=[value?.error,value?.detail].find(item=>typeof item==="string" && item.trim());
+    throw new Error(message || "요청을 처리할 수 없습니다.");
+  }
   return value;
 }
