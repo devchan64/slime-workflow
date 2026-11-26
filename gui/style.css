@@ -321,7 +321,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
   grid-template-columns:minmax(0,1fr);
   align-content:start;
   width:100%;
-  max-width:62rem;
+  max-width:calc(var(--generator-page-width, 56rem) + 2rem);
   margin-inline:auto;
   padding:clamp(.75rem,2vw,1rem);
   gap:.75rem;
@@ -954,7 +954,7 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 .animate-page.generator-page-common form label:not(.reference-image-file) {display:grid;gap:var(--generator-field-gap);margin:var(--generator-field-margin) 0;color:var(--muted);font-size:.9rem}
 .animate-page.generator-page-common :is(input,select,textarea,video,img) {max-width:100%;min-width:0}
 .single-generator-page.generator-page-common {width:min(100%,var(--generator-page-width))}
-.generator-page-common .generator-page-identity h1 {font-size:1.5rem;line-height:1.25}
+.generator-page-common > h1,.generator-page-common .generator-page-identity h1 {font-size:1.5rem;line-height:1.25}
 .generator-page-common :is(.kimodo-standalone-form, form) form > fieldset,
 .vace-standalone.generator-page-common form > fieldset {padding:var(--generator-fieldset-padding)}
 .generator-page-common .kimodo-standalone-form label:not(.reference-image-file):not(.kimodo-mode-options label),
