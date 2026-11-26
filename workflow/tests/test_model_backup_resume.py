@@ -41,6 +41,20 @@ class SnapshotResumeTests(unittest.TestCase):
         self.assertTrue(all(x['status'] == 'verified' for x in verification['files']))
         self.assertTrue(all(x['status'] == 'verified' for x in verification['local_comparison']['files']))
 
+    def test_publish_never_replaces_concurrent_empty_snapshot(self):
+        from workflow.common.model_storage_move import _rename_noreplace
+        final = self.pending.parent/('a'*32)
+        def collide(source, target):
+            final.mkdir()
+            return _rename_noreplace(source, target)
+        with patch('workflow.common.model_backup_sync._rename_noreplace', side_effect=collide):
+            with self.assertRaises(FileExistsError):
+                sync_snapshot('model', 'a'*32, roots=self.roots, resume=True)
+        self.assertTrue(final.is_dir())
+        self.assertEqual(list(final.iterdir()), [])
+        self.assertTrue((self.pending/'.snapshot.json').is_file())
+        self.assertTrue((self.pending/'a').is_file())
+
     def test_rejects_different_prefix_without_overwriting_pending(self):
         partial = self.pending/'b'
         partial.write_bytes(b'x'*37)
@@ -161,3 +175,70 @@ class SnapshotResumeTests(unittest.TestCase):
         self.assertEqual(completed['attempt_history'], [{'status':'failed'}])
         self.assertEqual(completed['result']['snapshot_id'],job)
         self.assertFalse(self.pending.exists())
+
+class BackupCompletionRaceTest(unittest.TestCase):
+    def test_final_record_is_reread_before_marking_worker_interrupted(self):
+        import fcntl
+        from workflow.common.model_backup_verification import read_verification
+        with tempfile.TemporaryDirectory() as directory:
+            state=Path(directory); (state/'jobs').mkdir(); job='f'*32; path=state/'jobs'/f'{job}.json'
+            path.write_text(json.dumps({'job_id':job,'operation':'sync','status':'running'}))
+            (state/'current.json').write_text(json.dumps({'job_id':job}))
+            actual_flock=fcntl.flock
+            def finish_then_lock(fd, flags):
+                path.write_text(json.dumps({'job_id':job,'operation':'sync','status':'completed','result':{'bytes':123}}))
+                return actual_flock(fd, flags)
+            with patch('workflow.common.model_backup_verification.fcntl.flock',side_effect=finish_then_lock):
+                result=read_verification(job,state_root=state)
+            self.assertEqual(result['status'],'completed')
+            self.assertEqual((result['bytes'],result['total_bytes']),(123,123))
+
+    def test_absent_worker_with_unfinished_record_is_interrupted(self):
+        from workflow.common.model_backup_verification import read_verification
+        with tempfile.TemporaryDirectory() as directory:
+            state=Path(directory); (state/'jobs').mkdir(); job='e'*32
+            (state/'jobs'/f'{job}.json').write_text(json.dumps({'job_id':job,'operation':'sync','status':'running'}))
+            (state/'current.json').write_text(json.dumps({'job_id':job}))
+            self.assertEqual(read_verification(job,state_root=state)['status'],'interrupted')
+
+    def test_busy_lock_with_other_job_is_unknown_not_interrupted(self):
+        import fcntl
+        from workflow.common.model_backup_verification import read_verification
+        with tempfile.TemporaryDirectory() as directory:
+            state=Path(directory); (state/'jobs').mkdir(); job='d'*32
+            (state/'jobs'/f'{job}.json').write_text(json.dumps({'job_id':job,'operation':'sync','status':'running'}))
+            (state/'current.json').write_text(json.dumps({'job_id':'b'*32}))
+            with (state/'worker.lock').open('a') as lock:
+                fcntl.flock(lock,fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.assertEqual(read_verification(job,state_root=state)['status'],'unknown')
+                (state/'current.json').write_text(json.dumps({'job_id':job}))
+                self.assertEqual(read_verification(job,state_root=state)['status'],'running')
+
+class BackupHistoryCorruptionTest(unittest.TestCase):
+    def test_corrupt_mismatched_and_symlinked_records_do_not_hide_valid_history(self):
+        from workflow.common.model_backup_verification import list_verifications, read_verification
+        with tempfile.TemporaryDirectory() as directory:
+            state=Path(directory); jobs=state/'jobs'; jobs.mkdir()
+            valid='1'*32; corrupt='2'*32; mismatch='3'*32; linked='4'*32
+            (jobs/f'{valid}.json').write_text(json.dumps({'job_id':valid,'status':'completed'}))
+            (jobs/f'{corrupt}.json').write_text('[]')
+            (jobs/f'{mismatch}.json').write_text(json.dumps({'job_id':valid,'status':'completed'}))
+            (jobs/f'{linked}.json').symlink_to(jobs/f'{valid}.json')
+            result={item['job_id']:item['status'] for item in list_verifications(state_root=state)}
+            self.assertEqual(result,{valid:'completed',corrupt:'unknown',mismatch:'unknown',linked:'unknown'})
+            with self.assertRaises(ValueError): read_verification(corrupt,state_root=state)
+            with self.assertRaises(ValueError): read_verification(mismatch,state_root=state)
+
+    def test_deleted_file_during_sort_does_not_break_history(self):
+        from workflow.common.model_backup_verification import list_verifications
+        with tempfile.TemporaryDirectory() as directory:
+            state=Path(directory); jobs=state/'jobs'; jobs.mkdir(); job='5'*32; path=jobs/f'{job}.json'
+            path.write_text(json.dumps({'job_id':job,'status':'completed'}))
+            real_lstat=Path.lstat
+            def disappearing(item):
+                if item == path:
+                    item.unlink(missing_ok=True)
+                    raise FileNotFoundError(str(item))
+                return real_lstat(item)
+            with patch.object(Path,'lstat',disappearing):
+                self.assertEqual(list_verifications(state_root=state),[{'job_id':job,'status':'unknown'}])

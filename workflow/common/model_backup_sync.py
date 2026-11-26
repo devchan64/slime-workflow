@@ -11,6 +11,7 @@ import stat
 from workflow.common.model_backup_inventory import inventory_model_tree, compare_inventories, _identity
 from workflow.common.model_backup_service import read_backup_roots, latest_model_snapshot
 from workflow.common.model_backup_targets import target_path
+from workflow.common.model_storage_move import _rename_noreplace
 
 
 
@@ -221,7 +222,7 @@ def sync_snapshot(model, job_id, *, roots=None, progress=None, model_info=None, 
                 'model_metadata_note': '작업 시작 시 로컬에서 조회한 선언값이며 파일 해시와 별도입니다.'}
     with (staging / '.snapshot.json').open('x', encoding='utf-8') as output:
         json.dump(manifest, output, ensure_ascii=False)
-    staging.rename(final)
+    _rename_noreplace(staging, final)
     return {'model': model, 'snapshot_id': job_id, 'file_count': len(files), 'bytes': completed,
             'logical_bytes': completed, 'resumed_bytes': resumed_bytes, 'copied_bytes': completed - resumed_bytes,
             'reused': False, 'path': str(final), 'verification': 'sha256_after_copy'}

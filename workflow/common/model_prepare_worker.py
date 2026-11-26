@@ -8,7 +8,9 @@ import traceback
 from workflow.common.generation_records import write_record_atomically
 
 MODEL_PREPARATION_PROFILES = {
-    'animationgpt': (('workflow.common.animationgpt_model_download', 'prepare_animationgpt_model_files'),),
+    'animationgpt': (('workflow.common.animationgpt_model_download', 'prepare_animationgpt_model_files'),
+                     ('workflow.common.animationgpt_model_download', 'prepare_author_t5_model_files'),
+                     ('workflow.common.animationgpt_model_download', 'prepare_author_weight')),
     'hermes-model': (('workflow.common.hermes_model_download', 'prepare_hermes_model_files'),),
     'flux-image': (('generators.image.flux_model_prepare', 'prepare_flux_model_files'),),
     'expression-lora': (('workflow.domains.image.expression_generation', 'download_expression_adapter'),),

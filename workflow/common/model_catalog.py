@@ -198,6 +198,153 @@ def reconcile_catalog(catalog, survey):
             'note': '관측은 파일 검증이나 서비스 의존성 전체 확인을 뜻하지 않습니다.'}
 
 
+
+from workflow.common.model_external_survey import EXTERNAL_GROUPS
+EXTERNAL_SURVEY_DIR = DEFAULT_MODEL_ROOT.parent / '.local/model-catalog'
+
+
+def read_external_weight_survey(path=None):
+    """Read a bounded historical external-path survey without checking live files."""
+    try:
+        if path is None:
+            candidates = sorted(EXTERNAL_SURVEY_DIR.glob('external-weight-observations-*.json'),
+                                key=lambda item: item.stat().st_mtime_ns)
+            if not candidates:
+                return None
+            path = candidates[-1]
+        path = Path(path)
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 2 * 1024 * 1024:
+            return None
+        record = json.loads(path.read_text(encoding='utf-8'))
+        if (not isinstance(record, dict) or not isinstance(record.get('observed_at'), str)
+                or not isinstance(record.get('roots'), list) or record['roots'] != list(EXTERNAL_GROUPS)
+                or not isinstance(record.get('errors'), list) or not isinstance(record.get('files'), list)
+                or type(record.get('minimum_bytes_exclusive')) is not int or record['minimum_bytes_exclusive'] != 100 * 1024**2
+                or len(record['files']) > 10000):
+            return None
+        groups = {root: {'path': root, 'files': 0, 'logical_bytes': 0, 'allocated_bytes': 0, 'changed': 0, 'error_count': 0}
+                  for root in EXTERNAL_GROUPS}
+        for error in record['errors']:
+            if not isinstance(error, dict) or not isinstance(error.get('path'), str):
+                return None
+            matching = next((group for group in EXTERNAL_GROUPS
+                             if error['path'] == group or error['path'].startswith(group + '/')), None)
+            if matching is None:
+                return None
+            groups[matching]['error_count'] += 1
+        seen = set()
+        for item in record['files']:
+            if not isinstance(item, dict):
+                return None
+            group, name = item.get('group'), item.get('path')
+            if (group not in groups or not isinstance(name, str) or not name.startswith(group + '/')
+                    or '\\' in name or '\x00' in name or any(part in ('', '.', '..') for part in name.split('/'))
+                    or name in seen or any(type(item.get(key)) is not int or not 0 <= item[key] <= 2**53 - 1
+                                           for key in ('size', 'allocated_bytes'))
+                    or type(item.get('changed')) is not bool):
+                return None
+            seen.add(name)
+            result = groups[group]
+            result['files'] += 1
+            result['logical_bytes'] += item['size']
+            result['allocated_bytes'] += item['allocated_bytes']
+            result['changed'] += item['changed']
+            if result['logical_bytes'] > 2**53 - 1 or result['allocated_bytes'] > 2**53 - 1:
+                return None
+        return {'observed_at': record['observed_at'], 'minimum_bytes_exclusive': record.get('minimum_bytes_exclusive'),
+                'error_count': len(record['errors']), 'groups': list(groups.values())}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def read_partial_prefix_survey(path=None, *, model_root=DEFAULT_MODEL_ROOT):
+    """Read an explicit prior comparison; do not infer current file state."""
+    from workflow.common.model_partial_prefix_survey import CANDIDATES
+    allowed = {model: (f'{model}/{relative}', size) for model, relative, size, _etag, _cache in CANDIDATES}
+    path = Path(path if path is not None else EXTERNAL_SURVEY_DIR / 'partial-prefix-observations.json')
+    try:
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 65536:
+            return None
+        record = json.loads(path.read_text(encoding='utf-8'))
+        if (not isinstance(record, dict) or record.get('version') != 1 or not isinstance(record.get('observed_at'), str)
+                or not isinstance(record.get('records'), list) or len(record['records']) != len(allowed)):
+            return None
+        seen = set()
+        results = []
+        for item in record['records']:
+            if not isinstance(item, dict): return None
+            name, status = item.get('model'), item.get('status')
+            if name not in allowed or name in seen or item.get('final_path') != allowed[name][0] or status not in ('matches','different','unavailable'):
+                return None
+            seen.add(name)
+            if status == 'unavailable':
+                if any(item.get(key) is not None for key in ('partial_path','prefix_bytes','final_bytes')): return None
+                results.append({**item, 'current_identity': 'unavailable'})
+                continue
+            part = item.get('partial_path')
+            if (not isinstance(part, str) or not part.startswith(name + '/.cache/huggingface/download/')
+                    or not part.endswith('.incomplete') or '\\' in part or '\x00' in part
+                    or any(piece in ('', '.', '..') for piece in part.split('/'))
+                    or type(item.get('prefix_bytes')) is not int or not 0 < item['prefix_bytes'] < allowed[name][1]
+                    or type(item.get('final_bytes')) is not int or item['final_bytes'] != allowed[name][1]):
+                return None
+            identities = (item.get('partial_identity'), item.get('final_identity'))
+            current = 'unavailable'
+            if any(value is not None for value in identities):
+                if any(not isinstance(value, list) or len(value) != 5 or any(type(n) is not int or n < 0 for n in value)
+                       for value in identities): return None
+                if identities[0][2] != item['prefix_bytes'] or identities[1][2] != item['final_bytes']: return None
+                try:
+                    root = Path(model_root).resolve(strict=True)
+                    paths = (root / part, root / item['final_path'])
+                    for candidate in paths:
+                        for parent in (candidate, *candidate.parents):
+                            if parent == root: break
+                            if parent.is_symlink(): raise ValueError('링크 경로')
+                        candidate.resolve(strict=True).relative_to(root)
+                    stats = [candidate.lstat() for candidate in paths]
+                    if any(not stat.S_ISREG(info.st_mode) for info in stats): raise ValueError('일반 파일 아님')
+                    actual = [[info.st_dev,info.st_ino,info.st_size,info.st_mtime_ns,info.st_ctime_ns] for info in stats]
+                    current = 'matches' if actual == list(identities) else 'changed'
+                except (OSError, ValueError):
+                    current = 'unavailable'
+            results.append({**{key: item.get(key) for key in ('model','final_path','partial_path','status','prefix_bytes','final_bytes')},
+                            'current_identity': current})
+        return {'version':1, 'observed_at':record['observed_at'], 'records':results}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def read_minimax_complete_observation(path=None):
+    """Expose explicit past whole-file hashes, separate from present backup state."""
+    from workflow.common.model_partial_prefix_survey import CANDIDATES
+    allowed = {model: (relative, size, digest) for model, relative, size, digest, _cache in CANDIDATES}
+    path = Path(path if path is not None else EXTERNAL_SURVEY_DIR / 'minimax-complete-observation.json')
+    try:
+        if path.is_symlink() or not path.is_file() or path.stat().st_size > 65536:
+            return None
+        record = json.loads(path.read_text(encoding='utf-8'))
+        if (not isinstance(record, dict) or not isinstance(record.get('observed_at'), str)
+                or not isinstance(record.get('files'), list) or len(record['files']) != len(allowed)):
+            return None
+        seen = set()
+        for item in record['files']:
+            if not isinstance(item, dict): return None
+            model = item.get('model')
+            if model not in allowed or model in seen: return None
+            seen.add(model)
+            relative, size, digest = allowed[model]
+            observed = item.get('sha256')
+            if (item.get('path') != relative or type(item.get('size')) is not int or item['size'] != size
+                    or not isinstance(observed, str) or not re.fullmatch(r'[0-9a-f]{64}', observed)
+                    or type(item.get('matches_pinned')) is not bool or item['matches_pinned'] != (observed == digest)
+                    or type(item.get('matches_recorded_snapshot_hash')) is not bool
+                    or not isinstance(item.get('snapshot_id'), str) or not re.fullmatch(r'[0-9a-f]{32}', item['snapshot_id'])):
+                return None
+        return record
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
 def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
     """Read declarations and top-level presence; no weight reads or writes."""
     if catalog is None:
@@ -414,5 +561,8 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
             'backup_error': listing.get('backup_error'),
             'activity': activity,
             'duplicate_survey': duplicates,
+            'external_weight_survey': read_external_weight_survey() if survey_root == DEFAULT_MODEL_ROOT else None,
+            'partial_prefix_survey': read_partial_prefix_survey() if survey_root == DEFAULT_MODEL_ROOT else None,
+            'minimax_complete_observation': read_minimax_complete_observation() if survey_root == DEFAULT_MODEL_ROOT else None,
             'storage_survey': {key: survey[key] for key in ('finished_at', 'changed', 'errors')} if survey else None,
             'note': '카탈로그와 설치 매니페스트는 각각의 선언값입니다. 존재 여부는 파일 검증이나 모든 서비스 의존성의 확인을 뜻하지 않습니다.'}

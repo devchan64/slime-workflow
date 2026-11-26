@@ -1,5 +1,7 @@
 import unittest
-from workflow.domains.animationgpt.inference import motion_decoder_constraints, parse_motion_tokens
+import tempfile
+from pathlib import Path
+from workflow.domains.animationgpt.inference import author_t5_root, motion_decoder_constraints, parse_motion_tokens
 
 
 class AnimationGPTTokenValidationTest(unittest.TestCase):
@@ -29,3 +31,18 @@ class AnimationGPTTokenValidationTest(unittest.TestCase):
                      '<motion_id_512><motion_id_1><motion_id_513><motion_id_513>'):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 parse_motion_tokens(text)
+
+
+class AnimationGPTAuthorPathTest(unittest.TestCase):
+    def test_independent_path_and_legacy_fallback(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            legacy = root/'.local/animationgpt-legacy/flan-t5-base'
+            self.assertEqual(author_t5_root(root), legacy)
+            current = root/'.model/flan-t5-base'
+            current.mkdir(parents=True)
+            self.assertEqual(author_t5_root(root), current)
+            current.rmdir()
+            current.symlink_to(legacy, target_is_directory=True)
+            with self.assertRaises(ValueError):
+                author_t5_root(root)

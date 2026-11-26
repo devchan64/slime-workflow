@@ -1,4 +1,7 @@
 """Wan 2.1 I2V single-denoiser experiment, run through the GPU queue."""
+
+if __name__ == '__main__':
+    raise SystemExit('Wan 2.1 I2V 작업자는 폐기되어 새 작업을 실행하지 않습니다.')
 import gc
 import hashlib
 import os
@@ -38,6 +41,7 @@ def validate_assets(request):
 
 
 def execute(job, attempt, request, metrics):
+    raise RuntimeError('Wan 2.1 I2V 생성 기능은 폐기되었습니다.')
     sys.path.insert(0,str(RUNTIME))
     import torch
     import numpy as np

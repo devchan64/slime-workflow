@@ -396,19 +396,19 @@ MANAGEMENT_COMMAND_DESCRIPTIONS = {'flux-expression': 'FLUX 3 표정 생성 · �
 
 MANAGEMENT_COMMAND_DESCRIPTIONS['model-downloads']='공유 모델 다운로드와 Samba 백업 조회·비교·스냅샷 백업·검증 · JSON 입력은 --payload-file'
 MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-model']='Qwen3.8 27B IQ4_XS 모델 다운로드와 SHA-256 검증'
-MANAGEMENT_COMMAND_DESCRIPTIONS['animationgpt']='AnimationGPT 제3자 FP16 모델 파일 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['animationgpt']='AnimationGPT FP16·FLAN-T5 Base·제작자 가중치 준비와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace-q8']='Wan VACE Q8_0 High/Low 파일 다운로드 및 SHA-256 검증 · Q8 생성 경로 실험'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fighting-lora']='Wan 2.2 Videogame Fighting High LoRA 다운로드와 SHA-256 검증 · VACE 추론 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace-lightning']='Wan 2.2 T2V Lightning High/Low LoRA 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v-assets']='Wan 2.2 I2V FP16 및 Lightning LoRA 파일 다운로드와 SHA-256 검증'
-MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v-assets']='Wan 2.1 T2V 1.3B 및 가속 LoRA 파일 다운로드와 SHA-256 검증'
-MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-assets']='Wan 2.1 I2V 480p 및 LoRA 파일 다운로드와 SHA-256 검증'
-MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-attack-lora']='Wan 2.1 I2V 공격 동작 LoRA 실험 파일 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v-assets']='폐기 · Wan 2.1 T2V 모델 상태 기록 조회 · 새 준비 차단'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-assets']='폐기 · Wan 2.1 I2V 모델 상태 기록 조회 · 새 준비 차단'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-attack-lora']='폐기 · Wan 2.1 공격 LoRA 상태 기록 조회 · 새 준비 차단'
 MANAGEMENT_COMMAND_DESCRIPTIONS['minimax-h3-i2v']='MiniMax H3 Diffusers I2V · 참조 1장 · 8스텝 Turbo'
 MANAGEMENT_COMMAND_DESCRIPTIONS['minimax-h3-image']='MiniMax H3 Image INT8 · 텍스트 이미지 생성 · 6스텝'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v']='Wan 2.2 I2V 실험 · 참조 1장 · --payload-file · GPU 품질 미검증'
-MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v']='Wan 2.1 T2V 실험 · --payload-file · GPU 품질 미검증'
-MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v']='Wan 2.1 I2V 실험 · 참조 1장 · --payload-file · GPU 품질 미검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v']='폐기 · Wan 2.1 T2V 기존 이력 조회 · 생성과 재개 차단'
+MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v']='폐기 · Wan 2.1 I2V 기존 이력 조회 · 생성과 재개 차단'
 MANAGEMENT_COMMAND_DESCRIPTIONS['hermes-agent']='격리 Hermes 작업 접수·상태·이력·취소 --payload-file'
 for current_flux_profile, current_flux_values in FLUX_IMAGE_PROFILE_RECORDS.items():
     MANAGEMENT_COMMAND_DESCRIPTIONS[current_flux_profile] = 'FLUX 3 ' + current_flux_values[0] + ' 이미지 생성'
@@ -446,19 +446,19 @@ def execute_management_command(service_command_name, operation_command_name, com
     request_method_value,request_route_value=resolve_management_command(service_command_name,operation_command_name,command_payload_value)
     if gateway_request_handler is not None:
         if service_command_name == 'animationgpt':
-            from workflow.common.animationgpt_model_download import WORKFLOW_ROOT_DIRECTORY, inspect_animationgpt_model_files
+            from workflow.common.animationgpt_model_download import WORKFLOW_ROOT_DIRECTORY, inspect_animationgpt_model_files, inspect_author_t5_model_files, inspect_author_weight
             from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation
             from workflow.common.management_transport import send_management_json_response
             try:
                 preparation = inspect_registered_preparation_strict(WORKFLOW_ROOT_DIRECTORY, 'animationgpt')
             except (OSError, ValueError, TypeError, UnicodeError):
                 preparation = 'unknown'
-            ready = inspect_animationgpt_model_files()
+            ready = inspect_animationgpt_model_files() and inspect_author_t5_model_files() and inspect_author_weight()
             if operation_command_name == 'prepare' and preparation == 'unknown':
                 raise ValueError('AnimationGPT 모델 준비 상태를 확인할 수 없습니다.')
             if operation_command_name == 'prepare' and preparation != 'running' and not ready:
                 preparation = start_registered_preparation(WORKFLOW_ROOT_DIRECTORY, 'animationgpt')['preparation_status']
-            return send_management_json_response(gateway_request_handler, 200, {'ready': ready, 'preparation_status': preparation, 'can_prepare': preparation != 'unknown', 'message': 'FP16 가중치·토크나이저·정규화 파일 해시 검증 완료 · 생성기 연결은 별도' if ready else '가중치·토크나이저·정규화 파일 준비 필요 · 생성기 연결은 별도'})
+            return send_management_json_response(gateway_request_handler, 200, {'ready': ready, 'preparation_status': preparation, 'can_prepare': preparation != 'unknown', 'message': 'FP16·FLAN-T5 Base·제작자 가중치 해시 검증 기록 확인 · 실행 환경은 별도' if ready else 'FP16·FLAN-T5 Base 또는 제작자 가중치 준비 필요 · 실행 환경은 별도'})
         if service_command_name == 'hermes-model':
             from workflow.common.hermes_model_download import WORKFLOW_ROOT_DIRECTORY, inspect_hermes_model_files
             from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation
@@ -551,25 +551,15 @@ def execute_management_command(service_command_name, operation_command_name, com
                 message += ' · 다운로드 실패: 모델 준비 로그 확인'
             return send_management_json_response(gateway_request_handler, 200, {'ready': ready, 'generation_ready': ready and runtime_status['ready'], 'preparation_status': status, 'can_prepare': status != 'unknown', 'message': message})
         if service_command_name in ('wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora'):
-            from generators.wan21_t2v import assets as t2v_assets
-            from generators.wan21_i2v import assets as i2v_assets
-            from generators.wan21_i2v import attack_lora
-            from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation
+            from workflow.common.model_prepare_process import inspect_registered_preparation_strict
             from workflow.common.management_transport import send_management_json_response
-            assets = {'wan21-t2v-assets':t2v_assets, 'wan21-i2v-assets':i2v_assets, 'wan21-i2v-attack-lora':attack_lora}[service_command_name]
             try:
-                status = inspect_registered_preparation_strict(assets.ROOT, service_command_name)
+                status = inspect_registered_preparation_strict(Path(__file__).resolve().parents[2], service_command_name)
             except (OSError, ValueError, TypeError, UnicodeError):
                 status = 'unknown'
-            ready = assets.inspect_assets()
-            if operation_command_name == 'prepare' and status == 'unknown':
-                raise ValueError('Wan 2.1 모델 준비 상태를 확인할 수 없습니다.')
-            if operation_command_name == 'prepare' and status != 'running' and not ready:
-                status = start_registered_preparation(assets.ROOT, service_command_name)['preparation_status']
-            message = ('모델 파일 SHA-256 검증 완료' if ready else '모델 파일 준비 필요') + ' · 생성 경로와 LoRA 조합은 별도 검증 필요'
-            if status == 'failed':
-                message += ' · 다운로드 실패: 모델 준비 로그 확인'
-            return send_management_json_response(gateway_request_handler, 200, {'ready': ready, 'generation_ready': False, 'preparation_status': status, 'can_prepare': status != 'unknown', 'message': message})
+            return send_management_json_response(gateway_request_handler, 200,
+                {'ready': False, 'generation_ready': False, 'preparation_status': status, 'can_prepare': False,
+                 'message': 'Wan 2.1 모델 준비 기능은 폐기되었습니다. 기존 작업 이력만 확인할 수 있습니다.'})
         if service_command_name == 'wan22-i2v-assets':
             from generators.wan_i2v.assets import ROOT, inspect_assets_nonblocking
             from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation

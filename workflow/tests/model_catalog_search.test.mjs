@@ -1,10 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {installationJobs, partialDownloadCandidates, preferredCurrentInstallation, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification, withObservedPartialDownloads} from '../../gui/modelCatalogSearch.mjs';
+import {cleanupCandidates, duplicateObservationCounts, installationJobs, partialDownloadCandidates, preferredCurrentInstallation, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification, withObservedPartialDownloads} from '../../gui/modelCatalogSearch.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
+
+test('동일 내용 조사에서 일치·불일치·확인 불가를 분리한다',()=>{
+  assert.deepEqual(duplicateObservationCounts([{state:'matches'},{state:'matches'},{state:'different'},{state:'unavailable'}]),
+    {matches:2,different:1,unavailable:1});
+  assert.deepEqual(duplicateObservationCounts([]),{matches:0,different:0,unavailable:0});
+});
+
+test('정리 요약은 같은 설치 경로의 관측만 합치고 보존 원본의 현재 백업을 구분한다', () => {
+  const result={components:[{declaration:{id:'m',label:'M',path:'model',services:['generator']},
+    presence:{local_present:true,snapshot_present:true},restore_record:{snapshot_id:'current'},
+    storage_observation:{partial_files:2,partial_allocated_bytes:1024},
+    alternate_installations:[{path:'retained/model',retained_original:true,storage_observation:{allocated_bytes:2048}}]}],
+    duplicate_survey:{groups:[{paths:[{path:'model/a',state:'matches',services:['other'],snapshot_present:true},
+      {path:'other/a',state:'matches',services:[],snapshot_present:false}]}]}};
+  const rows=cleanupCandidates(result);
+  const model=rows.find(row=>row.path==='model');
+  assert.deepEqual(model.reasons,['미완료 확장자','동일 내용 조사']);
+  assert.deepEqual(model.services,['generator','other']);
+  assert.equal(model.partial.partial_allocated_bytes,1024);
+  assert.equal(model.duplicates.length,1);
+  const retained=rows.find(row=>row.path==='retained/model');
+  assert.equal(retained.target,'model');assert.equal(retained.current,'model');
+  assert.equal(retained.restore.snapshot_id,'current');
+  assert.equal(rows.find(row=>row.path==='other').snapshot,false);
+  assert.deepEqual(cleanupCandidates({components:[],duplicate_survey:null}),[]);
+});
 
 test('미완료 후보는 동일 설치 경로를 합치고 직접 백업 대상의 상태를 연결한다', () => {
   const observation={partial_files:2,partial_allocated_bytes:100};
@@ -41,9 +67,9 @@ test('카탈로그 조회 지연은 중복을 막고 이전 결과를 유지하�
   for(const delayed of ['catalog-overview','backup-verify-history','backup-verify-status']) {
     let timeout,error='',busy=false,calls=0,slow=true,result='old';
     const requestRef={current:null};
-    const component={declaration:{id:'test',label:'테스트',kind:'model',path:'test',services:[]},alternate_installations:[{retained_original:true},{local_present:true,backup_target:'target'}]};
+    const component={declaration:{id:'test',label:'테스트',kind:'model',path:'test',services:[]},alternate_installations:[{path:'retained/test',retained_original:true},{path:'target',local_present:true,backup_target:'target'}]};
     const response={components:[component],unclassified:[]};
-    const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validCatalogOverview,validCatalogHistory,validCatalogVerification,preferredCurrentInstallation,requestRef,setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setError:value=>error=value,setJobs:()=>{},setJobsError:()=>{},setVerificationRecords:()=>{},setResult:value=>result=value,setCheckedAt:()=>{},managementCommand:(_service,command)=>{calls++;if(slow && command===delayed)return new Promise(()=>{});return Promise.resolve(command==='catalog-overview' ? response : command==='backup-verify-history' ? {records:[{model:'target',operation:'verify',job_id:'job'}]} : {job_id:'job',model:'target',status:'completed'});}});
+    const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,cleanupCandidates,validCatalogOverview,validCatalogHistory,validCatalogVerification,preferredCurrentInstallation,requestRef,setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setError:value=>error=value,setJobs:()=>{},setJobsError:()=>{},setVerificationRecords:()=>{},setResult:value=>result=value,setCheckedAt:()=>{},managementCommand:(_service,command)=>{calls++;if(slow && command===delayed)return new Promise(()=>{});return Promise.resolve(command==='catalog-overview' ? response : command==='backup-verify-history' ? {records:[{model:'target',operation:'verify',job_id:'job'}]} : {job_id:'job',model:'target',status:'completed'});}});
     vm.runInContext(source.slice(start,end),context);
     const first=context.load();await context.load();await new Promise(done=>setImmediate(done));const initialCalls=calls;
     timeout();await first;assert.match(error,/시간이 초과/);assert.equal(busy,false);assert.equal(result,'old');assert.equal(requestRef.current,null);
@@ -56,6 +82,24 @@ test('손상된 카탈로그 항목은 화면에 적용하지 않는다',()=>{
   const valid={components:[item],unclassified:[]};
   assert.equal(validCatalogOverview(valid),true);
   for(const value of [{...valid,components:[{}]},{...valid,components:[{...item,declaration:{...item.declaration,services:null}}]},{...valid,components:[{...item,declaration:{...item.declaration,source:{invalid:true}}}]},{...valid,components:[{...item,alternate_installations:null}]},{...valid,components:[{...item,installation_metadata:{declared_sources:'invalid'}}]},{...valid,activity:{queue:{status:'available'}}},{...valid,unclassified_nested:[{}]},{...valid,unclassified:[{name:{}}]}])assert.equal(validCatalogOverview(value),false);
+});
+
+test('부분 파일 대조 기록의 잘못된 크기와 상태를 거부한다',()=>{
+  const base={components:[],unclassified:[]};
+  const item={model:'model',final_path:'model/weight',partial_path:'model/.cache/part.incomplete',status:'matches',prefix_bytes:12,final_bytes:24};
+  const survey={version:1,observed_at:'then',records:[item]};
+  assert.equal(validCatalogOverview({...base,partial_prefix_survey:survey}),true);
+  assert.equal(validCatalogOverview({...base,partial_prefix_survey:{...survey,records:[{...item,prefix_bytes:-1}]}}),false);
+  assert.equal(validCatalogOverview({...base,partial_prefix_survey:{...survey,records:[{...item,status:'unknown'}]}}),false);
+});
+
+test('백업 범위 밖 조사 요약은 형식이 손상되면 표시하지 않는다',()=>{
+  const base={components:[],unclassified:[]};
+  const survey={observed_at:'then',minimum_bytes_exclusive:100*1024**2,error_count:0,
+    groups:[{path:'.local/example',files:1,logical_bytes:100,allocated_bytes:128,changed:0,error_count:0}]};
+  assert.equal(validCatalogOverview({...base,external_weight_survey:survey}),true);
+  assert.equal(validCatalogOverview({...base,external_weight_survey:{...survey,groups:[{...survey.groups[0],allocated_bytes:'unknown'}]}}),false);
+  assert.equal(validCatalogOverview({...base,external_weight_survey:{...survey,error_count:-1}}),false);
 });
 
 test('모델별 조사 항목의 화면 표시 형식을 검증한다',()=>{
@@ -73,7 +117,7 @@ test('카탈로그 형식 오류 뒤 기존 결과를 유지하고 재조회로 
   const start=source.indexOf('  async function load()'),end=source.indexOf('  const visibleComponents=',start);
   const good={components:[{declaration:{id:'a',label:'모델',kind:'model',path:'a',services:[]}}],unclassified:[]};
   const old={id:'previous'};let response={components:[{}],unclassified:[]},result=old,error='',busy=false;
-  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validCatalogOverview,validCatalogHistory,validCatalogVerification,requestRef:{current:null},setTimeout,clearTimeout,
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,cleanupCandidates,validCatalogOverview,validCatalogHistory,validCatalogVerification,requestRef:{current:null},setTimeout,clearTimeout,
     setBusy:value=>busy=value,setError:value=>error=value,setJobs:()=>{},setJobsError:()=>{},setVerificationRecords:()=>{},setResult:value=>result=value,setCheckedAt:()=>{},
     managementCommand:async(_service,command)=>command==='catalog-overview'?response:{records:[]}});
   vm.runInContext(source.slice(start,end),context);
@@ -87,7 +131,7 @@ test('보존 원본은 현재 일반 대상의 검증 이력을 요청한다',as
   const component={declaration:{id:'flux',label:'FLUX',kind:'model',path:'flux',services:[]},presence:{local_present:true},
     alternate_installations:[{path:'flux',backup_target:'catalog-flux',local_present:true},{path:'retained',retained_original:true}]};
   let requested,records;
-  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validCatalogOverview,validCatalogHistory,validCatalogVerification,requestRef:{current:null},setTimeout,clearTimeout,
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,cleanupCandidates,validCatalogOverview,validCatalogHistory,validCatalogVerification,requestRef:{current:null},setTimeout,clearTimeout,
     setBusy:()=>{},setError:()=>{},setJobs:()=>{},setJobsError:()=>{},setVerificationRecords:value=>records=value,setResult:()=>{},setCheckedAt:()=>{},
     managementCommand:async(_service,command,payload)=>{
       if(command==='catalog-overview')return {components:[component],unclassified:[]};
@@ -101,11 +145,28 @@ test('보존 원본은 현재 일반 대상의 검증 이력을 요청한다',as
   assert.equal(records['catalog-flux'],undefined);
 });
 
+test('후보별 검증은 같은 대상의 최신 검증만 한 번 조회한다',async()=>{
+  const source=readFileSync(new URL('../../gui/ModelCatalog.jsx',import.meta.url),'utf8');
+  const start=source.indexOf('  async function load()'),end=source.indexOf('  const visibleComponents=',start);
+  const component={declaration:{id:'m',label:'M',kind:'model',path:'model',services:[]},presence:{local_present:true},
+    storage_observation:{partial_files:1,partial_allocated_bytes:10},alternate_installations:[{path:'retained/m',retained_original:true}]};
+  const catalog={components:[component],unclassified:[]}; let records,requested=[];
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,cleanupCandidates,validCatalogOverview,validCatalogHistory,validCatalogVerification,requestRef:{current:null},setTimeout,clearTimeout,
+    setBusy:()=>{},setError:()=>{},setJobs:()=>{},setJobsError:()=>{},setVerificationRecords:value=>records=value,setResult:()=>{},setCheckedAt:()=>{},
+    managementCommand:async(_service,command,payload)=>{
+      if(command==='catalog-overview')return catalog;
+      if(command==='backup-verify-history')return {records:[{model:'model',operation:'sync',job_id:'sync'}, {model:'other',operation:'verify',job_id:'other'}, {model:'model',operation:'verify',job_id:'verify'}]};
+      requested.push(payload.job_id);return {job_id:payload.job_id,model:'model',status:'completed'};
+    }});
+  vm.runInContext(source.slice(start,end),context);await context.load();
+  assert.deepEqual(requested,['verify']); assert.equal(records.model.job_id,'verify'); assert.equal(records.other,undefined);
+});
+
 test('손상된 백업 이력은 카탈로그와 구분해 실패로 표시한다',async()=>{
   const source=readFileSync(new URL('../../gui/ModelCatalog.jsx',import.meta.url),'utf8');
   const start=source.indexOf('  async function load()'),end=source.indexOf('  const visibleComponents=',start);
   const catalog={components:[],unclassified:[]};let jobs='old',jobsError='',result=null;
-  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validCatalogOverview,validCatalogHistory,validCatalogVerification,requestRef:{current:null},setTimeout,clearTimeout,
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,cleanupCandidates,validCatalogOverview,validCatalogHistory,validCatalogVerification,requestRef:{current:null},setTimeout,clearTimeout,
     setBusy:()=>{},setError:()=>{},setJobs:value=>jobs=value,setJobsError:value=>jobsError=value,setVerificationRecords:()=>{},setResult:value=>result=value,setCheckedAt:()=>{},
     managementCommand:async(_service,command)=>command==='catalog-overview'?catalog:{records:[{job_id:'job',model:{unexpected:'object'}}]}});
   vm.runInContext(source.slice(start,end),context);await context.load();

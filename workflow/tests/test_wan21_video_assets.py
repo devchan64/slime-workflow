@@ -12,6 +12,19 @@ from workflow.common.model_prepare_worker import MODEL_PREPARATION_PROFILES
 
 
 class Wan21AssetsTest(unittest.TestCase):
+    def test_retired_asset_status_cannot_offer_preparation(self):
+        from workflow.common.management_gateway import execute_management_command, resolve_management_command
+        with patch('workflow.common.model_prepare_process.inspect_registered_preparation_strict', return_value='completed'), \
+             patch('workflow.common.management_transport.send_management_json_response', side_effect=lambda handler, status, value: value):
+            for service in ('wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora'):
+                with self.subTest(service=service):
+                    result = execute_management_command(service, 'model-status', {}, gateway_request_handler=object())
+                    self.assertFalse(result['ready'])
+                    self.assertFalse(result['can_prepare'])
+                    self.assertIn('폐기', result['message'])
+                    with self.assertRaisesRegex(ValueError, '폐기'):
+                        resolve_management_command(service, 'prepare', {'action':'prepare'})
+
     def test_generators_have_separate_pinned_models_and_profiles(self):
         self.assertNotEqual(t2v.DIRECTORY, i2v.DIRECTORY)
         for profile, module in [('wan21-t2v-assets', t2v), ('wan21-i2v-assets', i2v), ('wan21-i2v-attack-lora', attack_lora)]:

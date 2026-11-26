@@ -32,12 +32,12 @@ def resolve_model_inventory_paths():
     from generators.writer_agent.prepare import embedding_model_directory
     from workflow.domains.translation.service import current_translation_model_root
     from workflow.common.hermes_model_download import current_hermes_model_directory
-    from workflow.common.animationgpt_model_download import ANIMATIONGPT_MODEL_DIRECTORY
+    from workflow.common.animationgpt_model_download import ANIMATIONGPT_MODEL_DIRECTORY, AUTHOR_T5_DIRECTORY
     from workflow.generators.minimax_h3_ref2va.assets import REF as REF2VA_MODEL_ROOT, FILES as MINIMAX_SHARED_FILES
     from generators.minimax_h3.assets import ASSETS as MINIMAX_I2V_CONFIG
     from generators.minimax_h3_image.contracts import BASE as MINIMAX_IMAGE_CONFIG, FILES as MINIMAX_IMAGE_FILES
     return {
-        'animationgpt': [ANIMATIONGPT_MODEL_DIRECTORY],
+        'animationgpt': [ANIMATIONGPT_MODEL_DIRECTORY, AUTHOR_T5_DIRECTORY, MODEL_INVENTORY_ROOT / '.model/animationgpt-author'],
         'flux-image': [FLUX_MODEL_ROOT_DIRECTORY],
         'prop-generator': [QWEN_MODEL_DIRECTORY],
         'expression-lora': [EXPRESSION_ADAPTER_PATH],

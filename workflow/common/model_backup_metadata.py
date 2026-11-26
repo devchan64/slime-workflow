@@ -67,6 +67,21 @@ def model_metadata(model, *, config_path=None, service_paths=None):
             else:
                 manifest = None
         if manifest is None:
+            if model in ('flan-t5-base', 'animationgpt-author'):
+                from workflow.common.animationgpt_model_download import (AUTHOR_WEIGHT_SHA256, FILENAME,
+                    T5_REVISION, author_t5_required_files)
+                if model == 'flan-t5-base':
+                    repository, revision = 'google/flan-t5-base', T5_REVISION
+                    hashes = author_t5_required_files()
+                    result['declared_sources'] = [{'repository': repository, 'revision': revision}]
+                else:
+                    repository, revision = None, None
+                    hashes = {FILENAME: AUTHOR_WEIGHT_SHA256}
+                result['manifest_state'] = 'code_pinned'
+                result['declared_files'] = [{'path': path, 'sha256': digest, 'hash_origin': 'application_pinned',
+                                             'repository': repository, 'revision': revision}
+                                            for path, digest in sorted(hashes.items())]
+                return result
             if model in ('hermes-agent', 'hermes-coding', 'qwen3.8-27b-iq4-xs', 'catalog-hermes-coding'):
                 from workflow.common.hermes_model_download import HERMES_MODEL_FILENAME
                 ready = folder / 'ready.sha256'

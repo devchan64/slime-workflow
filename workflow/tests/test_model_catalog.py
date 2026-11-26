@@ -5,6 +5,27 @@ from workflow.common.model_catalog import catalog_overview, read_catalog, read_r
 
 
 class CatalogTest(unittest.TestCase):
+    def test_external_survey_is_bounded_and_rejects_escape(self):
+        import json, tempfile
+        from pathlib import Path
+        from workflow.common.model_catalog import EXTERNAL_GROUPS, read_external_weight_survey
+        group = EXTERNAL_GROUPS[0]
+        record = {'observed_at':'then', 'roots':list(EXTERNAL_GROUPS), 'minimum_bytes_exclusive':100*1024**2,
+                  'errors':[], 'files':[{'group':group,'path':group+'/model/a.gguf','size':123,
+                                         'allocated_bytes':256,'changed':False}]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'survey.json'
+            path.write_text(json.dumps(record))
+            report = read_external_weight_survey(path)
+            self.assertEqual(report['groups'][0]['files'], 1)
+            self.assertEqual(report['groups'][0]['allocated_bytes'], 256)
+            record['files'][0]['path'] = group+'/../outside'
+            path.write_text(json.dumps(record))
+            self.assertIsNone(read_external_weight_survey(path))
+            path.unlink()
+            path.symlink_to(Path(directory)/'missing')
+            self.assertIsNone(read_external_weight_survey(path))
+
     def test_unverified_wanmove_and_flux_upsampler_provenance_is_explicit(self):
         entries = {item['id']: item for item in read_catalog()['components']}
         wan = entries['wan-move']
@@ -79,7 +100,7 @@ class CatalogTest(unittest.TestCase):
         paths = result['duplicate_survey']['groups'][0]['paths']
         self.assertEqual(paths[0]['services'], ['animationgpt'])
         self.assertTrue(paths[0]['snapshot_present'])
-        self.assertEqual(paths[1]['services'], [])
+        self.assertEqual(paths[1]['services'], ['animationgpt'])
         self.assertIsNone(paths[1]['snapshot_present'])
 
     def test_restore_history_matches_only_latest_snapshot_identifier(self):

@@ -301,10 +301,10 @@ export default function ModelBackupCompare({requestedSelection}) {
     <p>백업은 원본과 최신 스냅샷의 SHA-256, 매니페스트와 원본 수정 시각 및 모델 메타정보를 확인해 모두 일치하면 재사용합니다. 다르면 모델 전체를 새 스냅샷으로 복사하므로 모델 크기만큼 추가 공간이 필요합니다.</p>
     <p>검증은 선택한 파일을 전체적으로 읽으므로 시간이 오래 걸립니다. 작업 완료와 모든 파일의 일치는 별도입니다.</p>
     <p>중단된 백업은 이력에서 재개할 수 있습니다. 남은 부분을 쓰기 전에 기존 부분 파일과 원본을 대조하며, 다르면 기존 파일을 보존하고 중단합니다.</p>
-    {metadata && <div>{metadataLoading && <p role="status">메타정보를 다시 조회하고 있습니다. 아래는 마지막으로 확인한 결과입니다.</p>}{metadataCheckedAt && <p>메타정보 마지막 조회 성공 · <time dateTime={metadataCheckedAt.toISOString()}>{metadataCheckedAt.toLocaleString('ko-KR')}</time></p>}<p>{metadata.origin === 'backup_snapshot' ? `백업 스냅샷 ${metadata.snapshot_id} · ` : metadata.origin === 'backup_directory' ? '기존 백업 디렉터리 · ' : ''}관련 서비스 · {metadata.services?.join(', ') || '확인된 등록 없음'} · 기존 매니페스트 {metadata.manifest_state}</p>
-      <p>매니페스트의 해시는 선언값입니다. 파일 내용을 검증한 결과와 구분합니다.</p>
+    {metadata && <div>{metadataLoading && <p role="status">메타정보를 다시 조회하고 있습니다. 아래는 마지막으로 확인한 결과입니다.</p>}{metadataCheckedAt && <p>메타정보 마지막 조회 성공 · <time dateTime={metadataCheckedAt.toISOString()}>{metadataCheckedAt.toLocaleString('ko-KR')}</time></p>}<p>{metadata.origin === 'backup_snapshot' ? `백업 스냅샷 ${metadata.snapshot_id} · ` : metadata.origin === 'backup_directory' ? '기존 백업 디렉터리 · ' : metadata.origin === 'local' ? '현재 로컬 모델 선언 · ' : '출처 확인 불가 · '}관련 서비스 · {metadata.services?.join(', ') || '확인된 등록 없음'} · 선언 출처 {({code_pinned:'코드 고정값',read:'로컬 매니페스트',ready_record:'준비 기록',prepared_record:'준비 기록',missing:'없음',unavailable:'확인 불가'}[metadata.manifest_state] || '확인 불가')}</p>
+      <p>표시된 해시는 선언값입니다. 파일 내용을 검증한 결과와 구분합니다.</p>
       <ul>{metadata.declared_sources?.map((item, index) => <li key={index}>{item.repository} · {item.revision}</li>)}</ul>
-      <ul>{metadata.declared_files?.slice(0, 200).map((item, index) => <li key={index}>{item.path} · {item.sha256}</li>)}</ul>
+      <ul>{metadata.declared_files?.slice(0, 200).map((item, index) => <li key={index}>{item.path} · {item.sha256} · {({application_pinned:'코드 고정 해시',local_manifest:'로컬 매니페스트 선언',local_preparation_record:'로컬 준비 기록',local_ready_record:'로컬 준비 기록'}[item.hash_origin] || '출처 확인 불가')}</li>)}</ul>
       {metadata.declared_files?.length > 200 && <p>선언 파일은 처음 200개만 표시합니다.</p>}
     </div>}
     <h3>3. 작업 상태와 이력</h3>

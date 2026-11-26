@@ -29,6 +29,20 @@ export function validCatalogOverview(value) {
       (group.duplicate_logical_bytes!=null && (!Number.isSafeInteger(group.duplicate_logical_bytes) || group.duplicate_logical_bytes<0)) ||
       group.paths.some(path=>typeof path.path!=='string' || !['matches','different','unavailable'].includes(path.state) ||
         (path.services!=null && (!Array.isArray(path.services) || path.services.some(service=>typeof service!=='string'))) || !validRestore(path.restore_record)))))return false;
+  if(value.minimax_complete_observation!=null && (!object(value.minimax_complete_observation) ||
+    typeof value.minimax_complete_observation.observed_at!=='string' || !objects(value.minimax_complete_observation.files) ||
+    value.minimax_complete_observation.files.some(item=>typeof item.model!=='string' || typeof item.path!=='string' ||
+      typeof item.snapshot_id!=='string' || typeof item.matches_pinned!=='boolean' || typeof item.matches_recorded_snapshot_hash!=='boolean')))return false;
+  if(value.partial_prefix_survey!=null && (!object(value.partial_prefix_survey) || value.partial_prefix_survey.version!==1 ||
+    typeof value.partial_prefix_survey.observed_at!=='string' || !objects(value.partial_prefix_survey.records) || value.partial_prefix_survey.records.some(item=>
+      typeof item.model!=='string' || typeof item.final_path!=='string' || !['matches','different','unavailable'].includes(item.status) ||
+      (item.current_identity!=null && !['matches','changed','unavailable'].includes(item.current_identity)) ||
+      (item.partial_path!=null && typeof item.partial_path!=='string') ||
+      ['prefix_bytes','final_bytes'].some(key=>item[key]!=null && (!Number.isSafeInteger(item[key]) || item[key]<0)))))return false;
+  if(value.external_weight_survey!=null && (!object(value.external_weight_survey) || typeof value.external_weight_survey.observed_at!=='string' ||
+    value.external_weight_survey.minimum_bytes_exclusive!==100*1024**2 || !Number.isSafeInteger(value.external_weight_survey.error_count) || value.external_weight_survey.error_count<0 ||
+    !objects(value.external_weight_survey.groups) || value.external_weight_survey.groups.some(group=>typeof group.path!=='string' ||
+      !['files','logical_bytes','allocated_bytes','changed','error_count'].every(key=>Number.isSafeInteger(group[key]) && group[key]>=0))))return false;
   if(value.activity!=null && (!object(value.activity) || (value.activity.queue!=null && (!object(value.activity.queue) || !optionalObjects(value.activity.queue.jobs))) || (value.activity.reservations!=null && (!object(value.activity.reservations) || !optionalObjects(value.activity.reservations.records)))))return false;
   if(value.activity?.queue?.status==='available' && !objects(value.activity.queue.jobs))return false;
   if(value.activity?.reservations?.status==='available' && !objects(value.activity.reservations.records))return false;
@@ -111,4 +125,57 @@ export function sortCatalog(components, order) {
     if (aKnown !== bKnown) return aKnown ? -1 : 1;
     return aKnown ? bv - av : 0;
   });
+}
+
+// Observations are grouped by installation root; no deletion safety is inferred.
+export function cleanupCandidates(result) {
+  const candidates = new Map();
+  const ensure = (path, target = path) => {
+    const key = `${path}\0${target || ''}`;
+    if (!candidates.has(key)) candidates.set(key, {path, target, reasons: [], services: new Set(), duplicates: [], partial: null, snapshot: null, restore: null});
+    return candidates.get(key);
+  };
+  for (const partial of partialDownloadCandidates(result.components)) {
+    const row = ensure(partial.path, partial.backup_target);
+    row.reasons.push('미완료 확장자');
+    row.partial = partial.storage_observation;
+    row.snapshot = partial.snapshot_present ?? null;
+    row.restore = partial.restore_record ?? null;
+    for (const service of partial.declaration.services) row.services.add(service);
+  }
+  for (const group of result.duplicate_survey?.groups || []) {
+    for (const entry of group.paths) {
+      const root = entry.path.split('/')[0];
+      const row = ensure(root);
+      if (!row.reasons.includes('동일 내용 조사')) row.reasons.push('동일 내용 조사');
+      row.duplicates.push({path: entry.path, state: entry.state, via_link: entry.via_link === true});
+      row.snapshot = entry.snapshot_present ?? row.snapshot;
+      row.restore = entry.restore_record ?? row.restore;
+      for (const service of entry.services || []) row.services.add(service);
+    }
+  }
+  for (const component of result.components) {
+    const item = component.declaration;
+    const alternates = component.alternate_installations || [];
+    const current = component.presence?.local_present === true && !item.path.includes('/')
+      ? {...component.presence, path:item.path, backup_target:item.path, restore_record:component.restore_record}
+      : preferredCurrentInstallation(alternates);
+    for (const original of alternates.filter(alt => alt.retained_original && alt.path)) {
+      const row = ensure(original.path, current?.backup_target || null);
+      row.reasons.push('이관 후 보존 원본');
+      row.observation = original.storage_observation || null;
+      row.snapshot = current?.snapshot_present ?? null;
+      row.restore = current?.restore_record ?? null;
+      row.current = current?.path || null;
+      for (const service of item.services) row.services.add(service);
+    }
+  }
+  return [...candidates.values()].map(row => ({...row, services:[...row.services].sort()}));
+}
+
+export function duplicateObservationCounts(entries) {
+  return entries.reduce((counts, entry) => {
+    if (Object.hasOwn(counts, entry.state)) counts[entry.state]++;
+    return counts;
+  }, {matches:0, different:0, unavailable:0});
 }

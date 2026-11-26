@@ -1,4 +1,4 @@
-"""AnimationGPT 추론 준비: 22관절 좌표만 반환하며 서비스·GPU 대기열에 연결되지 않았다."""
+"""AnimationGPT 제작자 방식 CPU 추론과 22관절 좌표 검증."""
 import re
 from pathlib import Path
 
@@ -38,6 +38,17 @@ def motion_decoder_constraints(tokenizer, decoder_start_id, codebook_size=512):
     return [decoder_start_id, start], end, allowed
 
 
+def author_t5_root(root):
+    """Prefer the independent model installation; retain the legacy fallback."""
+    root = Path(root)
+    current = root / '.model/flan-t5-base'
+    if current.exists() or current.is_symlink():
+        if current.is_symlink() or not current.is_dir():
+            raise ValueError('FLAN-T5 모델 경로를 확인할 수 없습니다.')
+        return current
+    return root / '.local/animationgpt-legacy/flan-t5-base'
+
+
 def generate_motion(prompt, seed, source_root, model_root, *, max_tokens=256):
     """제작자 데모의 비제약 샘플링을 별도 Python 3.10 CPU 프로세스에서 실행한다."""
     import hashlib
@@ -60,7 +71,7 @@ def generate_motion(prompt, seed, source_root, model_root, *, max_tokens=256):
     root = Path(__file__).resolve().parents[3]
     source_root, model_root = Path(source_root).resolve(), Path(model_root).resolve()
     author_weights = root / '.model/animationgpt-author/AnimationGPT_fp16.safetensors'
-    t5_root = root / '.local/animationgpt-legacy/flan-t5-base'
+    t5_root = author_t5_root(root)
     expected = ((author_weights, '80d822c7c34faf075d93a8b605569142a7d97e9feb31972a94fb9968621aaa6b'),
                 (t5_root / 'model.safetensors', '1dfb70afdcedceb9f9fae2f9b68e004ad934361fb35b9b2bd50b45ea90790fc8'))
     for path, digest in expected:

@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import stat
 import sys
 import traceback
 import uuid
@@ -139,32 +140,58 @@ def resume_backup_job(job_id, *, state_root=STATE_ROOT, config_path=None):
     return {'job_id': job_id, 'status': 'running', 'model': model, 'operation': 'sync', 'target': 'canonical'}
 
 
+
+def _read_job_record(path, job_id):
+    """Read one bounded regular job file without following a replacement link."""
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, 'rb') as stream:
+        before = os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode) or before.st_size > 64 * 1024 * 1024:
+            raise ValueError('백업 작업 기록 형식 오류')
+        record = json.load(stream)
+        after = os.fstat(stream.fileno())
+    identity = lambda item: (item.st_dev, item.st_ino, item.st_size, item.st_mtime_ns, item.st_ctime_ns)
+    if (identity(before) != identity(after) or not isinstance(record, dict)
+            or record.get('job_id') != job_id or not isinstance(record.get('status'), str)):
+        raise ValueError('백업 작업 기록 형식 오류')
+    return record
+
 def read_verification(job_id, *, state_root=STATE_ROOT):
     if not isinstance(job_id, str) or len(job_id) != 32 or any(char not in '0123456789abcdef' for char in job_id):
         raise ValueError('검증 작업 ID가 올바르지 않습니다.')
     path = Path(state_root) / 'jobs' / (job_id + '.json')
     try:
-        record = json.loads(path.read_text(encoding='utf-8'))
+        record = _read_job_record(path, job_id)
     except FileNotFoundError:
         raise ValueError('검증 작업을 찾을 수 없습니다.') from None
-    if record.get('status') == 'completed' and record.get('operation') == 'sync':
-        result = record.get('result')
-        if isinstance(result, dict) and type(result.get('bytes')) is int and result['bytes'] >= 0:
-            record['bytes'] = record['total_bytes'] = result['bytes']
     if record.get('status') == 'running':
         try:
-            current = json.loads((Path(state_root) / 'current.json').read_text(encoding='utf-8'))
             with (Path(state_root) / 'worker.lock').open('a') as lock:
                 try:
                     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 except BlockingIOError:
-                    active = current.get('job_id') == job_id
+                    # Another worker owns the lock. Read its identity after
+                    # observing the lock; an unrelated owner cannot prove this
+                    # job is interrupted during a concurrent handoff.
+                    latest = _read_job_record(path, job_id)
+                    record = latest
+                    if record.get('status') == 'running':
+                        current = json.loads((Path(state_root) / 'current.json').read_text(encoding='utf-8'))
+                        if not isinstance(current, dict) or current.get('job_id') != job_id:
+                            record['status'] = 'unknown'
                 else:
-                    active = False
-            if not active:
-                record['status'] = 'interrupted'
+                    # A worker may have finished after the initial read. Hold
+                    # the lock while re-reading so a new worker cannot start.
+                    latest = _read_job_record(path, job_id)
+                    record = latest
+                    if record.get('status') == 'running':
+                        record['status'] = 'interrupted'
         except (OSError, ValueError, TypeError):
             record['status'] = 'unknown'
+    if record.get('status') == 'completed' and record.get('operation') == 'sync':
+        result = record.get('result')
+        if isinstance(result, dict) and type(result.get('bytes')) is int and result['bytes'] >= 0:
+            record['bytes'] = record['total_bytes'] = result['bytes']
     return record
 
 
@@ -172,7 +199,12 @@ def list_verifications(*, state_root=STATE_ROOT, limit=20):
     jobs = Path(state_root) / 'jobs'
     if not jobs.exists():
         return []
-    paths = sorted(jobs.glob('*.json'), key=lambda path: path.stat().st_mtime_ns, reverse=True)
+    def observed_mtime(path):
+        try:
+            return path.lstat().st_mtime_ns
+        except OSError:
+            return 0
+    paths = sorted(jobs.glob('*.json'), key=observed_mtime, reverse=True)
     records = []
     for path in paths[:limit]:
         try:
