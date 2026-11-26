@@ -14,7 +14,7 @@ test('GPU 상태 수동·자동 갱신은 렌더 전 중복 요청을 막는다'
 });
 
 test('GPU 프로세스의 손상된 표시 값은 이전 상태를 보존하고 오류를 알린다',async()=>{
- const effect=source.slice(source.indexOf('  useEffect(() => {'),source.indexOf('  const processes ='));
+ const effect=source.slice(source.indexOf('  useEffect(() => {'),source.indexOf('  return {status,error,checkedAt,loading,live,requestRefresh};'));
  for(const process of [{command:{}},{id:[]},{pid:{}},{gpu_parent_pid:{}}]){
   let cleanup,error='',status={status:'idle',processes:[]};
   const context=vm.createContext({AbortController,TypeError,requestErrorMessage,pending:{current:true},revision:0,useEffect:fn=>cleanup=fn(),setTimeout:()=>1,clearTimeout:()=>{},setLoading:()=>{},setStatus:value=>status=value,setCheckedAt:()=>{},setError:value=>error=value,fetch:async()=>({ok:true,json:async()=>({status:'busy',processes:[process]})})});
@@ -24,7 +24,7 @@ test('GPU 프로세스의 손상된 표시 값은 이전 상태를 보존하고 
 });
 
 test('GPU 상태 조회의 메시지 없는 오류 뒤 재조회가 복구된다',async()=>{
- const effect=source.slice(source.indexOf('  useEffect(() => {'),source.indexOf('  const processes ='));
+ const effect=source.slice(source.indexOf('  useEffect(() => {'),source.indexOf('  return {status,error,checkedAt,loading,live,requestRefresh};'));
  let cleanup,error='',loading=true,status=null,calls=0;const pending={current:true};
  const context=vm.createContext({AbortController,TypeError,requestErrorMessage,pending,revision:0,useEffect:fn=>cleanup=fn(),setTimeout:()=>1,clearTimeout:()=>{},setLoading:value=>loading=value,setStatus:value=>status=value,setCheckedAt:()=>{},setError:value=>error=value,fetch:()=>++calls===1?Promise.reject(null):Promise.resolve({ok:true,json:async()=>({status:'idle',processes:[]})})});
  vm.runInContext(effect,context);await new Promise(done=>setImmediate(done));
