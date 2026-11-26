@@ -1202,4 +1202,6 @@ MiniMax 대화 접수 ID는 `flux_`에 `sha256(json.dumps([session_id, proposal_
 
 ### MiniMax H3 이미지 참조 입력
 
-`python3 tools/manager.py command minimax-h3-image generate --prompt-file <UTF-8 파일> --reference <PNG> --seed <시드> --width 832 --height 480 --detach`로 참조를 전달한다. `--reference`는 순서대로 최대 두 번 지정하며 장당 3MB 이하다. GUI와 동일한 서비스에서 최종 형식과 입력을 검증한다. 이력 입력값의 GUI 복원은 아직 지원하지 않는다.
+`python3 tools/manager.py command minimax-h3-image generate --prompt-file <UTF-8 파일> --reference <PNG> --seed <시드> --width 832 --height 480 --detach`로 참조를 전달한다. `--reference`는 순서대로 최대 두 번 지정하며 장당 3MB 이하다. GUI와 동일한 서비스에서 최종 형식과 입력을 검증한다. 이력의 입력 적용으로 저장된 설정과 참조 사본을 복원할 수 있다.
+
+MiniMax H3 이미지 독립 화면과 CLI는 `--sampler euler|lcm`을 지원한다. 기본값 Euler이며 LCM은 실험 기능이다. 요청·이력·결과에 선택과 노이즈 설정을 기록한다. 대화 접수폼은 Euler만 지원한다.

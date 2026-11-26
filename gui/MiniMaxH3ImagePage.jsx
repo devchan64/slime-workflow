@@ -27,12 +27,15 @@ export function minimaxImageReasons({model,prompt,seed}) {
   return [!model?.generation_ready && "모델 준비 상태를 확인하세요.",!prompt.trim() && "프롬프트를 입력하세요.",(!Number.isInteger(seed) || seed<0 || seed>4294967295) && "시드는 0부터 4294967295까지의 정수로 입력하세요."];
 }
 function imageBase64(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('참조 이미지를 읽을 수 없습니다.'));reader.readAsDataURL(file);});}
-export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,proposalScope=null,reportReceipt=null}={}) {
+export default function MiniMaxH3ImagePage({embedded=false,session:embeddedSession="",initialInputs=null,proposalScope=null,reportReceipt=null}={}) {
+  const session=embeddedSession || new URLSearchParams(window.location.search).get("session") || "";
   const inputLockId=useId(),secondReferenceId=useId();
   const [prompt,setPrompt]=useState(initialInputs?.prompt || ""), [seed,setSeed]=useState(initialInputs?.seed ?? 42), [model,setModel]=useState(null), [modelError,setModelError]=useState("");
   const [size,setSize]=useState(initialInputs?.width===832 && initialInputs?.height===480 ? 832 : initialInputs?.width===512 && initialInputs?.height===512 ? 512 : 1024);
-  const [downscale,setDownscale]=useState(false);
-  const [references,setReferences]=useState([null,null]),[checking,setChecking]=useState([false,false]);
+  const [downscale,setDownscale]=useState(false), [sampler,setSampler]=useState("euler");
+  const [notice,setNotice]=useState("");
+  const inputRevision=useRef(0),checkingSlots=useRef(new Set()),interaction=useRef(null);
+  const [references,setReferences]=useState([null,null]),[checking,setChecking]=useState([false,false]),[referenceErrors,setReferenceErrors]=useState([false,false]),[previewErrors,setPreviewErrors]=useState([false,false]),[referenceReset,setReferenceReset]=useState(0);
   const [pending,setPending]=useState(null), [preview,setPreview]=useState(""), [busy,setBusy]=useState(false), [error,setError]=useState("");
   const [job,setJob]=useState(()=>{
     const linked=new URLSearchParams(window.location.search).get("job");
@@ -40,6 +43,7 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
   }), [revision,setRevision]=useState(0);
   const localReceipt=useMinimaxReportReceipt(reportReceipt ? null : proposalScope,service);
   const receipt=reportReceipt || localReceipt;
+  interaction.current={busy,pending,receiptState:receipt.state};
   useEffect(()=>{if(receipt.state==="accepted" && receipt.job)setJob(receipt.job);},[receipt.state,receipt.job]);
   const invalidSeed=!Number.isInteger(seed) || seed<0 || seed>4294967295;
   const reasons=[...minimaxImageReasons({model,prompt,seed}),checking.some(Boolean) && "참조 이미지 확인이 끝날 때까지 기다리세요.",proposalScope && receipt.state!=="editing" && "대화 접수 상태를 확인하세요."];
@@ -51,10 +55,11 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
   async function review(event){
     event.preventDefault();
     if((proposalScope && receipt.state!=="editing") || sending.current || busy || pending || checking.some(Boolean) || !model?.generation_ready || !prompt.trim() || !Number.isInteger(seed) || seed<0 || seed>4294967295)return;
+    inputRevision.current++;
     const focused=document.activeElement;previewFocus.current=focused;
     sending.current=true;setBusy(true);setError("");
     const height=size===832?480:size;
-    const request={action:"generate",prompt:prompt.trim(),images:[],width:downscale?size*2:size,height:downscale?height*2:height,steps:6,seed,...(downscale?{output_size:{width:size,height}}:{})};
+    const request={action:"generate",prompt:prompt.trim(),images:[],width:downscale?size*2:size,height:downscale?height*2:height,steps:6,seed,...(!proposalScope?{sampler}:{}),...(downscale?{output_size:{width:size,height}}:{})};
     const controller=new AbortController();previewRequest.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
@@ -67,6 +72,35 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
       setPreview(result.prompt);setPending({...request,expected_prompt_sha256:result.prompt_sha256});
     }catch(problem){if(previewRequest.current===controller)setError(timedOut ? "프롬프트 검토 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}
     finally{clearTimeout(timeout);if(previewRequest.current===controller){previewRequest.current=null;sending.current=false;setBusy(false);}}
+  }
+  async function readSavedInput(id,{signal}={}){
+    const revisionAtStart=inputRevision.current,checkingAtStart=checkingSlots.current.size>0,focusAtStart=document.activeElement;
+    const controller=new AbortController();let timedOut=false;
+    const cancel=()=>controller.abort();
+    if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',cancel,{once:true});
+    const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    try{
+      const response=await untilAborted(fetch('/management/assistant/minimax-h3-image-input/'+encodeURIComponent(id),{signal:controller.signal,cache:'no-store'}),controller.signal);
+      if(!response.ok)throw new Error('저장된 입력을 읽을 수 없습니다.');
+      let record;
+      try{record=await untilAborted(response.json(),controller.signal);}
+      catch(problem){if(controller.signal.aborted)throw problem;throw new Error('저장 입력 응답을 확인할 수 없습니다. 다시 시도하세요.');}
+      const request=record?.request;
+      if(record?.id!==id || !request || typeof request!=='object' || Array.isArray(request) || !Array.isArray(request.images) || request.images.length>2 || request.images.some(image=>typeof image!=='string'))throw new Error('선택한 작업의 저장 입력을 확인할 수 없습니다.');
+      const output=request?.output_size || {width:request?.width,height:request?.height},scaled=request?.output_size!=null;
+      const supported=(output.width===832 && output.height===480)||(output.width===512 && output.height===512)||(output.width===1024 && output.height===1024);
+      if(request.action!=='generate' || typeof request.prompt!=='string' || !request.prompt.trim() || request.prompt.length>8000 || !Number.isInteger(request.seed) || request.seed<0 || request.seed>4294967295 || request.steps!==6 || !['euler','lcm'].includes(request.sampler ?? 'euler') || !supported || request.width!==output.width*(scaled?2:1) || request.height!==output.height*(scaled?2:1))throw new Error('현재 화면에서 지원하지 않는 저장 설정이 있어 적용하지 않았습니다.');
+      const files=request.images.map((image,index)=>{let bytes;try{bytes=Uint8Array.from(atob(image),character=>character.charCodeAt(0));}catch{throw new Error('저장된 참조 이미지를 확인할 수 없습니다.');}if(!bytes.length)throw new Error('저장된 참조 이미지를 확인할 수 없습니다.');return new File([bytes],`reference-${index+1}.png`,{type:'image/png'});});
+      return {id,request,files,revisionAtStart,checkingAtStart,focusAtStart,output,scaled};
+    }catch(problem){if(timedOut)throw new Error('저장 입력 조회 시간이 초과됐습니다. 다시 시도하세요.');throw problem;}
+    finally{clearTimeout(timer);signal?.removeEventListener('abort',cancel);}
+  }
+  function restoreSavedInput(request,record){
+    const current=interaction.current;
+    if(record.checkingAtStart || checkingSlots.current.size || inputRevision.current!==record.revisionAtStart || current.busy || current.pending || sending.current || (proposalScope && (current.receiptState!=='editing' || record.scaled || (request.sampler ?? 'euler')!=='euler')))throw new Error('입력 확인 중이거나 조회 중 입력 또는 생성 상태가 바뀌어 적용하지 않았습니다. 확인 후 다시 시도하세요.');
+    const revision=++inputRevision.current;setPrompt(request.prompt);setSeed(request.seed);setSize(record.output.width);setDownscale(record.scaled);setSampler(request.sampler ?? "euler");setReferences([record.files[0] || null,record.files[1] || null]);setReferenceReset(value=>value+1);setError('');setNotice(record.id+'의 입력을 적용했습니다.');
+    const card=formRef.current?.closest('details');if(card)card.open=true;
+    requestAnimationFrame(()=>{if(inputRevision.current===revision && !interaction.current.busy && !interaction.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart))visibleFocusTarget(formRef.current)?.focus();});
   }
   function closeReview(){
     const restore=reviewRef.current?.contains(document.activeElement);
@@ -90,26 +124,28 @@ export default function MiniMaxH3ImagePage({embedded=false,initialInputs=null,pr
     finally{clearTimeout(timeout);if(submissionRequest.current===controller){submissionRequest.current=null;sending.current=false;setBusy(false);}}
   }
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}>
-    <GeneratorPageIdentity service={service} embedded={embedded} changelogCard/>
+    <GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
     <GeneratorUsage generator={service}/>
     {proposalScope && !reportReceipt && <MinimaxReportStatus receipt={receipt}/>}
     <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
-    <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : model.generation_ready ? "준비 완료" : "준비 필요"}><ModelReadiness service={service} onStatus={updateModel} onError={setModelError}/></GeneratorSectionCard>
+    <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : model.generation_ready ? "준비 완료" : "준비 필요"}><ModelReadiness service={service} session={session} onStatus={updateModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={revision} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
-    {error && <p role="alert">{error}</p>}
-    <GeneratorSectionCard title="생성 입력" summary="프롬프트와 시드" defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
+    {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
+    <GeneratorSectionCard title="생성 입력" summary={[checking.some(Boolean) && "참조 이미지 확인 중",referenceErrors.some(Boolean) && "참조 이미지 확인 실패",previewErrors.some(Boolean) && "참조 미리보기 실패"].filter(Boolean).join(" · ") || "프롬프트와 시드"} defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onChangeCapture={()=>{inputRevision.current++;setNotice("");}} onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
       <label>프롬프트<textarea ref={promptRef} required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
       <PromptWordCount text={prompt}/>
-      <SeedInput value={seed} max={4294967295} error={invalidSeed ? "0부터 4,294,967,295까지의 정수로 입력하세요." : ""} onChange={value=>setSeed(value===""?"":Number(value))}/>
+      <SeedInput value={seed} max={4294967295} error={invalidSeed ? "0부터 4,294,967,295까지의 정수로 입력하세요." : ""} onChange={value=>{inputRevision.current++;setNotice("");setSeed(value===""?"":Number(value));}}/>
       <label>이미지 크기<select value={size} onChange={event=>setSize(Number(event.target.value))}><option value={832}>832×480</option><option value={512}>512×512</option><option value={1024}>1024×1024</option></select></label>
+      {!proposalScope && <label>샘플러<select value={sampler} onChange={event=>setSampler(event.target.value)}><option value="euler">Euler · 기본</option><option value="lcm">LCM · 실험</option></select></label>}
+      {!proposalScope && sampler==="lcm" && <p>LCM은 실험 기능입니다. 시드에 따른 재현성과 화풍·캐릭터 유지 품질은 검수 중입니다.</p>}
       {!proposalScope && <label><input type="checkbox" checked={downscale} onChange={event=>setDownscale(event.target.checked)}/> 2배 크기로 생성 후 축소</label>}
       {downscale && <p>생성 {size*2}×{(size===832?480:size)*2} · 최종 {size}×{size===832?480:size} · OpenCV 영역 보간</p>}
-      <section aria-label="참조 이미지"><p>참조 PNG · 최대 2장</p><div className="reference-image-slots">{[0,1].map(index=><ReferenceImageInput key={index} label={"참조 이미지 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || !!pending || (index===1 && !references[0])} describedBy={index===1 && !references[0] ? secondReferenceId : undefined} onCheckingChange={value=>setChecking(previous=>{const next=[...previous];next[index]=value;return next;})} onChange={value=>setReferences(previous=>{const next=[...previous];next[index]=value;if(index===0 && !value)next[1]=null;return next;})}/>)}</div>{!references[0] && <p id={secondReferenceId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>
+      <section aria-label="참조 이미지"><p>참조 PNG · 최대 2장</p><div className="reference-image-slots">{[0,1].map(index=><ReferenceImageInput key={index===1 ? "second-"+Boolean(references[0]) : "first"} resetErrorKey={referenceReset} label={"참조 이미지 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || !!pending || (index===1 && !references[0])} describedBy={index===1 && !references[0] ? secondReferenceId : undefined} onSelectionStart={()=>{inputRevision.current++;setNotice("");}} onPreviewErrorChange={value=>setPreviewErrors(previous=>{const next=[...previous];next[index]=value;return next;})} onErrorChange={value=>setReferenceErrors(previous=>{const next=[...previous];next[index]=value;return next;})} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);setChecking(previous=>{const next=[...previous];next[index]=value;return next;});}} onChange={value=>{inputRevision.current++;setNotice("");setReferences(previous=>{const next=[...previous];next[index]=value;if(index===0 && !value)next[1]=null;return next;});}}/>)}</div>{!references[0] && <p id={secondReferenceId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>
       <p>직접 생성 · 6스텝 · INT8{size===512 && " · 512×512 실제 생성 미검증"}</p>
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
     </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{pending ? "입력을 수정하려면 아래 검토에서 입력 수정을 선택하세요." : "최종 프롬프트를 확인하고 있습니다. 잠시 기다려 주세요."}</p>}</form></GeneratorSectionCard>
-    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review minimax-image-review" aria-label="생성 요청 확인"><h2>공용 화풍 적용 프롬프트</h2><GpuQueueSummary/><pre className="generation-review-text" tabIndex={0} aria-label="검토할 프롬프트">{preview}</pre><PromptWordCount text={preview} label="최종 프롬프트"/><p>생성 {pending.width}×{pending.height}{pending.output_size && ` · 최종 ${pending.output_size.width}×${pending.output_size.height} (OpenCV)`} · 6스텝 · 시드 {pending.seed} · 참조 {pending.images.length}장</p><GenerationReviewActions busy={busy} disabledReason={!model?.generation_ready ? "모델 준비 상태를 확인하세요." : proposalScope && receipt.state!=="editing" ? "대화 접수 상태를 확인하세요." : ""} onCancel={closeReview} onConfirm={submit}/></section>}
-    <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority openResult={setJob} resultId={job} onCloseResult={()=>setJob("")}
+    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review minimax-image-review" aria-label="생성 요청 확인"><h2>공용 화풍 적용 프롬프트</h2><GpuQueueSummary/><pre className="generation-review-text" tabIndex={0} aria-label="검토할 프롬프트">{preview}</pre><PromptWordCount text={preview} label="최종 프롬프트"/><p>생성 {pending.width}×{pending.height}{pending.output_size && ` · 최종 ${pending.output_size.width}×${pending.output_size.height} (OpenCV)`} · 6스텝 · {pending.sampler === "lcm" ? "LCM · 실험" : "Euler"} · 시드 {pending.seed} · 참조 {pending.images.length}장</p><GenerationReviewActions busy={busy} disabledReason={!model?.generation_ready ? "모델 준비 상태를 확인하세요." : proposalScope && receipt.state!=="editing" ? "대화 접수 상태를 확인하세요." : ""} onCancel={closeReview} onConfirm={submit}/></section>}
+    <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority readJobWithSignal={readSavedInput} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")}
       onSelectedDeleted={(id)=>{if(id===job)setJob("");setRevision(n=>n+1);}}
       footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={()=>{setJob("");setRevision(n=>n+1);}}/>}
       renderResult={(id,close)=><section id="job-result" ref={resultRef} tabIndex={-1} aria-label="선택한 이미지 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedGeneratorInputs id={id} service={service} statusCommand="status"/><MediaJobResult kind="image" service={service} id={id}/></section>}/></div>

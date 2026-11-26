@@ -40,6 +40,15 @@ class MiniMaxH3ImageTests(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(ValueError):
                 validate_request({**self.request, **changes})
 
+    def test_sampler_contract_and_legacy_default(self):
+        self.assertEqual(validate_request(self.request)['sampler'], 'euler')
+        lcm = validate_request({**self.request, 'sampler': 'lcm'})
+        self.assertEqual(lcm['sampler'], 'lcm')
+        verify_saved_request(lcm)
+        for invalid in ('LCM', None, 1, []):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                validate_request({**self.request, 'sampler': invalid})
+
     def test_missing_runtime_is_rejected(self):
         manager = MiniMaxH3ImageManager()
         with patch('workflow.domains.minimax_h3_image.generation.inspect_runtime',

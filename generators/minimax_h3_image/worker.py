@@ -32,6 +32,9 @@ def execute(job):
     tempfile.tempdir = None
     print('임시 작업 경로:', temp_root.resolve(), flush=True)
     request = json.loads((job / 'request.json').read_text())
+    sampler = request.get('sampler', 'euler')
+    if sampler not in ('euler', 'lcm'):
+        raise ValueError('저장된 샘플러 설정 오류')
     from generators.minimax_h3_image.contracts import verify_saved_request
     from workflow.domains.image.three_reference_generation import validate_three_reference_request, verify_reference_snapshots
     if 'common_style' in request:
@@ -101,8 +104,12 @@ def execute(job):
     install_pdd_head_bank(transformer)
     vae = load_h3_image_vae(BASE).to('cuda')
     tokenizer = AutoTokenizer.from_pretrained(str(BASE / 'tokenizer'), local_files_only=True)
+    scheduler = MiniMaxH3ImageScheduler(sample_sigmas=list(H3_IMAGE_SIGMAS))
+    if sampler == 'lcm':
+        from generators.minimax_h3_image.lcm_experiment import make_lcm_scheduler
+        scheduler = make_lcm_scheduler(scheduler, request['seed'])
     pipe = MiniMaxH3ImagePipeline(transformer=transformer, vae=vae, text_encoder=encoder,
-        tokenizer=tokenizer, processor=AutoProcessor.from_pretrained(str(BASE/'processor'), local_files_only=True) if references else None, scheduler=MiniMaxH3ImageScheduler(sample_sigmas=list(H3_IMAGE_SIGMAS)))
+        tokenizer=tokenizer, processor=AutoProcessor.from_pretrained(str(BASE/'processor'), local_files_only=True) if references else None, scheduler=scheduler)
     pipe._unsloth_h3_device = 'cuda'
     def check(module, args, output):
         def visit(value):
@@ -138,7 +145,7 @@ def execute(job):
     else:
         image.save(job / 'result.png')
     write_record_atomically(job / 'result.json', {'seed': request['seed'], 'width': request['width'],
-        'height': request['height'], 'steps': 6, 'weights': checksums, 'prompt_sha256': request['prompt_sha256'],
+        'height': request['height'], 'steps': 6, 'sampler': sampler, 'sampler_details': ({'version': 'flow-lcm-v1', 'noise_start': 1.1, 'noise_end': 0.9, 'noise_rng': 'torch-cpu', 'noise_seed': request['seed']} if sampler == 'lcm' else {'version': 'euler'}), 'weights': checksums, 'prompt_sha256': request['prompt_sha256'],
         'image_sha256': hashlib.sha256((job / 'result.png').read_bytes()).hexdigest(),
         'torch': str(torch.__version__), 'hip': torch.version.hip, 'gpu': torch.cuda.get_device_name(0),
         'allocator': os.environ['PYTORCH_ALLOC_CONF'], 'sdpa': '기본 경로; 정확도 미검증',

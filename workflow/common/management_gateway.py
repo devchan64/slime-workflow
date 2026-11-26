@@ -797,6 +797,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
                     operation_argument_parser.add_argument('--soft-shading', action=argparse.BooleanOptionalAction, default=False, help='부드러운 음영 일러스트 영문 지시 추가')
                     operation_argument_parser.add_argument('--circular-radius', type=int, choices=(4,8,12,16,24), default=12, help='순환 참조 반경 · 토큰')
                 operation_argument_parser.add_argument('--seed',type=int,default=10107 if service_command_name in ('mannequin-generator','qwen-2511','expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer') else 251204)
+                if service_command_name == 'minimax-h3-image':
+                    operation_argument_parser.add_argument('--sampler', choices=('euler', 'lcm'), default='euler', help='샘플러 (lcm은 실험)')
                 if service_command_name=='floor-tile':
                     operation_argument_parser.add_argument('--add-margins',action=argparse.BooleanOptionalAction,default=None,help='빈 여백 추가 ON/OFF (--no-add-margins로 OFF, 생략 시 서버 기본값)')
                 if service_command_name in FLUX_IMAGE_PROFILE_RECORDS or service_command_name in ('minimax-h3-image','mannequin-generator','qwen-2511','expression','flux-expression','seamless-tile','billboard-generator','prop-generator','vegetation-generator','building-generator','qwen-21','qwen-21-circular','outfit-transfer'):
@@ -867,7 +869,9 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
             current_design_text=getattr(command_argument_values,'design_ko',None)
             command_payload_value={'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(encoding='utf-8') if command_argument_values.prompt_file else current_design_text if current_design_text is not None else (__import__('workflow.domains.image.outfit_transfer_generation',fromlist=['load_outfit_transfer_prompt']).load_outfit_transfer_prompt()),'width':command_argument_values.width,'height':command_argument_values.height,'steps':command_argument_values.steps,'seed':command_argument_values.seed}
             if current_design_text is not None: command_payload_value['building_design_ko']=current_design_text
-            if service_command_name == 'minimax-h3-image': command_payload_value['images'] = []
+            if service_command_name == 'minimax-h3-image':
+                command_payload_value['images'] = []
+                command_payload_value['sampler'] = command_argument_values.sampler
             if getattr(command_argument_values,'translation_ko',None): command_payload_value['translation_source_ko']=command_argument_values.translation_ko
             if service_command_name == 'flux-seamless': command_payload_value['seamless_method']=command_argument_values.seamless_method
             if service_command_name in ('outfit-transfer',):

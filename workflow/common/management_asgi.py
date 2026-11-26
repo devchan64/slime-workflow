@@ -896,6 +896,15 @@ def build_management_application(current_handler_class, current_root_path, curre
         except (ValueError, OSError, KeyError, TypeError):
             return JSONResponse({'detail':'저장된 입력 또는 영상 사본을 확인할 수 없습니다.'}, status_code=422)
 
+    @current_root_application.get('/management/assistant/minimax-h3-image-input/{job}')
+    def minimax_h3_image_input(job: str):
+        from generators.minimax_h3_image.contracts import STORAGE
+        from workflow.domains.minimax_h3_image.input_restore import load_saved_input
+        try:
+            return JSONResponse(load_saved_input(STORAGE, job), headers={'Cache-Control':'no-store'})
+        except (ValueError, OSError, KeyError, TypeError):
+            return JSONResponse({'detail':'저장된 입력 또는 참조 이미지를 확인할 수 없습니다.'}, status_code=422)
+
     @current_root_application.get('/management/assistant/minimax-h3-i2v-input/{job}')
     def minimax_h3_i2v_input(job: str):
         from generators.minimax_h3.contracts import JOB_STORAGE
