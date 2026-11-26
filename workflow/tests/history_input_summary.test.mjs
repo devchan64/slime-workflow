@@ -37,3 +37,11 @@ test("DWPose omits fixed generation parameters while other generators retain the
   assert.deepEqual(historyInputSummary(request,"dwpose"),["832 × 480","손 상세 포함"]);
   assert.deepEqual(historyInputSummary(request,"wan22-fun-control"),["832 × 480","1프레임","1스텝","시드 0","손 상세 포함"]);
 });
+
+
+test("MiniMax 이미지 이력의 샘플러와 이전 기본값을 구분한다",()=>{
+  assert.deepEqual(historyInputSummary({},"minimax-h3-image"),["Euler"]);
+  assert.deepEqual(historyInputSummary({sampler:"euler"},"minimax-h3-image"),["Euler"]);
+  assert.deepEqual(historyInputSummary({sampler:"lcm"},"minimax-h3-image"),["LCM · 실험"]);
+  assert.deepEqual(historyInputSummary({sampler:"unknown"},"minimax-h3-image"),["샘플러 확인 필요"]);
+});

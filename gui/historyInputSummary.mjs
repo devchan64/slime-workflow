@@ -7,7 +7,7 @@ export function historyInputSummary(request, service="") {
   if (request.audio_available===true) result.push("WAV 오디오 결과");
   if (service!=="dwpose" && Number.isInteger(request.frames) && request.frames>0) result.push(`${request.frames}프레임`);
   if (service!=="dwpose" && Number.isInteger(request.steps) && request.steps>0) result.push(`${request.steps}스텝`);
-  if (service==="minimax-h3-image" && (request.sampler===undefined || request.sampler==="euler" || request.sampler==="lcm")) result.push(request.sampler==="lcm" ? "LCM · 실험" : "Euler");
+  if (service==="minimax-h3-image") result.push(request.sampler===undefined || request.sampler==="euler" ? "Euler" : request.sampler==="lcm" ? "LCM · 실험" : "샘플러 확인 필요");
   if (service!=="dwpose" && Number.isInteger(request.seed) && request.seed>=0) result.push(`시드 ${request.seed}`);
   if (["wan21-i2v","wan21-t2v"].includes(service) && typeof request.action_lora==="boolean") {
     if (!request.action_lora) result.push("동작 LoRA 사용 안 함");
