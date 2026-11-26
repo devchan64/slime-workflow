@@ -8,6 +8,7 @@ import stat
 CATALOG = Path(__file__).resolve().parents[1] / 'catalog' / 'models.json'
 DEFAULT_MODEL_ROOT = Path(__file__).resolve().parents[2] / '.model'
 SURVEY_DIR = DEFAULT_MODEL_ROOT.parent / '.local/model-catalog/surveys'
+DUPLICATE_SURVEY = DEFAULT_MODEL_ROOT.parent / '.local/model-catalog/duplicate-observations.json'
 IDENTIFIER = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
 SERVICE_IDENTIFIER = re.compile(r'^[a-z0-9]+(?:[.-][a-z0-9]+)*$')
 KINDS = {'model', 'shared', 'cache', 'collection'}
@@ -105,10 +106,14 @@ def read_survey_report(path=None, root=DEFAULT_MODEL_ROOT):
                 return None
             entries[entry['path']] = {k: entry[k] for k in
                                       ('files', 'logical_bytes', 'allocated_bytes', 'links', 'errors')}
+            partial_keys = ('partial_files', 'partial_allocated_bytes')
+            if any(k in entry for k in partial_keys) and not all(type(entry.get(k)) is int and entry[k] >= 0 for k in partial_keys):
+                return None
+            if all(k in entry for k in partial_keys):
+                entries[entry['path']].update({k: entry[k] for k in ('partial_files', 'partial_allocated_bytes')})
         changed_paths = report.get('changed_paths', [])
-        if not isinstance(changed_paths, list):
-            changed_paths = []
-        changed_paths = [path for path in changed_paths if isinstance(path, str)]
+        if not isinstance(changed_paths, list) or any(not isinstance(path, str) or not path for path in changed_paths):
+            return None
         for path, observation in entries.items():
             observation['changed'] = any(changed == path or changed.startswith(path + '/') for changed in changed_paths)
         links = []
@@ -132,6 +137,43 @@ def read_survey_report(path=None, root=DEFAULT_MODEL_ROOT):
         return {'finished_at': report.get('finished_at'), 'entries': entries, 'links': links,
                 'surveyed_roots': [path for path in surveyed_roots if isinstance(path, str)],
                 'changed': bool(report.get('changed_paths')), 'errors': bool(report.get('errors'))}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def read_duplicate_survey(path=DUPLICATE_SURVEY, root=DEFAULT_MODEL_ROOT):
+    """Expose a bounded historical report without turning it into a deletion decision."""
+    try:
+        path = Path(path)
+        if path.is_symlink() or path.stat().st_size > 2 * 1024 * 1024:
+            return None
+        record = json.loads(path.read_text(encoding='utf-8'))
+        if (not isinstance(record, dict) or record.get('version') != 1 or record.get('root') != str(root)
+                or not isinstance(record.get('observed_at'), str) or not isinstance(record.get('groups'), list)
+                or not isinstance(record.get('errors'), list)):
+            return None
+        groups = []
+        for group in record['groups']:
+            if (not isinstance(group, dict) or type(group.get('size')) is not int or group['size'] < 0
+                    or not isinstance(group.get('paths'), list) or len(group['paths']) < 2):
+                return None
+            paths = []
+            inodes = set()
+            can_estimate = True
+            for item in group['paths']:
+                if (not isinstance(item, dict) or not isinstance(item.get('path'), str) or not item['path']
+                        or item.get('state') not in ('matches', 'different', 'unavailable')
+                        or (item.get('via_link') is not None and type(item['via_link']) is not bool)):
+                    return None
+                paths.append({'path': item['path'], 'state': item['state'], 'via_link': item.get('via_link')})
+                if item['state'] != 'matches' or type(item.get('device')) is not int or type(item.get('inode')) is not int:
+                    can_estimate = False
+                else:
+                    inodes.add((item['device'], item['inode']))
+            groups.append({'size': group['size'], 'paths': paths,
+                           'distinct_files': len(inodes) if can_estimate else None,
+                           'duplicate_logical_bytes': group['size'] * max(0, len(inodes) - 1) if can_estimate else None})
+        return {'observed_at': record['observed_at'], 'groups': groups, 'error_count': len(record['errors'])}
     except (OSError, ValueError, TypeError, AttributeError):
         return None
 
@@ -190,6 +232,29 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
     survey = read_survey_report(root=survey_root) if survey_root is not None else None
     components = []
     partial_roots = set()
+    from workflow.common.model_restore_history import read_restore_record
+    restore_cache = {}
+
+    def observed_restore(name):
+        if survey_root != DEFAULT_MODEL_ROOT:
+            return None
+        if name in restore_cache:
+            return restore_cache[name]
+        record = read_restore_record(name)
+        if record is not None:
+            match = None
+            if observed.get(name, {}).get('snapshot_present') is True:
+                try:
+                    from workflow.common.model_backup_service import latest_model_snapshot, read_backup_roots
+                    _, backup_root, _ = read_backup_roots()
+                    latest = latest_model_snapshot(backup_root, name)
+                    if latest is not None:
+                        match = latest.name == record['snapshot_id']
+                except (OSError, ValueError):
+                    pass
+            record = {**record, 'latest_snapshot_match': match}
+        restore_cache[name] = record
+        return record
     for item in catalog['components']:
         state = observed.get(item['path'])
         if state is None and survey_root is not None and item['path'].startswith('audio/'):
@@ -242,7 +307,19 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
                                   'legacy_backup_present': target_state.get('legacy_backup_present'),
                                   'snapshot_present': target_state.get('snapshot_present'),
                                   'installation_metadata': alternate_metadata,
+                                  'restore_record': observed_restore(target_name),
                                   'storage_observation': survey['entries'].get(path) if survey else None})
+                # The direct directory and catalog alias keep separate snapshot
+                # histories even when they point to the same installation.
+                direct = observed.get(path) if '/' not in path and path != item['path'] else None
+                if direct is not None:
+                    alternate.append({'path': path, 'backup_target': path,
+                                      'local_present': direct.get('local_present'),
+                                      'backup_present': direct.get('backup_present'),
+                                      'snapshot_present': direct.get('snapshot_present'),
+                                      'installation_metadata': alternate_metadata,
+                                      'restore_record': observed_restore(path),
+                                      'storage_observation': survey['entries'].get(path) if survey else None})
         if item['id'] in ('trellis-dinov2', 'flux-report-vision', 'trellis-image-large') and survey_root == DEFAULT_MODEL_ROOT:
             retained_path = f".local/model-catalog/retained/{item['id']}/original"
             retained = DEFAULT_MODEL_ROOT.parent / retained_path
@@ -271,6 +348,7 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
         link_roots = [item['path'], *(entry['path'] for entry in alternate if not entry.get('retained_original'))]
         components.append({'declaration': item, 'declared_version': declared_version(item),
                            'presence': state, 'installation_metadata': install,
+                           'restore_record': observed_restore(item['path']) if '/' not in item['path'] else None,
                            'storage_observation': survey['entries'].get(item['path']) if survey else None,
                            'observed_links': [link for link in survey['links']
                                               if any(link['path'] == path or link['path'].startswith(path + '/')
@@ -299,6 +377,21 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
     installed_top_level = {state.get('relative_path') for name, state in observed.items()
                            if name in CATALOG_TARGETS and state.get('local_present') is True
                            and isinstance(state.get('relative_path'), str) and '/' not in state['relative_path']}
+    duplicates = read_duplicate_survey(root=survey_root) if survey_root is not None else None
+    if duplicates:
+        for group in duplicates['groups']:
+            for path in group['paths']:
+                root = path['path'].split('/')[0]
+                services = set()
+                for component in components:
+                    declaration = component['declaration']
+                    locations = [declaration['path'], *(alt['path'] for alt in component['alternate_installations']
+                                                       if not alt.get('retained_original') and not alt.get('external_cache'))]
+                    if root in locations:
+                        services.update(declaration['services'])
+                path['services'] = sorted(services)
+                path['snapshot_present'] = observed.get(root, {}).get('snapshot_present')
+                path['restore_record'] = observed_restore(root)
     return {'schema_version': 1,
             'components': components,
             'surveyed_model_children': [{'path': path, 'storage_observation': observation}
@@ -315,5 +408,6 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
                                                        or any(path.startswith('models/') for path in survey['entries']))),
             'backup_error': listing.get('backup_error'),
             'activity': activity,
+            'duplicate_survey': duplicates,
             'storage_survey': {key: survey[key] for key in ('finished_at', 'changed', 'errors')} if survey else None,
             'note': '카탈로그와 설치 매니페스트는 각각의 선언값입니다. 존재 여부는 파일 검증이나 모든 서비스 의존성의 확인을 뜻하지 않습니다.'}

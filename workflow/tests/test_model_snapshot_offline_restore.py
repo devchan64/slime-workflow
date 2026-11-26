@@ -37,6 +37,19 @@ class OfflineSnapshotRestoreTests(unittest.TestCase):
         self.assertEqual((self.model/'weights.bin').stat().st_mtime_ns, 1700000000123456789)
         self.assertEqual(result['verification'], 'snapshot_manifest_sha256')
         self.assertEqual(result['timestamp_mismatches'], [])
+        self.assertEqual(result['partial_files'], [])
+
+    def test_reports_partial_downloads_without_treating_them_as_complete_models(self):
+        self.model.mkdir()
+        (self.model/'download.incomplete').write_bytes(b'partial download')
+        sync_snapshot('example', 'b'*32, roots=self.roots)
+        self.model.rename(self.source/'partial-saved')
+        versions = list_snapshot_versions('example', roots=self.roots)
+        self.assertEqual(next(version for version in versions if version['snapshot_id'] == 'b'*32)['partial_file_count'], 1)
+        result = restore_snapshot_offline('example', snapshot_id='b'*32, roots=self.roots)
+        self.assertEqual(result['partial_files'], ['download.incomplete'])
+        self.assertIn('모델 준비 상태를 별도로 확인', result['note'])
+        self.assertEqual((self.model/'download.incomplete').read_bytes(), b'partial download')
 
     def test_restores_explicit_older_snapshot(self):
         self.model.mkdir()

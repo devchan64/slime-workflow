@@ -283,6 +283,10 @@ def verify_snapshot_manifest(model, config_path=None, *, progress=None):
             record = json.loads(raw)
             if _identity(os.fstat(stream.fileno())) != _identity(before):
                 raise ValueError('검증 중 매니페스트가 변경됐습니다.')
+        if (not isinstance(record, dict) or record.get('version') != 1
+                or record.get('model') != model or record.get('job_id') != snapshot.name
+                or not isinstance(record.get('files'), list) or not record['files']):
+            raise ValueError('스냅샷 식별 정보 또는 파일 목록이 올바르지 않습니다.')
         expected = {}
         for item in record['files']:
             path, size, digest = item['path'], item['size'], item['sha256']

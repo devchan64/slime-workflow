@@ -25,7 +25,8 @@ def survey_model_root(root, service_paths=None, nested_roots=()):
     for child in children:
         name = child.name
         result = {'path': name, 'files': 0, 'logical_bytes': 0, 'allocated_bytes': 0,
-                  'links': 0, 'errors': 0, 'services': [], 'kind': 'unknown', 'metadata_files': []}
+                  'links': 0, 'errors': 0, 'services': [], 'kind': 'unknown', 'metadata_files': [],
+                  'partial_files': 0, 'partial_allocated_bytes': 0}
         entries[name] = result
 
         def observe(path):
@@ -47,6 +48,9 @@ def survey_model_root(root, service_paths=None, nested_roots=()):
                     result['files'] += 1
                     result['logical_bytes'] += info.st_size
                     result['allocated_bytes'] += info.st_blocks * 512
+                    if path.name.endswith(('.incomplete', '.partial')):
+                        result['partial_files'] += 1
+                        result['partial_allocated_bytes'] += info.st_blocks * 512
                     if path.name in ('manifest.json', 'verified-manifest.json', 'prepared.json', 'PINNED_REVISION'):
                         result['metadata_files'].append(relative)
                     if info.st_nlink > 1:

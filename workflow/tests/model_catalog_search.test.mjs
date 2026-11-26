@@ -1,10 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {installationJobs, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification} from '../../gui/modelCatalogSearch.mjs';
+import {installationJobs, relatedActivity, searchCatalog, sortCatalog, validCatalogOverview, validCatalogHistory, validCatalogVerification, withObservedPartialDownloads} from '../../gui/modelCatalogSearch.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
+
+test('미완료 확장자 필터는 실제 조사된 설치본만 포함한다',()=>{
+  const noSurvey={id:'unknown'}, empty={id:'empty',storage_observation:{partial_files:0}},
+    observed={id:'partial',storage_observation:{partial_files:2}},
+    moved={id:'moved',alternate_installations:[{storage_observation:{partial_files:1}}]};
+  assert.deepEqual(withObservedPartialDownloads([noSurvey,empty,observed,moved]),[observed,moved]);
+});
 
 test('카탈로그 조회 지연은 중복을 막고 이전 결과를 유지하며 재시도한다', async () => {
   const source=readFileSync(new URL('../../gui/ModelCatalog.jsx',import.meta.url),'utf8');
@@ -35,6 +42,8 @@ test('모델별 조사 항목의 화면 표시 형식을 검증한다',()=>{
   assert.equal(validCatalogOverview({...base,surveyed_model_roots:['model'],surveyed_model_children:[{path:'model/file',storage_observation:observation}]}),true);
   for(const extra of [{surveyed_model_roots:'model'},{surveyed_model_roots:[null]},{surveyed_model_children:{}},{surveyed_model_children:[{path:'model/file',storage_observation:null}]},{surveyed_model_children:[{path:'model/file',storage_observation:{...observation,allocated_bytes:'unknown'}}]}])
     assert.equal(validCatalogOverview({...base,...extra}),false);
+  assert.equal(validCatalogOverview({...base,surveyed_model_children:[{path:'model/file',storage_observation:{...observation,partial_files:1}}]}),false);
+  assert.equal(validCatalogOverview({...base,surveyed_model_children:[{path:'model/file',storage_observation:{...observation,partial_files:1,partial_allocated_bytes:512}}]}),true);
 });
 
 test('카탈로그 형식 오류 뒤 기존 결과를 유지하고 재조회로 복구한다',async()=>{
@@ -48,6 +57,26 @@ test('카탈로그 형식 오류 뒤 기존 결과를 유지하고 재조회로 
   vm.runInContext(source.slice(start,end),context);
   await context.load();assert.equal(result,old);assert.match(error,/응답 형식/);assert.equal(busy,false);
   response=good;await context.load();assert.equal(result,good);assert.equal(error,'');assert.equal(busy,false);
+});
+
+test('보존 원본은 현재 일반 대상의 검증 이력을 요청한다',async()=>{
+  const source=readFileSync(new URL('../../gui/ModelCatalog.jsx',import.meta.url),'utf8');
+  const start=source.indexOf('  async function load()'),end=source.indexOf('  const visibleComponents=',start);
+  const component={declaration:{id:'flux',label:'FLUX',kind:'model',path:'flux',services:[]},presence:{local_present:true},
+    alternate_installations:[{path:'flux',backup_target:'catalog-flux',local_present:true},{path:'retained',retained_original:true}]};
+  let requested,records;
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validCatalogOverview,validCatalogHistory,validCatalogVerification,requestRef:{current:null},setTimeout,clearTimeout,
+    setBusy:()=>{},setError:()=>{},setJobs:()=>{},setJobsError:()=>{},setVerificationRecords:value=>records=value,setResult:()=>{},setCheckedAt:()=>{},
+    managementCommand:async(_service,command,payload)=>{
+      if(command==='catalog-overview')return {components:[component],unclassified:[]};
+      if(command==='backup-verify-history')return {records:[{model:'flux',operation:'verify',job_id:'job'}]};
+      requested=payload.job_id; return {job_id:'job',model:'flux',status:'completed'};
+    }});
+  vm.runInContext(source.slice(start,end),context);
+  await context.load();
+  assert.equal(requested,'job');
+  assert.equal(records.flux.model,'flux');
+  assert.equal(records['catalog-flux'],undefined);
 });
 
 test('손상된 백업 이력은 카탈로그와 구분해 실패로 표시한다',async()=>{

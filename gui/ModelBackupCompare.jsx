@@ -276,7 +276,7 @@ export default function ModelBackupCompare({requestedSelection}) {
       <button type="button" disabled={busy} onClick={() => submitRequest(pendingRequest)}>같은 요청 확인</button>
       <button type="button" disabled={busy} onClick={() => {try {sessionStorage.removeItem('model-backup-pending'); setPendingRequest(null);} catch {setError('브라우저 저장소를 확인하세요.');}}}>접수 확인 중단</button>
     </div>}
-    <p>백업은 최신 스냅샷과 SHA-256을 비교하고 동일하면 재사용합니다. 변경된 경우 모델 전체를 새 스냅샷으로 복사하므로 모델 크기만큼 추가 공간이 필요합니다.</p>
+    <p>백업은 원본과 최신 스냅샷의 SHA-256, 매니페스트와 원본 수정 시각 및 모델 메타정보를 확인해 모두 일치하면 재사용합니다. 다르면 모델 전체를 새 스냅샷으로 복사하므로 모델 크기만큼 추가 공간이 필요합니다.</p>
     <p>검증은 선택한 파일을 전체적으로 읽으므로 시간이 오래 걸립니다. 작업 완료와 모든 파일의 일치는 별도입니다.</p>
     {metadata && <div>{metadataLoading && <p role="status">메타정보를 다시 조회하고 있습니다. 아래는 마지막으로 확인한 결과입니다.</p>}{metadataCheckedAt && <p>메타정보 마지막 조회 성공 · <time dateTime={metadataCheckedAt.toISOString()}>{metadataCheckedAt.toLocaleString('ko-KR')}</time></p>}<p>{metadata.origin === 'backup_snapshot' ? `백업 스냅샷 ${metadata.snapshot_id} · ` : metadata.origin === 'backup_directory' ? '기존 백업 디렉터리 · ' : ''}관련 서비스 · {metadata.services?.join(', ') || '확인된 등록 없음'} · 기존 매니페스트 {metadata.manifest_state}</p>
       <p>매니페스트의 해시는 선언값입니다. 파일 내용을 검증한 결과와 구분합니다.</p>

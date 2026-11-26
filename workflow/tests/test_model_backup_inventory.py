@@ -306,6 +306,60 @@ class ModelBackupInventoryTest(unittest.TestCase):
             self.assertFalse(changed_metadata['reused'])
             self.assertEqual(changed_metadata['snapshot_id'], 'c' * 32)
 
+    def test_sync_does_not_reuse_snapshot_with_incorrect_manifest_hash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root / 'source', root / 'backup'
+            (source / 'model').mkdir(parents=True)
+            backup.mkdir()
+            (source / 'model' / 'weight').write_bytes(b'weights')
+            first = sync_snapshot('model', 'a' * 32, roots=(source, backup, None))
+            manifest = Path(first['path']) / '.snapshot.json'
+            record = json.loads(manifest.read_text())
+            record['files'][0]['sha256'] = '0' * 64
+            manifest.write_text(json.dumps(record))
+            result = sync_snapshot('model', 'b' * 32, roots=(source, backup, None))
+            self.assertFalse(result['reused'])
+            self.assertEqual(result['snapshot_id'], 'b' * 32)
+            self.assertTrue(manifest.exists())
+            self.assertEqual(json.loads((Path(result['path']) / '.snapshot.json').read_text())['files'][0]['sha256'], hashlib.sha256(b'weights').hexdigest())
+
+    def test_sync_records_changed_source_timestamp_in_new_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root / 'source', root / 'backup'
+            (source / 'model').mkdir(parents=True)
+            backup.mkdir()
+            weight = source / 'model' / 'weight'
+            weight.write_bytes(b'weights')
+            sync_snapshot('model', 'a' * 32, roots=(source, backup, None))
+            timestamp = weight.stat().st_mtime_ns + 1_000_000_000
+            os.utime(weight, ns=(timestamp, timestamp))
+            result = sync_snapshot('model', 'b' * 32, roots=(source, backup, None))
+            self.assertFalse(result['reused'])
+            record = json.loads((Path(result['path']) / '.snapshot.json').read_text())
+            self.assertEqual(record['files'][0]['source_mtime_ns'], timestamp)
+
+    def test_sync_rechecks_manifest_file_after_snapshot_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root / 'source', root / 'backup'
+            (source / 'model').mkdir(parents=True)
+            backup.mkdir()
+            (source / 'model' / 'weight').write_bytes(b'weights')
+            first = sync_snapshot('model', 'a' * 32, roots=(source, backup, None))
+            snapshot = Path(first['path'])
+            manifest = snapshot / '.snapshot.json'
+            original = manifest.read_bytes()
+            manifest.unlink()
+            other = root / 'outside.json'
+            other.write_bytes(original)
+            manifest.symlink_to(other)
+            with patch('workflow.common.model_backup_sync.latest_model_snapshot', return_value=snapshot):
+                with self.assertRaisesRegex(ValueError, '매니페스트를 확인할 수 없습니다'):
+                    sync_snapshot('model', 'b' * 32, roots=(source, backup, None))
+            self.assertFalse((snapshot.parent / ('b' * 32)).exists())
+
     def test_backup_only_model_remains_listed_with_snapshot_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -330,6 +384,16 @@ class ModelBackupInventoryTest(unittest.TestCase):
             snapshot_file.write_bytes(b'altered')
             changed = verify_snapshot_manifest('model', config)
             self.assertEqual(changed['files'][0]['status'], 'different')
+
+    def test_empty_model_does_not_publish_unrestorable_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root / 'source', root / 'backup'
+            (source / 'model').mkdir(parents=True)
+            backup.mkdir()
+            with self.assertRaisesRegex(ValueError, '백업할 모델 파일이 없습니다'):
+                sync_snapshot('model', 'a' * 32, roots=(source, backup, None))
+            self.assertFalse((backup / '.model-backup-snapshots').exists())
 
     def test_snapshot_integrity_rejects_manifest_path_traversal(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -363,6 +427,26 @@ class ModelBackupInventoryTest(unittest.TestCase):
             with patch('workflow.common.model_backup_service.latest_model_snapshot', return_value=snapshot):
                 with self.assertRaisesRegex(ValueError, '매니페스트를 읽을 수 없습니다'):
                     verify_snapshot_manifest('model', config)
+
+    def test_snapshot_integrity_rechecks_identity_after_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root / 'source', root / 'backup'
+            (source / 'model').mkdir(parents=True)
+            backup.mkdir()
+            (source / 'model' / 'weight').write_bytes(b'weights')
+            sync_snapshot('model', 'a' * 32, roots=(source, backup, None))
+            snapshot = backup / '.model-backup-snapshots' / 'model' / ('a' * 32)
+            manifest = snapshot / '.snapshot.json'
+            original = json.loads(manifest.read_text())
+            config = root / 'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            for field, value in (('model', 'other'), ('job_id', 'b' * 32), ('version', 2), ('files', [])):
+                with self.subTest(field=field):
+                    manifest.write_text(json.dumps({**original, field: value}))
+                    with patch('workflow.common.model_backup_service.latest_model_snapshot', return_value=snapshot):
+                        with self.assertRaisesRegex(ValueError, '식별 정보'):
+                            verify_snapshot_manifest('model', config)
 
     def test_corrupt_completed_snapshot_blocks_latest_selection_and_reuse(self):
         with tempfile.TemporaryDirectory() as directory:

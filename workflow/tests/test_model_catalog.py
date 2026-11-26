@@ -31,6 +31,54 @@ class CatalogTest(unittest.TestCase):
                 self.assertTrue(item['presence']['local_present'])
                 self.assertTrue(item['alternate_installations'][0]['snapshot_present'])
 
+    def test_moved_installation_shows_separate_direct_snapshot_history(self):
+        catalog = read_catalog()
+        listing = {'models': [
+            {'name': 'translategemma-4b', 'local_present': True, 'snapshot_present': True},
+            {'name': 'catalog-translation-model', 'relative_path': 'translategemma-4b',
+             'local_present': True, 'snapshot_present': False},
+        ]}
+        result = catalog_overview(catalog, listing, include_manifests=False)
+        item = next(entry for entry in result['components'] if entry['declaration']['id'] == 'translation-model')
+        histories = {entry['backup_target']: entry['snapshot_present'] for entry in item['alternate_installations']}
+        self.assertEqual(histories, {'catalog-translation-model': False, 'translategemma-4b': True})
+
+    def test_duplicate_observation_joins_declared_services_and_direct_backup(self):
+        from pathlib import Path
+        from unittest.mock import patch
+        report = {'observed_at': 'then', 'error_count': 0, 'groups': [{'size': 1, 'paths': [
+            {'path': 'animationgpt/tokenizer', 'state': 'matches'},
+            {'path': 'animationgpt-author/tokenizer', 'state': 'matches'}]}]}
+        listing = {'models': [{'name': 'animationgpt', 'snapshot_present': True},
+                              {'name': 'animationgpt-author', 'snapshot_present': None}]}
+        with patch('workflow.common.model_backup_service.list_backup_models', return_value=listing), \
+                patch('workflow.common.model_backup_service.read_model_source', return_value=(Path('/models'), {})), \
+                patch('workflow.common.model_catalog.read_duplicate_survey', return_value=report):
+            result = catalog_overview(read_catalog(), include_manifests=False)
+        paths = result['duplicate_survey']['groups'][0]['paths']
+        self.assertEqual(paths[0]['services'], ['animationgpt'])
+        self.assertTrue(paths[0]['snapshot_present'])
+        self.assertEqual(paths[1]['services'], [])
+        self.assertIsNone(paths[1]['snapshot_present'])
+
+    def test_restore_history_matches_only_latest_snapshot_identifier(self):
+        from pathlib import Path
+        from unittest.mock import patch
+        root = Path('/models')
+        listing = {'models': [{'name': 'animationgpt', 'snapshot_present': True}]}
+        record = {'snapshot_id': 'a' * 32}
+        with patch('workflow.common.model_backup_service.list_backup_models', return_value=listing), \
+                patch('workflow.common.model_backup_service.read_model_source', return_value=(root, {})), \
+                patch('workflow.common.model_catalog.DEFAULT_MODEL_ROOT', root), \
+                patch('workflow.common.model_restore_history.read_restore_record', side_effect=lambda name: record if name == 'animationgpt' else None), \
+                patch('workflow.common.model_backup_service.read_backup_roots', return_value=(root, Path('/backup'), None)), \
+                patch('workflow.common.model_backup_service.latest_model_snapshot', return_value=Path('/backup') / ('a' * 32)) as latest:
+            for snapshot, expected in ((Path('/backup') / ('a' * 32), True), (Path('/backup') / ('b' * 32), False), (None, None)):
+                latest.return_value = snapshot
+                result = catalog_overview(read_catalog(), include_manifests=False)
+                item = next(x for x in result['components'] if x['declaration']['id'] == 'animationgpt')
+                self.assertIs(item['restore_record']['latest_snapshot_match'], expected)
+
     def test_empty_nested_survey_is_available(self):
         import json
         from pathlib import Path
@@ -173,6 +221,9 @@ class CatalogTest(unittest.TestCase):
                      'allocated_bytes': 4096, 'links': 0, 'errors': 0}
             for entries in ([entry, {'path': 'model/missing'}], [entry, entry]):
                 path.write_text(json.dumps({'version': 1, 'root': str(root), 'entries': entries}))
+                self.assertIsNone(read_survey_report(path, root))
+            for changed in ('bad', [None], ['']):
+                path.write_text(json.dumps({'version': 1, 'root': str(root), 'entries': [entry], 'changed_paths': changed}))
                 self.assertIsNone(read_survey_report(path, root))
 
     def test_survey_exposes_external_links_without_assuming_their_status(self):

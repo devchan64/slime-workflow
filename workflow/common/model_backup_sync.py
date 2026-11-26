@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 
 from workflow.common.model_backup_inventory import inventory_model_tree, compare_inventories, _identity
 from workflow.common.model_backup_service import read_backup_roots, latest_model_snapshot
@@ -24,6 +25,8 @@ def sync_snapshot(model, job_id, *, roots=None, progress=None, model_info=None, 
     inventory = inventory_model_tree(model_root, containment_root=source_root)
     if not inventory['complete']:
         raise ValueError('모델 파일 전체를 확인할 수 없습니다: ' + str(inventory['errors'][:3]))
+    if not inventory['files']:
+        raise ValueError('백업할 모델 파일이 없습니다.')
 
     latest = latest_model_snapshot(backup_root, model)
     if latest is not None:
@@ -31,9 +34,20 @@ def sync_snapshot(model, job_id, *, roots=None, progress=None, model_info=None, 
         snapshot_inventory['files'].pop('.snapshot.json', None)
         same_sizes = (snapshot_inventory['complete'] and inventory['files'].keys() == snapshot_inventory['files'].keys()
                       and all(item['size'] == snapshot_inventory['files'][name]['size'] for name, item in inventory['files'].items()))
-        with (latest / '.snapshot.json').open(encoding='utf-8') as stream:
+        manifest_path = latest / '.snapshot.json'
+        manifest_before = manifest_path.lstat()
+        if not stat.S_ISREG(manifest_before.st_mode) or manifest_before.st_size > 16 * 1024 * 1024:
+            raise ValueError('기존 스냅샷 매니페스트를 확인할 수 없습니다.')
+        with manifest_path.open(encoding='utf-8') as stream:
+            if _identity(os.fstat(stream.fileno())) != _identity(manifest_before):
+                raise ValueError('기존 스냅샷 매니페스트가 변경됐습니다.')
             previous_manifest = json.load(stream)
+            if _identity(os.fstat(stream.fileno())) != _identity(manifest_before):
+                raise ValueError('기존 스냅샷 매니페스트가 변경됐습니다.')
         metadata = model_info if model_info is not None else {'state': 'unavailable'}
+        if (not isinstance(previous_manifest, dict) or previous_manifest.get('version') != 1
+                or previous_manifest.get('model') != model or previous_manifest.get('job_id') != latest.name):
+            raise ValueError('기존 스냅샷 식별 정보가 올바르지 않습니다.')
         if same_sizes and previous_manifest.get('model_metadata') == metadata:
             source_progress = (lambda path, done, total: phase('원본 해시 확인', path, done, total)) if phase else None
             backup_progress = (lambda path, done, total: phase('기존 스냅샷 해시 확인', path, done, total)) if phase else None
@@ -42,7 +56,21 @@ def sync_snapshot(model, job_id, *, roots=None, progress=None, model_info=None, 
             snapshot_hashes['files'].pop('.snapshot.json', None)
             checked = compare_inventories(original_hashes, snapshot_hashes)
             final_inventory = inventory_model_tree(model_root, containment_root=source_root)
+            records = previous_manifest.get('files')
+            manifest_matches = (isinstance(records, list) and len(records) == len(snapshot_hashes['files'])
+                and all(isinstance(record, dict) and isinstance(record.get('path'), str)
+                        and record['path'] in snapshot_hashes['files']
+                        and type(record.get('size')) is int
+                        and record.get('size') == snapshot_hashes['files'][record['path']]['size']
+                        and record.get('sha256') == snapshot_hashes['files'][record['path']]['sha256']
+                        and type(record.get('source_mtime_ns')) is int
+                        and record['source_mtime_ns'] == inventory['files'][record['path']]['mtime_ns']
+                        for record in records)
+                and len({record['path'] for record in records}) == len(records))
+            if _identity(manifest_path.lstat()) != _identity(manifest_before):
+                raise ValueError('기존 스냅샷 매니페스트가 변경됐습니다.')
             if (checked['complete'] and final_inventory['complete'] and final_inventory['files'] == inventory['files']
+                    and manifest_matches
                     and all(item['status'] == 'verified' for item in checked['files'])):
                 return {'model': model, 'snapshot_id': latest.name, 'file_count': len(inventory['files']), 'bytes': 0,
                         'logical_bytes': sum(item['size'] for item in inventory['files'].values()), 'reused': True,

@@ -48,8 +48,13 @@ def list_snapshot_versions(model, *, roots=None):
                     or record.get('job_id') != snapshot.name or not isinstance(record.get('created_at'), str)
                     or not isinstance(record.get('files'), list)):
                 raise ValueError('매니페스트 형식 오류')
+            paths = [item.get('path') if isinstance(item, dict) else None for item in record['files']]
+            if any(not isinstance(path, str) or not path for path in paths):
+                raise ValueError('매니페스트 파일 경로 오류')
             versions.append({'snapshot_id': snapshot.name, 'created_at': record['created_at'],
-                             'file_count': len(record['files']), 'state': 'declared'})
+                             'file_count': len(paths),
+                             'partial_file_count': sum(path.endswith(('.incomplete', '.partial')) for path in paths),
+                             'state': 'declared'})
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
             versions.append({'snapshot_id': snapshot.name, 'state': 'unavailable'})
     return versions
@@ -188,10 +193,14 @@ def restore_snapshot_offline(model, *, snapshot_id=None, roots=None, progress=No
                 manifest_after.st_ino, manifest_after.st_size, manifest_after.st_mtime_ns, manifest_after.st_ctime_ns):
             raise ValueError('복원 중 스냅샷 매니페스트가 변경됐습니다.')
         _rename_noreplace(stage, destination)
+    partial_files = sorted(name for name in entries if name.endswith(('.incomplete', '.partial')))
+    note = '백업 당시 기록한 해시와 일치합니다. 공급처 원본 인증은 별도입니다.'
+    if partial_files:
+        note += ' 미완료 확장자 파일이 포함되어 있으므로 모델 준비 상태를 별도로 확인하세요.'
     return {'model':model, 'snapshot_id':snapshot.name, 'path':str(destination), 'files':len(entries),
             'bytes':total, 'verification':'snapshot_manifest_sha256',
             'timestamp_mismatches':timestamp_mismatches,
-            'note':'백업 당시 기록한 해시와 일치합니다. 공급처 원본 인증은 별도입니다.'}
+            'partial_files':partial_files, 'note':note}
 
 
 def main():
@@ -211,7 +220,15 @@ def main():
         if now - last_report[0] >= 5:
             print(f'복원 중 {done}/{total} 바이트 · {name}', file=sys.stderr, flush=True)
             last_report[0] = now
-    print(json.dumps(restore_snapshot_offline(args.model, snapshot_id=args.snapshot_id, progress=report), ensure_ascii=False, indent=2))
+    result = restore_snapshot_offline(args.model, snapshot_id=args.snapshot_id, progress=report)
+    try:
+        from workflow.common.model_restore_history import write_restore_record
+        write_restore_record(result)
+        result['history_recorded'] = True
+    except (OSError, ValueError):
+        result['history_recorded'] = False
+        result['history_warning'] = '복원은 완료됐지만 로컬 복원 이력을 기록하지 못했습니다.'
+    print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
 if __name__ == '__main__':

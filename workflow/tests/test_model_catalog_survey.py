@@ -7,6 +7,21 @@ from workflow.common.model_catalog_survey import survey_model_root
 
 
 class SurveyTest(unittest.TestCase):
+    def test_partial_downloads_are_observed_without_following_links(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            model = root / 'model'
+            model.mkdir()
+            partial = model / 'one.incomplete'
+            partial.write_bytes(b'123')
+            (model / 'two.partial').write_bytes(b'45')
+            (model / 'link.partial').symlink_to(partial)
+            report = survey_model_root(root, nested_roots=('model',))
+            entries = {entry['path']: entry for entry in report['entries']}
+            self.assertEqual(entries['model']['partial_files'], 2)
+            self.assertEqual(entries['model']['partial_allocated_bytes'], sum(p.stat().st_blocks * 512 for p in (partial, model / 'two.partial')))
+            self.assertEqual(entries['model/link.partial']['partial_files'], 0)
+
     def test_nested_installations_are_separate_from_container(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
