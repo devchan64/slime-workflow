@@ -21,6 +21,10 @@ export function validCatalogOverview(value) {
   if(value.activity?.queue?.status==='available' && !objects(value.activity.queue.jobs))return false;
   if(value.activity?.reservations?.status==='available' && !objects(value.activity.reservations.records))return false;
   if(value.unclassified_nested?.some(item=>typeof item.path!=='string' || !object(item.storage_observation) || !Number.isFinite(item.storage_observation.files)))return false;
+  if(value.surveyed_model_roots!=null && (!Array.isArray(value.surveyed_model_roots) || value.surveyed_model_roots.some(root=>typeof root!=='string')))return false;
+  if(value.surveyed_model_children!=null && (!objects(value.surveyed_model_children) || value.surveyed_model_children.some(item=>
+    typeof item.path!=='string' || !object(item.storage_observation) ||
+    !['allocated_bytes','files','links','errors'].every(key=>Number.isFinite(item.storage_observation[key])))))return false;
   return value.components.every(component=>{
     const item=component.declaration;
     return object(item) && ['id','label','kind','path'].every(key=>typeof item[key]==='string') && optionalText(item,['source','revision','usage_note']) && Array.isArray(item.services) && item.services.every(service=>typeof service==='string') &&

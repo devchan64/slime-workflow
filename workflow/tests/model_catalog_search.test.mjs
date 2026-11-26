@@ -29,6 +29,14 @@ test('손상된 카탈로그 항목은 화면에 적용하지 않는다',()=>{
   for(const value of [{...valid,components:[{}]},{...valid,components:[{...item,declaration:{...item.declaration,services:null}}]},{...valid,components:[{...item,declaration:{...item.declaration,source:{invalid:true}}}]},{...valid,components:[{...item,alternate_installations:null}]},{...valid,components:[{...item,installation_metadata:{declared_sources:'invalid'}}]},{...valid,activity:{queue:{status:'available'}}},{...valid,unclassified_nested:[{}]},{...valid,unclassified:[{name:{}}]}])assert.equal(validCatalogOverview(value),false);
 });
 
+test('모델별 조사 항목의 화면 표시 형식을 검증한다',()=>{
+  const base={components:[],unclassified:[]};
+  const observation={allocated_bytes:0,files:1,links:0,errors:0};
+  assert.equal(validCatalogOverview({...base,surveyed_model_roots:['model'],surveyed_model_children:[{path:'model/file',storage_observation:observation}]}),true);
+  for(const extra of [{surveyed_model_roots:'model'},{surveyed_model_roots:[null]},{surveyed_model_children:{}},{surveyed_model_children:[{path:'model/file',storage_observation:null}]},{surveyed_model_children:[{path:'model/file',storage_observation:{...observation,allocated_bytes:'unknown'}}]}])
+    assert.equal(validCatalogOverview({...base,...extra}),false);
+});
+
 test('카탈로그 형식 오류 뒤 기존 결과를 유지하고 재조회로 복구한다',async()=>{
   const source=readFileSync(new URL('../../gui/ModelCatalog.jsx',import.meta.url),'utf8');
   const start=source.indexOf('  async function load()'),end=source.indexOf('  const visibleComponents=',start);

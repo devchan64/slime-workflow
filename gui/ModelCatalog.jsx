@@ -98,6 +98,7 @@ export default function ModelCatalog({onCompare}) {
       </details>
       <p>마지막 조회 · {checkedAt?.toLocaleString('ko-KR')}</p>
       {result.storage_survey && <p>저장 공간 조사 · {result.storage_survey.finished_at || '시각 확인 불가'} · 과거 관측값이며 현재 용량과 다를 수 있습니다. 링크 대상은 포함하지 않으며 하드링크가 중복 계산될 수 있습니다. 기존 경로가 없으면 추가 설치본의 크기로 정렬합니다.{(result.storage_survey.changed || result.storage_survey.errors) && ' 조사 중 변경 또는 오류가 감지되었습니다.'}</p>}
+      {!result.storage_survey && <p>저장 공간 조사 기록을 사용할 수 없어 모델별 내부 조사 결과를 확인할 수 없습니다.</p>}
       <label>카탈로그 검색 <input ref={searchRef} type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="모델, 서비스, 출처, 경로"/></label>
       <label>정렬 <select value={order} onChange={event => setOrder(event.target.value)}><option value="catalog">카탈로그 순서</option><option value="allocated">이전 조사 할당 크기순</option></select></label>
       {query && <button type="button" onClick={() => {setQuery(''); searchRef.current?.focus();}}>카탈로그 검색 지우기</button>}
@@ -134,11 +135,16 @@ export default function ModelCatalog({onCompare}) {
         <p>미분류는 미사용이나 삭제 가능을 뜻하지 않습니다.</p>
         <ul>{result.unclassified.map(item => <li key={item.name}>{item.name} · {item.partially_classified && '일부 구성요소 등록됨 · '}로컬 {present(item.local_present)} · 기존 백업 {present(item.backup_present)}</li>)}</ul>
         {result.storage_survey && <><p>아래 `models/` 하위 항목은 {result.storage_survey.finished_at || '시각 확인 불가'} 조사 기준이며 현재 파일 존재나 사용 여부를 확정하지 않습니다.</p>
-          {!result.nested_survey_available ? <p>하위 경로 조사 정보가 없어 분류 여부를 확인할 수 없습니다.</p> : result.unclassified_nested?.length ? <ul>{result.unclassified_nested.map(item => <li key={item.path}>{item.path} · 조사 당시 할당 크기 {gib(item.storage_observation.allocated_bytes)} · 파일 {item.storage_observation.files}개</li>)}</ul> : <p>조사된 `models/` 하위 경로 중 별도 미분류 항목이 없습니다.</p>}</>}
+          {!result.nested_survey_available ? <p>이전 `models/` 경로의 하위 조사 정보가 없어 해당 경로의 분류 여부를 확인할 수 없습니다.</p> : result.unclassified_nested?.length ? <ul>{result.unclassified_nested.map(item => <li key={item.path}>{item.path} · 조사 당시 할당 크기 {gib(item.storage_observation.allocated_bytes)} · 파일 {item.storage_observation.files}개</li>)}</ul> : <p>조사된 `models/` 하위 경로 중 별도 미분류 항목이 없습니다.</p>}</>}
       </details>
       {result.surveyed_model_roots?.length > 0 && <details><summary>모델 디렉터리 내부 조사 · {result.surveyed_model_roots.length}개 모델</summary>
         <p>조사 당시 직계 항목입니다. 이 목록만으로 모델의 사용 여부나 삭제 가능 여부를 판단할 수 없습니다. 링크는 대상을 따라 용량을 더하지 않습니다.</p>
-        <ul>{(result.surveyed_model_children || []).map(item => <li key={item.path}>{item.path} · 조사 당시 할당 크기 {gib(item.storage_observation.allocated_bytes)} · 파일 {item.storage_observation.files}개 · 링크 {item.storage_observation.links}개 · 오류 {item.storage_observation.errors}개</li>)}</ul>
+        {result.surveyed_model_roots.map(root => {
+          const children = (result.surveyed_model_children || []).filter(item => item.path.startsWith(`${root}/`));
+          return <details key={root}><summary>{root} · 직계 항목 {children.length}개</summary>
+            {children.length ? <ul>{children.map(item => <li key={item.path}>{item.path} · 조사 당시 할당 크기 {gib(item.storage_observation.allocated_bytes)} · 파일 {item.storage_observation.files}개 · 링크 {item.storage_observation.links}개 · 오류 {item.storage_observation.errors}개{item.storage_observation.changed && ' · 조사 중 변경 감지'}</li>)}</ul> : <p>표시할 직계 항목 기록이 없습니다. 조사 누락이나 오류 여부를 확인하세요.</p>}
+          </details>;
+        })}
       </details>}
       <p>{result.note}</p>
     </>}

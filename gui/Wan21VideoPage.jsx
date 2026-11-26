@@ -22,6 +22,7 @@ import PromptWordCount from "./PromptWordCount.jsx";
 import ActionButton from "./ActionButton.jsx";
 import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 import {generationProposalScope,readGenerationProposal,wan21ProposalInputs} from "./generationProposal.mjs";
+import usePageTitle from "./usePageTitle.js";
 
 function Wan21VideoPage({mode,embedded=false,session:embeddedSession=""}) {
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
@@ -138,14 +139,19 @@ function Wan21VideoPage({mode,embedded=false,session:embeddedSession=""}) {
     <div ref={historyRef} tabIndex={-1}><GeneratorHistory allowPriority toggleResult key={revision} service={service} statusCommand="status" card readJob={isImage?readSavedInput:undefined} restore={isImage?restoreSavedInput:undefined} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(x=>x+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(x=>x+1);}}/>} renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 작업 결과"><SavedGeneratorInputs id={id} service={service} statusCommand="status" readJob={isImage ? currentId=>readSavedInput(currentId,false) : undefined}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>
   </article>;
 }
-function RetiredWan21Page({mode}) {
+function RetiredWan21Page({mode,embedded=false,session:embeddedSession=""}) {
   const service=`wan21-${mode}`;
+  const title=`Wan 2.1 ${mode.toUpperCase()} 실험 종료`;
+  const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [job,setJob]=useState("");
-  return <article className="generator-page"><h1>Wan 2.1 {mode.toUpperCase()} 실험 종료</h1>
+  usePageTitle(title,embedded);
+  return <main className={"single-generator-shell"+(embedded ? "" : " generator-page-standalone-shell")}><article className="single-generator-page generator-page-common">
+    {!embedded && <a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a>}
+    <h1 className={embedded ? "embedded-page-title" : undefined}>{title}</h1>
     <p>이 생성기는 폐기되어 새 생성과 작업 재개를 지원하지 않습니다. 기존 작업 이력과 결과는 확인할 수 있습니다.</p>
     <GeneratorHistory service={service} statusCommand="status" card toggleResult openResult={setJob} resultId={job} onCloseResult={()=>setJob("")}
       renderResult={id=><section aria-label="선택한 작업 결과"><MediaJobResult service={service} id={id}/></section>}/>
-  </article>;
+  </article></main>;
 }
-export function Wan21T2VPage(){return <RetiredWan21Page mode="t2v"/>;}
-export function Wan21I2VPage(){return <RetiredWan21Page mode="i2v"/>;}
+export function Wan21T2VPage(props){return <RetiredWan21Page {...props} mode="t2v"/>;}
+export function Wan21I2VPage(props){return <RetiredWan21Page {...props} mode="i2v"/>;}

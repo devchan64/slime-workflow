@@ -10,8 +10,7 @@ class EmbeddedModelSessionUI(unittest.TestCase):
     def test_embedded_generators_use_conversation_session(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         pages=[('DwposePage.jsx','default'),('VacePage.jsx','default'),
-               ('I2VPage.jsx','default'),('Wan21VideoPage.jsx','Wan21T2VPage'),
-               ('Wan21VideoPage.jsx','Wan21I2VPage'),
+               ('I2VPage.jsx','default'),
                ('FunControlPage.jsx','default'),('SoundEffectPage.jsx','default'),
                ('SoundEffectPage.jsx','HeartmulaPage'),('TranslationPage.jsx','default'),('WriterPage.jsx','default')]
         script="""global.location={pathname:'/management/assistant/',search:'?session=old',href:'http://localhost/management/assistant/?session=old'};
@@ -32,3 +31,23 @@ class EmbeddedModelSessionUI(unittest.TestCase):
                                                    env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
                     self.assertRegex(markup,r'/management/frame/model-management/\?model=[^"&]+&amp;session=new')
                     self.assertNotRegex(markup,r'/management/frame/model-management/\?model=[^"&]+&amp;session=old')
+
+    def test_retired_wan21_uses_embedded_layout_without_preparation(self):
+        gui=Path(__file__).resolve().parents[2]/'gui'
+        script="""global.location={pathname:'/management/assistant/',search:'?session=old',href:'http://localhost/management/assistant/?session=old'};
+          const React=require('react'),server=require('react-dom/server'),Page=require(process.argv[1])[process.argv[2]];
+          process.stdout.write(server.renderToStaticMarkup(React.createElement(Page,{embedded:true,session:'new'})));"""
+        with tempfile.TemporaryDirectory() as directory:
+            bundle=Path(directory)/'wan21.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'),'Wan21VideoPage.jsx','--bundle','--platform=node',
+                            '--format=cjs','--external:react','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
+            for export in ('Wan21T2VPage','Wan21I2VPage'):
+                with self.subTest(export=export):
+                    markup=subprocess.check_output(['node','-e',script,str(bundle),export],cwd=gui,text=True,
+                                                   env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
+                    self.assertIn('single-generator-page generator-page-common',markup)
+                    self.assertIn('embedded-page-title',markup)
+                    self.assertIn('실험 종료',markup)
+                    self.assertIn('생성 이력',markup)
+                    self.assertNotIn('model-management',markup)
+                    self.assertNotIn('헤르메스 대화로 돌아가기',markup)

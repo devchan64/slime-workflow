@@ -141,7 +141,39 @@ class CatalogTest(unittest.TestCase):
             self.assertEqual(report['entries']['example']['allocated_bytes'], 4096)
             self.assertEqual(report['finished_at'], 'then')
             self.assertTrue(report['changed'])
+            self.assertTrue(report['entries']['example']['changed'])
             self.assertIsNone(read_survey_report(report_path, root / 'other'))
+
+    def test_survey_marks_only_changed_entry_and_its_ancestors(self):
+        import json
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as directory:
+            root = Path(directory) / 'models'
+            report_path = Path(directory) / 'survey.json'
+            def entry(path):
+                return {'path': path, 'files': 1, 'logical_bytes': 8,
+                        'allocated_bytes': 4096, 'links': 0, 'errors': 0}
+            report_path.write_text(json.dumps({'version': 1, 'root': str(root),
+                'entries': [entry('model'), entry('model/a'), entry('model/ab')],
+                'changed_paths': ['model/a/weights']}))
+            entries = read_survey_report(report_path, root)['entries']
+            self.assertTrue(entries['model']['changed'])
+            self.assertTrue(entries['model/a']['changed'])
+            self.assertFalse(entries['model/ab']['changed'])
+
+    def test_invalid_survey_entry_does_not_hide_missing_observations(self):
+        import json
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as directory:
+            root = Path(directory) / 'models'
+            path = Path(directory) / 'survey.json'
+            entry = {'path': 'model/weights', 'files': 1, 'logical_bytes': 8,
+                     'allocated_bytes': 4096, 'links': 0, 'errors': 0}
+            for entries in ([entry, {'path': 'model/missing'}], [entry, entry]):
+                path.write_text(json.dumps({'version': 1, 'root': str(root), 'entries': entries}))
+                self.assertIsNone(read_survey_report(path, root))
 
     def test_survey_exposes_external_links_without_assuming_their_status(self):
         import json

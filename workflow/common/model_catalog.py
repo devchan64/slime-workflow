@@ -98,11 +98,19 @@ def read_survey_report(path=None, root=DEFAULT_MODEL_ROOT):
             return None
         entries = {}
         for entry in report['entries']:
-            if (isinstance(entry, dict) and isinstance(entry.get('path'), str)
+            if not (isinstance(entry, dict) and isinstance(entry.get('path'), str)
+                    and entry['path'] and entry['path'] not in entries
                     and all(type(entry.get(k)) is int and entry[k] >= 0
                             for k in ('files', 'logical_bytes', 'allocated_bytes', 'links', 'errors'))):
-                entries[entry['path']] = {k: entry[k] for k in
-                                          ('files', 'logical_bytes', 'allocated_bytes', 'links', 'errors')}
+                return None
+            entries[entry['path']] = {k: entry[k] for k in
+                                      ('files', 'logical_bytes', 'allocated_bytes', 'links', 'errors')}
+        changed_paths = report.get('changed_paths', [])
+        if not isinstance(changed_paths, list):
+            changed_paths = []
+        changed_paths = [path for path in changed_paths if isinstance(path, str)]
+        for path, observation in entries.items():
+            observation['changed'] = any(changed == path or changed.startswith(path + '/') for changed in changed_paths)
         links = []
         for link in report.get('links', []):
             if not isinstance(link, dict) or not isinstance(link.get('path'), str) or not isinstance(link.get('target'), str):
