@@ -17,6 +17,14 @@ def validate(request):
    if hashlib.file_digest(f,'sha256').hexdigest()!=digest:raise ValueError(f'파일 해시 불일치: {path}')
 
 def execute(job,attempt,request,metrics):
+ # Keep compiler temporary files in this attempt, away from quota-limited /tmp.
+ temp_root=attempt/'runtime-tmp'
+ if temp_root.is_symlink():raise ValueError('임시 작업 경로 오류')
+ temp_root.mkdir(mode=0o700,exist_ok=True)
+ os.environ['TMPDIR']=str(temp_root.resolve())
+ import tempfile
+ tempfile.tempdir=None
+ print('임시 작업 경로:',temp_root.resolve(),flush=True)
  import logging,torch,numpy as np
  from PIL import Image
  import diffusers,utils.hf_xet_fallback as helper

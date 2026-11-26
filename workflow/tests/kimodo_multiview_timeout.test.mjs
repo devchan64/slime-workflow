@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
+import {requestErrorMessage} from '../../gui/requestError.mjs';
 
 test('다중 시점 검수는 파일 읽기와 서버 응답 지연 시 대기를 해제하고 보고서를 유지한다',async()=>{
  const source=readFileSync(new URL('../../gui/KimodoMultiviewReport.jsx',import.meta.url),'utf8');
@@ -12,7 +13,7 @@ test('다중 시점 검수는 파일 읽기와 서버 응답 지연 시 대기�
   const delayed=()=>new Promise(done=>resolve=done);
   const file={text:()=>stage==='file'?delayed():Promise.resolve('{}')};
   const response={ok:true,json:()=>stage==='json'?delayed():Promise.resolve({views:[{angle:0,rows:[]}],limitations:[]})};
-  const context=vm.createContext({AbortController,untilAborted,pending:{current:null},dirtyRef:{current:false},restoreFocus:{current:false},submitRef:{current:{}},document:{activeElement:null},setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},files:{observations:file,skeleton:{text:async()=> '{}'}},
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,pending:{current:null},dirtyRef:{current:false},restoreFocus:{current:false},submitRef:{current:{}},document:{activeElement:null},setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},files:{observations:file,skeleton:{text:async()=> '{}'}},
    fetch:()=>stage==='request'?delayed():Promise.resolve(response),setBusy:value=>busy=value,setError:value=>error=value,setView:()=>{},setReport:value=>report=value});
   vm.runInContext(code,context);const waiting=context.load({preventDefault(){}});await new Promise(done=>setImmediate(done));timer();await waiting;
   assert.equal(busy,false);assert.match(error,/시간이 초과/);assert.equal(report,'previous');resolve(response);await new Promise(done=>setImmediate(done));assert.equal(report,'previous');
@@ -25,7 +26,7 @@ test('다중 시점 검수는 잘못된 보고서를 거부하고 정상 보고�
  for(const valid of [false,true]){
   let error='',report='previous',revision=0;
   const result=valid?{views:[{angle:0,rows:[['0','1']]}],limitations:[]}:{views:[{angle:0,rows:[[{}]]}],limitations:[]};
-  const context=vm.createContext({AbortController,untilAborted,pending:{current:null},dirtyRef:{current:false},restoreFocus:{current:false},submitRef:{current:{}},document:{activeElement:null},setTimeout:()=>1,clearTimeout:()=>{},files:{observations:{text:async()=> '{}'},skeleton:{text:async()=> '{}'}},fetch:async()=>({ok:true,json:async()=>result}),
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,pending:{current:null},dirtyRef:{current:false},restoreFocus:{current:false},submitRef:{current:{}},document:{activeElement:null},setTimeout:()=>1,clearTimeout:()=>{},files:{observations:{text:async()=> '{}'},skeleton:{text:async()=> '{}'}},fetch:async()=>({ok:true,json:async()=>result}),
    setBusy:()=>{},setError:value=>error=value,setView:()=>{},setReport:value=>report=value,setReportRevision:fn=>revision=fn(revision)});
   vm.runInContext(code,context);await context.load({preventDefault(){}});
   if(valid){assert.equal(report,result);assert.equal(revision,1);assert.equal(error,'');}
@@ -51,7 +52,7 @@ test('표시 방향과 다르거나 관절 번호가 잘못된 가중치는 보�
   if(defect==='observation')row.observation=2;
   if(defect==='joint')row.joints[3].joint=2;
   if(defect==='count')row.joints.pop();
-  const context=vm.createContext({AbortController,untilAborted,pending:{current:null},dirtyRef:{current:false},restoreFocus:{current:false},submitRef:{current:{}},document:{activeElement:null},setTimeout:()=>1,clearTimeout:()=>{},files:{observations:{text:async()=> '{}'},skeleton:{text:async()=> '{}'}},fetch:async()=>({ok:true,json:async()=>result}),
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,pending:{current:null},dirtyRef:{current:false},restoreFocus:{current:false},submitRef:{current:{}},document:{activeElement:null},setTimeout:()=>1,clearTimeout:()=>{},files:{observations:{text:async()=> '{}'},skeleton:{text:async()=> '{}'}},fetch:async()=>({ok:true,json:async()=>result}),
    setBusy:()=>{},setError:value=>error=value,setView:()=>{},setReport:value=>report=value,setReportRevision:()=>{}});
   vm.runInContext(code,context);await context.load({preventDefault(){}});
   assert.equal(report,'previous');assert.match(error,/형식/);
@@ -69,7 +70,7 @@ test('보고서 조회 도중 편집이 시작되면 늦은 응답은 편집을 
  const source=readFileSync(new URL('../../gui/KimodoMultiviewReport.jsx',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('  async function load(event)'),source.indexOf('  return <details className="kimodo-multiview">'));
  let resolve,error='',report='previous',revision=0;
- const context=vm.createContext({AbortController,untilAborted,pending:{current:null},dirtyRef:{current:false},restoreFocus:{current:false},submitRef:{current:{}},document:{activeElement:null},setTimeout:()=>1,clearTimeout:()=>{},files:{observations:{text:async()=> '{}'},skeleton:{text:async()=> '{}'}},
+ const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,pending:{current:null},dirtyRef:{current:false},restoreFocus:{current:false},submitRef:{current:{}},document:{activeElement:null},setTimeout:()=>1,clearTimeout:()=>{},files:{observations:{text:async()=> '{}'},skeleton:{text:async()=> '{}'}},
   fetch:()=>new Promise(done=>resolve=done),setBusy:()=>{},setError:value=>error=value,setView:()=>{},setReport:value=>report=value,setReportRevision:fn=>revision=fn(revision)});
  vm.runInContext(code,context);const waiting=context.load({preventDefault(){}});await new Promise(done=>setImmediate(done));context.dirtyRef.current=true;
  resolve({ok:true,json:async()=>({views:[{angle:0,rows:[]}],limitations:[]})});await waiting;
@@ -114,7 +115,7 @@ test('가중치 검증의 요청과 응답 지연은 편집 내용을 유지하�
  for(const stage of ['request','json']){
   let timer,resolve,error='',busy=false,download='old';
   const delayed=()=>new Promise(done=>resolve=done),response={ok:true,json:()=>stage==='json'?delayed():Promise.resolve({views:[]})};
-  const context=vm.createContext({AbortController,untilAborted,pending:{current:null},disabled:false,validateRef:{current:{}},restoreFocus:{current:false},document:{activeElement:null},weights:{views:[]},setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,pending:{current:null},disabled:false,validateRef:{current:{}},restoreFocus:{current:false},document:{activeElement:null},weights:{views:[]},setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},
    fetch:()=>stage==='request'?delayed():Promise.resolve(response),setBusy:value=>busy=value,setError:value=>error=value,setInvalidTarget:()=>{},setDownload:value=>download=value});
   vm.runInContext(code,context);const waiting=context.validate();await new Promise(done=>setImmediate(done));timer();await waiting;
   assert.equal(busy,false);assert.match(error,/시간이 초과/);assert.equal(download,'');resolve(response);await new Promise(done=>setImmediate(done));assert.equal(download,'');
@@ -127,7 +128,7 @@ test('가중치 검증 결과가 입력과 일치할 때만 다운로드를 제�
  const weights={schema:'schema',views:[{observation:1,joints:[{joint:0,weight:0.5,reason:'ok'}]}]};
  for(const valid of [true,false]){
   let error='',download='';const checked=structuredClone(weights);if(!valid)checked.views[0].joints[0].weight=0.8;
-  const context=vm.createContext({AbortController,untilAborted,pending:{current:null},disabled:false,validateRef:{current:{}},restoreFocus:{current:false},document:{activeElement:null},weights,setTimeout:()=>1,clearTimeout:()=>{},
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,pending:{current:null},disabled:false,validateRef:{current:{}},restoreFocus:{current:false},document:{activeElement:null},weights,setTimeout:()=>1,clearTimeout:()=>{},
    fetch:async()=>({ok:true,json:async()=>checked}),setBusy:()=>{},setError:value=>error=value,setInvalidTarget:()=>{},setDownload:value=>download=value,
    URL:{createObjectURL:()=> 'blob:validated'},Blob});
   vm.runInContext(code,context);await context.validate();
@@ -197,4 +198,20 @@ test('다른 입력을 고쳐도 가중치 오류 안내는 유지하고 해당 
  const context=vm.createContext({pending:{current:null},disabled:false,weights,view:0,invalidTarget:target,setWeights:()=>{},setDownload:()=>{},setInvalidTarget:value=>target=value,setError:value=>error=value,onDirtyChange:()=>{}});
  vm.runInContext(code,context);context.edit(1,'reason','수정');assert.equal(error,'오류');assert.notEqual(target,null);
  context.edit(0,'reason','수정');assert.equal(error,'');assert.equal(target,null);
+});
+
+test('다중 시점 보고서 연결 실패는 이전 보고서와 복구 안내를 유지한다',async()=>{
+ const source=readFileSync(new URL('../../gui/KimodoMultiviewReport.jsx',import.meta.url),'utf8');
+ const code=source.slice(source.indexOf('  async function load(event)'),source.indexOf('  return <details className="kimodo-multiview">'));
+ let error='',busy=false,report='previous';const file={text:async()=> '{}'};
+ const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,pending:{current:null},dirtyRef:{current:false},restoreFocus:{current:false},submitRef:{current:{}},document:{activeElement:null},setTimeout:()=>1,clearTimeout:()=>{},files:{observations:file,skeleton:file},fetch:async()=>{throw new TypeError('Failed to fetch');},setBusy:value=>busy=value,setError:value=>error=value,setReport:value=>report=value});
+ vm.runInContext(code,context);await context.load({preventDefault(){}});assert.match(error,/연결 상태를 확인/);assert.equal(report,'previous');assert.equal(busy,false);
+});
+
+test('가중치 검증 연결 실패는 편집 값을 유지하고 재시도를 안내한다',async()=>{
+ const source=readFileSync(new URL('../../gui/KimodoJointWeights.jsx',import.meta.url),'utf8');
+ const code=source.slice(source.indexOf('  async function validate()'),source.indexOf('  return <details',source.indexOf('  async function validate()')));
+ const weights={views:[{joints:[{joint:0,weight:.5,reason:'검수'}]}]};let error='',busy=false,download='old';
+ const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,pending:{current:null},disabled:false,validateRef:{current:{}},restoreFocus:{current:false},document:{activeElement:null},weights,setTimeout:()=>1,clearTimeout:()=>{},setInvalidTarget:()=>{},setBusy:value=>busy=value,setError:value=>error=value,setDownload:value=>download=value,fetch:async()=>{throw new TypeError('Failed to fetch');}});
+ vm.runInContext(code,context);await context.validate();assert.match(error,/연결 상태를 확인/);assert.equal(busy,false);assert.equal(download,'');assert.equal(weights.views[0].joints[0].weight,.5);
 });

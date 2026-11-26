@@ -36,7 +36,7 @@ test('새 참조 이미지는 이전 미리보기의 재시도 횟수를 물려�
 
 test('VACE 입력 잠금 중에는 참조 이미지 드롭이 선택을 시작하지 않는다',async()=>{
  const page=readFileSync(new URL('../../gui/VacePage.jsx',import.meta.url),'utf8');
- assert.match(page,/<ReferenceImageInput disabled=\{busy \|\| !!pending \|\| Boolean\(handoff\.id\) \|\| !visible\}/);
+ assert.match(page,/<ReferenceImageInput[^>]* disabled=\{busy \|\| !!pending \|\| Boolean\(handoff\.id\) \|\| !visible\}/);
  const source=readFileSync(new URL('../../gui/ReferenceImageInput.jsx',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('  async function select(file){'),source.indexOf('  async function paste(){'));
  let started=0;
@@ -52,7 +52,7 @@ test('생성기 입력 잠금은 참조 이미지 드롭에도 전달된다',()=
  assert.match(read('FluxImagePage.jsx'),/source=\{files\[index\]\} disabled=\{!profile \|\| busy \|\| Boolean\(review\) \|\| Boolean\(handoffId\) \|\| \(receiptKey && receiptState!=="editing"\)/);
  assert.match(read('AnimateInputs.jsx'),/source=\{reference\} disabled=\{busy \|\| Boolean\(pending\)\}/);
  assert.match(read('FunControlPage.jsx'),/sourceSeed=\{sourceSeed\} busy=\{busy \|\| !!pending \|\| Boolean\(handoffId\)\}/);
- assert.match(read('FunControlSchema.jsx'),/<ReferenceImageInput disabled=\{c\.busy\}/);
+ assert.match(read('FunControlSchema.jsx'),/<ReferenceImageInput[^>]* disabled=\{c\.busy\}/);
 });
 
 test('검증 중 입력이 잠기면 나중에 잠금이 풀려도 이전 선택은 적용되지 않는다',async()=>{

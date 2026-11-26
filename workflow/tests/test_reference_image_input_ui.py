@@ -20,5 +20,9 @@ class ReferenceImageInputUiTests(unittest.TestCase):
               const general=server.renderToStaticMarkup(React.createElement(Input,{label:'참조',accept:'image/*',maxBytes:3000000,onChange:()=>{}}));
               assert.doesNotMatch(general,/>PNG · 파일당/);
               const slots=server.renderToStaticMarkup(React.createElement(React.Fragment,null,...['참조 1','참조 2'].map(label=>React.createElement(Input,{key:label,label,onChange:()=>{}}))));
-              assert.match(slots,/role="group" aria-label="참조 1"/);assert.match(slots,/role="group" aria-label="참조 2"/);"""
+              assert.match(slots,/role="group" aria-label="참조 1"/);assert.match(slots,/role="group" aria-label="참조 2"/);
+              const failure=server.renderToStaticMarkup(React.createElement(Input,{label:'참조',source:'data:image/png;base64,AA==',externalError:'이미지 적용 실패 · 기존 이미지는 유지됩니다.',onChange:()=>{}}));
+              const failureId=failure.match(/<p id="([^"]+)" role="alert">/)[1];
+              assert.match(failure,/aria-invalid="true"/);assert.ok(failure.includes('aria-describedby="'+failureId+'"'));
+              assert.equal((failure.match(/기존 이미지는 유지됩니다/g)||[]).length,1);"""
             subprocess.run(['node','-e',script,str(bundle)],cwd=gui,check=True,text=True,capture_output=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})

@@ -1,12 +1,13 @@
 import ReferenceImageInput from "./ReferenceImageInput.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
 import SeedInput from "./SeedInput.jsx";
-import React, {createContext, useContext, useId, useRef} from "react";
+import React, {createContext, useContext, useEffect, useId, useRef} from "react";
 import {JSONUIProvider, Renderer, defineRegistry} from "@json-render/react";
 import {defineCatalog} from "@json-render/core";
 import {schema} from "@json-render/react/schema";
 import {z} from "zod";
 import MediaJobResult from "./MediaJobResult.jsx";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 
 const Context=createContext(null);
 export function FunModelDescription({profile}){
@@ -29,7 +30,10 @@ const {registry}=defineRegistry(catalog,{components:{
   Group:({children})=><>{children}</>,
   Section:({props,children})=><fieldset className="fun-field-group"><legend>{props.label}</legend>{props.label==="첨부"?<div className="fun-attachments">{children}</div>:children}</fieldset>,
   Advanced:({children})=>{const c=useContext(Context),invalid=['steps','flow_shift','guidance_scale','switch_ratio'].some(key=>c.numericIssues?.[key]);return <details className="fun-advanced"><summary>고급 설정{invalid && ' · 입력 확인 필요'}</summary>{children}</details>},
-  Attachment:({props})=>{const c=useContext(Context),fileInput=useRef(null),{field,label,accept}=props;return <div className={"fun-attachment"+(field==="pose_video" ? " fun-attachment-pose" : "")}>{field==="images" ? <ReferenceImageInput disabled={c.busy} label={label} source={c.request.images[0] ? "data:image/png;base64,"+c.request.images[0] : ""} onSelectionStart={c.onImageSelectionStart} onCheckingChange={c.onImageCheckingChange} onChange={file=>file ? c.attach(file,field) : c.setRequest({...c.request,images:[]})}/> : <><span>{label}</span><label className="reference-image-file fun-pose-file">영상 파일 선택<input ref={fileInput} type="file" aria-label={label} accept={accept} disabled={c.busy} onChange={async e=>{const input=e.currentTarget;if(!await c.attach(input.files[0],field))input.value="";}}/></label></>}
+  Attachment:({props})=>{const c=useContext(Context),fileInput=useRef(null),restoreFileFocus=useRef(false),checkingId=useId(),errorId=useId(),imageCheckingId=useId(),{field,label,accept}=props;useEffect(()=>{if(c.busy || !restoreFileFocus.current)return;restoreFileFocus.current=false;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(fileInput.current)));return()=>cancelAnimationFrame(frame);},[c.busy]);return <div className={"fun-attachment"+(field==="pose_video" ? " fun-attachment-pose" : "")}>{field==="images" ? <ReferenceImageInput resetErrorKey={c.referenceReset} onPreviewErrorChange={c.onImagePreviewErrorChange} onErrorChange={c.onImageErrorChange} disabled={c.busy} externalError={c.imageError} label={label} source={c.request.images[0] ? "data:image/png;base64,"+c.request.images[0] : ""} onSelectionStart={c.onImageSelectionStart} onCheckingChange={c.onImageCheckingChange} onChange={file=>file ? c.attach(file,field) : (c.onImageSelectionStart(),c.setRequest({...c.request,images:[]}))}/> : <><span>{label}</span><label className="reference-image-file fun-pose-file">영상 파일 선택<input ref={fileInput} type="file" aria-label={label} accept={accept} disabled={c.busy || c.imageCheckPending} aria-invalid={c.poseError ? true : undefined} aria-describedby={[c.imageCheckPending ? imageCheckingId : null,c.poseChecking ? checkingId : null,c.poseError ? errorId : null].filter(Boolean).join(" ") || undefined} onChange={async e=>{const input=e.currentTarget;if(!input.files[0])return;restoreFileFocus.current=document.activeElement===input;if(!await c.attach(input.files[0],field))input.value="";if(document.activeElement===input)restoreFileFocus.current=false;}}/></label></>}
+    {field==="pose_video" && c.imageCheckPending && <p id={imageCheckingId}>이미지 확인이 끝나면 포즈 영상을 선택할 수 있습니다.</p>}
+    {field==="pose_video" && c.poseChecking && <p id={checkingId} role="status">포즈 영상 정보를 확인하고 있습니다.</p>}
+    {field==="pose_video" && c.poseError && <p id={errorId} role="alert">{c.poseError}{c.request.pose_video && " 기존 포즈 영상은 유지됩니다."}</p>}
     {field==="pose_video" && c.request.pose_video && <><p role="status">포즈 영상이 적용되어 있습니다. 파일을 선택하면 교체됩니다.</p><video className="fun-attachment-preview" controls loop playsInline preload="metadata" aria-label="입력 포즈 영상" src={"data:video/mp4;base64,"+c.request.pose_video}/><button type="button" disabled={c.busy} onClick={()=>{if(fileInput.current)fileInput.current.value="";c.removePose();requestAnimationFrame(()=>fileInput.current?.focus());}}>포즈 영상 제거</button></>}
     {field==="pose_video" && c.videoInfo && <div><p>{c.videoInfo.summary}</p><button type="button" onClick={()=>c.setRequest({...c.request,frames:c.frameLimit})}>입력 영상의 최대 프레임 적용</button></div>}</div>},
   Prompt:({props})=>{const c=useContext(Context);return <><label>{props.label}<textarea maxLength={8000} value={c.request[props.field]} onChange={e=>c.setRequest({...c.request,[props.field]:e.target.value})}/></label><PromptWordCount text={c.request[props.field]} final/></>},

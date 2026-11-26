@@ -1,6 +1,8 @@
 import React,{useEffect,useId,useRef,useState} from 'react';
 import {formatQuestionAnswers,verifyQuestionTarget} from './hermesQuestionForm.mjs';
 import {managementCommand,untilAborted} from './managementCommand.js';
+import {requestErrorMessage} from './requestError.mjs';
+import {restoreLostFocus,visibleFocusTarget} from './restoreLostFocus.mjs';
 
 export default function HermesQuestionForm({job,session,questions,target,onDraft}){
   const statusId=useId();
@@ -9,7 +11,7 @@ export default function HermesQuestionForm({job,session,questions,target,onDraft
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const [targetState,setTargetState]=useState({status:target?'loading':'none'}),[targetRevision,retryTarget]=useState(0);
-  const lock=useRef(false),active=useRef(true),request=useRef(null);
+  const lock=useRef(false),active=useRef(true),request=useRef(null),retryRef=useRef(null),targetRef=useRef(null),restoreRetryFocus=useRef(false);
   useEffect(()=>{active.current=true;return()=>{active.current=false;request.current?.abort();};},[]);
   useEffect(()=>{
     if(!target){setTargetState({status:'none'});return;}
@@ -17,10 +19,15 @@ export default function HermesQuestionForm({job,session,questions,target,onDraft
     setTargetState({status:'loading'});
     verifyQuestionTarget(session,target,payload=>untilAborted(managementCommand('hermes-agent','hermes-minimax-form-read',payload,{signal:controller.signal}),controller.signal))
       .then(form=>{if(mounted)setTargetState({status:'ready',form});})
-      .catch(problem=>{if(mounted)setTargetState({status:'error',message:problem?.name==='AbortError' ? '폼 확인 시간이 초과됐습니다.' : problem?.message || '폼을 확인할 수 없습니다.'});})
+      .catch(problem=>{if(mounted)setTargetState({status:'error',message:problem?.name==='AbortError' ? '폼 확인 시간이 초과됐습니다.' : problem?.message ? requestErrorMessage(problem) : '폼을 확인할 수 없습니다.'});})
       .finally(()=>clearTimeout(timer));
     return()=>{mounted=false;clearTimeout(timer);controller.abort();};
   },[session,target?.form_id,target?.revision,targetRevision]);
+  useEffect(()=>{
+    if(targetState.status==='loading' || !restoreRetryFocus.current)return;
+    const frame=requestAnimationFrame(()=>{restoreRetryFocus.current=false;restoreLostFocus(document,visibleFocusTarget(targetState.status==='error' ? retryRef.current : targetRef.current));});
+    return()=>cancelAnimationFrame(frame);
+  },[targetState]);
   function choose(index,value){setChoices(previous=>previous.map((item,i)=>i===index ? value : item));setError('');}
   async function prepare(event){
     event.preventDefault();
@@ -36,14 +43,14 @@ export default function HermesQuestionForm({job,session,questions,target,onDraft
       }
       if(active.current){onDraft(answer);setError('');}
     }
-    catch(problem){if(active.current)setError(problem?.name==='AbortError' ? '폼 확인 시간이 초과됐습니다. 다시 시도해 주세요.' : problem?.message || '답변을 확인해 주세요.');}
+    catch(problem){if(active.current)setError(problem?.name==='AbortError' ? '폼 확인 시간이 초과됐습니다. 다시 시도해 주세요.' : problem?.message ? requestErrorMessage(problem) : '답변을 확인해 주세요.');}
     finally{lock.current=false;if(active.current)setBusy(false);}
   }
   return <form className="hermes-question-form" aria-label="헤르메스 질문 폼" onSubmit={prepare}>
-    {target && <section aria-label="질문 대상 폼"><p>대상 폼 ID: <code>{target.form_id}</code> · 버전 {target.revision}</p>
+    {target && <section ref={targetRef} tabIndex={-1} className="ui-focus-target" aria-label="질문 대상 폼"><p>대상 폼 ID: <code>{target.form_id}</code> · 버전 {target.revision}</p>
       {target.resident_id && <p>GPU 양도에 동의하면 이 대화의 Qwen 상주 모델을 해제하고 이미지를 생성한 뒤 다시 적재합니다. 양도 검토 ID: <code>{target.review_hash}</code></p>}
       {targetState.status==='loading' && !busy && <p id={statusId} role="status">대상 폼을 확인하고 있습니다.</p>}
-      {targetState.status==='error' && <><p id={!busy?statusId:undefined} role="alert">{targetState.message} 다시 확인해 주세요.</p><button type="button" onClick={()=>retryTarget(value=>value+1)}>다시 확인</button></>}
+      {targetState.status==='error' && <><p id={!busy?statusId:undefined} role="alert">{targetState.message} 다시 확인해 주세요.</p><button ref={retryRef} type="button" onClick={event=>{restoreRetryFocus.current=document.activeElement===event.currentTarget;retryTarget(value=>value+1);}}>다시 확인</button></>}
       {targetState.status==='ready' && <><p>{targetState.form.service} · {targetState.form.request.width}×{targetState.form.request.height} · 시드 {targetState.form.request.seed} · 참조 {targetState.form.request.images.length}장</p><p>{targetState.form.request.prompt}</p>{targetState.form.request.images.length===0 && /참조(?:한|할|되는)?\s*(?:이미지|사진|그림)|reference\s+image/i.test(targetState.form.request.prompt) && <p role="status">프롬프트에 참조 이미지가 언급되어 있지만 첨부된 이미지가 없습니다. 필요한 참조를 접수폼에 첨부하고 저장해 주세요.</p>}</>}
     </section>}
     {busy && <p id={statusId} role="status">답변 작성을 위해 대상 폼을 다시 확인하고 있습니다.</p>}

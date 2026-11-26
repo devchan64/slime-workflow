@@ -54,10 +54,11 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   const [seedError,setSeedError]=useState(""),[seedRevision,retrySeed]=useState(0);
   const templateRetryRef=useRef(null),templateRetryFocus=useRef(false),restoreRetryRef=useRef(null),restoreRetryFocus=useRef(false),restorePending=useRef(false),seedRetryRef=useRef(null),seedRetryFocus=useRef(false),seedPending=useRef(false);
   const [request,setRequestState]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
+  const imageError=error.startsWith("참조 이미지를 적용하지 못했습니다.") ? error : "";
   const requestRef=useRef(request);requestRef.current=request;
   function setRequest(value){const next=typeof value==="function" ? value(requestRef.current) : value;requestRef.current=next;setRequestState(next);}
   const attachmentRevision=useRef(0),imageChecking=useRef(false),attachmentProcessing=useRef(false);
-  const [imageCheckPending,setImageCheckPending]=useState(false);
+  const [imageCheckPending,setImageCheckPending]=useState(false),[referenceError,setReferenceError]=useState(false),[referencePreviewError,setReferencePreviewError]=useState(false),[referenceReset,setReferenceReset]=useState(0);
   const [loadingInput,setLoadingInput]=useState(false);
   const [pending,setPending]=useState(null),[job,setJobState]=useState(embedded ? "" : new URLSearchParams(location.search).get("job") || "");
   const [resultId,setResultId]=useState(job),currentJob=useRef(job);
@@ -67,7 +68,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   const [model,setModel]=useState(null),[modelError,setModelError]=useState("");
   const modelReason=(model?.generation_ready ?? model?.ready) ? "" : model ? "모델 준비가 필요합니다. 모델 상태에서 준비 절차를 확인하세요." : "모델 준비 상태를 확인해야 접수할 수 있습니다.";
   const [videoInfo,setVideoInfo]=useState(null);
-  const [poseError,setPoseError]=useState("");
+  const [poseError,setPoseError]=useState(""),[poseChecking,setPoseChecking]=useState(false);
   const [sourceSeed,setSourceSeed]=useState(null);
   const [sourceJob,setSourceJob]=useState("");
   const [historyRevision,refreshHistory]=useState(0);
@@ -94,7 +95,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   function restore(settings,record){
     if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.pending)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
     if(record.checkingAtStart || imageChecking.current || attachmentProcessing.current || record.inputAtStart!==requestRef.current || record.attachmentAtStart!==attachmentRevision.current)throw new Error("첨부 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");
-    const restored={...settings,...record.attachments};setRequest(restored);setVideoInfo(record.video);setSourceSeed(Number(settings.seed));setSourceJob(record.id);
+    const restored={...settings,...record.attachments};setRequest(restored);setReferenceReset(value=>value+1);setVideoInfo(record.video);setPoseError("");setError(current=>current===poseError || current.startsWith("참조 이미지를 적용하지 못했습니다.")?"":current);setSourceSeed(Number(settings.seed));setSourceJob(record.id);
     const card=formRef.current?.closest?.("details");if(card)card.open=true;
     setNotice(record.id+" 입력을 복원했습니다.");if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);
     restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && formRef.current?.isConnected)formRef.current.focus();});
@@ -103,7 +104,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   const sending=useRef(false),formRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null),reviewRequest=useRef(null),restoreFrame=useRef(null);
   const poseInspection=useRef(null),inputLoading=useRef(null),saveRequest=useRef(null),attachmentEpoch=useRef(0),mounted=useRef(true);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;attachmentEpoch.current++;poseInspection.current?.abort();inputLoading.current?.abort();saveRequest.current?.abort();const review=reviewRequest.current;reviewRequest.current=null;review?.abort();if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);};},[]);
-  useEffect(()=>{if(pending && (document.activeElement===document.body || document.activeElement===reviewOrigin.current))reviewRef.current?.focus();},[pending]);
+  useEffect(()=>{if(!pending)return;const origin=reviewOrigin.current;reviewOrigin.current=null;if(document.activeElement===document.body || document.activeElement===origin)reviewRef.current?.focus();},[pending]);
+  useEffect(()=>{if(busy || pending || !error || !reviewOrigin.current)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(origin)));return ()=>cancelAnimationFrame(frame);},[busy,pending,error]);
   useEffect(()=>{
     if(!templateRetryFocus.current || (!template && !templateError))return;
     templateRetryFocus.current=false;
@@ -187,7 +189,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     untilAborted(managementCommand("hermes-agent","hermes-video-form-read",{session_id:session,form_id:restoreFormId},{signal:controller.signal}),controller.signal).then(record=>{
       if(!validFunForm(record,restoreFormId))throw new Error("저장된 폼의 입력 형식을 확인할 수 없습니다.");
       if(requestRef.current!==inputAtStart || attachmentRevision.current!==attachmentAtStart || reviewEpoch.current!==reviewAtStart)throw new Error("조회 중 입력이 변경되어 저장 폼을 적용하지 않았습니다.");
-      if(active){setRequest(record.request);setVideoInfo(record.video_info);setSourceSeed(null);setSourceJob("");setJob("");setNotice("대화에 저장된 폼을 불러왔습니다. 변경하면 새 메시지로 저장됩니다.");saveAttempt.current={id:restoreFormId,serialized:JSON.stringify({request:record.request,video_info:record.video_info})};}
+      if(active){setRequest(record.request);setReferenceReset(value=>value+1);setVideoInfo(record.video_info);setPoseError("");setError(current=>current===poseError || current.startsWith("참조 이미지를 적용하지 못했습니다.")?"":current);setSourceSeed(null);setSourceJob("");setJob("");setNotice("대화에 저장된 폼을 불러왔습니다. 변경하면 새 메시지로 저장됩니다.");saveAttempt.current={id:restoreFormId,serialized:JSON.stringify({request:record.request,video_info:record.video_info})};}
     }).catch(problem=>{if(active)setRestoreError((timedOut ? "저장 폼 조회 시간이 초과됐습니다." : requestErrorMessage(problem))+" 현재 입력은 유지됩니다.");}).finally(()=>{clearTimeout(timeout);if(active){restorePending.current=false;setBusy(false);}});
     return ()=>{active=false;restorePending.current=false;clearTimeout(timeout);controller.abort();};
   },[embedded,session,restoreFormId,template,restoreRevision]);
@@ -206,7 +208,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
       let next=seedProposal.reuse ? record.request.seed : seedProposal.seed;
       if(next==null){next=crypto.getRandomValues(new Uint32Array(1))[0] & 0x7fffffff;if(next===record.request.seed)next=(next+1)%2147483648;}
       if(!Number.isInteger(next) || next<0 || next>2147483647)throw new Error("제안한 시드가 허용 범위를 벗어났습니다.");
-      if(!controller.signal.aborted){setRequest({...record.request,seed:next});setVideoInfo(record.video);setSourceSeed(record.request.seed);setSourceJob(record.id);setJob("");saveAttempt.current=null;
+      if(!controller.signal.aborted){setRequest({...record.request,seed:next});setReferenceReset(value=>value+1);setVideoInfo(record.video);setPoseError("");setError(current=>current===poseError || current.startsWith("참조 이미지를 적용하지 못했습니다.")?"":current);setSourceSeed(record.request.seed);setSourceJob(record.id);setJob("");saveAttempt.current=null;
         setNotice("원본 "+record.id+"의 입력을 불러왔습니다. "+(seedProposal.reuse ? "입력을 확인하세요." : next===record.request.seed ? "원본과 같은 시드입니다. 변경 후 검토하세요." : "입력과 새 시드를 확인하세요."));}
     })().catch(problem=>{if(active)setSeedError((timedOut ? "원본 입력 조회 시간이 초과됐습니다." : requestErrorMessage(problem))+" 현재 입력은 유지됩니다.");}).finally(()=>{clearTimeout(timeout);if(active){seedPending.current=false;setBusy(false);}});
     return ()=>{active=false;seedPending.current=false;clearTimeout(timeout);controller.abort();};
@@ -214,11 +216,13 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   useEffect(()=>{if(busy || !seedRetryFocus.current)return;seedRetryFocus.current=false;const target=seedError ? seedRetryRef.current : formRef.current;restoreLostFocus(document,visibleFocusTarget(target));},[busy,seedError]);
   async function attach(file,field){
     if(!file)return false;
+    if(field==="pose_video" && imageChecking.current){setPoseError("이미지 확인이 끝난 뒤 포즈 영상을 선택하세요.");return false;}
+    if(attachmentProcessing.current){if(field==="pose_video")setPoseError("첨부 처리가 끝난 뒤 포즈 영상을 선택하세요.");return false;}
     const epoch=attachmentEpoch.current;
     attachmentProcessing.current=true;
     attachmentRevision.current++;
     setBusy(true);setError("");
-    if(field==="pose_video")setPoseError("");
+    if(field==="pose_video"){setPoseError("");setPoseChecking(true);}
     let timeout,controller,timedOut=false;
     try{
       const value=field==="images"?[await referencePng(file)]:await videoData(file);
@@ -234,8 +238,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
       }
       setRequest(current=>({...current,[field]:value}));
       return true;
-    }catch(problem){if(epoch===attachmentEpoch.current){const message=timedOut ? "포즈 영상 정보 조회 시간이 초과됐습니다. 다시 선택하세요." : requestErrorMessage(problem);setError(message);if(field==="pose_video")setPoseError(message);}return false;}
-    finally{clearTimeout(timeout);if(poseInspection.current===controller)poseInspection.current=null;if(epoch===attachmentEpoch.current){attachmentProcessing.current=false;setBusy(false);}}
+    }catch(problem){if(epoch===attachmentEpoch.current){const message=field==="images" ? "참조 이미지를 적용하지 못했습니다. 다른 이미지를 선택하세요."+(requestRef.current?.images?.length ? " 기존 이미지는 유지됩니다." : "") : timedOut ? "포즈 영상 정보 조회 시간이 초과됐습니다. 다시 선택하세요." : requestErrorMessage(problem);setError(message);if(field==="pose_video")setPoseError(message);}return false;}
+    finally{clearTimeout(timeout);if(poseInspection.current===controller)poseInspection.current=null;if(epoch===attachmentEpoch.current){attachmentProcessing.current=false;if(field==="pose_video")setPoseChecking(false);setBusy(false);}}
   }
   async function load(restore=false){
     if(imageChecking.current || attachmentProcessing.current){setError("첨부 확인이 끝난 뒤 입력을 교체하세요.");return;}
@@ -249,8 +253,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
       if(!response.ok)throw new Error(restore?"이 작업의 입력 사본을 복원할 수 없습니다.":"예제 첨부 파일을 불러올 수 없습니다.");
       let example;try{example=await response.json();}catch(error){if(timedOut)throw error;throw new Error(restore ? "저장된 입력 형식을 확인할 수 없습니다." : "예제 입력 형식을 확인할 수 없습니다.");}
       if(!validFunInput(example,id,{saved:restore}))throw new Error(restore ? "저장된 입력 형식을 확인할 수 없습니다." : "예제 입력 형식을 확인할 수 없습니다.");
-      setVideoInfo(example.video);setSourceSeed(restore ? Number(example.request.seed) : null);setSourceJob(restore ? example.id : "");
-      setRequest(example.request);applied=true;
+      setVideoInfo(example.video);setPoseError("");setSourceSeed(restore ? Number(example.request.seed) : null);setSourceJob(restore ? example.id : "");
+      setRequest(example.request);setReferenceReset(value=>value+1);applied=true;
     }catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? "입력 조회 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}
     finally{clearTimeout(timeout);if(inputLoading.current===controller)inputLoading.current=null;setLoadingInput(false);setBusy(false);if(focused)requestAnimationFrame(()=>{if(document.activeElement===document.body)(applied ? formRef.current : focused)?.focus({preventScroll:true});});}
   }
@@ -304,7 +308,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);}}/>}
     <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setResultId)}/>
-    {template && request && <GeneratorSectionCard title="생성 입력" summary="참조 이미지와 포즈 영상" defaultOpen><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending || Boolean(handoffId)} aria-describedby={busy || pending || handoffId ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
+    {template && request && <GeneratorSectionCard title="생성 입력" summary={[imageCheckPending && "이미지 확인 중",referenceError && "이미지 확인 실패",referencePreviewError && "이미지 미리보기 실패",poseChecking && "포즈 영상 확인 중",poseError && "포즈 영상 확인 실패"].filter(Boolean).join(" · ") || "참조 이미지와 포즈 영상"} defaultOpen><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending || Boolean(handoffId)} aria-describedby={busy || pending || handoffId ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
     <fieldset className="fun-source" disabled={busy || !!pending || !template}><legend>원본 작업</legend>
       {loadingInput && <p role="status">입력을 불러오고 있습니다. 현재 입력은 유지됩니다.</p>}
       {sourceJob ? <><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></> : <p>선택된 원본 작업이 없습니다.</p>}
@@ -313,7 +317,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
         {template?.examples.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
         <button type="button" disabled={!selected} onClick={()=>load()}>선택한 예제로 입력 교체</button></details>
     </fieldset>
-      <FunControlFields request={request} numericIssues={funNumericIssues(request,frameLimit,template.maximum_seed)} setRequest={setRequest} attach={attach} onImageSelectionStart={()=>{attachmentRevision.current++;}} onImageCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} removePose={()=>{setRequest(current=>({...current,pose_video:""}));setVideoInfo(null);setError(current=>current===poseError?"":current);setPoseError("");}} videoInfo={videoInfo} frameLimit={frameLimit} template={template} sourceSeed={sourceSeed} busy={busy || !!pending || Boolean(handoffId)}/>
+      <FunControlFields request={request} numericIssues={funNumericIssues(request,frameLimit,template.maximum_seed)} setRequest={setRequest} attach={attach} onImageSelectionStart={()=>{attachmentRevision.current++;setError(current=>current.startsWith("참조 이미지를 적용하지 못했습니다.") ? "" : current);}} onImageCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} removePose={()=>{setRequest(current=>({...current,pose_video:""}));setVideoInfo(null);setError(current=>current===poseError?"":current);setPoseError("");}} videoInfo={videoInfo} imageCheckPending={imageCheckPending} imageError={imageError} referenceReset={referenceReset} onImagePreviewErrorChange={setReferencePreviewError} onImageErrorChange={setReferenceError} poseChecking={poseChecking} poseError={poseError} frameLimit={frameLimit} template={template} sourceSeed={sourceSeed} busy={busy || !!pending || Boolean(handoffId)}/>
       {embedded && <button type="button" onClick={saveDraft}>폼을 대화에 저장</button>}
       <ActionButton type="submit" reasons={[
         imageCheckPending && "선택한 이미지 확인이 끝날 때까지 기다리세요.",
@@ -331,7 +335,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
       {handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions disabledReason={modelReason || (handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : "")} busy={busy} onCancel={cancelReview} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"}/>
     </section>}
-    {error && <p role="alert">{error}</p>}
+    {error && error!==poseError && !imageError && <p role="alert">{error}</p>}
     {templateError && <p role="alert">{templateError}</p>}
     {restoreError && <div><p role="alert">{restoreError}</p><button ref={restoreRetryRef} type="button" disabled={busy || Boolean(pending)} onClick={()=>{if(restorePending.current || interactionRef.current.busy || interactionRef.current.pending)return;restorePending.current=true;restoreRetryFocus.current=document.activeElement===restoreRetryRef.current;retryRestore(value=>value+1);}}>저장 폼 다시 불러오기</button></div>}
     {seedError && <div><p role="alert">{seedError}</p><button ref={seedRetryRef} type="button" disabled={busy || Boolean(pending)} onClick={()=>{if(seedPending.current || interactionRef.current.busy || interactionRef.current.pending)return;seedPending.current=true;seedRetryFocus.current=document.activeElement===seedRetryRef.current;retrySeed(value=>value+1);}}>원본 입력 다시 불러오기</button></div>}

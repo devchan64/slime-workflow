@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {generationReady} from '../../gui/generationReady.mjs';
+import {requestErrorMessage} from '../../gui/requestError.mjs';
 
 test('Animate 저장 입력 조회는 이력의 취소 신호를 전달한다',async()=>{
  const source=readFileSync(new URL('../../gui/AnimatePage.jsx',import.meta.url),'utf8');
@@ -62,4 +63,16 @@ test('이전 영상 조회가 취소되면 늦은 응답을 적용하거나 다�
  vm.runInContext(effect,context);cleanup();finish({ok:true,blob:async()=>({size:10})});
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(fetchCount,1);assert.equal(info,null);assert.equal(error,'');
+});
+
+test('영상 정보의 비정상 응답은 안내 후 정상 재조회로 복구된다',async()=>{
+ const source=readFileSync(new URL('../../gui/AnimateInputs.jsx',import.meta.url),'utf8');
+ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    const source=motionFile || saved?.motion;'),source.indexOf('  useEffect(()=>{if(!checkingVideo'));
+ let error='',info=null,checking=false,attempt=0;
+ const expected={width:832,height:480,fps:16,frame_count:93,maximum_frames:81};
+ const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,motionFile:{size:10},saved:null,videoRevision:0,
+  fetch:async()=>++attempt===1?{ok:false,json:async()=>{throw new SyntaxError('Unexpected token');}}:{ok:true,json:async()=>expected},
+  useEffect:fn=>fn(),setTimeout,clearTimeout,setVideoInfo:value=>info=value,setVideoError:value=>error=value,updateVideoChecking:value=>checking=value,validAnimateVideoInfo:value=>value===expected});
+ vm.runInContext(effect,context);await new Promise(resolve=>setImmediate(resolve));assert.match(error,/영상 정보 응답을 확인할 수 없습니다/);assert.equal(checking,false);assert.equal(info,null);
+ vm.runInContext(effect,context);await new Promise(resolve=>setImmediate(resolve));assert.equal(error,'');assert.equal(info,expected);assert.equal(checking,false);
 });

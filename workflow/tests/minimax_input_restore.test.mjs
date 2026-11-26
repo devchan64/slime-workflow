@@ -38,7 +38,7 @@ test('MiniMax 검토 중 중복 요청과 입력 변경을 차단하고 지연 �
  for(const scenario of ['timeout','changed','success']){
   let finish,timer,calls=0,pending=null,error='',busy=false;
   const file={},current={current:{prompt:'move',seed:42,file,checking:false}};
-  const context=vm.createContext({AbortController,untilAborted,document:{activeElement:{}},current,file,prompt:'move',seed:42,busy:false,pending:null,reasons:[],reviewRequest:{current:null},imageVersion:{current:0},
+  const context=vm.createContext({AbortController,untilAborted,document:{activeElement:{}},current,file,prompt:'move',seed:42,busy:false,pending:null,reasons:[],reviewRequest:{current:null},reviewOrigin:{current:null},imageVersion:{current:0},
    referencePng:()=>{calls++;return new Promise(resolve=>finish=resolve);},setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setError:value=>error=value,setPending:value=>pending=value,requestAnimationFrame:()=>{},reviewRef:{current:null}});
   vm.runInContext(review,context);const first=context.review({preventDefault(){}});await context.review({preventDefault(){}});assert.equal(calls,1);
   if(scenario==='timeout')timer();else {if(scenario==='changed')current.current={...current.current,prompt:'new'};finish('png');}
@@ -78,11 +78,12 @@ test('MiniMax 정책 조회는 요청과 본문 지연을 종료하고 화면 �
 
 test('MiniMax 검토가 열릴 때 사용자가 옮긴 초점은 유지한다',async()=>{
  const review=source.slice(source.indexOf('  async function review(event)'),source.indexOf('  async function submit()'));
+ const effect=source.match(/useEffect\(\(\)=>\{if\(!pending\)return;const origin=reviewOrigin\.current;.*?\},\[pending\]\);/)?.[0];assert.ok(effect);
  for(const moved of [false,true]){
-  const origin={},other={},body={},file={};let frame,focused=0;
+  const origin={},other={},body={},file={};let run,focused=0;
   const document={activeElement:origin,body};
-  const context=vm.createContext({AbortController,untilAborted,document,file,prompt:'move',seed:42,busy:false,pending:null,reasons:[],reviewRequest:{current:null},imageVersion:{current:0},current:{current:{prompt:'move',seed:42,file,checking:false}},referencePng:async()=> 'png',setTimeout:()=>1,clearTimeout:()=>{},setBusy:()=>{},setError:()=>{},setPending:()=>{},requestAnimationFrame:fn=>frame=fn,reviewRef:{current:{focus:()=>focused++}}});
-  vm.runInContext(review,context);await context.review({preventDefault(){}});document.activeElement=moved?other:body;frame();assert.equal(focused,moved?0:1);
+  const context=vm.createContext({AbortController,untilAborted,document,file,prompt:'move',seed:42,busy:false,pending:null,reasons:[],reviewRequest:{current:null},reviewOrigin:{current:null},imageVersion:{current:0},current:{current:{prompt:'move',seed:42,file,checking:false}},referencePng:async()=> 'png',setTimeout:()=>1,clearTimeout:()=>{},setBusy:()=>{},setError:()=>{},setPending:value=>context.pending=value,useEffect:fn=>run=fn,reviewRef:{current:{focus:()=>focused++}}});
+  vm.runInContext(review,context);await context.review({preventDefault(){}});document.activeElement=moved?other:body;vm.runInContext(effect,context);run();assert.equal(focused,moved?0:1);
  }
 });
 

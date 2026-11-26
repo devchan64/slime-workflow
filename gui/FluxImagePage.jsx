@@ -82,7 +82,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
   const inputRef=useRef({form,files});inputRef.current={form,files};
   const imageSelectionRevision=useRef(0),checkingSlots=useRef(new Set());
-  const [imagesChecking,setImagesChecking]=useState(false);
+  const [imagesChecking,setImagesChecking]=useState(false),[referenceErrors,setReferenceErrors]=useState([false,false]),[previewErrors,setPreviewErrors]=useState([false,false]),[referenceReset,setReferenceReset]=useState(0);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState(""),[model,setModel]=useState(null),[modelError,setModelError]=useState("");
   const reviewEpoch=useRef(0),interactionRef=useRef({busy,review});interactionRef.current={busy,review};
   const [job,setJob]=useState(embedded ? "" : query.get("job") || "");
@@ -166,14 +166,14 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
     async function load(){
       setProfileError("");
       try{
-        const defaults=await untilAborted((async()=>{const response=await fetch("/management/assistant/flux-defaults/"+service,{signal:controller.signal});if(!response.ok)throw new Error("생성기 기본 입력을 불러올 수 없습니다.");return response.json();})(),controller.signal);
+        const defaults=await untilAborted((async()=>{const response=await fetch("/management/assistant/flux-defaults/"+service,{signal:controller.signal});if(!response.ok)throw new Error("생성기 기본 입력을 불러올 수 없습니다.");try{return await response.json();}catch(problem){controller.signal.throwIfAborted();throw new Error("생성기 기본 입력 형식을 확인할 수 없습니다. 다시 조회하세요.");}})(),controller.signal);
         if(!validFluxProfile(defaults))throw new Error("생성기 기본 입력 형식을 확인할 수 없습니다.");
         if(controller.signal.aborted)return;
         setForm(current=>({...current,prompt:defaults.prompt,width:defaults.width,height:defaults.height,...(initialInputs || {})}));
         setStage(defaults.stages?.[0]?.id || "");
         setLayout(defaults.layouts?.[0] || "");setSubject(defaults.subject || "");
         setProfile(defaults);
-      }catch(error){if(active && (timedOut || !controller.signal.aborted))setProfileError(timedOut ? "생성기 기본 입력 조회 시간이 초과됐습니다." : error?.message || "생성기 기본 입력을 불러오지 못했습니다. 다시 시도하세요.");}
+      }catch(error){if(active && (timedOut || !controller.signal.aborted))setProfileError(timedOut ? "생성기 기본 입력 조회 시간이 초과됐습니다." : error?.message ? requestErrorMessage(error) : "생성기 기본 입력을 불러오지 못했습니다. 다시 시도하세요.");}
       finally{clearTimeout(timeout);if(active)profilePending.current=false;}
     }
     load();return ()=>{active=false;clearTimeout(timeout);controller.abort();};
@@ -185,7 +185,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
     if(signal?.aborted)controller.abort();else signal?.addEventListener("abort",cancel,{once:true});
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
-    const record=await untilAborted((async()=>{const response=await fetch("/management/assistant/flux-image-input/"+encodeURIComponent(id)+"?service="+service,{cache:"no-store",signal:controller.signal});const value=await response.json();if(!response.ok)throw new Error(value.detail || "저장된 입력을 확인할 수 없습니다.");return value;})(),controller.signal);
+    const record=await untilAborted((async()=>{const response=await fetch("/management/assistant/flux-image-input/"+encodeURIComponent(id)+"?service="+service,{cache:"no-store",signal:controller.signal});let value;try{value=await response.json();}catch(problem){controller.signal.throwIfAborted();throw new Error("저장된 입력 형식을 확인할 수 없습니다. 다시 조회하세요.");}if(!response.ok)throw new Error(value?.detail || "저장된 입력을 확인할 수 없습니다.");return value;})(),controller.signal);
     if(!record || record.id!==id || !record.request || typeof record.request!=="object" || Array.isArray(record.request) || !Array.isArray(record.images) || record.images.some(value=>typeof value!=="string"))throw new Error("저장된 입력 형식을 확인할 수 없습니다.");
     const files=record.images.map((encoded,index)=>pngFile(encoded,"reference-"+(index+1)+".png"));
     return {id:record.id,request:record.request,files,inputAtStart,imageAtStart,checkingAtStart,reviewAtStart,focusAtStart};
@@ -195,7 +195,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
   function restore(input,record){
     if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.review)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
     if(record.checkingAtStart || checkingSlots.current.size || record.inputAtStart.form!==inputRef.current.form || record.inputAtStart.files!==inputRef.current.files || record.imageAtStart!==imageSelectionRevision.current)throw new Error("이미지 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");
-    setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);
+    setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);setReferenceReset(value=>value+1);
     setNotice(seamless?"프롬프트와 시드를 복원했습니다. 새 타일은 512×512 무참조로 생성합니다.":"선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
     const card=inputFormRef.current?.closest('details');if(card)card.open=true;
     requestAnimationFrame(()=>{if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.review && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && inputFormRef.current?.isConnected)inputFormRef.current.focus();});
@@ -342,7 +342,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={receiptKey && handoffStatus?.state!=="withdrawn" ? undefined : ()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);if(receiptKey){setReceiptState("unknown");setReceiptNotice("이 제안의 양도 요청은 철회됐습니다. 새 작업은 생성기 화면에서 요청하세요.");}}}/>}
     {receiptKey && receiptState!=="editing" && <section aria-label="FLUX 제안 접수 상태"><p>접수 ID · {receiptState==="accepted"?"접수 확인됨":receiptState==="rejected"?"접수 거절됨":receiptState==="checking"?"확인 중":"확인 필요"}</p>{receipt ? <JobIdentifier id={receipt} label="접수 ID" compact/> : <p>확인 불가</p>}{receiptState==="accepted" && receiptJob && <div><p>접수 작업</p><JobIdentifier id={receiptJob} compact/> <button type="button" onClick={()=>setJob(receiptJob)}>이 작업 결과 조회</button></div>}{receiptNotice && <p role="status">{receiptNotice}</p>}<p>같은 제안은 중복 접수를 막기 위해 다시 제출할 수 없습니다. 다른 작업은 생성기 화면에서 새로 요청하세요.</p><button type="button" disabled={busy || receiptState==="checking"} onClick={refreshReceipt}>접수 상태 다시 확인</button></section>}
-    <GeneratorSectionCard title="생성 입력" summary="프롬프트와 생성 설정" defaultOpen><form ref={inputFormRef} tabIndex={-1} aria-label="생성 입력" onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing")} aria-describedby={!profile || busy || review || handoffId || (receiptKey && receiptState!=="editing") ? inputLockId : undefined}>
+    <GeneratorSectionCard title="생성 입력" summary={[imagesChecking && "참조 이미지 확인 중",referenceErrors.some(Boolean) && "참조 이미지 확인 실패",previewErrors.some(Boolean) && "참조 미리보기 실패"].filter(Boolean).join(" · ") || "프롬프트와 생성 설정"} defaultOpen><form ref={inputFormRef} tabIndex={-1} aria-label="생성 입력" onSubmit={preview}><fieldset disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing")} aria-describedby={!profile || busy || review || handoffId || (receiptKey && receiptState!=="editing") ? inputLockId : undefined}>
       {profile?.guides && <section className="flux-guides"><h2>{profile.rolePrompt?"신체 비율 기준":"건물 배치 가이드"}</h2>
         <div className="flux-guides-toolbar">
         <label>가이드 검색 <input ref={guideSearchRef} value={guideQuery} onChange={e=>{setGuideQuery(e.target.value);setGuidePage(0);setSelectedGuide("");}}/></label>
@@ -377,7 +377,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
       {service!=="flux-building" && <><label>번역할 한국어 설명 <textarea value={form.translation_source_ko} aria-describedby={translationHelpId} onChange={e=>edit("translation_source_ko",e.target.value)}/></label><PromptWordCount text={form.translation_source_ko}/><small id={translationHelpId}>입력하면 번역을 먼저 진행하고 번역문을 위 프롬프트 뒤에 추가합니다.</small></>}
       {profile?.rolePrompt && form.prompt.trim()===profile.rolePrompt.trim() && !form.translation_source_ko.trim() && <p role="status">현재 입력에는 신체 비율 참조 안내만 있습니다. 원하는 캐릭터 외형이나 자세를 추가할 수 있습니다.</p>}
       {!seamless && <section aria-label="참조 이미지"><p>{profile?.expressions?"얼굴 참조 PNG (1장)":"참조 PNG (최대 2장)"}</p><div className="reference-image-slots">
-        {Array.from({length:profile?.expressions?1:2},(_,index)=><ReferenceImageInput key={index} label={profile?.expressions?"얼굴 참조 이미지":"참조 이미지 "+(index+1)}
+        {Array.from({length:profile?.expressions?1:2},(_,index)=><ReferenceImageInput key={index===1 ? "second-"+Boolean(files[0]) : "first"} resetErrorKey={referenceReset} onPreviewErrorChange={value=>setPreviewErrors(previous=>{const next=[...previous];next[index]=value;return next;})} onErrorChange={value=>setReferenceErrors(previous=>{const next=[...previous];next[index]=value;return next;})} label={profile?.expressions?"얼굴 참조 이미지":"참조 이미지 "+(index+1)}
           accept="image/png" maxBytes={3000000} source={files[index]} disabled={!profile || busy || Boolean(review) || Boolean(handoffId) || (receiptKey && receiptState!=="editing") || (index>0 && !files[0])} describedBy={index===1 && !files[0] ? referenceOrderHelpId : undefined} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);setImagesChecking(checkingSlots.current.size>0);}}
           onChange={file=>{setGuideNotice("");setFiles(current=>{const next=[...current];if(file)next[index]=file;else next.splice(index,1);return next;});}}/>)}
       </div>{!profile?.expressions && !files[0] && <p id={referenceOrderHelpId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>}

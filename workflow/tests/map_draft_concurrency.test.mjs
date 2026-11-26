@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 test('초안 검증 중 중복 편집과 저장을 보내지 않는다',async()=>{
   const source=readFileSync(new URL('../../gui/MapReview.jsx',import.meta.url),'utf8');
-  const code=source.slice(source.indexOf('  async function applyDraft(next,action,stroke=null)'),source.indexOf('  async function inspectSaveRevision('));
+  const code=source.slice(source.indexOf('  async function applyDraft(next,action,stroke=null,event=null)'),source.indexOf('  async function inspectSaveRevision('));
   let resolve,calls=0,applied=null;const readRequest={current:null},savingRef={current:false},importRequest={current:null};
   const context=vm.createContext({window:{},readRequest,savingRef,importRequest,cellDirty:false,preview:{token:'t'},mapDraftSaveReason:()=>'',cell:null,draft:{cells:[]},past:[],future:[],
     setReading:()=>{},setPreview:()=>{},setFeedback:()=>{},setPast:()=>{},setFuture:()=>{},setCell:()=>{},setCellOriginal:()=>{},setStorageFailed:()=>{},setDraft:value=>applied=value,
@@ -19,7 +19,7 @@ test('초안 검증 중 중복 편집과 저장을 보내지 않는다',async()=
 
 test('브러시 검증 실패 안내는 이후 성공해도 유지된다',async()=>{
   const source=readFileSync(new URL('../../gui/MapReview.jsx',import.meta.url),'utf8');
-  const code=source.slice(source.indexOf('  async function applyDraft(next,action,stroke=null)'),source.indexOf('  async function save(event)'));
+  const code=source.slice(source.indexOf('  async function applyDraft(next,action,stroke=null,event=null)'),source.indexOf('  async function save(event)'));
   const failure=source.slice(source.indexOf('export function mapBrushFailure('),source.indexOf('\nexport function MapBrushErrors')).replace('export function','function');
   let brushErrors=[],feedback='',fail=true;
   const context=vm.createContext({window:{},readRequest:{current:null},savingRef:{current:false},importRequest:{current:null},cellDirty:false,cell:null,draft:{cells:[]},past:[],future:[],
@@ -32,7 +32,7 @@ test('브러시 검증 실패 안내는 이후 성공해도 유지된다',async(
 
 test('지도 처리 중 원본 복원·리비전·셀 조회를 시작하지 않는다',async()=>{
   const source=readFileSync(new URL('../../gui/MapReview.jsx',import.meta.url),'utf8');
-  const parts=[['discardDraft','  async function discardDraft(){','  function discardRecovery()'],['inspectSaveRevision','  async function inspectSaveRevision(event){','  async function inspectCell('],['inspectCell','  async function inspectCell(','  const [ready,']];
+  const parts=[['discardDraft','  async function discardDraft(event){','  function discardRecovery()'],['inspectSaveRevision','  async function inspectSaveRevision(event){','  async function inspectCell('],['inspectCell','  async function inspectCell(','  const [ready,']];
   for(const blocked of ['read','import','save'])for(const [name,start,end] of parts){
     let called=0;const context=vm.createContext({readRequest:{current:blocked==='read'?{}:null},importRequest:{current:blocked==='import'?{}:null},savingRef:{current:blocked==='save'},draft:{map:'map'},window:{confirm:()=>{called++;return true;}},setReading:()=>called++,readMap:()=>{called++;}});
     vm.runInContext(source.slice(source.indexOf(start),source.indexOf(end)),context);await context[name]();assert.equal(called,0,`${name} · ${blocked}`);
@@ -52,7 +52,7 @@ test('처리 중 브러시 입력은 대기열에서 꺼내지 않는다',()=>{
 test('대기 중인 브러시 입력은 저장과 초안 폐기보다 먼저 처리한다',async()=>{
   const source=readFileSync(new URL('../../gui/MapReview.jsx',import.meta.url),'utf8');
   const save=source.slice(source.indexOf('  async function save(event){'),source.indexOf('  async function inspectSaveRevision('));
-  const discard=source.slice(source.indexOf('  async function discardDraft(){'),source.indexOf('  function discardRecovery()'));
+  const discard=source.slice(source.indexOf('  async function discardDraft(event){'),source.indexOf('  function discardRecovery()'));
   for(const blocked of ['active','busy','queued']){
     let feedback='',calls=0;const context=vm.createContext({window:{mapReviewBrushActive:blocked==='active',mapReviewBrushBusy:blocked==='busy',mapReviewBrushQueue:blocked==='queued'?[[]]:[],confirm:()=>{calls++;return true;}},readRequest:{current:null},importRequest:{current:null},savingRef:{current:false},preview:{token:'t'},mapDraftSaveReason:()=>'',setFeedback:value=>feedback=value});
     vm.runInContext(save+'\n'+discard,context);await context.save();assert.match(feedback,/브러시 편집/);feedback='';await context.discardDraft();assert.match(feedback,/브러시 편집/);assert.equal(calls,0);
@@ -61,8 +61,8 @@ test('대기 중인 브러시 입력은 저장과 초안 폐기보다 먼저 처
 
 test('대기 획은 다른 편집과 가져오기보다 먼저 처리하고 셀 수정 중에는 보존한다',async()=>{
   const source=readFileSync(new URL('../../gui/MapReview.jsx',import.meta.url),'utf8');
-  const apply=source.slice(source.indexOf('  async function applyDraft(next,action,stroke=null)'),source.indexOf('  async function save(event)'));
-  const load=source.slice(source.indexOf('  async function importDraft(file,focused=false)'),source.indexOf('  async function discardDraft()'));
+  const apply=source.slice(source.indexOf('  async function applyDraft(next,action,stroke=null,event=null)'),source.indexOf('  async function save(event)'));
+  const load=source.slice(source.indexOf('  async function importDraft(file,focused=false)'),source.indexOf('  async function discardDraft(event)'));
   const queue=[[{tool:'raise',column:0,row:0}]];let feedback='',error='',reads=0;
   const context=vm.createContext({window:{mapReviewBrushBusy:true,mapReviewBrushQueue:queue},readRequest:{current:null},importRequest:{current:null},savingRef:{current:false},setFeedback:value=>feedback=value,setImportError:value=>error=value});
   vm.runInContext(apply+'\n'+load,context);await context.applyDraft({},'edit');await context.importDraft({text:()=>reads++});

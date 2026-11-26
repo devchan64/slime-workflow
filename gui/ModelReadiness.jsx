@@ -74,7 +74,8 @@ function ModelReadinessForService({service, modelManagementService=service, mana
         if (manage) {
           const response=await fetch("/management/assistant/model-readiness/"+encodeURIComponent(service), {cache:"no-store",signal});
           if (!response.ok) throw new Error("모델 준비 상태를 조회할 수 없습니다.");
-          return response.json();
+          try{return await response.json();}
+          catch(problem){signal.throwIfAborted();throw new Error("모델 준비 상태 응답을 확인할 수 없습니다. 다시 확인하세요.");}
         }
         return managementCommand(service,"model-status",{},{signal});
       },

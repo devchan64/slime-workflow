@@ -24,7 +24,7 @@ class MiniMaxImageRestoreTests(unittest.TestCase):
                 Image.new('RGB', (2, 2), color).save(data, format='PNG')
                 images.append(base64.b64encode(data.getvalue()).decode('ascii'))
             request = {'action':'generate', 'prompt':'two references', 'images':images,
-                       'width':1664, 'height':960, 'steps':6, 'seed':42,
+                       'width':1664, 'height':960, 'steps':6, 'seed':42, 'sampler':'lcm',
                        'output_size':{'width':832, 'height':480}}
             saved = save_three_reference_inputs(directory, validate_request(request))
             (directory / 'request.json').write_text(json.dumps(saved))
@@ -39,7 +39,7 @@ class MiniMaxImageRestoreTests(unittest.TestCase):
             Image.new('RGB', (2, 2), 'red').save(image, format='PNG')
             encoded = base64.b64encode(image.getvalue()).decode('ascii')
             request = {'action':'generate', 'prompt':'red house', 'images':[encoded], 'width':832,
-                       'height':480, 'steps':6, 'seed':42}
+                       'height':480, 'steps':6, 'seed':42, 'sampler':'lcm'}
             saved = save_three_reference_inputs(directory, validate_request(request))
             (directory / 'request.json').write_text(json.dumps(saved))
             self.assertEqual(load_saved_input(temp, job), {'id':job, 'request':request})
@@ -53,12 +53,24 @@ class MiniMaxImageRestoreTests(unittest.TestCase):
             directory = Path(temp) / job
             directory.mkdir()
             request = {'action':'generate', 'prompt':'landscape', 'images':[], 'width':1024,
-                       'height':1024, 'steps':6, 'seed':2}
+                       'height':1024, 'steps':6, 'seed':2, 'sampler':'lcm'}
             saved = save_three_reference_inputs(directory, validate_request(request))
             (directory / 'request.json').write_text(json.dumps(saved))
             self.assertEqual(load_saved_input(temp, job)['request'], request)
             with self.assertRaises(ValueError):
                 load_saved_input(temp, '../request.json')
+
+    def test_legacy_request_without_sampler_restores_euler(self):
+        with tempfile.TemporaryDirectory() as temp:
+            job = '2026-11-26_12-00-00-12345678'
+            directory = Path(temp) / job
+            directory.mkdir()
+            request = {'action':'generate', 'prompt':'legacy', 'images':[], 'width':1024,
+                       'height':1024, 'steps':6, 'seed':2, 'sampler':'euler'}
+            saved = save_three_reference_inputs(directory, validate_request(request))
+            saved.pop('sampler')
+            (directory / 'request.json').write_text(json.dumps(saved))
+            self.assertEqual(load_saved_input(temp, job)['request']['sampler'], 'euler')
 
     def test_reject_reference_symlink_and_changed_prompt(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -69,7 +81,7 @@ class MiniMaxImageRestoreTests(unittest.TestCase):
             Image.new('RGB', (2, 2), 'red').save(image, format='PNG')
             encoded = base64.b64encode(image.getvalue()).decode('ascii')
             request = {'action':'generate', 'prompt':'red house', 'images':[encoded], 'width':832,
-                       'height':480, 'steps':6, 'seed':42}
+                       'height':480, 'steps':6, 'seed':42, 'sampler':'lcm'}
             saved = save_three_reference_inputs(directory, validate_request(request))
             metadata = directory / 'request.json'
             metadata.write_text(json.dumps(saved))

@@ -1,6 +1,6 @@
 # MiniMax H3 Image LCM 실험 준비
 
-Euler는 기본값으로 유지한다. lcm_experiment.py의 후보를 독립 생성 화면과 통합 CLI의 실험 옵션으로 연결했다. 공용 대화 접수폼은 Euler를 사용한다.
+LCM을 새 요청의 기본값으로 사용한다. lcm_experiment.py의 후보는 독립 생성 화면과 통합 CLI에서 선택할 수 있고, 대화 접수폼의 새 작업에도 적용된다. 과거 샘플러 기록이 없는 작업은 Euler로 해석한다.
 
 ComfyUI의 LCM은 모델의 denoised 추정에 매 단계 새 노이즈를 섞는다. MiniMax의 flow 노이즈 혼합과 현행 velocity 부호를 이용한 후보 계산을 준비했다. 커뮤니티에서 제안한 시작 1.10, 종료 0.90의 선형 노이즈 배율은 실험 조건이며 공식 권장이나 품질 보증이 아니다. [ComfyUI LCM 구현](https://github.com/Comfy-Org/ComfyUI/blob/master/comfy/k_diffusion/sampling.py), [실험 보고](https://pixlstash.dev/minimax-h3-image.html).
 

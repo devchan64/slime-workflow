@@ -6,6 +6,16 @@ import {untilAborted} from '../../gui/managementCommand.js';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
 import {restoreLostFocus,visibleFocusTarget} from '../../gui/restoreLostFocus.mjs';
 
+test('DWPose 검토 실패는 사라진 초점만 복구한다',()=>{
+ const source=readFileSync(new URL('../../gui/DwposePage.jsx',import.meta.url),'utf8');
+ const effect=source.match(/useEffect\(\(\)=>\{if\(busy \|\| pending \|\| !notice \|\| !focusOnReview\.current\).*?\},\[busy,pending,notice\]\);/s)?.[0];assert.ok(effect);
+ for(const moved of [false,true]){
+  let run,frame,focused=0;const body={},button={isConnected:true,focus:()=>focused++},document={body,activeElement:moved?{}:body},focusOnReview={current:true};
+  const context=vm.createContext({busy:false,pending:null,notice:'오류',focusOnReview,reviewButtonRef:{current:button},document,restoreLostFocus,visibleFocusTarget:value=>value,useEffect:fn=>run=fn,requestAnimationFrame:fn=>(frame=fn,1),cancelAnimationFrame:()=>{}});
+  vm.runInContext(effect,context);run();frame();assert.equal(focused,moved?0:1);assert.equal(focusOnReview.current,false);
+ }
+});
+
 test('DWPose 검토 지연은 중복을 막고 시간 초과 뒤 재시도한다',async()=>{
  const source=readFileSync(new URL('../../gui/DwposePage.jsx',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('  async function review()'),source.indexOf('  async function submit()',source.indexOf('  async function review()')));

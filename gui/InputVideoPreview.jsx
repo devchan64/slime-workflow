@@ -15,5 +15,5 @@ export default function InputVideoPreview({file,label}){
   if(!file)return null;
   if(failedFile===file)return <p role="alert">{label} 미리보기를 준비할 수 없습니다. 파일을 다시 선택하거나 다른 재생기에서 확인하세요.</p>;
   if(!preview || preview.file!==file)return null;
-  return <div className="input-video-preview"><p>{label} 미리보기</p><video ref={videoRef} key={preview.url} aria-label={label+" 미리보기"} controls playsInline preload="metadata" src={preview.url} onError={event=>{if(event.currentTarget===videoRef.current)setFailedUrl(preview.url);}}/>{failedUrl===preview.url && <p role="alert">{label} 영상을 브라우저에서 재생할 수 없습니다. 다른 재생기에서 파일을 확인하세요.</p>}</div>;
+  return <div className="input-video-preview"><p>{label} 미리보기</p><video ref={videoRef} key={preview.url} aria-label={label+" 미리보기"} controls playsInline preload="metadata" src={preview.url} onError={event=>{if(event.currentTarget===videoRef.current)setFailedUrl(preview.url);}}/>{failedUrl===preview.url && <p role="alert">{label} 파일을 브라우저에서 재생할 수 없습니다. 다른 재생기에서 파일을 확인하세요.</p>}</div>;
 }

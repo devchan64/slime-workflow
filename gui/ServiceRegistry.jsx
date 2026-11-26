@@ -39,16 +39,16 @@ export default function ServiceRegistry({query}) {
   }, [query,offset,revision]);
   return <section aria-label="서비스 등록 목록">
     <button ref={refreshRef} type="button" disabled={loading} aria-describedby={loading ? loadingId : undefined} onClick={event => {if(refreshPending.current)return;refreshPending.current=true;restoreFocus.current=document.activeElement===event.currentTarget;setLoading(true);refresh(value => value+1);}}>{loading?"조회 중…":"등록 목록 새로고침"}</button>
-    {error && <p role="alert">{error}{page && " · 이전 조회 결과를 유지합니다."}</p>}
+    {error && <p role="alert">{error}{page && (page.services.length ? " · 이전 조회 결과를 유지합니다." : " · 이전 조회에서 표시할 서비스가 없었습니다.")}</p>}
     {error && offset>0 && <button ref={firstPageRef} type="button" onClick={event=>{focusNextPage.current=document.activeElement===event.currentTarget;setOffset(0);}}>첫 페이지부터 다시 조회</button>}
-    {loading && <p id={loadingId} role="status">{page ? "새 목록을 조회 중입니다. 아래는 이전 결과입니다." : "등록 서비스 조회 중…"}</p>}
+    {loading && <p id={loadingId} role="status">{page ? (page.services.length ? "새 목록을 조회 중입니다. 아래는 이전 결과입니다." : "새 목록을 조회 중입니다. 이전 조회에서 표시할 서비스가 없었습니다.") : "등록 서비스 조회 중…"}</p>}
     {page ? <>
       <p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p>
       <h3 ref={listRef} tabIndex={-1}>등록 서비스</h3>
       <p>{pageQuery?.trim() ? <>검색어 · <strong>{pageQuery.trim()}</strong></> : "검색 조건 · 전체 서비스"}</p>
-      {query!==pageQuery && <p role="status">검색 조건이 변경되어 아래는 이전 검색 결과입니다.</p>}
+      {query!==pageQuery && !loading && <p role="status">검색 조건이 변경되었습니다. {page.services.length ? "아래는 이전 검색 결과입니다." : "이전 검색에서 표시할 서비스가 없었습니다."}</p>}
       <p>전체 {page.total}개 · {page.services.length}개 표시</p>
-      {page.services.length===0 && <p role="status">{pageQuery?.trim() ? "검색 조건에 맞는 서비스가 없습니다. 검색어를 바꾸거나 지워 주세요." : "등록된 서비스가 없습니다."}</p>}
+      {page.services.length===0 && <p role="status">{loading || error || query!==pageQuery ? "이전 조회에서 표시할 서비스가 없었습니다." : pageQuery?.trim() ? "검색 조건에 맞는 서비스가 없습니다. 검색어를 바꾸거나 지워 주세요." : "등록된 서비스가 없습니다."}</p>}
       <ul className="service-registry-list">{page.services.map(record=><li key={record.service}>
         <strong>{record.service}</strong>
         <details><summary>명령과 제한 확인</summary><dl>

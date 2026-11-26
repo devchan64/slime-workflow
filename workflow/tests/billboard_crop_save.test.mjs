@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
-import {restoreLostFocus} from '../../gui/restoreLostFocus.mjs';
+import {restoreLostFocus,visibleFocusTarget} from '../../gui/restoreLostFocus.mjs';
 
 const source=readFileSync(new URL('../../gui/BillboardCrop.jsx',import.meta.url),'utf8');
 const code=source.slice(source.indexOf('  async function save(){'),source.indexOf('  const result=review?.result;'));
@@ -47,19 +47,19 @@ test('범위 재조회는 이전 저장 결과 미확인 경고를 지우지 않
 });
 
 test('크롭 오류·결과 초점은 사용자가 이동했으면 빼앗지 않는다',()=>{
-  const effect=source.split('\n').find(line=>line.includes('restoreLostFocus(document,message ?'));
+  const effect=source.split('\n').find(line=>line.includes('restoreLostFocus(document,visibleFocusTarget('));
   for(const destination of ['body','other'])for(const failure of [true,false]){
     const body={},other={};let focus=0;const target={isConnected:true,disabled:false,focus:()=>focus++};
-    const context=vm.createContext({busy:false,message:failure?'실패':'',saveWarning:'',review:failure?null:{},restoreFocus:{current:true},messageRef:{current:target},saveWarningRef:{current:target},reviewRef:{current:target},rangeButton:{current:null},document:{body,activeElement:destination==='body'?body:other},restoreLostFocus,useEffect:fn=>fn()});
+    const context=vm.createContext({busy:false,message:failure?'실패':'',saveWarning:'',review:failure?null:{},restoreFocus:{current:true},messageRef:{current:target},saveWarningRef:{current:target},reviewRef:{current:target},rangeButton:{current:null},document:{body,activeElement:destination==='body'?body:other},restoreLostFocus,visibleFocusTarget,useEffect:fn=>fn()});
     vm.runInContext(effect,context);assert.equal(focus,destination==='body'?1:0);assert.equal(context.restoreFocus.current,false);
   }
 });
 
 test('저장 경고가 남아도 새 검토는 검토 영역으로, 저장 실패는 경고로 초점을 복구한다',()=>{
-  const effect=source.split('\n').find(line=>line.includes('restoreLostFocus(document,message ?'));
+  const effect=source.split('\n').find(line=>line.includes('restoreLostFocus(document,visibleFocusTarget('));
   for(const [hasReview,expected] of [[true,'review'],[false,'warning']]){
     const body={};let focused='';const target=name=>({isConnected:true,disabled:false,focus:()=>focused=name});
-    const context=vm.createContext({busy:false,message:'',saveWarning:'저장 결과 확인 필요',review:hasReview?{}:null,restoreFocus:{current:true},messageRef:{current:target('message')},saveWarningRef:{current:target('warning')},reviewRef:{current:target('review')},rangeButton:{current:target('button')},document:{body,activeElement:body},restoreLostFocus,useEffect:fn=>fn()});
+    const context=vm.createContext({busy:false,message:'',saveWarning:'저장 결과 확인 필요',review:hasReview?{}:null,restoreFocus:{current:true},messageRef:{current:target('message')},saveWarningRef:{current:target('warning')},reviewRef:{current:target('review')},rangeButton:{current:target('button')},document:{body,activeElement:body},restoreLostFocus,visibleFocusTarget,useEffect:fn=>fn()});
     vm.runInContext(effect,context);assert.equal(focused,expected);assert.equal(context.restoreFocus.current,false);
   }
 });

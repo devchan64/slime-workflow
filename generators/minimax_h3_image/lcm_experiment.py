@@ -1,4 +1,4 @@
-"""Experimental flow-LCM update; not connected to the production sampler."""
+"""Experimental flow-LCM update for the MiniMax image sampler."""
 
 
 def lcm_noise_scale(step, total_steps, start=1.10, end=0.90):

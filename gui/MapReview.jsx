@@ -4,7 +4,7 @@ import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {progressDeadline} from "./progressDeadline.mjs";
 import ActionButton from "./ActionButton.jsx";
-import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import {validMapDraftPreview,mapDraftSaveReason,isMapCellDirty,invalidMapCellHeight,readMapCell} from "./mapDraftPreview.mjs";
 
 export function MapDraftFileInput({cellDirty,error,onFile,inputRef}){
@@ -102,11 +102,12 @@ export default function MapReview(){
     }catch(error){if(timedOut)setImportError("초안 파일 읽기 시간이 초과됐습니다. 파일을 다시 선택하세요.");else if(!controller.signal.aborted)setImportError(requestErrorMessage(error));}
     finally{clearTimeout(timeout);if(importRequest.current===controller)importRequest.current=null;if(!controller.signal.aborted || timedOut)setReading(false);}
   }
-  async function discardDraft(){
+  async function discardDraft(event){
     if(readRequest.current || importRequest.current || savingRef.current)return;
     if(window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length){setFeedback("진행 중이거나 대기 중인 브러시 편집을 먼저 처리하세요.");return;}
     if(!window.confirm("현재 지도의 미저장 초안과 편집 이력을 버릴까요?"))return;
-    setReading(true);
+    feedbackFocusOrigin.current=event?.currentTarget===document.activeElement ? event.currentTarget : null;
+    setFeedback("");setReading(true);
     try{
       const fresh=await readMap("map-edit-load",{map:draft.map});
       await applyMapPreview(fresh.render);
@@ -138,6 +139,7 @@ export default function MapReview(){
       setStorageNotice("현재 탭에 초안과 편집 이력을 보관했습니다.");
     }catch(error){setStorageFailed(true);setStorageNotice("탭 임시저장 실패 · "+requestErrorMessage(error));}
   },[draft,past,future,source]);
+  useEffect(()=>{if(!draft)setImportError("");},[draft]);
   const placed=draft?.objects || [];
   const cellDirty=isMapCellDirty(cell,cellOriginal);
   const unsafeAutosave=Boolean(draft && (past.length || future.length) && storageFailed);
@@ -154,13 +156,13 @@ export default function MapReview(){
     while(ids.has("editor-billboard-"+number))number++;
     return {id:"editor-billboard-"+number,kind:"decoration",textureKey,tileAnchor:"center",position:{column,row}};
   }
-  function addObject(){
+  function addObject(event){
     const object=makeBillboard(placed,cell.column,cell.row,texture);
-    applyDraft({...draft,objects:[...placed,object]},"edit");
+    applyDraft({...draft,objects:[...placed,object]},"edit",null,event);
   }
-  function moveObject(){
+  function moveObject(event){
     const objects=placed.map(item=>item.id===objectId?{...item,position:{column:cell.column,row:cell.row}}:item);
-    applyDraft({...draft,objects},"edit");
+    applyDraft({...draft,objects},"edit",null,event);
   }
   function editCell(key,value){
     setCell({...cell,[key]:value});setPreview(null);
@@ -174,10 +176,11 @@ export default function MapReview(){
     const next={...draft,cells:[...cells,{column,row,tile,height:Number(height),blocked,...(cell.wall?{wall:cell.wall}:{})}]};
     await applyDraft(next,"cell");
   }
-  async function applyDraft(next,action,stroke=null){
+  async function applyDraft(next,action,stroke=null,event=null){
     if(readRequest.current || savingRef.current || (importRequest.current && action!=="import"))return;
     if(action!=="brush" && (window.mapReviewBrushActive || window.mapReviewBrushBusy || window.mapReviewBrushQueue?.length)){setFeedback("진행 중이거나 대기 중인 브러시 편집을 먼저 처리하세요. 셀 입력이 변경됐다면 취소한 뒤 다시 시도하세요.");return;}
     if(cellDirty && action!=="cell"){setFeedback("변경한 셀 입력을 먼저 검증하거나 셀 입력 취소를 선택하세요.");return;}
+    if(event)restorePreviewFocus.current=document.activeElement===event.currentTarget;
     setReading(true);setPreview(null);setFeedback("");
     try{
       const result=await readMap("map-edit-preview",next);
@@ -193,7 +196,7 @@ export default function MapReview(){
         else if(cell){const updated=next.cells.find(item=>item.column===cell.column && item.row===cell.row);if(updated){setCell(updated);setCellOriginal(updated);}}
       }
       setStorageFailed(true);setDraft(next);setPreview(result);
-      setFeedback("검증 완료 · 변경 셀 "+result.cells+"개 · 도달 가능 "+result.reachable+"칸");
+      setFeedback("검증 완료 · 변경 셀 "+result.cells+"개"+(Number.isInteger(result.objects) && result.objects>=0 ? " · 배치물 총 "+result.objects+"개" : "")+" · 도달 가능 "+result.reachable+"칸");
     }catch(error){if(action==="brush")setBrushErrors(errors=>[...errors,mapBrushFailure(stroke,error)]);else setFeedback(requestErrorMessage(error));}
     finally{setReading(false);}
   }
@@ -271,11 +274,13 @@ export default function MapReview(){
   useEffect(()=>{if(reading || !cellFocusOrigin.current)return;const origin=cellFocusOrigin.current;cellFocusOrigin.current=null;if(document.activeElement===origin || document.activeElement===document.body)cellFormRef.current?.focus({preventScroll:true});},[reading,cell]);
   useEffect(()=>{if(reading || !feedback || !feedbackFocusOrigin.current)return;const origin=feedbackFocusOrigin.current;feedbackFocusOrigin.current=null;if(document.activeElement===origin || document.activeElement===document.body)feedbackRef.current?.focus();},[reading,feedback]);
   useEffect(()=>{if(!reading && feedback && restorePreviewFocus.current){restorePreviewFocus.current=false;restoreLostFocus(document,feedbackRef.current);}},[reading,feedback]);
-  useEffect(()=>{if(reading || !restoreImportFocus.current)return;restoreImportFocus.current=false;const target=importInputRef.current;if(target?.isConnected && !target.matches(':disabled'))restoreLostFocus(document,target);},[reading,importError]);
+  useEffect(()=>{if(reading || !restoreImportFocus.current)return;restoreImportFocus.current=false;const target=importInputRef.current;if(target?.isConnected && !target.matches(':disabled'))restoreLostFocus(document,visibleFocusTarget(target));},[reading,importError]);
   const [loadError,setLoadError]=useState("");
   const recoveryParams=new URLSearchParams({mapKind:field?"field":"town"});
   const recoveryMap=new URLSearchParams(location.search).get("map");
   if(recoveryMap)recoveryParams.set("map",recoveryMap);
+  const recoverySession=new URLSearchParams(location.search).get("session");
+  if(recoverySession)recoveryParams.set("session",recoverySession);
   useEffect(()=>{
     let active=true,timedOut=false;
     const controller=new AbortController();
@@ -407,7 +412,7 @@ export default function MapReview(){
         <div className="ui-action-row"><button onClick={()=>downloadDraft(recovery.map,recovery.raw)}>임시본 JSON 다운로드</button>
         <button onClick={()=>{if(window.confirm("이 탭에 보관한 "+recovery.map+" 임시본을 삭제할까요?"))discardRecovery();}}>임시본 삭제</button></div>
       </section>}
-      {draft && <details><summary>초안 보관 및 복원</summary>
+      {draft && <details><summary>초안 보관 및 복원{importError && " · 파일 오류"}</summary>
         <button onClick={()=>downloadDraft(draft.map,JSON.stringify(draft,null,2))}>초안 JSON 다운로드</button>
         <MapDraftFileInput inputRef={importInputRef} cellDirty={cellDirty} error={importError} onFile={importDraft}/>
         <button onClick={discardDraft}>초안 버리고 원본 다시 읽기</button>
@@ -431,12 +436,12 @@ export default function MapReview(){
         <label>배치 ID<select value={selectedObject?.id || ""} onChange={e=>setObjectId(e.target.value)}>
           <option value="">배치 선택</option>{placed.map(item=><option key={item.id}>{item.id}</option>)}</select></label>
         <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!selectedObject && "이동할 배치를 선택하세요.",!cell && "이동할 셀을 선택하고 속성을 조회하세요.",selectedObject && cell && atCell(selectedObject) && "이미 선택한 셀에 있습니다."]} onClick={moveObject}>선택 셀로 이동</ActionButton>
-        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!selectedObject && "삭제할 배치를 선택하세요."]} onClick={()=>applyDraft({...draft,objects:placed.filter(item=>item.id!==objectId)},"edit")}>선택 배치 삭제</ActionButton>
-        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!cell ? "셀을 선택하고 속성을 조회하세요." : !placed.some(atCell) && "선택한 셀에 빌보드가 없습니다."]} onClick={()=>applyDraft({...draft,objects:placed.filter(item=>!atCell(item))},"edit")}>선택 셀의 빌보드 모두 삭제</ActionButton>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!selectedObject && "삭제할 배치를 선택하세요."]} onClick={event=>applyDraft({...draft,objects:placed.filter(item=>item.id!==objectId)},"edit",null,event)}>선택 배치 삭제</ActionButton>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!cell ? "셀을 선택하고 속성을 조회하세요." : !placed.some(atCell) && "선택한 셀에 빌보드가 없습니다."]} onClick={event=>applyDraft({...draft,objects:placed.filter(item=>!atCell(item))},"edit",null,event)}>선택 셀의 빌보드 모두 삭제</ActionButton>
       </fieldset>}
       {draft && <div>
-        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!past.length && "되돌릴 편집이 없습니다."]} onClick={()=>applyDraft(past[past.length-1],"undo")}>한 단계 되돌리기</ActionButton>
-        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!future.length && "다시 실행할 편집이 없습니다."]} onClick={()=>applyDraft(future[future.length-1],"redo")}>한 단계 다시 실행</ActionButton>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!past.length && "되돌릴 편집이 없습니다."]} onClick={event=>{restorePreviewFocus.current=document.activeElement===event.currentTarget;applyDraft(past[past.length-1],"undo");}}>한 단계 되돌리기</ActionButton>
+        <ActionButton reasons={[cellDirty && "셀 입력을 먼저 검증하거나 취소하세요.",!future.length && "다시 실행할 편집이 없습니다."]} onClick={event=>{restorePreviewFocus.current=document.activeElement===event.currentTarget;applyDraft(future[future.length-1],"redo");}}>한 단계 다시 실행</ActionButton>
         <span>편집 이력 {past.length} / {past.length+future.length}단계</span>
       </div>}
       {preview && <ActionButton reasons={[mapDraftSaveReason(preview)]} onClick={save}>검증된 초안 저장</ActionButton>}

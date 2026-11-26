@@ -7,6 +7,7 @@ MODEL_PREPARATION_SERVICES = (
     ('Qwen Image 2.1', 'prop-generator'),
     ('Qwen 2.1 표정 LoRA', 'expression-lora'),
     ('Kimodo', 'kimodo'),
+    ('MiniMax H3 이미지 · 파일 상태', 'minimax-h3-image'),
     ('DWPose 포즈 모델', 'dwpose'),
     ('Wan Animate-2', 'wan22-animate2'),
     ('Wan Animate-2 LightX2V 가속 LoRA', 'wan22-animate2-lightx2v'),

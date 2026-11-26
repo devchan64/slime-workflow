@@ -25,7 +25,7 @@ function EffectProposalForSelection({session,job,snapshot,offset}){
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setNotice('');setReview(null);
     try{const result=await readProposalPreview(prepareEffectProposal,[session,job,snapshot,offset],controller.signal);if(request.current===controller){setReceipt(result.receipt || null);setReview(result.review || null);}}
-    catch(error){if(request.current===controller && (!controller.signal.aborted || timedOut))setNotice(timedOut ? '이펙트 제안 조회 시간이 초과됐습니다. 다시 확인하세요.' : error?.message || '이펙트 제안을 확인하지 못했습니다. 다시 시도하세요.');}
+    catch(error){if(request.current===controller && (!controller.signal.aborted || timedOut))setNotice(timedOut ? '이펙트 제안 조회 시간이 초과됐습니다. 다시 확인하세요.' : error?.message ? requestErrorMessage(error) : '이펙트 제안을 확인하지 못했습니다. 다시 시도하세요.');}
     finally{clearTimeout(timeout);if(request.current===controller){request.current=null;setBusy(false);}}
   }
   async function save(){if(!review || sending.current)return;sending.current=true;setBusy(true);setNotice('');let dispatched=false;const controller=new AbortController();request.current=controller;try{

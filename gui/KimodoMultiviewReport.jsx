@@ -3,6 +3,7 @@ import readReference from "./readReference.js";
 import KimodoJointWeights from "./KimodoJointWeights.jsx";
 import ResultTable from "./ResultTable.jsx";
 import {untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 
 function BundleDownload({json}){
   const [url,setUrl]=useState("");
@@ -54,7 +55,7 @@ export default function KimodoMultiviewReport(){
       if(pending.current!==controller || controller.signal.aborted)return;
       if(dirtyRef.current)throw new Error("조회 중 가중치 편집이 시작되어 기존 보고서와 편집 내용을 유지합니다.");
       setView(0);setReport(result);setReportRevision(value=>value+1);
-    }catch(problem){if(pending.current===controller)setError(timedOut ? "검수 보고서 조회 시간이 초과됐습니다. 다시 시도하세요." : problem?.message || "검수 보고서를 불러올 수 없습니다. 다시 시도하세요.");}
+    }catch(problem){if(pending.current===controller)setError(timedOut ? "검수 보고서 조회 시간이 초과됐습니다. 다시 시도하세요." : problem?.message ? requestErrorMessage(problem) : "검수 보고서를 불러올 수 없습니다. 다시 시도하세요.");}
     finally{clearTimeout(timer);if(pending.current===controller){pending.current=null;setBusy(false);}}
   }
   return <details className="kimodo-multiview"><summary>다중 시점 관절 검수{busy ? " · 조회 중" : error ? " · 오류 확인 필요" : weightsDirty ? " · 가중치 편집 중" : report ? ` · ${report.views.length}방향 보고서` : ""}</summary>

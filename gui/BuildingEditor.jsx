@@ -63,7 +63,7 @@ export function buildingPropertiesChanged(original,values){
   });
 }
 
-export function BuildingProperties({building,generation,busy,disabledReason,setBusy,onSaved,onDirtyChange}){
+export function BuildingProperties({building,generation,busy,disabledReason,setBusy,onSaved,onDirtyChange,onSaveUncertain}){
   const expected={displayWidthAdjustment:0,displayHeightAdjustment:0,...building.properties};
   const original={shadowShape:"circle",shadowOffsetColumn:0,shadowOffsetRow:0,shadowScaleX:1,shadowScaleY:1,...expected};
   const [values,edit]=useState(original),[error,setError]=useState("");
@@ -76,7 +76,9 @@ export function BuildingProperties({building,generation,busy,disabledReason,setB
   const sizeError=widthSizeError || heightSizeError;
   const [placement,selectPlacement]=useState(0);
   const [previewStatus,setPreviewStatus]=useState("loading"),[previewRevision,retryPreview]=useState(0);
-  const canvas=useRef(null),previewRetryButton=useRef(null),previewInvalid=useRef(null),restorePreviewFocus=useRef(false),firstField=useRef(null),restoreCancelFocus=useRef(false),saving=useRef(false);
+  const canvas=useRef(null),previewRetryButton=useRef(null),previewInvalid=useRef(null),restorePreviewFocus=useRef(false),firstField=useRef(null),restoreCancelFocus=useRef(false),saving=useRef(null),saveButton=useRef(null),saveErrorRef=useRef(null),restoreSaveFocus=useRef(false);
+  useEffect(()=>()=>{const request=saving.current;saving.current=null;request?.abort();},[]);
+  useEffect(()=>{if(!busy && error && restoreSaveFocus.current){restoreSaveFocus.current=false;restoreLostFocus(document,saveErrorRef.current);}},[busy,error]);
   useEffect(()=>{
     const url="/management/assistant/building-image/"+encodeURIComponent(building.texture);
     if(Object.values(fieldIssues).some(Boolean) || sizeError){
@@ -101,13 +103,17 @@ export function BuildingProperties({building,generation,busy,disabledReason,setB
     if(!changed || busy || saving.current || Object.values(fieldIssues).some(Boolean) || sizeError)return;
     const properties={shadowShape:values.shadowShape};
     for(const [key] of fields)properties[key]=Number(values[key]);
-    saving.current=true;setBusy(true);setError("");
+    restoreSaveFocus.current=document.activeElement===saveButton.current;
+    const controller=new AbortController();saving.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setBusy(true);setError("");
     try{
-      const result=await managementCommand("map-assets","building-save",{texture:building.texture,generation,expected,properties});
+      const result=await untilAborted(managementCommand("map-assets","building-save",{texture:building.texture,generation,expected,properties},{signal:controller.signal}),controller.signal);
+      if(saving.current!==controller)return;
       if(!validBuildingChange(result,building.texture,generation,null,properties))throw new Error("저장 응답의 대상이나 속성을 확인할 수 없습니다.");
       onSaved(building.texture);
-    }catch(problem){setError("저장 결과를 확인하지 못했습니다. 다시 저장하기 전에 편집 내용을 기록하고 목록을 다시 읽어 실제 속성을 확인하세요. · "+requestErrorMessage(problem));}
-    finally{saving.current=false;setBusy(false);}
+    }catch(problem){if(saving.current===controller && (!controller.signal.aborted || timedOut)){setError("저장 결과를 확인하지 못했습니다. 다시 저장하기 전에 편집 내용을 기록하고 목록을 다시 읽어 실제 속성을 확인하세요. · "+(timedOut ? "응답 시간이 초과됐습니다." : requestErrorMessage(problem)));onSaveUncertain?.(building.texture);}}
+    finally{clearTimeout(timeout);if(saving.current===controller){saving.current=null;setBusy(false);}}
   }
   return <form className="building-properties-form" onSubmit={save}>{busy && disabledReason && <p id={disabledHelp}>{disabledReason}</p>}<fieldset disabled={busy} aria-describedby={busy && disabledReason ? disabledHelp : undefined}><legend>건물 표시 속성</legend>
     {building.maps.length>0 && <label>미리보기 맵 배치<select value={placement} onChange={e=>selectPlacement(Number(e.target.value))}>
@@ -123,9 +129,9 @@ export function BuildingProperties({building,generation,busy,disabledReason,setB
     {widthSizeError && <p id={`${sizeErrorId}-displayWidthAdjustment`} role="alert">{widthSizeError}</p>}
     {heightSizeError && <p id={`${sizeErrorId}-displayHeightAdjustment`} role="alert">{heightSizeError}</p>}
     <button type="button" onClick={()=>edit({...values,displayWidthAdjustment:0,displayHeightAdjustment:0})}>크기 보정 초기화</button>
-    {changed && <button type="button" onClick={event=>{restoreCancelFocus.current=document.activeElement===event.currentTarget;edit(original);setError("");}}>편집 취소</button>}
-    <ActionButton type="submit" reasons={[!changed && "변경한 속성이 없습니다.",Object.values(fieldIssues).some(Boolean) && "범위를 벗어난 속성을 수정하세요.",sizeError && "표시 크기 보정을 수정하세요."]}>표시 속성 저장</ActionButton>
-    {error && <p role="alert">{error}</p>}
+    {changed && <button type="button" onClick={event=>{restoreCancelFocus.current=document.activeElement===event.currentTarget;edit(original);}}>편집 취소</button>}
+    <ActionButton type="submit" buttonRef={saveButton} reasons={[!changed && "변경한 속성이 없습니다.",Object.values(fieldIssues).some(Boolean) && "범위를 벗어난 속성을 수정하세요.",sizeError && "표시 크기 보정을 수정하세요."]}>표시 속성 저장</ActionButton>
+    {error && <p ref={saveErrorRef} tabIndex={-1} role="alert">{error}</p>}
   </fieldset></form>;
 }
 
@@ -135,26 +141,30 @@ export async function buildingCommand(action,payload,{signal,onDispatch}={}){
   const abort=()=>controller.abort();
   if(signal?.aborted)controller.abort();else signal?.addEventListener("abort",abort,{once:true});
   const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-  let digest;
-  try{digest=new Uint8Array(await untilAborted(crypto.subtle.digest("SHA-256",bytes),controller.signal));}
-  catch(error){if(timedOut)throw new Error("건물 요청 준비 시간이 초과됐습니다. 다시 시도하세요.");throw error;}
+  let dispatched=false;
+  try{
+    const digest=new Uint8Array(await untilAborted(crypto.subtle.digest("SHA-256",bytes),controller.signal));
+    if(controller.signal.aborted)throw new DOMException("건물 요청이 중단됐습니다.","AbortError");
+    const requestId="building-"+action+"-"+Array.from(digest,b=>b.toString(16).padStart(2,"0")).join("");
+    dispatched=true;onDispatch?.();
+    return await untilAborted(managementCommand("map-assets","building-"+action,{...payload,requestId},{signal:controller.signal}),controller.signal);
+  }catch(error){if(timedOut)throw new Error(dispatched ? "건물 요청 응답 시간이 초과됐습니다." : "건물 요청 준비 시간이 초과됐습니다. 다시 시도하세요.");throw error;}
   finally{clearTimeout(timer);signal?.removeEventListener("abort",abort);}
-  if(signal?.aborted)throw new DOMException("등록 준비가 중단됐습니다.","AbortError");
-  const requestId="building-"+action+"-"+Array.from(digest,b=>b.toString(16).padStart(2,"0")).join("");
-  onDispatch?.();
-  return managementCommand("map-assets","building-"+action,{...payload,requestId});
 }
 
 export function BuildingRegistration({generation,busy,disabledReason,setBusy,onRegistered}){
   const [error,setError]=useState(""),[fileError,setFileError]=useState("");
   const idHelp=useId(),imageHelp=useId(),fileErrorId=useId(),disabledHelp=useId(),submitting=useRef(false),prepareRequest=useRef(null);
+  const submitButton=useRef(null),errorRef=useRef(null),restoreSubmitFocus=useRef(false);
   useEffect(()=>()=>{prepareRequest.current?.abort();},[]);
+  useEffect(()=>{if(!busy && error && restoreSubmitFocus.current){restoreSubmitFocus.current=false;restoreLostFocus(document,errorRef.current);}},[busy,error]);
   async function submit(event){
     event.preventDefault();
     const form=event.currentTarget,fields=new FormData(form),file=fields.get("image");
     if(busy || submitting.current)return;
     if(!file?.size || file.size>16*1024*1024){setFileError("16MiB 이하의 PNG를 선택하세요.");return;}
     submitting.current=true;
+    restoreSubmitFocus.current=document.activeElement===submitButton.current;
     const controller=new AbortController();prepareRequest.current=controller;
     let requested=false;
     setBusy(true);setError("");setFileError("");
@@ -167,14 +177,14 @@ export function BuildingRegistration({generation,busy,disabledReason,setBusy,onR
     }catch(problem){if(problem?.name!=="AbortError")setError((requested ? "등록 결과를 확인하지 못했습니다. 다시 등록하기 전에 건물 목록에서 처리 여부를 확인하세요. · " : "")+requestErrorMessage(problem));}
     finally{if(prepareRequest.current===controller)prepareRequest.current=null;submitting.current=false;setBusy(false);}
   }
-  return <details><summary>건물 등록</summary>{busy && disabledReason && <p id={disabledHelp}>{disabledReason}</p>}<form className="building-registration-form" onSubmit={submit}><fieldset disabled={busy} aria-describedby={busy && disabledReason ? disabledHelp : undefined}>
+  return <details onToggle={event=>{if(!event.currentTarget.open)restoreSubmitFocus.current=false;}}><summary>건물 등록{error || fileError ? " · 확인 필요" : submitting.current && busy ? " · 처리 중" : ""}</summary>{busy && disabledReason && <p id={disabledHelp}>{disabledReason}</p>}<form className="building-registration-form" onSubmit={submit}><fieldset disabled={busy} aria-describedby={busy && disabledReason ? disabledHelp : undefined}>
     <label>건물 ID<input name="texture" required pattern="town-[a-z0-9\x2d]+-v[1-9][0-9]*" placeholder="town-iseulon-house-v1" aria-describedby={idHelp}/></label>
     <small id={idHelp}>town-으로 시작하고 -v1처럼 양의 버전 번호로 끝나는 영문 소문자·숫자·하이픈 ID를 입력하세요.</small>
     <label>투명 PNG<input name="image" required type="file" accept="image/png" aria-invalid={fileError ? true : undefined} aria-describedby={[imageHelp,fileError ? fileErrorId : null].filter(Boolean).join(" ")} onChange={()=>setFileError("")}/></label>
     <small id={imageHelp}>투명 PNG · 최대 16MiB</small>
     {fileError && <p id={fileErrorId} role="alert">{fileError}</p>}
     {[["x","앵커 X",0.5],["y","앵커 Y",1]].map(([name,label,value])=><label key={name}>{label}<input name={name} type="number" required min="0" max="16" step="any" defaultValue={value}/></label>)}
-    <button type="submit">건물 등록</button>{error && <p role="alert">{error}</p>}
+    <button ref={submitButton} type="submit">건물 등록</button>{error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
   </fieldset></form></details>;
 }
 
@@ -189,10 +199,18 @@ export default function BuildingEditor(){
   const [catalog,setCatalog]=useState(null),[selected,setSelected]=useState("");
   const [error,setError]=useState(""),[revision,reload]=useState(0);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
+  const [uncertainSaves,setUncertainSaves]=useState([]);
+  const [uncertainRetirements,setUncertainRetirements]=useState([]);
   const [dirty,setDirty]=useState(false);
   const [loading,setLoading]=useState(true),[checkedAt,setCheckedAt]=useState(null),[catalogVersion,setCatalogVersion]=useState(0);
-  const reloadButton=useRef(null),listHeading=useRef(null),catalogError=useRef(null),restoreCatalogFocus=useRef(false),retiring=useRef(false);
+  const reloadButton=useRef(null),listHeading=useRef(null),catalogError=useRef(null),restoreCatalogFocus=useRef(false),retiring=useRef(null),retireButton=useRef(null),restoreRetireFocus=useRef(false);
   useEffect(()=>{document.title="건물 에셋 관리";},[]);
+  useEffect(()=>()=>{const request=retiring.current;retiring.current=null;request?.abort();},[]);
+  useEffect(()=>{if(!busy && error && restoreRetireFocus.current){restoreRetireFocus.current=false;restoreLostFocus(document,catalogError.current);}},[busy,error]);
+  function dismissUncertainty(event,setItems,id){
+    if(document.activeElement===event.currentTarget)listHeading.current?.focus();
+    setItems(items=>items.filter(item=>item!==id));
+  }
   function refreshCatalog(restore=false){restoreCatalogFocus.current=restore;setLoading(true);reload(value=>value+1);}
   useEffect(()=>{
     if(loading || !restoreCatalogFocus.current)return;
@@ -217,15 +235,18 @@ export default function BuildingEditor(){
   const building=catalog?.assets.find(item=>item.texture===selected);
   async function retire(){
     if(busy || retiring.current || dirty || unavailable || !building || building.texture==="ward-tower-v1" || building.maps.length)return;
+    const wasFocused=document.activeElement===retireButton.current;
     if(!window.confirm(building.texture+"을 건물 목록과 공용 속성에서 삭제할까요? 이미지 원본과 등록 이력은 보존됩니다."))return;
-    retiring.current=true;
+    restoreRetireFocus.current=wasFocused;
+    const controller=new AbortController();retiring.current=controller;
     setBusy(true);setError("");
     try{
-      const result=await buildingCommand("retire",{texture:building.texture,generation:catalog.generation});
+      const result=await buildingCommand("retire",{texture:building.texture,generation:catalog.generation},{signal:controller.signal});
+      if(retiring.current!==controller)return;
       if(!validBuildingChange(result,building.texture,catalog.generation,"retire"))throw new Error("삭제 응답의 대상을 확인할 수 없습니다.");
-      setNotice(building.texture+" 삭제 완료");refreshCatalog(document.activeElement===document.body);
-    }catch(problem){setError("삭제 결과를 확인하지 못했습니다. 다시 요청하기 전에 건물 목록을 다시 읽어 확인하세요. · "+requestErrorMessage(problem));}
-    finally{retiring.current=false;setBusy(false);}
+      restoreRetireFocus.current=false;setNotice(building.texture+" 삭제 완료");refreshCatalog(document.activeElement===document.body);
+    }catch(problem){if(retiring.current===controller && !controller.signal.aborted){setUncertainRetirements(items=>items.includes(building.texture) ? items : [...items,building.texture]);setError("삭제 결과를 확인하지 못했습니다. 다시 요청하기 전에 건물 목록을 다시 읽어 확인하세요. · "+requestErrorMessage(problem));}}
+    finally{if(retiring.current===controller){retiring.current=null;setBusy(false);}}
   }
   const image=id=>"/management/assistant/building-image/"+encodeURIComponent(id);
   return <article className="building-editor-page"><h1>건물 에셋 관리</h1>
@@ -233,14 +254,16 @@ export default function BuildingEditor(){
     {busy && <p id={busyId} role="status">건물 요청을 처리하고 있습니다.</p>}
     {dirty && <p id={dirtyId} role="status">저장하지 않은 건물 속성이 있습니다. 저장하거나 편집을 취소한 뒤 목록을 다시 읽거나 다른 건물을 선택하세요.</p>}
     {notice && <p role="status">{notice}</p>}
+    {uncertainSaves.map(id=><div key={id}><p role="status">{id} 표시 속성의 저장 결과를 확인하지 못했습니다. 목록을 다시 읽고 실제 속성을 확인하세요.</p><button type="button" onClick={event=>dismissUncertainty(event,setUncertainSaves,id)}>{id} 확인 안내 닫기</button></div>)}
+    {uncertainRetirements.map(id=><div key={id}><p role="status">{id} 삭제 결과를 확인하지 못했습니다. 목록을 다시 읽고 해당 건물의 삭제 여부를 확인하세요.</p><button type="button" onClick={event=>dismissUncertainty(event,setUncertainRetirements,id)}>{id} 삭제 확인 안내 닫기</button></div>)}
     {checkedAt && <p>마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
-    {error && <p ref={catalogError} tabIndex={-1} role="alert">{error}{catalog && " 아래는 마지막 조회 결과이며, 다시 확인하기 전에는 변경할 수 없습니다."}</p>}
-    {loading && <p id={loadingId} role="status">{catalog ? "목록 조회 중입니다. 아래는 마지막 조회 결과입니다." : "건물 목록을 읽고 있습니다."}</p>}
+    {error && <p ref={catalogError} tabIndex={-1} role="alert">{error}{catalog && (catalog.assets.length ? " 아래는 마지막 조회 결과이며, 다시 확인하기 전에는 변경할 수 없습니다." : " 마지막 조회에서 등록된 건물이 없었습니다. 다시 확인하기 전에는 변경할 수 없습니다.")}</p>}
+    {loading && <p id={loadingId} role="status">{catalog ? (catalog.assets.length ? "목록 조회 중입니다. 아래는 마지막 조회 결과입니다." : "목록 조회 중입니다. 마지막 조회에서 등록된 건물이 없었습니다.") : "건물 목록을 읽고 있습니다."}</p>}
     {catalog ? <><h2 ref={listHeading} tabIndex={-1}>건물 목록</h2><p>건물 {catalog.assets.length}종 · DB 세대 {catalog.generation}</p>
       <BuildingRegistration generation={catalog.generation} busy={busy || dirty || unavailable} disabledReason={busy ? "건물 요청이 끝날 때까지 기다리세요." : dirty ? "변경한 건물 속성을 저장하거나 편집을 취소하세요." : loading ? "건물 목록 확인이 끝날 때까지 기다리세요." : error ? "건물 목록을 다시 확인한 뒤 등록하세요." : ""} setBusy={setBusy} onRegistered={id=>{
         setNotice(id+" 등록 완료");setSelected(id);refreshCatalog(document.activeElement===document.body);
       }}/>
-      {!catalog.assets.length && <p>등록된 건물이 없습니다.</p>}
+      {!catalog.assets.length && !unavailable && <p>등록된 건물이 없습니다.</p>}
       {selected && !building && <p role="status">선택한 건물을 현재 목록에서 찾지 못했습니다. 다른 건물을 선택하세요.</p>}
       <BuildingAssetList assets={catalog.assets} selected={selected} disabled={busy || dirty || loading} disabledReason={busy ? "건물 요청이 끝날 때까지 기다리세요." : dirty ? "변경한 건물 속성을 저장하거나 편집을 취소하세요." : loading ? "건물 목록 확인이 끝날 때까지 기다리세요." : ""} onSelect={setSelected} image={image}/>
     </> : null}
@@ -248,9 +271,10 @@ export default function BuildingEditor(){
       <RecoverableImage key={selected+":"+catalogVersion} src={image(selected)} name={selected}/>
       <p>{building.width}×{building.height} px · 앵커 X {building.properties.anchorX} · Y {building.properties.anchorY}</p>
       <BuildingProperties key={building.texture+"/"+catalogVersion} building={building} generation={catalog.generation} busy={busy || unavailable} disabledReason={busy ? "건물 요청이 끝날 때까지 기다리세요." : loading ? "건물 목록 확인이 끝날 때까지 기다리세요." : error ? "건물 목록을 다시 확인한 뒤 속성을 편집하세요." : ""} setBusy={setBusy} onDirtyChange={setDirty}
+        onSaveUncertain={id=>setUncertainSaves(items=>items.includes(id) ? items : [...items,id])}
         onSaved={id=>{setDirty(false);setNotice(id+" 표시 속성을 저장했습니다.");refreshCatalog(document.activeElement===document.body);}}/>
       <h3>사용 맵</h3>{building.maps.length ? <ul>{building.maps.map((usage,i)=><li key={i}>{usage.map} · {usage.name} · {usage.width}×{usage.height} · {usage.facing}</li>)}</ul> : <p>사용 맵 없음</p>}
-      <ActionButton reasons={[
+      <ActionButton buttonRef={retireButton} reasons={[
         busy && "건물 요청이 끝날 때까지 기다리세요.",
         dirty && "저장하지 않은 건물 속성을 저장하거나 편집을 취소하세요.",
         loading && "건물 목록 확인이 끝날 때까지 기다리세요.",

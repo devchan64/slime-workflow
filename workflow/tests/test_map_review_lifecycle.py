@@ -42,7 +42,7 @@ SOURCE
 
     def test_new_edit_requires_autosave_confirmation(self):
         source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
-        apply='async function applyDraft(next,action,stroke=null){'+source.split('async function applyDraft(next,action,stroke=null){',1)[1].split('\n  async function save(',1)[0]
+        apply='async function applyDraft(next,action,stroke=null,event=null){'+source.split('async function applyDraft(next,action,stroke=null,event=null){',1)[1].split('\n  async function save(',1)[0]
         script=r"""
 const assert=require('node:assert/strict');let storageFailed=false,applied=false;
 const window={},readRequest={current:null},importRequest={current:null},savingRef={current:false};
@@ -84,7 +84,7 @@ assert.equal(typeof handler,'function');cleanup();
 
     def test_failed_preview_preserves_draft_and_history(self):
         source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
-        apply='async function applyDraft(next,action,stroke=null){'+source.split('async function applyDraft(next,action,stroke=null){',1)[1].split('\n  async function save(',1)[0]
+        apply='async function applyDraft(next,action,stroke=null,event=null){'+source.split('async function applyDraft(next,action,stroke=null,event=null){',1)[1].split('\n  async function save(',1)[0]
         script=r"""
 const assert=require('node:assert/strict');let draftState='old',history='old',feedback='',reading=false;
 const window={},readRequest={current:null},importRequest={current:null},savingRef={current:false};
@@ -121,7 +121,7 @@ await assert.rejects(window.mapReviewApplyDraft({id:'different',name:'wrong'}),/
     def test_import_accepts_matching_draft_and_cancels_on_exit(self):
         root=Path(__file__).resolve().parents[2]
         source=(root/'gui/MapReview.jsx').read_text()
-        importer='async function importDraft(file,focused=false){'+source.split('async function importDraft(file,focused=false){',1)[1].split('\n  async function discardDraft()',1)[0]
+        importer='async function importDraft(file,focused=false){'+source.split('async function importDraft(file,focused=false){',1)[1].split('\n  async function discardDraft(event)',1)[0]
         until=(root/'gui/managementCommand.js').read_text().split('\nexport async function managementCommand',1)[0].replace('export async function','async function')
         script=r"""
 const assert=require('node:assert/strict');let resolve,applied=[],feedback='',reading=false;
@@ -145,7 +145,7 @@ SOURCE
 
     def test_import_timeout_does_not_apply_late_file(self):
         source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
-        importer='async function importDraft(file,focused=false){'+source.split('async function importDraft(file,focused=false){',1)[1].split('\n  async function discardDraft()',1)[0]
+        importer='async function importDraft(file,focused=false){'+source.split('async function importDraft(file,focused=false){',1)[1].split('\n  async function discardDraft(event)',1)[0]
         script=r"""
 const assert=require('node:assert/strict');let timer,resolve,applied=0,reading=false,feedback='';
 const window={};
@@ -195,12 +195,12 @@ SOURCE
 
     def test_discard_restores_original_even_when_storage_removal_fails(self):
         source=(Path(__file__).resolve().parents[2]/'gui/MapReview.jsx').read_text()
-        discard='async function discardDraft(){'+source.split('async function discardDraft(){',1)[1].split('\n  function discardRecovery()',1)[0]
+        discard='async function discardDraft(event){'+source.split('async function discardDraft(event){',1)[1].split('\n  function discardRecovery()',1)[0]
         script=r"""
 const assert=require('node:assert/strict');
 let applied=false,feedback='',notice='',draftState='old',reading=false;
 const readRequest={current:null},importRequest={current:null},savingRef={current:false};
-const draft={map:'test'},discardedRecovery={current:new Set()},window={confirm:()=>true};
+const draft={map:'test'},discardedRecovery={current:new Set()},feedbackFocusOrigin={current:null},window={confirm:()=>true},document={activeElement:null};
 const applyMapPreview=async()=>{applied=true};
 const readMap=async()=>({render:{}}),storageKey=map=>map,requestErrorMessage=error=>error.message;
 const sessionStorage={removeItem(){throw new Error('storage denied')}};

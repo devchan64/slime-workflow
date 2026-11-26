@@ -3,6 +3,7 @@ import {managementCommand} from "./managementCommand.js";
 import {executeGpuHandoffCommand} from "./readGpuHandoffStatus.mjs";
 import {handoffUncertaintyKey,handoffSessionStorage,readHandoffUncertainty,markHandoffUncertainty,clearHandoffUncertainty} from "./handoffUncertainty.mjs";
 import JobIdentifier from "./JobIdentifier.jsx";
+import {requestErrorMessage} from "./requestError.mjs";
 
 const labels={approved:"승인됨",waiting_release:"헤르메스 작업 종료 및 모델 해제 대기",submitting:"생성 접수 확인 중",running:"생성 작업 진행 중",reload_queued:"Qwen 3.8 재적재 대기",reloading:"Qwen 3.8 재적재 중",cancel_waiting_release:"중지 후 모델 해제 확인 중",cancel_reload_queued:"중지 후 Qwen 3.8 재적재 대기",cancel_reloading:"중지 후 Qwen 3.8 재적재 중",rejected_reload_queued:"요청 검증 실패 · Qwen 3.8 재적재 대기",rejected_reloading:"요청 검증 실패 · Qwen 3.8 재적재 중",rejected:"요청 검증 실패 · Qwen 3.8 재적재 완료",ready:"Qwen 3.8 재적재 완료",cancelled:"취소 완료",withdrawn:"미접수 요청 철회 완료",needs_attention:"확인 필요",not_found:"접수 여부 확인 필요",checking:"접수 확인 중"};
 const targetLabels={completed:"완료",failed:"실패",cancelled:"취소됨"};
@@ -50,9 +51,9 @@ function GpuHandoffScope({session,id,service,status,onUpdate,onClose,children}){
     }catch(problem){
       if(statusRequest.current===controller && currentScope.current===requestScope){
         if(mutation)setUncertain(true);
-        setError(mutation ? "요청 결과를 확인하지 못했습니다. 다시 변경하기 전에 GPU 양도 상태를 확인하세요." : timedOut ? "GPU 양도 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : problem?.message || "GPU 양도 상태를 확인할 수 없습니다. 다시 확인하세요.");
+        setError(mutation ? "요청 결과를 확인하지 못했습니다. 다시 변경하기 전에 GPU 양도 상태를 확인하세요." : timedOut ? "GPU 양도 상태 조회 시간이 초과됐습니다. 다시 확인하세요." : problem?.message ? requestErrorMessage(problem) : "GPU 양도 상태를 확인할 수 없습니다. 다시 확인하세요.");
       }
-    }finally{clearTimeout(timeout);if(statusRequest.current===controller)statusRequest.current=null;actionPending.current=false;setBusy(false);}
+    }finally{clearTimeout(timeout);if(statusRequest.current===controller){statusRequest.current=null;actionPending.current=false;setBusy(false);}}
   }
   const summary=status?.target_summary;
   const cancelRecovery=status?.reason?.startsWith("취소 후");

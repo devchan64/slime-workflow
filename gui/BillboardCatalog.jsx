@@ -20,7 +20,7 @@ export default function BillboardCatalog({choose}){
   useEffect(()=>{if(!choose)document.title="공용 빌보드 에셋 관리";},[choose]);
   const [query,setQuery]=useState(""),[category,setCategory]=useState("");
   const [request,setRequest]=useState({offset:0,limit:10}),[page,setPage]=useState(null);
-  const [notice,setNotice]=useState("");
+  const [notice,setNotice]=useState(""),[uncertainNotices,setUncertainNotices]=useState([]);
   const [loading,setLoading]=useState(true),[displayedRequest,setDisplayedRequest]=useState(null);
   const [imageRevision,setImageRevision]=useState(0),[editingProperties,setEditingProperties]=useState(false);
   const [lifecycleActive,setLifecycleActive]=useState(false);
@@ -70,14 +70,15 @@ export default function BillboardCatalog({choose}){
       <option value="">전체</option>{Object.entries(categories).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>
       <label>이름·ID·모델링 설명·사용 맵<input maxLength={100} value={query} onChange={e=>setQuery(e.target.value)}/></label>
       <button ref={searchRef} disabled={loading || locked} aria-describedby={[lockDescription,loading && loadingId].filter(Boolean).join(" ") || undefined}>{loading?"조회 중…":"빌보드 검색"}</button></form>
-    {filtersChanged && page && <p role="status">검색 조건이 변경되었습니다. 아래는 이전 조건의 결과입니다. 빌보드 검색을 눌러 적용하세요.</p>}
-    {loading && <p id={loadingId} role="status">{page ? "새 결과를 조회하고 있습니다. 아래는 이전 조회 결과입니다." : "카탈로그 조회 중…"}</p>}
-    {resultsStale && !loading && <p role="status">조회에 실패했습니다. 아래는 이전 조회 결과입니다. 다시 검색해 주세요.</p>}
+    {filtersChanged && page && !loading && <p role="status">검색 조건이 변경되었습니다. {page.items.length ? "아래는 이전 조건의 결과입니다." : "이전 조회에 표시할 빌보드가 없었습니다."} 빌보드 검색을 눌러 적용하세요.</p>}
+    {loading && <p id={loadingId} role="status">{page ? (page.items.length ? "새 결과를 조회하고 있습니다. 아래는 이전 조회 결과입니다." : "새 결과를 조회하고 있습니다. 이전 조회에 표시할 빌보드가 없었습니다.") : "카탈로그 조회 중…"}</p>}
+    {resultsStale && !loading && <p role="status">조회에 실패했습니다. {page.items.length ? "아래는 이전 조회 결과입니다." : "이전 조회에 표시할 빌보드가 없었습니다."}</p>}
     {page?.storage==="database" && <SnapshotStatus/>}
     {notice && <p role="status">{notice}</p>}
+    {uncertainNotices.map(warning=><div key={warning.texture+"/"+warning.requestId}><p role="alert">{warning.texture} · {warning.message}</p><button type="button" aria-label={"확인 안내 닫기 · "+warning.texture+" · 접수 "+warning.requestId} onClick={event=>{const focused=document.activeElement===event.currentTarget;setUncertainNotices(previous=>previous.filter(item=>item!==warning));if(focused)requestAnimationFrame(()=>restoreLostFocus(document,searchRef.current?.disabled ? detailRef.current : searchRef.current));}}>확인 안내 닫기</button></div>)}
     {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
     {page && pageReason && (page.offset>0 || page.next_offset!=null) && <p id={pageReasonId}>{pageReason}</p>}
-    {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><ResultTable table={{title:"검색 결과",emptyMessage:page.total ? "현재 페이지에 표시할 빌보드가 없습니다. 이전 페이지를 확인하세요." : "조회한 조건에 맞는 빌보드가 없습니다.",summary:page.total+"종"+(page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""),columns:["이름","에셋 ID","분류"],
+    {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><ResultTable table={{title:"검색 결과",emptyMessage:loading || resultsStale || filtersChanged ? "이전 조회에서 표시할 빌보드가 없었습니다." : page.total ? "현재 페이지에 표시할 빌보드가 없습니다. 이전 페이지를 확인하세요." : "조회한 조건에 맞는 빌보드가 없습니다.",summary:page.total+"종"+(page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""),columns:["이름","에셋 ID","분류"],
       rows:page.items.map(asset=>[<button type="button" aria-label={asset.name+" · "+asset.id} aria-describedby={[locked && selected?.id!==asset.id && lockDescription,loading && loadingId].filter(Boolean).join(" ") || undefined} disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{focusEpoch.current++;triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
           width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,billboardCategoryLabel(categories,asset.category)])}}/></div>
       {page.offset>0 && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} aria-describedby={[lockDescription,pageReason && pageReasonId].filter(Boolean).join(" ") || undefined} onClick={event=>movePage(Math.max(0,page.offset-page.limit),event)}>이전 페이지</button>}
@@ -88,7 +89,7 @@ export default function BillboardCatalog({choose}){
       <p>{selected.modeling.purpose}</p><p>{selected.modeling.composition}</p>
       <div className="billboard-usage-table"><ResultTable table={{title:"사용 맵",emptyMessage:selected.maps_truncated ? "표시할 사용 맵 정보가 없습니다. 다시 검색하세요." : "이 빌보드가 배치된 맵이 없습니다.",summary:selected.maps_truncated?"처음 20개 맵":selected.maps.length+"개 맵",
         columns:["맵","원본 경로","사용 횟수"],rows:selected.maps.map(map=>[map.map,map.source_path,map.occurrences ?? "미확인"])}}/></div>
-      <fieldset disabled={lifecycleActive} style={{border:0,padding:0,margin:0}}><BillboardProperties key={selected.id} texture={selected.id} onDirtyChange={setEditingProperties} onCrop={()=>setImageRevision(n=>n+1)}/></fieldset>
+      <fieldset disabled={lifecycleActive} style={{border:0,padding:0,margin:0}}><BillboardProperties key={selected.id} texture={selected.id} onDirtyChange={setEditingProperties} onSaveUncertain={warning=>setUncertainNotices(previous=>previous.some(item=>item.texture===warning.texture && item.requestId===warning.requestId) ? previous : [...previous,warning])} onCrop={()=>setImageRevision(n=>n+1)}/></fieldset>
       <fieldset disabled={editingProperties} style={{border:0,padding:0,margin:0}}><BillboardLifecycle key={selected.id} texture={selected.id} onInteractionChange={setLifecycleActive} onComplete={(msg,{retired})=>{setNotice(msg);if(retired){restoreSearchFocus.current=document.activeElement===document.body || Boolean(detailRef.current?.contains(document.activeElement));select(null);}setImageRevision(n=>n+1);setRequest({...request,offset:0});}}/></fieldset>
       {choose && <button onClick={()=>choose("빌보드 "+selected.name,selected.id)}>대화 입력에 추가</button>}
     </section>}

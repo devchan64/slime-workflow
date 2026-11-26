@@ -50,6 +50,20 @@ class CatalogTest(unittest.TestCase):
             self.assertTrue(result['nested_survey_available'])
             self.assertEqual(result['unclassified_nested'], [])
 
+    def test_current_model_children_are_observations_not_unclassified(self):
+        from pathlib import Path
+        from unittest.mock import patch
+        obs = {'files': 1, 'logical_bytes': 10, 'allocated_bytes': 512, 'links': 0, 'errors': 0}
+        survey = {'entries': {'animationgpt': obs, 'animationgpt/weights': obs}, 'links': [],
+                  'surveyed_roots': ['animationgpt'], 'finished_at': 'then', 'changed': False, 'errors': False}
+        with patch('workflow.common.model_backup_service.list_backup_models', return_value={'models': []}), \
+                patch('workflow.common.model_backup_service.read_model_source', return_value=(Path('/models'), {})), \
+                patch('workflow.common.model_catalog.read_survey_report', return_value=survey):
+            result = catalog_overview(read_catalog(), include_manifests=False)
+        self.assertEqual(result['surveyed_model_roots'], ['animationgpt'])
+        self.assertEqual([x['path'] for x in result['surveyed_model_children']], ['animationgpt/weights'])
+        self.assertEqual(result['unclassified_nested'], [])
+
     def test_nested_survey_reports_unclassified_without_hiding_registered_children(self):
         from pathlib import Path
         from unittest.mock import patch

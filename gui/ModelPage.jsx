@@ -7,6 +7,7 @@ import ModelReadiness from "./ModelReadiness.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import {resolveModelSelection} from "./modelSelection.mjs";
 import {isBuildVerificationFresh} from "./buildVerification.mjs";
+import {requestErrorMessage} from "./requestError.mjs";
 
 const buildLabels = {
   idle:"빌드 이력 없음", queued:"GPU 대기 중", running:"빌드 중", completed:"최근 빌드 완료",
@@ -73,7 +74,7 @@ function KimodoBuild() {
           setRecord(!verify && verified.current ? verified.current.record : next);setCheckedAt(new Date());setPollError("");
         }
       } catch (problem) {
-        if (active) {setPollError(timedOut ? "빌드 상태 조회 시간이 초과됐습니다." : problem?.message || "빌드 상태를 확인할 수 없습니다.");if(verify){clearVerified();setVerify(false);}}
+        if (active) {setPollError(timedOut ? "빌드 상태 조회 시간이 초과됐습니다." : problem?.message ? requestErrorMessage(problem) : "빌드 상태를 확인할 수 없습니다.");if(verify){clearVerified();setVerify(false);}}
       } finally {
         clearTimeout(timeout);
         if (active) timer = setTimeout(poll, 5000);
@@ -98,7 +99,7 @@ function KimodoBuild() {
       const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
       let next;
       try{next=await untilAborted(managementCommand("kimodo", "migraphx-build",{},{signal:controller.signal}),controller.signal);}
-      catch(problem){throw new Error(timedOut ? "응답 시간이 초과됐습니다." : problem?.message || "응답을 확인할 수 없습니다.");}
+      catch(problem){throw new Error(timedOut ? "응답 시간이 초과됐습니다." : problem?.message ? requestErrorMessage(problem) : "응답을 확인할 수 없습니다.");}
       finally{clearTimeout(timeout);}
       if(!validBuildRecord(next))throw new Error("빌드 접수 응답 형식을 확인할 수 없습니다.");
       setRecord(next);
@@ -147,7 +148,7 @@ export default function ModelPage() {
         const requested = new URLSearchParams(location.search).get("model");
         const choice=resolveModelSelection(items,selectedRef.current || missingRef.current,requested);
         selectedRef.current=choice.selected;missingRef.current=choice.missing;select(choice.selected);setMissingModel(choice.missing);
-      } catch (problem) {if(active)setError(timedOut ? "모델 목록 조회 시간이 초과됐습니다. 다시 시도하세요." : problem?.message || "모델 목록을 조회할 수 없습니다. 다시 조회하세요.");}
+      } catch (problem) {if(active)setError(timedOut ? "모델 목록 조회 시간이 초과됐습니다. 다시 시도하세요." : problem?.message ? requestErrorMessage(problem) : "모델 목록을 조회할 수 없습니다. 다시 조회하세요.");}
       finally {clearTimeout(timeout);if(active)setLoading(false);}
     }
     load();
@@ -186,7 +187,7 @@ export default function ModelPage() {
     {service === "wan22-fighting-lora" && <p>High Noise LoRA 약 38MB · <a href="https://www.runninghub.ai/model/public/1984976690503958530">모델 정보</a> · <a href="https://huggingface.co/r4tn4/Bubble/blob/338e12cb179abf0573b61c310db6163018effdde/wan2.2fighting_high_noise.safetensors">다운로드 사본</a> · VACE 생성기 연결과 실제 동작은 별도 검증이 필요합니다.</p>}
     {service === "wan21-fun-1.3b" && <p>공용 텍스트 인코더와 VAE는 14B 준비 환경을 사용합니다.</p>}
     {service && <ModelReadiness key={service} service={service} manage/>}
-    {service && <DownloadProgress key={"progress-" + service} service={service}/>}
+    {service === "minimax-h3-image" ? <p>이 모델은 관리 화면에서 다운로드할 수 없으며 다운로드 기록이 없습니다. 위 파일 상태를 확인하세요.</p> : service && <DownloadProgress key={"progress-" + service} service={service}/>}
     <ModelCatalog onCompare={(name, jobId) => setBackupSelection({name, jobId, focusAtStart:document.activeElement, request: Symbol()})}/>
     <ModelBackupCompare requestedSelection={backupSelection}/>
     {service === "kimodo" && <KimodoBuild/>}

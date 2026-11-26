@@ -46,17 +46,19 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
     return ()=>{active=false;clearTimeout(timer);controller.abort();};
   },[policyRevision]);
   const [prompt,setPrompt]=useState(""),[seed,setSeed]=useState(42),[file,setFile]=useState(null),[model,setModel]=useState(null),[modelError,setModelError]=useState("");
-  const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[checking,setChecking]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || ""),[revision,setRevision]=useState(0);
-  const formRef=useRef(null),inputRef=useRef(null),historyRef=useRef(null),resultRef=useRef(null),reviewRef=useRef(null),sending=useRef(false),reviewRequest=useRef(null),imageVersion=useRef(0),promptEdited=useRef(false),current=useRef(null);
+  const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[checking,setChecking]=useState(false),[imageError,setImageError]=useState(false),[previewError,setPreviewError]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || ""),[revision,setRevision]=useState(0);
+  const formRef=useRef(null),inputRef=useRef(null),historyRef=useRef(null),resultRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null),sending=useRef(false),reviewRequest=useRef(null),imageVersion=useRef(0),promptEdited=useRef(false),current=useRef(null);
   current.current={prompt,seed,file,pending,busy,checking};
   useEffect(()=>()=>{reviewRequest.current?.abort();reviewRequest.current=null;},[]);
+  useEffect(()=>{if(!pending)return;const origin=reviewOrigin.current;reviewOrigin.current=null;if(document.activeElement===document.body || document.activeElement===origin)reviewRef.current?.focus();},[pending]);
+  useEffect(()=>{if(busy || pending || !error || !reviewOrigin.current)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(origin)));return ()=>cancelAnimationFrame(frame);},[busy,pending,error]);
   useEffect(()=>{let active=true;(async()=>{try{const scope=generationProposalScope(location.search,session,'video');if(!scope)return;const proposal=await readGenerationProposal(managementCommand,scope);if(proposal.service!==service || proposal.mode!=='first_frame' || !proposal.prompt.trim())throw new Error('MiniMax 영상 제안을 확인할 수 없습니다.');if(active){setProposalScope(scope);setPrompt(old=>promptEdited.current ? old : old || proposal.prompt);}}catch(e){if(active)setError(e.message || '대화 제안을 확인할 수 없습니다.');}})();return ()=>{active=false;};},[session]);
   useEffect(()=>{if(receipt.state==="accepted" && receipt.job)setJob(receipt.job);},[receipt.state,receipt.job]);
   const invalidSeed=!Number.isInteger(seed) || seed<0 || seed>2147483647;
   const reasons=[hasProposal && (!proposalScope || receipt.state!=="editing") && "대화 접수 상태를 확인하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요.",checking && "이미지 확인이 끝날 때까지 기다리세요.",!file && "첫 프레임 이미지를 선택하세요.",!prompt.trim() && "동작 프롬프트를 입력하세요.",invalidSeed && "시드는 0~2147483647의 정수여야 합니다."];
   async function review(event){
     event.preventDefault();if(busy || pending || reviewRequest.current || reasons.some(Boolean))return;
-    const controller=new AbortController(),version=imageVersion.current,origin=document.activeElement;reviewRequest.current=controller;let timedOut=false;
+    const controller=new AbortController(),version=imageVersion.current;reviewOrigin.current=document.activeElement;reviewRequest.current=controller;let timedOut=false;
     const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setError("");
     try{
@@ -64,7 +66,7 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
       if(reviewRequest.current!==controller || controller.signal.aborted)return;
       const now=current.current;
       if(now.prompt!==prompt || now.seed!==seed || now.file!==file || now.checking || imageVersion.current!==version)throw new Error("이미지 확인 중 입력이 바뀌었습니다. 다시 검토하세요.");
-      setPending({action:"generate",prompt:prompt.trim(),images:[image],width:832,height:480,frames:124,steps:8,seed});requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===origin)reviewRef.current?.focus();});
+      setPending({action:"generate",prompt:prompt.trim(),images:[image],width:832,height:480,frames:124,steps:8,seed});
     }catch(problem){if(reviewRequest.current===controller)setError(timedOut ? "이미지 확인 시간이 초과됐습니다. 다시 시도하세요." : problem.message || "이미지를 읽을 수 없습니다.");}
     finally{clearTimeout(timer);if(reviewRequest.current===controller){reviewRequest.current=null;setBusy(false);}}
   }
@@ -86,7 +88,7 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
     try{
       const response=await untilAborted(fetch('/management/assistant/minimax-h3-i2v-input/'+encodeURIComponent(id),{cache:'no-store',signal:controller.signal}),controller.signal);
       if(!response.ok)throw new Error('저장된 입력을 읽을 수 없습니다.');
-      const record=await untilAborted(response.json(),controller.signal);
+      let record;try{record=await untilAborted(response.json(),controller.signal);}catch(problem){controller.signal.throwIfAborted();throw new Error('저장 입력 형식을 확인할 수 없습니다. 다시 조회하세요.');}
       if(record?.id!==id || !Array.isArray(record.request?.images) || record.request.images.length!==1 || typeof record.request.images[0]!=="string")throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
       const request=record.request;
       if(forRestore && (request.action!=="generate" || typeof request.prompt!=="string" || !request.prompt.trim() || request.prompt.length>8000 || !Number.isInteger(request.seed) || request.seed<0 || request.seed>2147483647 || request.width!==832 || request.height!==480 || request.frames!==124 || request.steps!==8))throw new Error('현재 화면에서 지원하지 않는 저장 설정이 있어 입력을 적용하지 않았습니다. 저장 입력 상세를 확인하세요.');
@@ -115,8 +117,8 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <GeneratorSectionCard title="생성 입력" summary="첫 이미지와 동작 지시" defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
-      <ReferenceImageInput label="첫 프레임 이미지" source={file} onSelectionStart={()=>imageVersion.current++} onCheckingChange={setChecking} onChange={setFile} disabled={busy || !!pending}/>
+    <GeneratorSectionCard title="생성 입력" summary={[checking && "이미지 확인 중",imageError && "이미지 확인 실패",previewError && "이미지 미리보기 실패"].filter(Boolean).join(" · ") || "첫 이미지와 동작 지시"} defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
+      <ReferenceImageInput onPreviewErrorChange={setPreviewError} onErrorChange={setImageError} label="첫 프레임 이미지" source={file} onSelectionStart={()=>imageVersion.current++} onCheckingChange={setChecking} onChange={setFile} disabled={busy || !!pending}/>
       <p>이미지에 흰 여백을 넣어 832×480 영상에 맞춥니다.</p>
       <label>장면·동작 프롬프트<textarea required maxLength={8000} value={prompt} onChange={e=>{promptEdited.current=true;setPrompt(e.target.value);}}/></label><PromptWordCount text={prompt} final/>
       <SeedInput value={seed} max={2147483647} error={invalidSeed ? "0~2147483647의 정수를 입력하세요." : ""} onChange={value=>setSeed(value===""?"":Number(value))}/>

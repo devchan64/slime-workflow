@@ -7,9 +7,25 @@ import {visibleFocusTarget} from '../../gui/restoreLostFocus.mjs';
 
 const source=readFileSync(new URL('../../gui/FunControlPage.jsx',import.meta.url),'utf8');
 const code=source.slice(source.indexOf('  async function readJob('),source.indexOf('  function cleaned('));
+test('이미지 확인 중 포즈 선택은 렌더 전에도 시작하지 않는다',async()=>{
+ const attach=source.slice(source.indexOf('  async function attach(file,field)'),source.indexOf('  async function load('));
+ let error='',calls=0;
+ const context=vm.createContext({imageChecking:{current:true},setPoseError:value=>error=value,videoData:()=>{calls++;}});
+ vm.runInContext(attach+'\nthis.attach=attach;',context);
+ assert.equal(await context.attach({name:'pose.mp4'},'pose_video'),false);
+ assert.match(error,/이미지 확인이 끝난 뒤/);assert.equal(calls,0);
+});
+test('다른 첨부 처리 중 포즈 선택은 새 처리를 시작하지 않는다',async()=>{
+ const attach=source.slice(source.indexOf('  async function attach(file,field)'),source.indexOf('  async function load('));
+ let error='',calls=0;
+ const context=vm.createContext({imageChecking:{current:false},attachmentProcessing:{current:true},setPoseError:value=>error=value,videoData:()=>{calls++;}});
+ vm.runInContext(attach+'\nthis.attach=attach;',context);
+ assert.equal(await context.attach({name:'pose.mp4'},'pose_video'),false);
+ assert.match(error,/첨부 처리가 끝난 뒤/);assert.equal(calls,0);
+});
 function fixture(fetch){
  const body={},origin={},other={},frames=[];let focused=0;
- const context=vm.createContext({AbortController,untilAborted,setTimeout,clearTimeout,encodeURIComponent,fetch,validFunInput:()=>true,document:{body,activeElement:origin},requestRef:{current:{prompt:'기존'}},attachmentRevision:{current:0},imageChecking:{current:false},attachmentProcessing:{current:false},reviewEpoch:{current:0},interactionRef:{current:{busy:false,pending:null}},restoreFrame:{current:null},formRef:{current:{isConnected:true,focus:()=>focused++}},setRequest:value=>context.requestRef.current=value,setVideoInfo:()=>{},setSourceSeed:()=>{},setSourceJob:()=>{},setNotice:()=>{},requestAnimationFrame:fn=>(frames.push(fn),frames.length),cancelAnimationFrame:()=>{}});
+ const context=vm.createContext({AbortController,untilAborted,setTimeout,clearTimeout,encodeURIComponent,fetch,validFunInput:()=>true,document:{body,activeElement:origin},requestRef:{current:{prompt:'기존'}},attachmentRevision:{current:0},imageChecking:{current:false},attachmentProcessing:{current:false},reviewEpoch:{current:0},interactionRef:{current:{busy:false,pending:null}},restoreFrame:{current:null},formRef:{current:{isConnected:true,focus:()=>focused++}},setRequest:value=>context.requestRef.current=value,setReferenceReset:()=>{},setVideoInfo:()=>{},setPoseError:()=>{},setError:()=>{},poseError:"",setSourceSeed:()=>{},setSourceJob:()=>{},setNotice:()=>{},requestAnimationFrame:fn=>(frames.push(fn),frames.length),cancelAnimationFrame:()=>{}});
  vm.runInContext(code+'\nthis.readJob=readJob;this.restore=restore;',context);return {context,body,origin,other,frames,focused:()=>focused};
 }
 test('Fun Control 이력 조회는 본문 읽기 중에도 상위 중단을 따른다',async()=>{
@@ -30,6 +46,14 @@ test('Fun Control 연속 복원은 첫 입력을 지키고 초점 이동과 새 
   if(mode==='moved')c.document.activeElement=f.other;if(mode==='review')c.reviewEpoch.current++;f.frames[0]();assert.equal(f.focused(),mode==='unchanged'?1:0);
  }
 });
+test('이력 입력 적용은 이전 포즈 오류를 지우되 다른 오류는 보존한다',()=>{
+ for(const prior of ['포즈 오류','다른 오류']){
+  const f=fixture(()=>{}),c=f.context;let shown=prior,pose='포즈 오류';
+  c.poseError=pose;c.setPoseError=value=>pose=value;c.setError=update=>shown=update(shown);
+  c.restore({prompt:'복원',seed:1},{id:'id',inputAtStart:c.requestRef.current,attachmentAtStart:0,checkingAtStart:false,reviewAtStart:0,focusAtStart:f.origin,attachments:{images:[],pose_video:''}});
+  assert.equal(pose,'');assert.equal(shown,prior==='포즈 오류'?'':prior);
+ }
+});
 test('Fun Control 검토는 렌더 전 변경된 최신 입력을 사용한다',async()=>{
  const review=source.slice(source.indexOf('  async function review(event){'),source.indexOf('  function renderResult('));let pending;
  const context=vm.createContext({AbortController,setTimeout,clearTimeout,document:{activeElement:{}},reviewOrigin:{current:null},reviewRequest:{current:null},interactionRef:{current:{busy:false,pending:null}},imageChecking:{current:false},attachmentProcessing:{current:false},attachmentRevision:{current:0},reviewEpoch:{current:0},requestRef:{current:{prompt:'최신',frames:'21'}},settings:[['frames']],embedded:false,session:'',setBusy:()=>{},setError:()=>{},setHandoffReview:()=>{},setPending:value=>pending=value});
@@ -45,7 +69,7 @@ test('Fun Control 검토는 중복과 지연을 처리하고 입력 변경 시 �
  }
 });
 test('Fun Control 검토 열기는 사용자가 옮긴 초점을 유지한다',()=>{
- const effect=source.match(/useEffect\(\(\)=>\{if\(pending && \(document\.activeElement===document\.body.*?\},\[pending\]\);/)?.[0];assert.ok(effect);
+ const effect=source.match(/useEffect\(\(\)=>\{if\(!pending\)return;const origin=reviewOrigin\.current;.*?\},\[pending\]\);/)?.[0];assert.ok(effect);
  for(const moved of [false,true]){const body={},origin={},other={};let run,focused=0;
   const c=vm.createContext({useEffect:fn=>run=fn,pending:{},document:{body,activeElement:moved?other:origin},reviewOrigin:{current:origin},reviewRef:{current:{focus:()=>focused++}}});vm.runInContext(effect,c);run();assert.equal(focused,moved?0:1);
  }

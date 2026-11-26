@@ -142,7 +142,7 @@ export default function TranslationPage({embedded=false,session:embeddedSession=
       <p>번역 결과와 지정한 용어가 의도에 맞는지 확인한 뒤 사용하세요. 모델이 준비되지 않으면 모델 준비 상태에서 필요한 조치를 확인하세요.</p>
     </GeneratorSectionCard>
     <GeneratorSectionNavigation inputRef={inputRegion} historyRef={historyRegion} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
-    <GeneratorSectionCard title="모델 준비 상태" summary={modelError ? "조회 실패" : !model ? "확인 중" : generationReady(model) ? "준비됨" : "준비 필요"}><ModelReadiness session={embeddedSession || query.get("session") || ""} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
+    <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={embeddedSession || query.get("session") || ""} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={historyRevision} onOpenResult={id=>openGeneratorHistory(historyRegion,id,()=>{setRecord(null);setJob(id);})}/>
     {pending && <p id={lockedId}>아래 번역 요청을 확인하거나 입력 수정을 선택하세요.</p>}
     <fieldset className="translation-workflow" disabled={Boolean(pending)} aria-describedby={pending ? lockedId : undefined}><legend className="generator-visually-hidden">번역 입력과 이력</legend><GeneratorSectionCard title="번역 입력" summary="원문과 용어" defaultOpen cardRef={inputCard}><div ref={inputRegion} className="translation-input" tabIndex={-1} aria-label="번역 입력"><label>한국어 원문 <textarea ref={textRef} value={text} onChange={e=>{const value=e.target.value;inputRef.current={...inputRef.current,text:value};setText(value);}}/></label>

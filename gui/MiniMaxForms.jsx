@@ -85,13 +85,14 @@ export default function MiniMaxForms({session,initialFormId=''}) {
         <dt>크기</dt><dd>{selected.request.width}×{selected.request.height}</dd>
         <dt>시드</dt><dd>{selected.request.seed ?? '미지정'}</dd>
         <dt>스텝</dt><dd>{selected.request.steps}</dd>
+        {selected.service==='minimax-h3-image' && <><dt>샘플러</dt><dd>{selected.request.sampler==='lcm' ? 'LCM · 실험' : selected.request.sampler==='euler' ? 'Euler' : '작업 이력에서 확인'}</dd></>}
         {selected.service==='minimax-h3-i2v' && <><dt>프레임</dt><dd>{selected.request.frames}</dd></>}<dt>참조 이미지</dt><dd>{selected.request.images?.length || 0}장</dd>
       </dl> : <form onSubmit={save}>
       {dirty && <p role="status">저장하지 않은 수정 내용이 있습니다. 대화로 접수하기 전에 폼 수정 저장을 눌러 주세요.</p>}
       <fieldset disabled={busy || selected.state!=='editing'} aria-describedby={busy ? busyId : undefined}><label>프롬프트<textarea required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
       <SeedInput value={seed} max={seedMax} error={invalidSeed ? `0~${seedMax}의 정수를 입력하세요.` : ""} onChange={setSeed}/>
       <Fields {...{selected,size,setSize,file,setFile,setChecking,busy,references,setReferences,setReferenceChecking}}/>
-      <p>설정: {selected.request.steps}스텝{selected.request.frames && ' · '+selected.request.frames+'프레임'}{selected.service==='minimax-h3-i2v' && ' · '+selected.request.width+'×'+selected.request.height}</p>
+      <p>설정: {selected.request.steps}스텝{selected.service==='minimax-h3-image' && ' · 샘플러 LCM · 기본 · 실험'}{selected.request.frames && ' · '+selected.request.frames+'프레임'}{selected.service==='minimax-h3-i2v' && ' · '+selected.request.width+'×'+selected.request.height}</p>
       <button type="submit" disabled={checking || referenceChecking.some(Boolean)} aria-describedby={checking || referenceChecking.some(Boolean) ? checkingId : undefined}>{checking || referenceChecking.some(Boolean)?'이미지 확인 중':'폼 수정 저장'}</button></fieldset>
       {busy && <p id={busyId} role="status">접수폼 요청을 처리하고 있습니다. 완료 후 수정할 수 있습니다.</p>}
       {(checking || referenceChecking.some(Boolean)) && <p id={checkingId} role="status">이미지 확인이 끝난 뒤 폼을 저장할 수 있습니다.</p>}

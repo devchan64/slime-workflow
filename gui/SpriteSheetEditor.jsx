@@ -5,6 +5,7 @@ import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
 import ActionButton from "./ActionButton.jsx";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 
 import editSpriteFrames from "./editSpriteFrames.mjs";
 import applySpriteCanvas from "./applySpriteCanvas.mjs";
@@ -122,7 +123,9 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
   const sheetSizeIssues=spriteOutputSizeIssues(rows,columns);
   const gifSizeIssues=invalidRange ? [] : spriteOutputSizeIssues(rows.slice(Number(first)-1,Number(last)),4,true);
   const [review,setReview]=useState(null),[restoredFeet,setRestoredFeet]=useState({});
-  const canvas=useRef(null),frameTableRef=useRef(null),reviewRef=useRef(null),reviewTrigger=useRef(null),saving=useRef(false);
+  const canvas=useRef(null),frameTableRef=useRef(null),reviewRef=useRef(null),reviewTrigger=useRef(null),saving=useRef(null),exportRequest=useRef(null),exportFocus=useRef(false),exportErrorRef=useRef(null),exportResultRef=useRef(null);
+  useEffect(()=>()=>{const request=exportRequest.current,saveRequest=saving.current;exportRequest.current=null;saving.current=null;request?.abort();saveRequest?.abort();},[]);
+  useEffect(()=>{if(busy || (!error && !result) || !exportFocus.current)return;exportFocus.current=false;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(error ? exportErrorRef.current : exportResultRef.current)));return ()=>cancelAnimationFrame(frame);},[busy,error,result]);
   useEffect(()=>{if(review && (document.activeElement===reviewTrigger.current || document.activeElement===document.body))reviewRef.current?.focus();},[review]);
   function readBodyReference(){
     if(original?.source!=="assets")return null;
@@ -137,7 +140,10 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
     editRows(rows.map((row,i)=>i===index?{...row,[field]:value}:row));
   }
   async function exportSheet(event){
-    event.preventDefault();setBusy(true);setResult(null);setError("");
+    event.preventDefault();if(exportRequest.current || saving.current)return;
+    const controller=new AbortController();let timedOut=false;exportRequest.current=controller;exportFocus.current=event.currentTarget.contains(document.activeElement);
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setBusy(true);setResult(null);setError("");
     try{
       const gif=event.nativeEvent.submitter?.value==="gif";
       if((gif ? rows.slice(Number(first)-1,Number(last)) : rows).some(spriteFrameIssue))throw new Error("프레임 크롭과 앵커 입력을 확인하세요.");
@@ -162,19 +168,22 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
           const next=payload.frames[i];
           return ["x","y","width","height"].some(key=>rect[key]!==next[key]) || anchor.x!==next.anchorX || anchor.y!==next.anchorY;
         }).length:count;
-        setReview({payload,changed,bodyReference:readBodyReference()});return;
+        exportFocus.current=false;setReview({payload,changed,bodyReference:readBodyReference()});return;
       }
       if(gif)payload.fps=Number(fps);
-      const record=await managementCommand("character-animation",gif?"sheet-gif":"sheet-export",payload);
+      const record=await untilAborted(managementCommand("character-animation",gif?"sheet-gif":"sheet-export",payload,{signal:controller.signal}),controller.signal);
+      if(exportRequest.current!==controller)return;
       if(!record.id || (gif?!record.gif:!record.image || !record.coordinates))throw new Error("내보내기 결과를 확인할 수 없습니다.");
       setResult(record);
-    }catch(problem){setError(requestErrorMessage(problem));}
-    finally{setBusy(false);}
+    }catch(problem){if(exportRequest.current===controller && (!controller.signal.aborted || timedOut))setError(timedOut ? "내보내기 응답 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}
+    finally{clearTimeout(timeout);if(exportRequest.current===controller){exportRequest.current=null;setBusy(false);}}
   }
   async function save(){
     if(saving.current || !review)return;
-    saving.current=true;
-    let requested=false;
+    const controller=new AbortController();saving.current=controller;
+    let requested=false,timedOut=false;
+    exportFocus.current=Boolean(reviewRef.current?.contains(document.activeElement));
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setError("");
     try{
       const request={path:original.path,metadataSha256:original.metadataSha256,payload:review.payload,confirm:true};
@@ -183,11 +192,12 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
       }
       if(review.bodyReference)request.bodyReference=review.bodyReference;
       if(original.source==="baseline")request.source="baseline";
-      requested=true;const record=await managementCommand("character-animation","sheet-update",request);
+      requested=true;const record=await untilAborted(managementCommand("character-animation","sheet-update",request,{signal:controller.signal}),controller.signal);
+      if(saving.current!==controller)return;
       if(!record.id || record.path!==original.path)throw new Error("원본 갱신 결과를 확인할 수 없습니다.");
       onSaved(record);
-    }catch(problem){setError((requested ? "원본 갱신 결과를 확인하지 못했습니다. 다시 요청하기 전에 원본과 갱신 기록을 확인하세요. · " : "")+requestErrorMessage(problem));}
-    finally{saving.current=false;setBusy(false);setReview(null);}
+    }catch(problem){if(saving.current===controller && (!controller.signal.aborted || timedOut))setError((requested ? "원본 갱신 결과를 확인하지 못했습니다. 다시 요청하기 전에 원본과 갱신 기록을 확인하세요. · " : "")+(timedOut ? "응답 시간이 초과됐습니다." : requestErrorMessage(problem)));}
+    finally{clearTimeout(timeout);if(saving.current===controller){saving.current=null;setBusy(false);setReview(null);}}
   }
   return <form onSubmit={exportSheet}><fieldset disabled={busy} aria-describedby={busy ? busyId : undefined}><legend>크롭과 앵커 편집</legend>
     <div ref={frameTableRef} className="sprite-frame-table"><ResultTable table={{title:"등록 프레임 좌표",summary:frames.length+"프레임",columns:["프레임",...labels],
@@ -218,8 +228,8 @@ function FrameEditor({image,frames,initialColumns=4,bounds,original,onSaved}){
       <button value="gif" disabled={invalidRange || gifSizeIssues.length>0 || (!invalidRange && frameIssues.slice(Number(first)-1,Number(last)).some(Boolean))} aria-describedby={[invalidRange && rangeErrorId,gifSizeIssues.length>0 && gifSizeErrorId,!invalidRange && frameIssues.slice(Number(first)-1,Number(last)).some(Boolean) && frameErrorId].filter(Boolean).join(" ") || undefined}>선택 범위 GIF 내보내기</button>
     </fieldset></fieldset>
     {busy && <p id={busyId} role="status">내보내기 또는 원본 갱신을 처리하고 있습니다. 완료 후 편집할 수 있습니다.</p>}
-    {error && <p role="alert">{error}</p>}
-    {result && <section><p role="status">내보내기 완료 · {result.id}</p>
+    {error && <p ref={exportErrorRef} tabIndex={-1} role="alert">{error}</p>}
+    {result && <section ref={exportResultRef} tabIndex={-1} aria-label="내보내기 결과"><p role="status">내보내기 완료 · {result.id}</p>
       {result.gif?<><p>{result.frameCount}프레임 · 프레임당 {result.durationMs}ms</p>
         <a download="preview.gif" href={"data:image/gif;base64,"+result.gif}>GIF 다운로드</a></>:<><a href={"data:image/png;base64,"+result.image} download="sprite-sheet.png">시트 PNG 다운로드</a>{" · "}
       <a href={"data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(result.coordinates,null,2))} download="coordinates.json">좌표맵 JSON 다운로드</a></>}
@@ -388,23 +398,28 @@ function LocalSheet(){
   const [file,setFile]=useState(null),[detail,setDetail]=useState(null);
   const [busy,setBusy]=useState(false),[error,setError]=useState(""),[revision,setRevision]=useState(0);
   const [pending,setPending]=useState(null);
-  const changeTrigger=useRef(null);
-  async function load(target=file){
+  const changeTrigger=useRef(null),loadRequest=useRef(null),restoreLoadFocus=useRef(false),loadErrorRef=useRef(null),loadButtonRef=useRef(null);
+  useEffect(()=>()=>{const request=loadRequest.current;loadRequest.current=null;request?.abort();},[]);
+  useEffect(()=>{if(busy || !restoreLoadFocus.current)return;restoreLoadFocus.current=false;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(error ? loadErrorRef.current : loadButtonRef.current)));return ()=>cancelAnimationFrame(frame);},[busy,error,revision]);
+  async function load(target=file,focused=false){
+    if(loadRequest.current)return;
+    const controller=new AbortController();let timedOut=false;loadRequest.current=controller;restoreLoadFocus.current=focused;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setError("");
     try{
-      const result=await readLocalSheet(target);
-      setDetail(result);setRevision(n=>n+1);setPending(null);
-    }catch(problem){setError(requestErrorMessage(problem));}
-    finally{setBusy(false);}
+      const result=await untilAborted(readLocalSheet(target),controller.signal);
+      if(loadRequest.current===controller){setDetail(result);setRevision(n=>n+1);setPending(null);}
+    }catch(problem){if(loadRequest.current===controller && (!controller.signal.aborted || timedOut))setError(timedOut ? "로컬 시트 확인 시간이 초과됐습니다. 다시 시도하세요." : problem?.message ? requestErrorMessage(problem) : "PNG 시트를 읽을 수 없습니다. 다시 시도하세요.");}
+    finally{clearTimeout(timeout);if(loadRequest.current===controller){loadRequest.current=null;setBusy(false);}}
   }
-  return <details className="sprite-local-sheet"><summary>로컬 PNG 편집</summary>
+  return <details className="sprite-local-sheet"><summary>로컬 PNG 편집{error && " · 파일 오류"}</summary>
     <fieldset disabled={busy || !!pending} aria-describedby={busy?busyId:pending?confirmId:undefined}><legend className="generator-visually-hidden">로컬 시트 파일</legend><label>시트 PNG<input type="file" accept="image/png" onChange={e=>{
       setFile(e.target.files[0] || null);setError("");
     }}/></label>
-    <ActionButton type="button" reasons={[!file && "열려면 PNG 시트 파일을 선택하세요."]} onClick={()=>{if(detail){changeTrigger.current=document.activeElement;setPending(file);}else load(file);}}>{busy ? "시트 확인 중…" : detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</ActionButton></fieldset>
+    <ActionButton buttonRef={loadButtonRef} type="button" reasons={[!file && "열려면 PNG 시트 파일을 선택하세요."]} onClick={event=>{if(detail){changeTrigger.current=document.activeElement;setPending(file);}else load(file,document.activeElement===event.currentTarget);}}>{busy ? "시트 확인 중…" : detail?"편집 중인 로컬 시트 교체":"로컬 시트 열기"}</ActionButton></fieldset>
     {busy && <p id={busyId} role="status">로컬 시트 파일을 확인하고 있습니다.</p>}
-    {pending && <LocalSheetReplaceConfirmation name={pending.name} busy={busy} returnFocus={changeTrigger.current} descriptionId={confirmId} onConfirm={()=>load(pending)} onCancel={()=>setPending(null)}/>}
-    {error && <p role="alert">{error}{detail && " 기존 편집 내용은 유지됩니다."}</p>}
+    {pending && <LocalSheetReplaceConfirmation name={pending.name} busy={busy} returnFocus={changeTrigger.current} descriptionId={confirmId} onConfirm={event=>load(pending,document.activeElement===event.currentTarget)} onCancel={()=>{setPending(null);setError("");}}/>}
+    {error && <p ref={loadErrorRef} tabIndex={-1} role="alert">{error}{detail && " 기존 편집 내용은 유지됩니다."}</p>}
     {detail && <SheetView key={revision} path={detail.path} detail={detail}/>}
   </details>;
 }
@@ -420,7 +435,7 @@ export default function SpriteSheetEditor(){
   const [source,setSource]=useState(link.source || "assets"),[query,setQuery]=useState(link.animation || "");
   const [request,setRequest]=useState(link.animation?{source:"assets",query:link.animation,linked:true}:null);
   const [items,setItems]=useState(null),[selected,select]=useState(link.path || "");
-  const [error,setError]=useState(link.error || "");
+  const [error,setError]=useState(link.error || ""),[searchBusy,setSearchBusy]=useState(Boolean(link.animation));
   const [pendingChange,setPendingChange]=useState(null);
   const changeDescriptionId=useId(),searchStatusId=useId();
   const changeTrigger=useRef(null),searchRef=useRef(null),selectionFocus=useRef(null),sheetRegion=useRef(null);
@@ -429,6 +444,7 @@ export default function SpriteSheetEditor(){
     let active=true,timedOut=false;
     const controller=new AbortController();
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setSearchBusy(true);
     untilAborted(managementCommand("character-animation","sheet-search",{source:request.source,query:request.query},{signal:controller.signal}),controller.signal).then(result=>{
       if(!active)return;
       if(!Array.isArray(result?.items) || result.items.some(item=>!item || typeof item.path!=="string" || !item.path || typeof item.label!=="string"))throw new Error("스프라이트 검색 결과 형식을 확인할 수 없습니다.");
@@ -438,7 +454,7 @@ export default function SpriteSheetEditor(){
         if(match)select(match);
         else setError("동작 ID에 연결된 시트가 없거나 여러 개입니다. 검색 결과에서 원본을 선택하세요.");
       }
-    }).catch(problem=>{if(active)setError(timedOut ? "스프라이트 검색 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>clearTimeout(timeout));
+    }).catch(problem=>{if(active)setError(timedOut ? "스프라이트 검색 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>{clearTimeout(timeout);if(active)setSearchBusy(false);});
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[request]);
   function applyChange(change){
@@ -446,7 +462,7 @@ export default function SpriteSheetEditor(){
       if(change.path===selected){sheetRegion.current?.focus();return;}
       selectionFocus.current=document.activeElement;select(change.path);return;
     }
-    setSource(change.source);setItems(null);setError("");select("");setRequest({source:change.source,query:change.query});
+    if(change.source!==source)setItems(null);setSource(change.source);setSearchBusy(true);setError("");select("");setRequest({source:change.source,query:change.query});
   }
   function requestChange(change){
     if(selected && (change.kind!=="select" || change.path!==selected)){changeTrigger.current=document.activeElement;setPendingChange(change);}
@@ -455,7 +471,6 @@ export default function SpriteSheetEditor(){
   function search(nextSource){
     requestChange({kind:"search",source:nextSource,query});
   }
-  const searchBusy=Boolean(request && !items && !error);
   return <article className="sprite-editor-page"><h1>스프라이트 시트 편집기</h1><LocalSheet/>
     <form className="sprite-search" aria-busy={searchBusy} onSubmit={event=>{event.preventDefault();search(source);}}>
       <label>검색 원본<select value={source} disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} onChange={event=>search(event.target.value)}>
@@ -464,12 +479,13 @@ export default function SpriteSheetEditor(){
       {query && <button type="button" disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} onClick={()=>{setQuery("");searchRef.current?.focus();}}>검색어 지우기</button>}
       <button disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:searchBusy?searchStatusId:undefined}>원본 검색</button>
     </form>
-    {request && query!==request.query && <p role="status">검색어가 변경되었습니다. 아래 결과는 이전 검색 조건입니다. 원본 검색을 눌러 적용하세요.</p>}
-    {error && <div role="alert"><p>{error}</p>{request && !items && <button type="button" onClick={event=>{if(document.activeElement===event.currentTarget)searchRef.current?.focus();setError("");setRequest({...request});}}>이전 조건으로 다시 검색</button>}</div>}
-    {searchBusy && <p id={searchStatusId} role="status">스프라이트 검색 중…</p>}
-    {items?.length === 0 && query===request?.query && <p role="status">일치하는 시트가 없습니다. 검색어를 바꾸거나 지운 후 원본 검색을 누르세요.</p>}
+    {request && query!==request.query && <p role="status">검색어가 변경되었습니다. {items?.length === 0 ? "이전 검색 조건에 일치하는 시트가 없었습니다." : items?.length ? "아래 결과는 이전 검색 조건입니다." : "표시된 검색 결과가 없습니다."} 원본 검색을 눌러 적용하세요.</p>}
+    {error && <div role="alert"><p>{error}</p>{request && <button type="button" disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} onClick={event=>{if(document.activeElement===event.currentTarget)searchRef.current?.focus();setSearchBusy(true);setError("");setRequest({...request});}}>이전 조건으로 다시 검색</button>}</div>}
+    {searchBusy && <p id={searchStatusId} role="status">스프라이트 검색 중…{items && (items.length ? " 이전 검색 결과를 표시합니다." : " 이전 검색 결과는 없습니다.")}</p>}
+    {error && items && <p role="status">{items.length ? "이전 검색 결과를 표시합니다. 검색 결과를 다시 확인하세요." : "이전 검색 결과가 없습니다. 검색을 다시 시도하세요."}</p>}
+    {!searchBusy && !error && items?.length === 0 && query===request?.query && <p role="status">일치하는 시트가 없습니다. 검색어를 바꾸거나 지운 후 원본 검색을 누르세요.</p>}
     {items && <ResultTable table={{title:"검색 결과",summary:items.length+"개 시트",columns:["스프라이트","원본 경로"],
-      rows:items.map(item=>[<button type="button" disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} aria-current={selected===item.path ? "true" : undefined} onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}{selected===item.path && " · 선택됨"}</button>,item.path])}}/>}
+      rows:items.map(item=>[<button type="button" disabled={!!pendingChange || searchBusy} aria-describedby={pendingChange?changeDescriptionId:searchBusy?searchStatusId:undefined} aria-current={selected===item.path ? "true" : undefined} onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}{selected===item.path && " · 선택됨"}</button>,item.path])}}/>}
     {pendingChange && <SheetSourceChangeConfirmation change={pendingChange} returnFocus={changeTrigger.current} descriptionId={changeDescriptionId} onConfirm={()=>{const change=pendingChange;setPendingChange(null);applyChange(change);}} onCancel={()=>setPendingChange(null)}/>}
     {selected && <Sheet key={source+":"+selected} path={selected} source={source} focusFrom={selectionFocus.current} region={sheetRegion}/>}
   </article>;

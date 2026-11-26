@@ -10,6 +10,9 @@ def execute_model_preparation_command(current_service_name, current_command_name
     if current_service_name in current_audio_services and current_command_name == 'prepare':
         return execute_remote_management_command(current_service_name, 'download-model', {})
     current_result_record = execute_remote_management_command(current_service_name, current_command_name, current_payload_record)
+    if current_service_name == 'minimax-h3-image' and current_command_name == 'model-status':
+        return {**current_result_record, 'can_prepare': False,
+                'prepare_blocked_reason': '이 모델은 관리 화면에서 다운로드할 수 없습니다. 설치된 파일 상태를 확인하세요.'}
     if not current_prepare_allowed and current_command_name == 'model-status':
         current_result_record = {**current_result_record, 'generation_ready': False, 'can_prepare': False, 'prepare_blocked_reason': '현재 서비스 정책상 모델 다운로드가 중단되었습니다.'}
     if current_service_name not in ('wan22-fun-control', *current_audio_services) or current_command_name != 'model-status':

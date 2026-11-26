@@ -13,6 +13,7 @@ import {qwenArchiveUrl} from "./qwenArchiveUrl.mjs";
 
 function ArchiveDetail({service,id}){
   const [log,setLog]=useState(null),[error,setError]=useState(""),[loading,setLoading]=useState(false);
+  const [checkedAt,setCheckedAt]=useState(null);
   const statusId=useId(),errorId=useId();
   const request=useRef(null);
   useEffect(()=>()=>{const active=request.current;request.current=null;active?.abort();},[]);
@@ -25,7 +26,7 @@ function ArchiveDetail({service,id}){
     try{
       const result=await untilAborted(managementCommand(service,"logs",{id},{signal:controller.signal}),controller.signal);
       if(!result || typeof result!=="object" || typeof result.log!=="string")throw new Error("작업 로그 응답 형식을 확인할 수 없습니다.");
-      if(request.current===controller)setLog(result.log || "기록된 로그가 없습니다.");
+      if(request.current===controller){setLog(result.log);setCheckedAt(new Date());}
     }catch(problem){
       if(request.current===controller)setError(timedOut ? "로그 조회 시간이 초과됐습니다. 다시 시도하세요." : /(?:no such file or directory|enoent)/i.test(problem?.message || "") ? "보관된 작업의 실행 로그를 찾을 수 없습니다. 작업 ID와 이력을 확인하세요." : requestErrorMessage(problem));
     }finally{
@@ -36,8 +37,9 @@ function ArchiveDetail({service,id}){
   return <><MediaJobResult service={service} kind="image" id={id}/>
     <button type="button" aria-disabled={loading} aria-describedby={loading ? statusId : error ? errorId : undefined} onClick={readLog}>{loading ? "로그 조회 중" : "실행 로그 조회"}</button>
     {loading && <p id={statusId} role="status">실행 로그를 불러오고 있습니다.</p>}
-    {log!==null && (loading || error) && <p>아래는 마지막으로 조회한 로그입니다.</p>}
-    {log!==null && <pre className="generator-job-log" tabIndex={0} role="region" aria-label="보관된 작업 실행 로그">{log}</pre>}{error && <p id={errorId} role="alert">{error}</p>}</>;
+    {checkedAt && <p>로그 마지막 조회 성공 · {checkedAt.toLocaleString("ko-KR")}</p>}
+    {log!==null && (loading || error) && <p>{log ? "아래는 마지막으로 조회한 로그입니다." : "마지막 조회에서 기록된 로그가 없었습니다."}</p>}
+    {log!==null && (log ? <pre className="generator-job-log" tabIndex={0} role="region" aria-label="보관된 작업 실행 로그">{log}</pre> : !loading && !error && <p role="status">기록된 로그가 없습니다.</p>)}{error && <p id={errorId} role="alert">{error}</p>}</>;
 }
 
 export default function QwenArchive(){

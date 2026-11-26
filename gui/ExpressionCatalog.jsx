@@ -42,14 +42,14 @@ export default function ExpressionCatalog({query,choose}) {
     setPagination({query,cursor:next});
   }
   return <section className="expression-catalog" aria-label="표정 프리셋 검색">
-    {error && <><p ref={errorRef} tabIndex={-1} role="alert">{error}{page && " 이전 조회 결과를 유지합니다."}</p><button type="button" onClick={event=>navigate(event,{})}>처음부터 다시 조회</button></>}
-    {loading && page && <p role="status">새 목록 조회 중 · 아래는 이전 결과입니다.</p>}
+    {error && <><p ref={errorRef} tabIndex={-1} role="alert">{error}{page && (page.records.length ? " 이전 조회 결과를 유지합니다." : " 이전 조회에서 표시할 표정이 없었습니다.")}</p><button type="button" onClick={event=>navigate(event,{})}>처음부터 다시 조회</button></>}
+    {loading && page && <p role="status">새 목록 조회 중 · {page.records.length ? "아래는 이전 결과입니다." : "이전 조회에서 표시할 표정이 없었습니다."}</p>}
     {!error && !page && <p role="status">표정 조회 중…</p>}
     {page && <>
       <p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p>
-      {pageQuery!==query && <p role="status">검색 조건이 변경되어 아래는 이전 검색 결과입니다.</p>}
+      {pageQuery!==query && !loading && <p role="status">검색 조건이 변경되었습니다. {page.records.length ? "아래는 이전 검색 결과입니다." : "이전 검색에서 표시할 표정이 없었습니다."}</p>}
 
-      <div ref={listRef} tabIndex={-1} aria-label="등록 표정 결과">{page.records.length===0 ? <><h3>등록 표정</h3><p role="status">검색 조건에 맞는 표정이 없습니다.</p></> : <ResultTable table={{title:"등록 표정",summary:"전체 "+page.total+"개 · "+(page.offset+1)+"–"+(page.offset+page.records.length)+"번째",columns:["표정","ID와 동작"],
+      <div ref={listRef} tabIndex={-1} aria-label="등록 표정 결과">{page.records.length===0 ? <><h3>등록 표정</h3><p role="status">{loading || error || pageQuery!==query ? "이전 조회에서 표시할 표정이 없었습니다." : "검색 조건에 맞는 표정이 없습니다."}</p></> : <ResultTable table={{title:"등록 표정",summary:"전체 "+page.total+"개 · "+(page.offset+1)+"–"+(page.offset+page.records.length)+"번째",columns:["표정","ID와 동작"],
         rows:page.records.map(row=>[row.label,<div className="expression-catalog-action"><code>{row.id}</code><button type="button" aria-label={row.label+" 표정을 대화 입력에 추가"} onClick={()=>choose("표정 "+row.label,row.id)}>입력에 추가</button></div>])}}/>}</div>
       {(page.offset>0 || page.next_offset!=null) && <nav className="expression-catalog-pagination" aria-label="표정 목록 페이지">
       {(loading || error || pageQuery!==query) && <p id={pageReasonId}>{loading ? "목록 조회가 끝나면 페이지를 이동할 수 있습니다." : error ? "목록을 다시 조회한 뒤 페이지를 이동하세요." : "변경된 검색 결과를 확인한 뒤 페이지를 이동하세요."}</p>}

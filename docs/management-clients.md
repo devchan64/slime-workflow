@@ -1160,6 +1160,8 @@ GUI와 `map-assets building-save`는 `shadowShape`(`circle`/`rectangle`), `shado
 
 MiniMax가 참조하는 Hugging Face 캐시는 프로젝트의 `.cache/huggingface`에 있으며 Git과 `.model` 백업 대상에서 제외된다. 이전 Samba의 `huggingface` 디렉터리나 과거 스냅샷은 별도로 보존된다. 캐시 전체의 백업·복원과 심볼릭 링크 보존은 모델 스냅샷의 보장 범위가 아니다.
 
+모델 관리의 **MiniMax H3 이미지 · 파일 상태**는 설치된 파일과 생성 준비 상태를 조회한다. CLI에서는 `python3 tools/manager.py model status minimax-h3-image`로 같은 상태를 확인할 수 있다. 이 항목은 관리 화면의 다운로드 및 다운로드 기록을 지원하지 않는다. 파일 크기 확인은 GPU 추론이나 종료 후 메모리 반환 검증을 뜻하지 않는다.
+
 고정 SHA-256으로 검증할 수 있는 HTTP 및 지원 Hugging Face 다운로드는 등록된 백업과 완료된 스냅샷을 먼저 확인한다. 공급처 해시가 없는 파일이나 백업을 검증하지 못한 경우 기존 다운로드 경로를 사용한다. FLUX 준비 디렉터리는 최종 모델 경로에 대응하는 백업을 확인하며, Kimodo는 고정 SHA-256이 등록된 가중치를 네트워크 요청 전에 백업에서 확인한다.
 
 ## Qwen 모델 다운로드
@@ -1204,4 +1206,4 @@ MiniMax 대화 접수 ID는 `flux_`에 `sha256(json.dumps([session_id, proposal_
 
 `python3 tools/manager.py command minimax-h3-image generate --prompt-file <UTF-8 파일> --reference <PNG> --seed <시드> --width 832 --height 480 --detach`로 참조를 전달한다. `--reference`는 순서대로 최대 두 번 지정하며 장당 3MB 이하다. GUI와 동일한 서비스에서 최종 형식과 입력을 검증한다. 이력의 입력 적용으로 저장된 설정과 참조 사본을 복원할 수 있다.
 
-MiniMax H3 이미지 독립 화면과 CLI는 `--sampler euler|lcm`을 지원한다. 기본값 Euler이며 LCM은 실험 기능이다. 요청·이력·결과에 선택과 노이즈 설정을 기록한다. 대화 접수폼은 Euler만 지원한다.
+MiniMax H3 이미지 독립 화면과 CLI는 `--sampler euler|lcm`을 지원한다. 새 요청의 기본값은 실험 기능인 LCM이며 Euler를 선택할 수 있다. 요청·이력·결과에 선택과 노이즈 설정을 기록한다. 대화 접수폼의 새 요청도 LCM을 사용하고 과거 샘플러 미기록 이력은 Euler로 해석한다.

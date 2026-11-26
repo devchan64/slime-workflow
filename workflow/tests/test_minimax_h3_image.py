@@ -41,7 +41,8 @@ class MiniMaxH3ImageTests(unittest.TestCase):
                 validate_request({**self.request, **changes})
 
     def test_sampler_contract_and_legacy_default(self):
-        self.assertEqual(validate_request(self.request)['sampler'], 'euler')
+        self.assertEqual(validate_request(self.request)['sampler'], 'lcm')
+        self.assertEqual(validate_request({**self.request, 'sampler': 'euler'})['sampler'], 'euler')
         lcm = validate_request({**self.request, 'sampler': 'lcm'})
         self.assertEqual(lcm['sampler'], 'lcm')
         verify_saved_request(lcm)

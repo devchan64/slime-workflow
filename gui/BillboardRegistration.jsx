@@ -1,5 +1,5 @@
 import React,{useEffect,useId,useRef,useState} from "react";
-import {managementCommand} from "./managementCommand.js";
+import {managementCommand,untilAborted} from "./managementCommand.js";
 import {readBillboardRegistration,confirmedBillboardRegistration} from "./readBillboardRegistration.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import {requestErrorMessage} from "./requestError.mjs";
@@ -7,8 +7,8 @@ import {requestErrorMessage} from "./requestError.mjs";
 export default function BillboardRegistration({onSaved}){
   const [file,setFile]=useState(null),[review,setReview]=useState(null);
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(""),[messageError,setMessageError]=useState(false);
-  const helpId=useId(),requiredId=useId(),busyId=useId(),previewRequest=useRef(null),saving=useRef(false),details=useRef(null),previewButton=useRef(null),saveButton=useRef(null),reviewHeading=useRef(null),status=useRef(null),restoreFocus=useRef(false);
-  useEffect(()=>()=>{previewRequest.current?.abort();previewRequest.current=null;},[]);
+  const helpId=useId(),requiredId=useId(),busyId=useId(),previewRequest=useRef(null),saving=useRef(null),details=useRef(null),previewButton=useRef(null),saveButton=useRef(null),reviewHeading=useRef(null),status=useRef(null),restoreFocus=useRef(false);
+  useEffect(()=>()=>{const preview=previewRequest.current,request=saving.current;previewRequest.current=null;saving.current=null;preview?.abort();request?.abort();},[]);
   useEffect(()=>{
     if(busy || !restoreFocus.current)return;
     restoreFocus.current=false;
@@ -30,16 +30,17 @@ export default function BillboardRegistration({onSaved}){
   async function save(){
     if(!review || saving.current)return;
     restoreFocus.current=document.activeElement===saveButton.current;
-    saving.current=true;
+    const controller=new AbortController();saving.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setMessage("");setMessageError(false);
     let result;
     try{
-      result=await managementCommand("map-assets","asset-register",review);
+      result=await untilAborted(managementCommand("map-assets","asset-register",review,{signal:controller.signal}),controller.signal);
+      if(saving.current!==controller)return;
       if(!confirmedBillboardRegistration(review,result))throw new Error("등록 응답이 검토한 대상과 일치하지 않습니다.");
     }catch(problem){
-      setMessageError(true);setMessage(requestErrorMessage(problem)+" · 접수 "+review.requestId+" · 결과가 불확실합니다. 다시 요청하기 전에 목록과 접수 기록을 확인하세요.");
-      setReview(null);return;
-    }finally{saving.current=false;setBusy(false);}
+      if(saving.current===controller && (!controller.signal.aborted || timedOut)){setMessageError(true);setMessage((timedOut ? "응답 시간이 초과됐습니다." : requestErrorMessage(problem))+" · 접수 "+review.requestId+" · 결과가 불확실합니다. 다시 요청하기 전에 목록과 접수 기록을 확인하세요.");setReview(null);}return;
+    }finally{clearTimeout(timeout);if(saving.current===controller){saving.current=null;setBusy(false);}}
     const label=typeof result.asset==="string" ? " · "+result.asset : "";
     setMessage("등록 완료"+label);setReview(null);
     try{onSaved();}catch{setMessage("등록 완료"+label+" · 목록을 새로고침해 확인하세요.");}

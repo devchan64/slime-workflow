@@ -471,12 +471,14 @@ function ActivityEvent({start,result,running,job,session}){
 }
 function ToolResultPanel({selection}){
   const {job,session,start,result,label}=selection;
-  const [data,setData]=useState(null),[error,setError]=useState('');
-  useEffect(()=>{if(!result?.call_id)return;let active=true;const controller=new AbortController();
-    managementCommand('hermes-agent','hermes-tool-result',{session_id:session,id:job,call_id:result.call_id},{signal:controller.signal}).then(value=>{if(active){if(value.id!==job || value.call_id!==result.call_id || typeof value.output!=='string')throw Error('도구 결과가 일치하지 않습니다.');setData(value);}}).catch(problem=>{if(active && problem?.name!=='AbortError')setError(problem?.message || '도구 결과를 불러오지 못했습니다.');});
-    return ()=>{active=false;controller.abort();};},[job,session,result?.call_id]);
+  const [data,setData]=useState(null),[error,setError]=useState(''),[revision,setRevision]=useState(0);
+  const panelRef=useRef(null);
+  useEffect(()=>{if(!result?.call_id)return;let active=true,timedOut=false;const controller=new AbortController();
+    const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);setData(null);setError('');
+    untilAborted(managementCommand('hermes-agent','hermes-tool-result',{session_id:session,id:job,call_id:result.call_id},{signal:controller.signal}),controller.signal).then(value=>{if(active){if(value.id!==job || value.call_id!==result.call_id || typeof value.output!=='string')throw Error('도구 결과가 일치하지 않습니다.');setData(value);}}).catch(problem=>{if(active && (timedOut || !controller.signal.aborted))setError(timedOut ? '도구 결과 조회 시간이 초과됐습니다. 다시 확인하세요.' : problem?.message ? requestErrorMessage(problem) : '도구 결과를 불러오지 못했습니다.');}).finally(()=>clearTimeout(timer));
+    return ()=>{active=false;clearTimeout(timer);controller.abort();};},[job,session,result?.call_id,revision]);
   const full=data ? {...result,output:data.output,output_truncated:false} : null;
-  return <section className="hermes-activity-detail" aria-label="도구 결과 상세"><div className="activity-detail-header"><strong>{start?.name || result?.name || '도구'} · {label}</strong>{full && <CopyTextButton value={formatActivityCopy(start,full,label)} label="도구 활동 전체 복사" buttonLabel="전체 복사"/>}</div>{start?.target && <section><strong>실행 대상</strong><pre tabIndex={0}>{start.target}</pre></section>}{full ? <ActivityOutput output={full.output}/> : error ? <p role="alert">{error}</p> : <p role="status">{!result ? '아직 기록된 결과가 없습니다.' : !result.call_id ? '호출 ID가 없어 원문을 조회할 수 없습니다.' : '도구 결과 원문을 조회하고 있습니다.'}</p>}{result?.call_id && <small>호출 ID · {result.call_id}</small>}</section>;
+  return <section ref={panelRef} tabIndex={-1} className="hermes-activity-detail ui-focus-target" aria-label="도구 결과 상세"><div className="activity-detail-header"><strong>{start?.name || result?.name || '도구'} · {label}</strong>{full && <CopyTextButton value={formatActivityCopy(start,full,label)} label="도구 활동 전체 복사" buttonLabel="전체 복사"/>}</div>{start?.target && <section><strong>실행 대상</strong><pre tabIndex={0}>{start.target}</pre></section>}{full ? <ActivityOutput output={full.output}/> : error ? <div role="alert"><p>{error}</p><button type="button" onClick={event=>{if(document.activeElement===event.currentTarget)panelRef.current?.focus();setRevision(value=>value+1);}}>도구 결과 다시 조회</button></div> : <p role="status">{!result ? '아직 기록된 결과가 없습니다.' : !result.call_id ? '호출 ID가 없어 원문을 조회할 수 없습니다.' : '도구 결과 원문을 조회하고 있습니다.'}</p>}{result?.call_id && <small>호출 ID · {result.call_id}</small>}</section>;
 }
 function groupActivityEvents(events){
   const entries=[],calls=new Map();
@@ -550,7 +552,7 @@ function Message() {
       {copyText.trim() && <details><summary>헤르메스 응답 원문</summary><MessagePrimitive.Parts components={{Text:AssistantText}}/><CopyTextButton value={copyText} label="헤르메스 응답 원문 복사" buttonLabel="원문 복사"/></details>}
     </section> : <MessagePrimitive.Parts components={message.role==="assistant" ? {Text:AssistantText} : undefined}/>}
     {message.role==="assistant" && ["cancelled","canceled"].includes(meta.status) && !message.content?.some(part=>part.type==="text" && part.text?.trim()) && <p className="assistant-cancelled" role="status">이 요청은 취소되었습니다.</p>}
-    {meta.formId && <ConversationVideoForm session={meta.session} formId={meta.formId} open={actions.openVideoForm} reuse={actions.openJobForm}/>}
+    {meta.formId && <ConversationVideoForm key={meta.session+":"+meta.formId} session={meta.session} formId={meta.formId} open={actions.openVideoForm} reuse={actions.openJobForm}/>}
     {meta.seedProposal && <SeedProposal proposal={meta.seedProposal} onOpen={actions.openSeedForm}/>}
     {meta.kimodoProposal && meta.job && <KimodoProposal key={meta.job} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} append={actions.append} openStep={actions.openStep}/>}
     {meta.generationProposal && meta.job && <GenerationProposal key={meta.job} kind={meta.generationProposal} job={meta.job} session={meta.session} snapshot={meta.sessionSnapshot} offset={meta.sessionOffset} onOpenForm={actions.openMinimaxForm}/>}

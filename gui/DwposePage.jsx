@@ -40,7 +40,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   const [file,setFile]=useState(null),[hands,setHands]=useState(false),[face,setFace]=useState(false);
   const inputRef=useRef({file,hands,face});inputRef.current={file,hands,face};
   const imageSelectionRevision=useRef(0),imageChecking=useRef(false);
-  const [imageCheckPending,setImageCheckPending]=useState(false);
+  const [imageCheckPending,setImageCheckPending]=useState(false),[imageError,setImageError]=useState(false),[previewError,setPreviewError]=useState(false);
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[model,setModel]=useState(null);
   const [modelError,setModelError]=useState("");
   const reviewEpoch=useRef(0),interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
@@ -52,6 +52,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   const handoff=useGpuHandoff(session,"dwpose",setJob,setNotice);
   const reviewRef=useRef(null),handsRef=useRef(null);
   useEffect(()=>{if(!pending || !focusOnReview.current)return;focusOnReview.current=false;const frame=requestAnimationFrame(()=>restoreLostFocus(document,reviewRef.current));return ()=>cancelAnimationFrame(frame);},[pending]);
+  useEffect(()=>{if(busy || pending || !notice || !focusOnReview.current)return;focusOnReview.current=false;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(reviewButtonRef.current)));return ()=>cancelAnimationFrame(frame);},[busy,pending,notice]);
   function closeReview(){
     const restore=reviewRef.current?.contains(document.activeElement);
     const epoch=reviewEpoch.current;
@@ -134,8 +135,8 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     {busy && <p id={busyId} role="status">포즈 추출 요청을 처리하고 있습니다. 완료될 때까지 기다리세요.</p>}
     {!busy && (pending || handoff.id) && <p id={lockedId}>{pending ? "아래 검토를 확인하거나 입력 수정을 선택하세요." : "GPU 양도 상태를 확인하고 닫은 뒤 입력을 수정하세요."}</p>}
     <fieldset className="dwpose-workflow" disabled={busy || Boolean(pending) || Boolean(handoff.id)} aria-describedby={busy ? busyId : pending || handoff.id ? lockedId : undefined}><legend className="generator-visually-hidden">생성 입력과 이력</legend>
-      <GeneratorSectionCard title="생성 입력" summary="입력 PNG와 포즈 옵션" defaultOpen><div ref={formRegion} tabIndex={-1} aria-label="DWPose 생성 입력">
-      <ReferenceImageInput label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending) || Boolean(handoff.id)} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={value=>{inputRef.current={...inputRef.current,file:value};setFile(value);}}/>
+      <GeneratorSectionCard title="생성 입력" summary={[imageCheckPending && "이미지 확인 중",imageError && "이미지 확인 실패",previewError && "이미지 미리보기 실패"].filter(Boolean).join(" · ") || "입력 PNG와 포즈 옵션"} defaultOpen><div ref={formRegion} tabIndex={-1} aria-label="DWPose 생성 입력">
+      <ReferenceImageInput onPreviewErrorChange={setPreviewError} onErrorChange={setImageError} label="입력 PNG · 832×480" accept="image/png" source={file} validate={pngData} disabled={busy || Boolean(pending) || Boolean(handoff.id)} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={value=>{inputRef.current={...inputRef.current,file:value};setFile(value);}}/>
       <div className="dwpose-options"><label><input ref={handsRef} type="checkbox" checked={hands} onChange={event=>{const value=event.target.checked;inputRef.current={...inputRef.current,hands:value};setHands(value);}}/>손 상세 표시</label>
       <label><input type="checkbox" checked={face} onChange={event=>{const value=event.target.checked;inputRef.current={...inputRef.current,face:value};setFace(value);}}/>얼굴 상세 표시</label></div>
       <ActionButton buttonRef={reviewButtonRef} reasons={[imageCheckPending && "선택한 이미지 확인이 끝날 때까지 기다리세요.",!file && "입력 PNG를 선택하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요."]} onClick={review}>생성 요청 검토</ActionButton>

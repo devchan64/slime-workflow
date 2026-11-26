@@ -8,8 +8,8 @@ export function validBackupModels(value) {
   });
 }
 
-export function backupActionReasons({busy,modelsLoading,modelsError,backupError,selected,localMissing,target,pendingRequest}) {
-  const base=busy ? '현재 요청이 끝날 때까지 기다리세요.' : modelsLoading ? '모델 목록을 불러오는 중입니다.' : modelsError ? '모델 목록을 다시 불러오세요.' : !selected ? '모델 디렉터리를 선택하세요.' : '';
+export function backupActionReasons({busy,modelsLoading,modelsError,backupError,selected,localMissing,target,pendingRequest,selectionNeedsConfirmation}) {
+  const base=busy ? '현재 요청이 끝날 때까지 기다리세요.' : modelsLoading ? '모델 목록을 불러오는 중입니다.' : modelsError ? '모델 목록을 다시 불러오세요.' : !selected ? '모델 디렉터리를 선택하세요.' : selectionNeedsConfirmation ? '변경된 모델 디렉터리를 직접 선택해 확인하세요.' : '';
   return {
     compare:base || (backupError ? '백업 연결을 확인하고 목록을 다시 불러오세요.' : localMissing ? '로컬 모델이 없어 백업과 비교할 수 없습니다.' : target==='snapshot_manifest' ? '자체 무결성은 크기·시간 비교를 지원하지 않습니다.' : ''),
     metadata:base,

@@ -38,6 +38,7 @@ export default function AnimatePage({embedded=false,session:embeddedSession=""}=
   const [model,setModel]=useState(null),[loraModel,setLoraModel]=useState(null),[interacting,setInteracting]=useState(false);
   const historyLockId=useId();
   const [modelError,setModelError]=useState(""),[loraError,setLoraError]=useState("");
+  const [inputStatus,setInputStatus]=useState({imageChecking:false,videoChecking:false,videoError:false});
   const inputRef=useRef(null);
   const historyRef=useRef(null);
   const resultRef=useRef(null);
@@ -59,8 +60,8 @@ export default function AnimatePage({embedded=false,session:embeddedSession=""}=
       <h3>선택 LoRA</h3><ModelReadiness session={session} service="wan22-animate2-lightx2v" manage onStatus={setLoraModel} onError={setLoraError}/><DownloadProgress service="wan22-animate2-lightx2v"/>
     </GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
-    <GeneratorSectionCard title="생성 입력" summary="참조 이미지와 동작 영상 · 16fps" defaultOpen>
-      <section ref={inputRef} tabIndex={-1} aria-label="동작 전사 입력" onChangeCapture={()=>{inputRevision.current++;}}><AnimateInputs saved={saved} onSelectionStart={()=>{inputRevision.current++;}} onJob={openResult} session={session} model={model} loraModel={loraModel} onInteractionChange={setInteracting} onAttachmentCheckingChange={value=>{attachmentChecking.current=value;}}/></section>
+    <GeneratorSectionCard title="생성 입력" summary={[inputStatus.imageChecking && "이미지 확인 중",inputStatus.imageError && "이미지 확인 실패",inputStatus.previewError && "이미지 미리보기 실패",inputStatus.videoChecking && "동작 영상 확인 중",inputStatus.videoError && "동작 영상 확인 실패"].filter(Boolean).join(" · ") || "참조 이미지와 동작 영상 · 16fps"} defaultOpen>
+      <section ref={inputRef} tabIndex={-1} aria-label="동작 전사 입력" onChangeCapture={()=>{inputRevision.current++;}}><AnimateInputs saved={saved} onSelectionStart={()=>{inputRevision.current++;}} onJob={openResult} session={session} model={model} loraModel={loraModel} onInteractionChange={setInteracting} onInputStatusChange={setInputStatus} onAttachmentCheckingChange={value=>{attachmentChecking.current=value;}}/></section>
     </GeneratorSectionCard>
     <fieldset ref={historyRef} disabled={interacting} aria-label="생성 이력" aria-describedby={interacting ? historyLockId : undefined}><GeneratorHistory card allowPriority toggleResult onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} service={service} readJobWithSignal={readHistory}
       restore={(request,record)=>{if(record.checkingAtStart || attachmentChecking.current || record.revisionAtStart!==inputRevision.current)throw new Error("첨부 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");setSaved(record);const card=inputRef.current?.closest("details");if(card)card.open=true;requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===record.focusAtStart)inputRef.current?.focus();});}}

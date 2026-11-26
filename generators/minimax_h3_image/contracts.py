@@ -36,7 +36,7 @@ def validate_request(request):
     if not isinstance(request, dict):
         raise ValueError('생성 요청은 객체여야 합니다.')
     request = dict(request)
-    sampler = request.pop('sampler', 'euler')
+    sampler = request.pop('sampler', 'lcm')
     if sampler not in ('euler', 'lcm'):
         raise ValueError('샘플러는 euler 또는 lcm이어야 합니다.')
     output_size = request.pop('output_size', None)

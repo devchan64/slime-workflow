@@ -4,6 +4,7 @@ import {readGenerationProposal} from './generationProposal.mjs';
 import {useMinimaxReportReceipt,MinimaxReportStatus,PreparedMinimaxForm} from './useMinimaxReportReceipt.jsx';
 import {useVideoDelegationReceipt} from './useVideoDelegationReceipt.js';
 import {managementCommand,untilAborted} from './managementCommand.js';
+import {requestErrorMessage} from './requestError.mjs';
 
 const names={audio:'오디오',video:'영상',writer:'작가'};
 const routes={'music-heartmula':'music-heartmula','sfx-dasheng-audiogen':'sfx-dasheng-audiogen',dwpose:'dwpose-generator','wan22-animate2':'wan22-animate2-generator','wan22-fun-control':'wan22-fun-control-generator','wan22-vace':'wan22-vace-generator','wan22-i2v':'wan22-i2v-generator','minimax-h3-i2v':'minimax-h3-i2v-generator','minimax-h3-ref2va':'minimax-h3-ref2va-generator','wan21-t2v':'wan21-t2v-generator','wan21-i2v':'wan21-i2v-generator','writer-agent':'writer-agent'};
@@ -32,9 +33,9 @@ export default function GenerationProposal({session,job,snapshot,offset,kind,onO
 function GenerationProposalForSelection({session,job,snapshot,offset,kind,onOpenForm}){
   const busyId=useId();
   const [proposal,setProposal]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const [prepared,setPrepared]=useState(null);
+  const [prepared,setPrepared]=useState(null),[pollError,setPollError]=useState('');
   const receipt=useMinimaxReportReceipt(kind==='video' && prepared ? {session,job} : null,'minimax-h3-i2v');
-  const buttonRef=useRef(null),request=useRef(null);useEffect(()=>()=>request.current?.abort(),[]);
+  const buttonRef=useRef(null),request=useRef(null);useEffect(()=>()=>{const current=request.current;request.current=null;current?.abort();},[]);
   useEffect(()=>{
     if(kind!=='video')return;
     let active=true,timer,attempts=0;const controller=new AbortController();
@@ -45,10 +46,10 @@ function GenerationProposalForSelection({session,job,snapshot,offset,kind,onOpen
         if(!Array.isArray(listed?.forms))throw new Error('접수폼 목록을 확인할 수 없습니다.');
         const matches=listed.forms.filter(row=>row.source_job_id===job && row.service==='minimax-h3-i2v');
         if(matches.length>1)throw new Error('같은 제안에 연결된 접수폼이 여러 개입니다.');
-        if(!matches.length)return;
+        if(!matches.length){if(active)setPollError('');return;}
         const checked=await readGenerationProposal(managementCommand,{session,job,snapshot,offset,kind},{signal:controller.signal});
-        if(active && checked.service==='minimax-h3-i2v'){setPrepared(matches[0]);setError('');}
-      }catch(problem){if(active && problem?.name!=='AbortError')setError(problem?.message || '접수폼 상태를 확인할 수 없습니다.');}
+        if(active && checked.service==='minimax-h3-i2v'){setPrepared(matches[0]);setPollError('');}
+      }catch(problem){if(active && problem?.name!=='AbortError')setPollError(problem?.message ? requestErrorMessage(problem) : '접수폼 상태를 확인할 수 없습니다.');}
       finally{if(active)timer=setTimeout(refresh,attempts<12?5000:60000);}
     }
     refresh();
@@ -59,9 +60,9 @@ function GenerationProposalForSelection({session,job,snapshot,offset,kind,onOpen
     const controller=new AbortController();request.current=controller;let timedOut=false;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setError('');setProposal(null);
-    try{setProposal(await readProposalPreview(readGenerationProposal,[{session,job,snapshot,offset,kind}],controller.signal));}
-    catch(problem){if(!controller.signal.aborted || timedOut)setError(timedOut ? '생성 제안 조회 시간이 초과됐습니다. 다시 확인하세요.' : problem?.message || '생성 제안을 확인할 수 없습니다. 다시 확인하세요.');}
-    finally{clearTimeout(timeout);if(request.current===controller)request.current=null;if(!controller.signal.aborted || timedOut){setBusy(false);requestAnimationFrame(()=>{if(document.activeElement===document.body && buttonRef.current?.isConnected && !buttonRef.current.disabled)buttonRef.current.focus();});}}
+    try{const result=await readProposalPreview(readGenerationProposal,[{session,job,snapshot,offset,kind}],controller.signal);if(request.current===controller)setProposal(result);}
+    catch(problem){if(request.current===controller && (!controller.signal.aborted || timedOut))setError(timedOut ? '생성 제안 조회 시간이 초과됐습니다. 다시 확인하세요.' : problem?.message ? requestErrorMessage(problem) : '생성 제안을 확인할 수 없습니다. 다시 확인하세요.');}
+    finally{clearTimeout(timeout);if(request.current===controller){request.current=null;setBusy(false);requestAnimationFrame(()=>{if(document.activeElement===document.body && buttonRef.current?.isConnected && !buttonRef.current.disabled)buttonRef.current.focus();});}}
   }
-  return <section aria-label={names[kind]+' 제안'}>{prepared ? <><PreparedMinimaxForm form={prepared} label="영상" onOpenForm={onOpenForm} receipt={receipt}/></> : <><button ref={buttonRef} type="button" disabled={busy} aria-describedby={busy?busyId:undefined} onClick={inspect}>{names[kind]} 제안 확인</button>{busy && <p id={busyId} role="status">생성 제안을 조회하고 있습니다.</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</>}{error && <p role="alert">{error}</p>}</section>;
+  return <section aria-label={names[kind]+' 제안'}>{prepared ? <><PreparedMinimaxForm form={prepared} label="영상" onOpenForm={onOpenForm} receipt={receipt}/></> : <><button ref={buttonRef} type="button" disabled={busy} aria-describedby={busy?busyId:undefined} onClick={inspect}>{names[kind]} 제안 확인</button>{busy && <p id={busyId} role="status">생성 제안을 조회하고 있습니다.</p>}{proposal && <GenerationProposalReview kind={kind} proposal={proposal} session={session} job={job} snapshot={snapshot} offset={offset}/>}</>}{error && <p role="alert">{error}</p>}{pollError && <p role="alert">접수폼 상태 확인: {pollError}</p>}</section>;
 }

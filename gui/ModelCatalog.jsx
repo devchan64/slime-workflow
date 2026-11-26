@@ -136,6 +136,10 @@ export default function ModelCatalog({onCompare}) {
         {result.storage_survey && <><p>아래 `models/` 하위 항목은 {result.storage_survey.finished_at || '시각 확인 불가'} 조사 기준이며 현재 파일 존재나 사용 여부를 확정하지 않습니다.</p>
           {!result.nested_survey_available ? <p>하위 경로 조사 정보가 없어 분류 여부를 확인할 수 없습니다.</p> : result.unclassified_nested?.length ? <ul>{result.unclassified_nested.map(item => <li key={item.path}>{item.path} · 조사 당시 할당 크기 {gib(item.storage_observation.allocated_bytes)} · 파일 {item.storage_observation.files}개</li>)}</ul> : <p>조사된 `models/` 하위 경로 중 별도 미분류 항목이 없습니다.</p>}</>}
       </details>
+      {result.surveyed_model_roots?.length > 0 && <details><summary>모델 디렉터리 내부 조사 · {result.surveyed_model_roots.length}개 모델</summary>
+        <p>조사 당시 직계 항목입니다. 이 목록만으로 모델의 사용 여부나 삭제 가능 여부를 판단할 수 없습니다. 링크는 대상을 따라 용량을 더하지 않습니다.</p>
+        <ul>{(result.surveyed_model_children || []).map(item => <li key={item.path}>{item.path} · 조사 당시 할당 크기 {gib(item.storage_observation.allocated_bytes)} · 파일 {item.storage_observation.files}개 · 링크 {item.storage_observation.links}개 · 오류 {item.storage_observation.errors}개</li>)}</ul>
+      </details>}
       <p>{result.note}</p>
     </>}
   </section>;

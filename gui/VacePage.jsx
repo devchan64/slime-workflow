@@ -72,14 +72,16 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const inputRef=useRef({values,files});inputRef.current={values,files};
   const imageSelectionRevision=useRef(0),imageChecking=useRef(false);
   const [imageCheckPending,setImageCheckPending]=useState(false);
-  const [videoInfo,setVideoInfo]=useState({}),[checking,setChecking]=useState({});
+  const [videoInfo,setVideoInfo]=useState({}),[checking,setChecking]=useState({}),[imageError,setImageError]=useState(false),[previewError,setPreviewError]=useState(false),[imageReset,setImageReset]=useState(0);
   const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null),sending=useRef(false),nonLoraSettings=useRef(null);
   const videoControllers=useRef({});
-  useEffect(()=>()=>{Object.values(videoControllers.current).forEach(controller=>controller.abort());for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;},[]);
+  const reviewRequest=useRef(null),reviewOrigin=useRef(null);
+  useEffect(()=>()=>{Object.values(videoControllers.current).forEach(controller=>controller.abort());for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;const request=reviewRequest.current;reviewRequest.current=null;request?.abort();},[]);
   const [busy,setBusy]=useState(false),[pending,setPending]=useState(null),[modelError,setModelError]=useState("");
   const reviewEpoch=useRef(0),interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
-  useEffect(()=>{if(pending)reviewRef.current?.focus();},[pending]);
+  useEffect(()=>{if(!pending)return;const origin=reviewOrigin.current;reviewOrigin.current=null;if(document.activeElement===document.body || document.activeElement===origin)reviewRef.current?.focus();},[pending]);
   const [error,setError]=useState("");
+  useEffect(()=>{if(busy || pending || !error || !reviewOrigin.current)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(origin)));return ()=>cancelAnimationFrame(frame);},[busy,pending,error]);
   const [templateError,setTemplateError]=useState("");
   const [job,setJob]=useState(embedded ? "" : new URLSearchParams(location.search).get("job") || "");
   const [sourceJob,setSourceJob]=useState("");
@@ -154,7 +156,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;
     Object.values(videoControllers.current).forEach(controller=>controller.abort());videoControllers.current={};
     nonLoraSettings.current=null;
-    setChecking({});setValues({...request});setFiles(record.files);setVideoInfo(record.videoInfo);setFileErrors({});setJob(record.id);setSourceJob(record.id);setPending(null);
+    setChecking({});setValues({...request});setFiles(record.files);setImageReset(value=>value+1);setVideoInfo(record.videoInfo);setFileErrors({});setJob(record.id);setSourceJob(record.id);setPending(null);
     setNotice(record.id+" 입력을 복원했습니다.");
     const card=formRef.current?.closest('details');if(card)card.open=true;
     requestAnimationFrame(()=>{const form=formRef.current;if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && form?.isConnected){form.focus();form.scrollIntoView({block:'start'});}});
@@ -184,6 +186,8 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   }
   const attachments=videoFields[values?.mode] || [];
   const checkingVideo=attachments.some(key=>checking[key]);
+  const videoFailure=attachments.some(key=>fileErrors[key]);
+  const inputSummary=[template?.modes.find(mode=>mode.id===values?.mode)?.label || "설정 확인",values?.mode!=="text" && imageCheckPending && "이미지 확인 중",values?.mode!=="text" && imageError && "이미지 확인 실패",values?.mode!=="text" && previewError && "이미지 미리보기 실패",checkingVideo && "영상 확인 중",videoFailure && "영상 확인 실패"].filter(Boolean).join(" · ");
   const missingVideoInfo=attachments.some(key=>files[key] && !videoInfo[key]);
   const frameLimit=videoFrameLimit(attachments,videoInfo);
   const frameValue=values?.frames;
@@ -198,18 +202,23 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     return [key,value==="" || value==null || !Number.isFinite(number) || number<min || number>max || (step===1 && !Number.isInteger(number))];
   }));
   async function review(event){
+    event.preventDefault();
+    if(reviewRequest.current || interactionRef.current.busy || interactionRef.current.pending)return;
     if(values.mode!=="text" && imageChecking.current){event.preventDefault();setError("이미지 확인이 끝난 뒤 생성 요청을 검토하세요.");return;}
     if(attachments.some(key=>videoControllers.current[key])){event.preventDefault();setError("영상 정보 확인이 끝난 뒤 생성 요청을 검토하세요.");return;}
     reviewEpoch.current++;
-    event.preventDefault();setBusy(true);setError("");
+    const controller=new AbortController();let timedOut=false;reviewRequest.current=controller;reviewOrigin.current=document.activeElement;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+    setBusy(true);setError("");
     try{
       const request={...values,action:"generate",width:832,height:480,images:[]};
       if (["fighting","fighting_lightning"].includes(values.lora_mode)) request.fighting_strength=values.fighting_strength ?? 1; else delete request.fighting_strength;
-      if(values.mode!=="text")request.images.push(await referencePng(files.reference));
-      for(const key of attachments)request[key]=await videoData(files[key]);
-      await handoff.preview(request);setPending(request);
-    }catch(problem){setError(requestErrorMessage(problem));}
-    finally{setBusy(false);}
+      if(values.mode!=="text")request.images.push(await untilAborted(referencePng(files.reference),controller.signal));
+      for(const key of attachments)request[key]=await untilAborted(videoData(files[key]),controller.signal);
+      await untilAborted(handoff.preview(request,{signal:controller.signal}),controller.signal);
+      if(reviewRequest.current===controller && !controller.signal.aborted)setPending(request);
+    }catch(problem){if(reviewRequest.current===controller && (!controller.signal.aborted || timedOut)){handoff.clearReview();setError(timedOut ? "생성 요청 검토 시간이 초과됐습니다. 다시 시도하세요." : requestErrorMessage(problem));}}
+    finally{clearTimeout(timeout);if(reviewRequest.current===controller){reviewRequest.current=null;setBusy(false);}}
   }
   async function submit(){
     if(!pending || sending.current || !generationReady(model))return;
@@ -226,7 +235,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const modelService=values?.model_profile === "q8-gguf-resident-v1" ? "wan22-vace-q8" : service;
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}><GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
     <GeneratorUsage generator="wan22-vace"/><GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/>
-    <GeneratorSectionCard title="모델 준비" summary={modelError ? "모델 상태 조회 실패" : !model ? "상태 확인 필요" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"}>
+    <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"}>
       <ModelReadiness session={session} service={modelService} onStatus={setModel} onError={setModelError}/>
       {embedded && (model?.generation_ready ?? model?.ready) && !["queued","running","failed","cancelled","unknown"].includes(model?.preparation_status) ? <details><summary>모델 다운로드 이력</summary><DownloadProgress service={modelService}/></details> : <DownloadProgress service={modelService}/>}
     </GeneratorSectionCard>
@@ -236,14 +245,14 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     {!template && !templateError && <p role="status">생성 입력을 불러오는 중입니다.</p>}
     {!template && templateError && <button ref={templateRetryRef} type="button" onClick={()=>{templateRetryFocus.current=true;retryTemplate(value=>value+1);}}>생성 입력 다시 불러오기</button>}
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service={service} status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
-    {template && values && <GeneratorSectionCard title="생성 입력" summary={template.modes.find(mode=>mode.id===values.mode)?.label || "설정 확인"} defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending || Boolean(handoff.id)} aria-describedby={busy || pending || handoff.id ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
+    {template && values && <GeneratorSectionCard title="생성 입력" summary={inputSummary} defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending || Boolean(handoff.id)} aria-describedby={busy || pending || handoff.id ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
       {sourceJob && <div><p>불러온 원본 작업</p><JobIdentifier id={sourceJob} compact/></div>}
       <div className="vace-input-group"><h2>입력 자료</h2><p className="vace-group-help">생성 방식과 필요한 참조 자료를 선택하세요.</p>
       <label>생성 모드<select value={values.mode} onChange={e=>field("mode",e.target.value)}>{template.modes.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
       {embedded ? <details><summary>선택한 생성 모드 안내</summary><p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p></details> : <p style={{whiteSpace:"pre-line"}}>{template.modes.find(m=>m.id===values.mode)?.help.replaceAll("**","")}</p>}
       {Object.entries({reference:values.mode==="first_frame"?"첫 프레임 이미지":"참조 이미지",...labels}).map(([key,label])=>{
         const visible=key==="reference"?values.mode!=="text":attachments.includes(key);
-        return <div key={key} hidden={!visible}>{key==="reference" ? <ReferenceImageInput disabled={busy || !!pending || Boolean(handoff.id) || !visible} label={label} source={files[key]} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={file=>setFiles(current=>({...current,[key]:file}))}/> : <VaceVideoInput label={label} visible={visible} file={files[key]} checking={checking[key]} info={videoInfo[key]} error={fileErrors[key]} historyRevision={historyRevision} onSelect={file=>selectVideo(key,file)}/>}</div>;
+        return <div key={key} hidden={!visible}>{key==="reference" ? <ReferenceImageInput resetErrorKey={imageReset} onPreviewErrorChange={setPreviewError} onErrorChange={setImageError} disabled={busy || !!pending || Boolean(handoff.id) || !visible} label={label} source={files[key]} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={file=>setFiles(current=>({...current,[key]:file}))}/> : <VaceVideoInput label={label} visible={visible} file={files[key]} checking={checking[key]} info={videoInfo[key]} error={fileErrors[key]} historyRevision={historyRevision} onSelect={file=>selectVideo(key,file)}/>}</div>;
       })}
       </div><div className="vace-input-group"><h2>장면 지시</h2><p className="vace-group-help">인물·동작·카메라를 설명하세요.</p>
       {["prompt","negative_prompt"].map(key=>{

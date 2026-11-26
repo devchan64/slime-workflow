@@ -469,6 +469,13 @@ class HermesWorkerTests(unittest.TestCase):
                     self.assertIn('services' if current_allowed_value else 'error', current_response_record)
                     self.assertEqual(current_catalog_mock.call_count, int(current_allowed_value))
 
+    def test_tool_result_capability_includes_call_id_schema(self):
+        from workflow.domains.hermes_agent.capabilities import list_hermes_capability_catalog
+        catalog = list_hermes_capability_catalog()
+        record = next(item for item in catalog['records'] if item['command'] == 'hermes-tool-result')
+        self.assertIn('call_id', record['payload_schema']['required'])
+        self.assertEqual(record['payload_schema']['properties']['call_id']['pattern'], '^[A-Za-z0-9_-]{1,80}$')
+
     def test_capability_bridge_returns_same_catalog_and_rejects_extra_commands(self):
         import socket
         import threading

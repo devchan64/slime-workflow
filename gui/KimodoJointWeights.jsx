@@ -1,6 +1,7 @@
 import React,{useEffect,useId,useRef,useState} from "react";
 import ResultTable from "./ResultTable.jsx";
 import {untilAborted} from "./managementCommand.js";
+import {requestErrorMessage} from "./requestError.mjs";
 
 export default function KimodoJointWeights({initial,view,onViewChange,onDirtyChange,dirty=false,disabled=false,disabledDescriptionId}){
   const errorId=useId(),busyId=useId();
@@ -43,7 +44,7 @@ export default function KimodoJointWeights({initial,view,onViewChange,onDirtyCha
       if(!checked || Object.keys(checked).length!==2 || checked.schema!==weights.schema || !Array.isArray(checked.views) || checked.views.length!==weights.views.length || checked.views.some((row,index)=>!row || Object.keys(row).length!==2 || row.observation!==weights.views[index].observation || !Array.isArray(row.joints) || row.joints.length!==weights.views[index].joints.length || row.joints.some((joint,j)=>!joint || Object.keys(joint).length!==3 || ["joint","weight","reason"].some(field=>joint[field]!==weights.views[index].joints[j][field]))))throw new Error("검증된 가중치 응답이 입력과 일치하지 않습니다.");
       if(pending.current!==controller || controller.signal.aborted)return;
       setDownload(URL.createObjectURL(new Blob([JSON.stringify(checked,null,2)],{type:"application/json"})));
-    }catch(problem){if(pending.current===controller)setError(timedOut ? "가중치 검증 시간이 초과됐습니다. 다시 시도하세요." : problem?.message || "가중치 표를 검증할 수 없습니다. 다시 시도하세요.");}
+    }catch(problem){if(pending.current===controller)setError(timedOut ? "가중치 검증 시간이 초과됐습니다. 다시 시도하세요." : problem?.message ? requestErrorMessage(problem) : "가중치 표를 검증할 수 없습니다. 다시 시도하세요.");}
     finally{clearTimeout(timer);if(pending.current===controller){pending.current=null;setBusy(false);}}
   }
   return <details className="kimodo-joint-weights"><summary>관절 가중치 편집{busy ? " · 검증 중" : error ? " · 오류 확인 필요" : dirty ? " · 편집 중" : ""}</summary><fieldset disabled={busy || disabled} aria-describedby={[busy && busyId,disabled && disabledDescriptionId].filter(Boolean).join(" ") || undefined}><legend className="generator-visually-hidden">관절 가중치 입력</legend>

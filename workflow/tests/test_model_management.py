@@ -3,6 +3,46 @@ import unittest
 
 
 class ModelManagementTest(unittest.TestCase):
+    def test_minimax_image_model_catalog_and_readiness_endpoint(self):
+        import tempfile
+        from http.server import SimpleHTTPRequestHandler
+        from pathlib import Path
+        from unittest.mock import patch
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            app = build_management_application(SimpleHTTPRequestHandler, root, root/'source.json', 8770, [])
+            with patch('workflow.common.management_client.execute_remote_management_command',
+                       return_value={'ready': True, 'generation_ready': True, 'message': '파일 확인됨'}) as gateway:
+                with TestClient(app) as client:
+                    entries = client.get('/management/assistant/model-services').json()
+                    self.assertEqual(sum(item['id'] == 'minimax-h3-image' for item in entries), 1)
+                    response = client.get('/management/assistant/model-readiness/minimax-h3-image')
+                    self.assertEqual(response.status_code, 200)
+                    status = response.json()
+                    self.assertTrue(status['generation_ready'])
+                    self.assertFalse(status['can_prepare'])
+                    self.assertIsNone(status['prepare_request'])
+                    self.assertIn('다운로드할 수 없습니다', status['prepare_blocked_reason'])
+                    gateway.assert_called_once_with('minimax-h3-image', 'model-status', {})
+
+    def test_minimax_image_status_preserves_readiness_without_download(self):
+        from unittest.mock import Mock
+        from workflow.common.model_management_catalog import MODEL_PREPARATION_SERVICES
+        from workflow.common.model_preparation_controls import execute_model_preparation_command
+        self.assertIn('minimax-h3-image', {service for _, service in MODEL_PREPARATION_SERVICES})
+        for ready in (True, False):
+            with self.subTest(ready=ready):
+                gateway = Mock(return_value={'ready': ready, 'generation_ready': ready, 'message': '상태'})
+                result = execute_model_preparation_command('minimax-h3-image', 'model-status', {}, gateway)
+                self.assertEqual(result['generation_ready'], ready)
+                self.assertFalse(result['can_prepare'])
+                self.assertIn('다운로드할 수 없습니다', result['prepare_blocked_reason'])
+                with self.assertRaises(ValueError):
+                    execute_model_preparation_command('minimax-h3-image', 'prepare', {}, gateway)
+                gateway.assert_called_once_with('minimax-h3-image', 'model-status', {})
+
     def test_retired_model_download_is_disabled_before_gateway_call(self):
         from unittest.mock import Mock
         from workflow.common.model_preparation_controls import execute_model_preparation_command

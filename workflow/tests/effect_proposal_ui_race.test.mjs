@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {restoreLostFocus} from '../../gui/restoreLostFocus.mjs';
+import {requestErrorMessage} from '../../gui/requestError.mjs';
 
 test('저장 전 검증 중 화면을 종료하면 늦은 응답으로 저장을 접수하지 않는다',async()=>{
  const source=readFileSync(new URL('../../gui/EffectProposal.jsx',import.meta.url),'utf8');
@@ -20,6 +21,14 @@ test('이펙트 제안 조회는 시간 초과 직후 화면 종료 시 상태�
  const context=vm.createContext({AbortController,request,inspectFocus:{current:false},inspectRef:{current:null},document:{activeElement:null},session:'s',job:'j',snapshot:'h',offset:0,prepareEffectProposal:()=>{},setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},
   setBusy:()=>updates++,setNotice:()=>updates++,setReview:()=>updates++,setReceipt:()=>updates++,readProposalPreview:(_prepare,_args,signal)=>untilAborted(new Promise(()=>{}),signal)});
  vm.runInContext(code,context);const pending=context.inspect();timeout();const controller=request.current;request.current=null;controller.abort();const before=updates;await pending;assert.equal(updates,before);
+});
+
+test('이펙트 제안 조회 연결 실패를 복구 가능한 안내로 표시한다',async()=>{
+ const source=readFileSync(new URL('../../gui/EffectProposal.jsx',import.meta.url),'utf8');
+ const code=source.slice(source.indexOf('  async function inspect()'),source.indexOf('  async function save()'));
+ let notice='',busy=false;const context=vm.createContext({AbortController,request:{current:null},inspectFocus:{current:false},inspectRef:{current:null},document:{activeElement:null},session:'s',job:'j',snapshot:'h',offset:0,prepareEffectProposal:()=>{},setTimeout,clearTimeout,requestErrorMessage,
+  setBusy:value=>busy=value,setNotice:value=>notice=value,setReview:()=>{},setReceipt:()=>{},readProposalPreview:async()=>{throw new TypeError('Failed to fetch');}});
+ vm.runInContext(code,context);await context.inspect();assert.match(notice,/연결 상태를 확인/);assert.equal(busy,false);
 });
 
 test('이펙트 제안 취소는 검토 안에서 잃은 초점만 복구한다',()=>{

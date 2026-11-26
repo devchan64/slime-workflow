@@ -16,8 +16,8 @@ export function validResizeResult(result,plan,texture){
 export default function BillboardLifecycle({texture,onComplete,onInteractionChange}){
   const busyId=useId();
   const [size,setSize]=useState(128),[plan,setPlan]=useState(null),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
-  const previewRequest=useRef(null),saving=useRef(false),details=useRef(null),origin=useRef(null),planHeading=useRef(null),status=useRef(null),restoreFocus=useRef(false);
-  useEffect(()=>()=>previewRequest.current?.abort(),[]);
+  const previewRequest=useRef(null),saving=useRef(null),details=useRef(null),origin=useRef(null),planHeading=useRef(null),status=useRef(null),restoreFocus=useRef(false);
+  useEffect(()=>()=>{const preview=previewRequest.current,request=saving.current;previewRequest.current=null;saving.current=null;preview?.abort();request?.abort();},[]);
   useEffect(()=>{onInteractionChange?.(busy || Boolean(plan));return ()=>onInteractionChange?.(false);},[busy,plan,onInteractionChange]);
   useEffect(()=>{
     if(busy || !restoreFocus.current)return;
@@ -62,15 +62,17 @@ export default function BillboardLifecycle({texture,onComplete,onInteractionChan
   async function confirm(){
     if(!plan || saving.current || previewRequest.current)return;
     restoreFocus.current=true;
-    saving.current=true;
+    const controller=new AbortController();saving.current=controller;let timedOut=false;
+    const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     setBusy(true);setMessage("");
     const retiring=plan.kind==="retire";
     try{
-      const result=await managementCommand("map-assets",retiring?"asset-retire":"resize",plan.request);
+      const result=await untilAborted(managementCommand("map-assets",retiring?"asset-retire":"resize",plan.request,{signal:controller.signal}),controller.signal);
+      if(saving.current!==controller)return;
       if(retiring && (result.retired!==true || result.texture!==texture))throw new Error("폐기 결과를 확인할 수 없습니다.");
       if(!retiring && !validResizeResult(result,plan,texture))throw new Error("축소 결과를 확인할 수 없습니다.");
-    }catch(error){setMessage(requestErrorMessage(error)+" · 처리 결과가 불확실할 수 있습니다. 다시 요청하기 전에 에셋 상태를 확인하세요.");return;}
-    finally{saving.current=false;setBusy(false);setPlan(null);}
+    }catch(error){if(saving.current===controller && (!controller.signal.aborted || timedOut))setMessage((timedOut ? "응답 시간이 초과됐습니다." : requestErrorMessage(error))+" · 처리 결과가 불확실할 수 있습니다. 다시 요청하기 전에 에셋 상태를 확인하세요.");return;}
+    finally{clearTimeout(timeout);if(saving.current===controller){saving.current=null;setBusy(false);setPlan(null);}}
     try{onComplete(texture+(retiring?" 폐기 완료":" 원본 축소 완료"),{retired:retiring});}
     catch{setMessage("처리는 완료됐지만 목록 갱신을 확인하지 못했습니다. 에셋 목록을 새로고침하세요.");}
   }

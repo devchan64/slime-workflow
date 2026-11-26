@@ -31,7 +31,7 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
   const [settings,setSettings]=useState({prompt:"",negative_prompt:"",frames:21,steps:4,seed:42,flow_shift:5,guidance_scale:1,lora_mode:"lightning",kungfu_strength:1});
   const [file,setFile]=useState(null),[model,setModel]=useState(null),[pending,setPending]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || ""),[revision,setRevision]=useState(0),[notice,setNotice]=useState("");
   const [modelError,setModelError]=useState("");
-  const [imageCheckPending,setImageCheckPending]=useState(false);
+  const [imageCheckPending,setImageCheckPending]=useState(false),[imageError,setImageError]=useState(false),[previewError,setPreviewError]=useState(false);
   const settingErrorId=useId();
   const inputLockId=useId();
   const sending=useRef(false),formRef=useRef(null),inputCardRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null),historyRef=useRef(null),resultRef=useRef(null),nonLightningSettings=useRef(null);
@@ -45,6 +45,7 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
   const invalidGuidance=!Number.isFinite(settings.guidance_scale) || settings.guidance_scale<1 || settings.guidance_scale>10 || (usesLightning && settings.guidance_scale!==1);
   const reasons=[!generationReady(model) && "모델 준비 상태를 확인하세요.",imageCheckPending && "선택한 이미지 확인이 끝날 때까지 기다리세요.",!file && "첫 프레임 이미지를 선택하세요.",!settings.prompt.trim() && "동작 프롬프트를 입력하세요.",invalidFrames && "프레임은 5~129 사이의 4n+1이어야 합니다.",invalidSteps && "스텝 설정을 확인하세요.",invalidShift && "Flow shift는 0.1~20이어야 합니다.",invalidGuidance && "CFG 설정을 확인하세요.",invalidSeed && "시드는 0~2147483647의 정수여야 합니다."];
   useEffect(()=>{if(pending){if(document.activeElement===document.body || document.activeElement===reviewOrigin.current)reviewRef.current?.focus();reviewOrigin.current=null;}},[pending]);
+  useEffect(()=>{if(busy || pending || !error || !reviewOrigin.current)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(origin)));return ()=>cancelAnimationFrame(frame);},[busy,pending,error]);
   useEffect(()=>{
     let active=true;
     const controller=new AbortController();
@@ -68,7 +69,7 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
     try{
       const response=await untilAborted(fetch('/management/assistant/wan22-i2v-input/'+encodeURIComponent(id),{cache:'no-store',signal:controller.signal}),controller.signal);
       if(!response.ok)throw new Error('저장 입력 또는 참조 이미지를 확인할 수 없습니다. 이력을 확인한 뒤 다시 시도하세요.');
-      const record=await untilAborted(response.json(),controller.signal);
+      let record;try{record=await untilAborted(response.json(),controller.signal);}catch(problem){controller.signal.throwIfAborted();throw new Error('저장 입력 형식을 확인할 수 없습니다. 다시 조회하세요.');}
       if(record?.id!==id || !record.request || !Array.isArray(record.request.images) || record.request.images.length!==1 || typeof record.request.images[0]!=='string')throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
       const bytes=Uint8Array.from(atob(record.request.images[0]),character=>character.charCodeAt(0));
       return {...record,restoredFile:new File([bytes],'reference-1.png',{type:'image/png'}),inputAtStart:start,selectionAtStart,focusAtStart};
@@ -114,8 +115,8 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패 · 다시 확인하세요" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service={service} modelManagementService="wan22-i2v-assets" onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <GeneratorSectionCard title="생성 입력" summary="첫 이미지와 동작 지시" defaultOpen cardRef={inputCardRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
-      <ReferenceImageInput label="첫 프레임 이미지" source={file} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={setFile} disabled={busy || !!pending}/><p>이미지는 흰 여백을 넣어 832×480으로 맞춥니다.</p>
+    <GeneratorSectionCard title="생성 입력" summary={[imageCheckPending && "이미지 확인 중",imageError && "이미지 확인 실패",previewError && "이미지 미리보기 실패"].filter(Boolean).join(" · ") || "첫 이미지와 동작 지시"} defaultOpen cardRef={inputCardRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
+      <ReferenceImageInput onPreviewErrorChange={setPreviewError} onErrorChange={setImageError} label="첫 프레임 이미지" source={file} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={setFile} disabled={busy || !!pending}/><p>이미지는 흰 여백을 넣어 832×480으로 맞춥니다.</p>
       <label>장면·동작 프롬프트<textarea required maxLength={8000} value={settings.prompt} onChange={e=>field("prompt",e.target.value)}/></label><PromptWordCount text={settings.prompt} final/>
       <button type="button" onClick={()=>field("prompt",polearmPrompt)}>장병기 보스전 예시 입력</button><p>예시는 현재 프롬프트를 바꿉니다. 첫 이미지에 전신과 창 전체가 보이도록 구성하세요. 장병기 전용 LoRA는 아직 검증되지 않았습니다.</p>
       <label>부정 프롬프트<textarea maxLength={8000} value={settings.negative_prompt} onChange={e=>field("negative_prompt",e.target.value)}/></label><PromptWordCount text={settings.negative_prompt} final/>

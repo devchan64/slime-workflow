@@ -29,10 +29,10 @@ export function minimaxImageReasons({model,prompt,seed}) {
 function imageBase64(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('참조 이미지를 읽을 수 없습니다.'));reader.readAsDataURL(file);});}
 export default function MiniMaxH3ImagePage({embedded=false,session:embeddedSession="",initialInputs=null,proposalScope=null,reportReceipt=null}={}) {
   const session=embeddedSession || new URLSearchParams(window.location.search).get("session") || "";
-  const inputLockId=useId(),secondReferenceId=useId();
+  const inputLockId=useId(),secondReferenceId=useId(),samplerHintId=useId();
   const [prompt,setPrompt]=useState(initialInputs?.prompt || ""), [seed,setSeed]=useState(initialInputs?.seed ?? 42), [model,setModel]=useState(null), [modelError,setModelError]=useState("");
   const [size,setSize]=useState(initialInputs?.width===832 && initialInputs?.height===480 ? 832 : initialInputs?.width===512 && initialInputs?.height===512 ? 512 : 1024);
-  const [downscale,setDownscale]=useState(false), [sampler,setSampler]=useState("euler");
+  const [downscale,setDownscale]=useState(false), [sampler,setSampler]=useState("lcm");
   const [notice,setNotice]=useState("");
   const inputRevision=useRef(0),checkingSlots=useRef(new Set()),interaction=useRef(null);
   const [references,setReferences]=useState([null,null]),[checking,setChecking]=useState([false,false]),[referenceErrors,setReferenceErrors]=useState([false,false]),[previewErrors,setPreviewErrors]=useState([false,false]),[referenceReset,setReferenceReset]=useState(0);
@@ -97,7 +97,8 @@ export default function MiniMaxH3ImagePage({embedded=false,session:embeddedSessi
   }
   function restoreSavedInput(request,record){
     const current=interaction.current;
-    if(record.checkingAtStart || checkingSlots.current.size || inputRevision.current!==record.revisionAtStart || current.busy || current.pending || sending.current || (proposalScope && (current.receiptState!=='editing' || record.scaled || (request.sampler ?? 'euler')!=='euler')))throw new Error('입력 확인 중이거나 조회 중 입력 또는 생성 상태가 바뀌어 적용하지 않았습니다. 확인 후 다시 시도하세요.');
+    if(record.checkingAtStart || checkingSlots.current.size || inputRevision.current!==record.revisionAtStart || current.busy || current.pending || sending.current || (proposalScope && current.receiptState!=='editing'))throw new Error('입력 확인 중이거나 조회 중 입력 또는 생성 상태가 바뀌어 적용하지 않았습니다. 확인 후 다시 시도하세요.');
+    if(proposalScope && (record.scaled || (request.sampler ?? 'euler')!=='lcm'))throw new Error('이 대화 제안에는 LCM 샘플러와 축소 없는 입력만 적용할 수 있습니다. 다른 이력을 선택하세요.');
     const revision=++inputRevision.current;setPrompt(request.prompt);setSeed(request.seed);setSize(record.output.width);setDownscale(record.scaled);setSampler(request.sampler ?? "euler");setReferences([record.files[0] || null,record.files[1] || null]);setReferenceReset(value=>value+1);setError('');setNotice(record.id+'의 입력을 적용했습니다.');
     const card=formRef.current?.closest('details');if(card)card.open=true;
     requestAnimationFrame(()=>{if(inputRevision.current===revision && !interaction.current.busy && !interaction.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart))visibleFocusTarget(formRef.current)?.focus();});
@@ -120,7 +121,7 @@ export default function MiniMaxH3ImagePage({embedded=false,session:embeddedSessi
       if(!validGenerationJobId(resultId))throw new Error("접수 ID를 확인할 수 없습니다.");
       if(proposalScope)receipt.refresh();
       setJob(resultId);setRevision(n=>n+1);setPending(null);
-    }catch(problem){if(proposalScope)receipt.unknown();if(submissionRequest.current===controller)setError((timedOut ? "응답 시간이 초과됐습니다." : problem?.message || "응답을 확인할 수 없습니다.")+" 접수 여부가 불확실합니다. 재접수 전에 이력을 확인하세요.");}
+    }catch(problem){if(proposalScope)receipt.unknown();if(submissionRequest.current===controller)setError((timedOut ? "응답 시간이 초과됐습니다." : problem?.message ? requestErrorMessage(problem) : "응답을 확인할 수 없습니다.")+" 접수 여부가 불확실합니다. 재접수 전에 이력을 확인하세요.");}
     finally{clearTimeout(timeout);if(submissionRequest.current===controller){submissionRequest.current=null;sending.current=false;setBusy(false);}}
   }
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}>
@@ -135,16 +136,16 @@ export default function MiniMaxH3ImagePage({embedded=false,session:embeddedSessi
       <label>프롬프트<textarea ref={promptRef} required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
       <PromptWordCount text={prompt}/>
       <SeedInput value={seed} max={4294967295} error={invalidSeed ? "0부터 4,294,967,295까지의 정수로 입력하세요." : ""} onChange={value=>{inputRevision.current++;setNotice("");setSeed(value===""?"":Number(value));}}/>
-      <label>이미지 크기<select value={size} onChange={event=>setSize(Number(event.target.value))}><option value={832}>832×480</option><option value={512}>512×512</option><option value={1024}>1024×1024</option></select></label>
-      {!proposalScope && <label>샘플러<select value={sampler} onChange={event=>setSampler(event.target.value)}><option value="euler">Euler · 기본</option><option value="lcm">LCM · 실험</option></select></label>}
-      {!proposalScope && sampler==="lcm" && <p>LCM은 실험 기능입니다. 시드에 따른 재현성과 화풍·캐릭터 유지 품질은 검수 중입니다.</p>}
-      {!proposalScope && <label><input type="checkbox" checked={downscale} onChange={event=>setDownscale(event.target.checked)}/> 2배 크기로 생성 후 축소</label>}
+      <label>이미지 크기<select value={size} onChange={event=>{inputRevision.current++;setNotice("");setSize(Number(event.target.value));}}><option value={832}>832×480</option><option value={512}>512×512</option><option value={1024}>1024×1024</option></select></label>
+      {!proposalScope && <label>샘플러<select aria-describedby={sampler==="lcm" ? samplerHintId : undefined} value={sampler} onChange={event=>{inputRevision.current++;setNotice("");setSampler(event.target.value);}}><option value="lcm">LCM · 기본 · 실험</option><option value="euler">Euler</option></select></label>}
+      {!proposalScope && sampler==="lcm" && <p id={samplerHintId}>LCM은 실험 기능입니다. 시드에 따른 재현성과 화풍·캐릭터 유지 품질은 검수 중입니다.</p>}
+      {!proposalScope && <label><input type="checkbox" checked={downscale} onChange={event=>{inputRevision.current++;setNotice("");setDownscale(event.target.checked);}}/> 2배 크기로 생성 후 축소</label>}
       {downscale && <p>생성 {size*2}×{(size===832?480:size)*2} · 최종 {size}×{size===832?480:size} · OpenCV 영역 보간</p>}
       <section aria-label="참조 이미지"><p>참조 PNG · 최대 2장</p><div className="reference-image-slots">{[0,1].map(index=><ReferenceImageInput key={index===1 ? "second-"+Boolean(references[0]) : "first"} resetErrorKey={referenceReset} label={"참조 이미지 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || !!pending || (index===1 && !references[0])} describedBy={index===1 && !references[0] ? secondReferenceId : undefined} onSelectionStart={()=>{inputRevision.current++;setNotice("");}} onPreviewErrorChange={value=>setPreviewErrors(previous=>{const next=[...previous];next[index]=value;return next;})} onErrorChange={value=>setReferenceErrors(previous=>{const next=[...previous];next[index]=value;return next;})} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);setChecking(previous=>{const next=[...previous];next[index]=value;return next;});}} onChange={value=>{inputRevision.current++;setNotice("");setReferences(previous=>{const next=[...previous];next[index]=value;if(index===0 && !value)next[1]=null;return next;});}}/>)}</div>{!references[0] && <p id={secondReferenceId}>두 번째 참조를 추가하려면 먼저 첫 번째 참조를 선택하세요.</p>}</section>
       <p>직접 생성 · 6스텝 · INT8{size===512 && " · 512×512 실제 생성 미검증"}</p>
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
     </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{pending ? "입력을 수정하려면 아래 검토에서 입력 수정을 선택하세요." : "최종 프롬프트를 확인하고 있습니다. 잠시 기다려 주세요."}</p>}</form></GeneratorSectionCard>
-    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review minimax-image-review" aria-label="생성 요청 확인"><h2>공용 화풍 적용 프롬프트</h2><GpuQueueSummary/><pre className="generation-review-text" tabIndex={0} aria-label="검토할 프롬프트">{preview}</pre><PromptWordCount text={preview} label="최종 프롬프트"/><p>생성 {pending.width}×{pending.height}{pending.output_size && ` · 최종 ${pending.output_size.width}×${pending.output_size.height} (OpenCV)`} · 6스텝 · {pending.sampler === "lcm" ? "LCM · 실험" : "Euler"} · 시드 {pending.seed} · 참조 {pending.images.length}장</p><GenerationReviewActions busy={busy} disabledReason={!model?.generation_ready ? "모델 준비 상태를 확인하세요." : proposalScope && receipt.state!=="editing" ? "대화 접수 상태를 확인하세요." : ""} onCancel={closeReview} onConfirm={submit}/></section>}
+    {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review minimax-image-review" aria-label="생성 요청 확인"><h2>공용 화풍 적용 프롬프트</h2><GpuQueueSummary/><pre className="generation-review-text" tabIndex={0} aria-label="검토할 프롬프트">{preview}</pre><PromptWordCount text={preview} label="최종 프롬프트"/><p>생성 {pending.width}×{pending.height}{pending.output_size && ` · 최종 ${pending.output_size.width}×${pending.output_size.height} (OpenCV)`} · 6스텝 · {(pending.sampler ?? "lcm") === "lcm" ? "LCM · 기본 · 실험" : "Euler"} · 시드 {pending.seed} · 참조 {pending.images.length}장</p><GenerationReviewActions busy={busy} disabledReason={!model?.generation_ready ? "모델 준비 상태를 확인하세요." : proposalScope && receipt.state!=="editing" ? "대화 접수 상태를 확인하세요." : ""} onCancel={closeReview} onConfirm={submit}/></section>}
     <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority toggleResult readJobWithSignal={readSavedInput} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")}
       onSelectedDeleted={(id)=>{if(id===job)setJob("");setRevision(n=>n+1);}}
       footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={()=>{setJob("");setRevision(n=>n+1);}}/>}

@@ -20,7 +20,7 @@ import {validKeyframeBatchRequest,validKeyframeBatchResult} from "./keyframeBatc
 import {readKimodoInput,readKimodoJson} from "./readKimodoInput.mjs";
 import {validKimodoExample} from "./kimodoExampleValidation.mjs";
 import {validKimodoReferenceExamples} from "./kimodoReferenceExamples.mjs";
-import {restoreLostFocus} from "./restoreLostFocus.mjs";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import {kimodoPromptReason} from "./kimodoPromptReason.mjs";
 
 function decodeReferences(rows){
@@ -40,13 +40,13 @@ export function KimodoAcceptedResult({id,choose}){
   return <KimodoFrames key={id} id={id} choose={choose} selectionControls/>;
 }
 
-export default function KimodoGeneration({session,restoreJob,restoreRevision=0,initialInputs=null,receiptScope="",proposalScope,choose,onInputChange,onImageCheckingChange}){
+export default function KimodoGeneration({session,restoreJob,restoreRevision=0,initialInputs=null,receiptScope="",proposalScope,choose,onInputChange,onImageCheckingChange,onImageErrorChange,onImagePreviewErrorChange}){
   const [directions,setDirections]=useState({});
   const [jointEdits,setJointEdits]=useState([]);
   const [referenceExamples,setReferenceExamples]=useState(null);
   const [attachmentRevision,setAttachmentRevision]=useState(0);
-  const [references,setReferences]=useState([]);
-  const checkingSlots=useRef(new Set());
+  const [references,setReferences]=useState([]),[referenceReset,setReferenceReset]=useState(0);
+  const checkingSlots=useRef(new Set()),errorSlots=useRef(new Set()),previewErrorSlots=useRef(new Set()),referenceSection=useRef(null);
   const [imagesChecking,setImagesChecking]=useState(false);
   const [bundle,setBundle]=useState(null),[calibration,setCalibration]=useState(null),[hip,setHip]=useState(false);
   const [angles,setAngles]=useState("");
@@ -54,7 +54,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
   const [placement,setPlacement]=useState(null);
   const [segments,setSegments]=useState("");
   const [generationMode,setGenerationMode]=useState("single");
-  const modeName=useId(),segmentHelp=useId(),promptHelp=useId(),frameErrorId=useId(),stepErrorId=useId(),cfgErrorId=useId(),scaleErrorId=useId(),placementHelpId=useId();
+  const modeName=useId(),segmentHelp=useId(),promptHelp=useId(),frameErrorId=useId(),stepErrorId=useId(),cfgErrorId=useId(),scaleErrorId=useId(),placementHelpId=useId(),imageCheckingHelpId=useId();
   const segmentTokens=segments.trim() ? segments.trim().split(/\s+/) : [];
   const segmentCounts=segmentTokens.every(value=>/^\d+$/.test(value)) ? segmentTokens.map(Number) : [];
   const segmentTotal=segmentCounts.length ? segmentCounts.reduce((sum,value)=>sum+value,0) : null;
@@ -153,7 +153,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
         }
         if(controller.signal.aborted)return;
         if(loadEpoch!==inputEpoch.current || checkingSlots.current.size)throw new Error("조회 중 참조 이미지 선택이 변경되어 입력을 적용하지 않았습니다. 다시 시도하세요.");
-        setPlacement(restoredPlacement);setPlacing(false);setReferences(files);setSegments(defaults.segments.join(" "));setGenerationMode(defaults.segments.length ? "sequence" : "single");setAngles(defaults.angles.join(" "));
+        setPlacement(restoredPlacement);setPlacing(false);setReferences(files);setReferenceReset(value=>value+1);setSegments(defaults.segments.join(" "));setGenerationMode(defaults.segments.length ? "sequence" : "single");setAngles(defaults.angles.join(" "));
         setBundle(restoredBundle);setCalibration(restoredCalibration);setAttachmentRevision(value=>value+1);
         setHip(defaults.hip);setJointEdits(restoredJointEdits);
         setSourceJob(restoreJob);setReview(null);setNotice(restoreJob+" 입력을 불러왔습니다.");
@@ -173,7 +173,7 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
   }
   function replaceReferences(files){
     onInputChange?.();
-    setReferences(files);setJointEdits([]);setAngles("");setBundle(null);setCalibration(null);setHip(false);setReview(null);
+    setReferences(files);setReferenceReset(value=>value+1);setJointEdits([]);setAngles("");setBundle(null);setCalibration(null);setHip(false);setReview(null);
     setAttachmentRevision(value=>value+1);
   }
   async function loadReferences(identifier){
@@ -364,12 +364,13 @@ export default function KimodoGeneration({session,restoreJob,restoreRevision=0,i
           <button type="button" onClick={event=>startReferenceExample(null,event)}>예시 목록 다시 조회</button></>}
         {loadingReferences && <p role="status">신체 비율 예시를 불러오는 중입니다.</p>}
       </section>
-      <section aria-label="신체 비율 참조 이미지"><p>신체 비율 참조 PNG · 최대 8장</p>
+      <section ref={referenceSection} aria-label="신체 비율 참조 이미지"><p>신체 비율 참조 PNG · 최대 8장</p>
         <p>참조를 변경하면 참조 관절 수정과 다중 시점 설정이 초기화됩니다.</p>
+        {imagesChecking && <p id={imageCheckingHelpId} role="status">선택한 이미지 확인이 끝나면 다른 참조를 변경할 수 있습니다.</p>}
         <div className="reference-image-slots">{Array.from({length:Math.min(8,references.length+1)},(_,index)=><ReferenceImageInput
-          key={index} label={"신체 비율 참조 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} disabled={busy || loadingTemplate || (imagesChecking && !checkingSlots.current.has(index))} onSelectionStart={()=>{inputEpoch.current++;onInputChange?.();}} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);const checking=checkingSlots.current.size>0;setImagesChecking(checking);onImageCheckingChange?.(checking);}}
+          key={index} resetErrorKey={referenceReset} onPreviewErrorChange={value=>{if(value)previewErrorSlots.current.add(index);else previewErrorSlots.current.delete(index);onImagePreviewErrorChange?.(previewErrorSlots.current.size>0);}} onErrorChange={value=>{if(value)errorSlots.current.add(index);else errorSlots.current.delete(index);onImageErrorChange?.(errorSlots.current.size>0);}} label={"신체 비율 참조 "+(index+1)} accept="image/png" maxBytes={3000000} source={references[index]} describedBy={imagesChecking && !checkingSlots.current.has(index) ? imageCheckingHelpId : undefined} disabled={busy || loadingTemplate || (imagesChecking && !checkingSlots.current.has(index))} onSelectionStart={()=>{inputEpoch.current++;onInputChange?.();}} onCheckingChange={value=>{if(value)checkingSlots.current.add(index);else checkingSlots.current.delete(index);const checking=checkingSlots.current.size>0;setImagesChecking(checking);onImageCheckingChange?.(checking);}}
           onChange={file=>{onInputChange?.();setReferences(current=>{const next=[...current];if(file)next[index]=file;else next.splice(index,1);return next;});setJointEdits([]);setAngles("");setBundle(null);setCalibration(null);setHip(false);setReview(null);setAttachmentRevision(value=>value+1);}}/>)}</div>
-        {references.length>0 && <button type="button" disabled={imagesChecking} onClick={()=>replaceReferences([])}>참조 전체 해제</button>}
+        {references.length>0 && <button type="button" disabled={imagesChecking} aria-describedby={imagesChecking ? imageCheckingHelpId : undefined} onClick={event=>{const focused=document.activeElement===event.currentTarget;replaceReferences([]);if(focused)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(referenceSection.current?.querySelector('input[type="file"]'))));}}>참조 전체 해제</button>}
       </section>
       {jointEdits.length>0 && <ResultTable table={{
         title:"참조 관절 수정",columns:["참조 이미지","인물","관절","원본 좌표","수정 X","수정 Y","작업"],

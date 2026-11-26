@@ -283,6 +283,7 @@ HERMES_FIELD_SCHEMAS = {
     'status': {'type':'string', 'note':'명령별 기록 상태'},
     'service': {'type':'string', 'note':'명령별 관리 서비스 식별자'},
     'session_id': {'type':'string', 'pattern':'^[0-9a-f]{32}$'},
+    'call_id': {'type':'string', 'pattern':'^[A-Za-z0-9_-]{1,80}$'},
     'outside_processes_checked': {'type':'boolean','const':True,'note':'별도 그룹 GPU 프로세스 확인'},
     'request_id': {'type':'string', 'pattern':'^[A-Za-z0-9_-]{8,80}$'},
     'database_request_id': {'type':'string','minLength':1,'maxLength':180},

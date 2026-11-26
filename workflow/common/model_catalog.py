@@ -293,6 +293,12 @@ def catalog_overview(catalog=None, listing=None, *, include_manifests=True):
                            and isinstance(state.get('relative_path'), str) and '/' not in state['relative_path']}
     return {'schema_version': 1,
             'components': components,
+            'surveyed_model_children': [{'path': path, 'storage_observation': observation}
+                                        for path, observation in sorted((survey or {}).get('entries', {}).items())
+                                        if '/' in path and path.split('/')[0] in (survey or {}).get('surveyed_roots', [])
+                                        and path.split('/')[0] != 'models'],
+            'surveyed_model_roots': [path for path in (survey or {}).get('surveyed_roots', [])
+                                     if '/' not in path and path != 'models'],
             'unclassified': [{**item, 'partially_classified': name in partial_roots}
                              for name, item in observed.items()
                              if name not in declared_paths and name not in CATALOG_TARGETS and name not in installed_top_level],

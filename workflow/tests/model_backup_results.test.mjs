@@ -10,13 +10,13 @@ import {validCatalogHistory} from '../../gui/modelCatalogSearch.mjs';
 test('작업 결과 조회 시간 초과는 중복을 막고 대기를 해제한다', async () => {
   const source = readFileSync(new URL('../../gui/ModelBackupCompare.jsx', import.meta.url), 'utf8');
   const start = source.indexOf('  async function showJob(jobId)'), end = source.indexOf('  const pageSize', start);
-  let timer, calls = 0, busy = false, error = '';
+  let timer, calls = 0, busy = false, error = '',loadingJobId=null;
   const context = vm.createContext({AbortController, untilAborted, requestErrorMessage, jobReadRequest: {current: null},
-    setTimeout: fn => (timer = fn, 1), clearTimeout: () => {}, setBusy: value => busy = value, setError: value => error = value, setFailedJobId: () => {},
+    setTimeout: fn => (timer = fn, 1), clearTimeout: () => {}, setBusy: value => busy = value,setLoadingJobId:value=>loadingJobId=value, setError: value => error = value, setFailedJobId: () => {},
     managementCommand: () => {calls++; return new Promise(() => {});}});
   vm.runInContext(source.slice(start, end), context);
-  const first = context.showJob('job'); await context.showJob('job'); assert.equal(calls, 1);
-  timer(); await first; assert.match(error, /시간이 초과/); assert.equal(busy, false); assert.equal(context.jobReadRequest.current, null);
+  const first = context.showJob('job'); await context.showJob('job'); assert.equal(calls, 1);assert.equal(loadingJobId,'job');
+  timer(); await first; assert.match(error, /시간이 초과/); assert.equal(busy, false);assert.equal(loadingJobId,null); assert.equal(context.jobReadRequest.current, null);
 });
 
 test('모델 목록 조회 시간 초과는 대기를 해제하고 재시도를 허용한다', async () => {
@@ -38,14 +38,14 @@ test('손상된 모델 목록은 기존 목록을 보존하고 정상 재조회�
   const start=source.indexOf('  useEffect(() => {\n    const controller = new AbortController();\n    let active');
   const end=source.indexOf('  }, [modelsRevision]);',start)+'  }, [modelsRevision]);'.length;
   const old=[{name:'old'}],good={models:[{name:'new',local_present:true,backup_present:null,snapshot_present:false}],backup_error:null};
-  let models=old,error='',response={models:[null]},cleanup;
-  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validBackupModels,modelsRequestInFlight:{current:false},modelsRevision:0,
+  let models=old,error='',response={models:[null]},cleanup,cleared=0,notice='';
+  const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validBackupModels,modelsRequestInFlight:{current:false},modelsRevision:0,selected:'old',setComparison:()=>cleared++,setMetadata:()=>cleared++,setSelectionNeedsConfirmation:()=>{},setSelectionNotice:value=>notice=value,
     useEffect:fn=>cleanup=fn(),setTimeout,clearTimeout,managementCommand:async()=>response,setModelsLoading:()=>{},setModelsError:value=>error=value,
     setModels:value=>models=value,setBackupError:()=>{},setSelected:()=>{}});
   vm.runInContext(source.slice(start,end),context);await new Promise(done=>setImmediate(done));
-  assert.equal(models,old);assert.match(error,/응답이 올바르지/);cleanup();
+  assert.equal(models,old);assert.equal(cleared,0);assert.match(error,/응답이 올바르지/);cleanup();
   response=good;vm.runInContext(source.slice(start,end),context);await new Promise(done=>setImmediate(done));
-  assert.equal(models,good.models);assert.equal(error,'');cleanup();
+  assert.equal(models,good.models);assert.equal(cleared,2);assert.match(notice,/old.*새 목록에 없어/);assert.equal(error,'');cleanup();
   assert.equal(validBackupModels({models:[{name:'same'},{name:'same'}]}),false);
   assert.equal(validBackupModels({models:[{name:'model',local_present:'false'}]}),false);
 });
@@ -54,15 +54,15 @@ test('수동 이력 조회는 중복을 막고 시간 초과 후 재시도할 �
   const source = readFileSync(new URL('../../gui/ModelBackupCompare.jsx', import.meta.url), 'utf8');
   const start = source.indexOf('  async function refreshHistory(signal)');
   const end = source.indexOf('  useEffect(', start);
-  let timer, calls = 0, loading = false, error = '', jobs;
+  let timer, calls = 0, loading = false, error = '', jobs, checkedAt;
   const context = vm.createContext({AbortController, untilAborted, requestErrorMessage, validCatalogHistory, historyRevision: {current: 0}, historyRequest: {current: null},
-    setHistoryLoading: value => loading = value, setHistoryError: value => error = value, setJobs: value => jobs = value,
+    setHistoryLoading: value => loading = value, setHistoryError: value => error = value, setJobs: value => jobs = value,setHistoryCheckedAt:value=>checkedAt=value,
     setTimeout: fn => (timer = fn, 1), clearTimeout: () => {},
     managementCommand: () => {calls++; return calls === 1 ? new Promise(() => {}) : Promise.resolve({records: [{job_id:'new'}]});}});
   vm.runInContext(source.slice(start, end), context);
   const first = context.reloadHistory(); await context.reloadHistory(); assert.equal(calls, 1);
-  timer(); await first; assert.match(error, /시간이 초과/); assert.equal(loading, false);
-  await context.reloadHistory(); assert.deepEqual(jobs, [{job_id:'new'}]); assert.equal(error, '');
+  timer(); await first; assert.match(error, /시간이 초과/); assert.equal(loading, false);assert.equal(checkedAt,undefined);
+  await context.reloadHistory(); assert.deepEqual(jobs, [{job_id:'new'}]); assert.equal(error, '');assert.ok(checkedAt);
 });
 
 test('늦은 이력 응답과 오류는 최신 조회 결과를 덮지 않는다', async () => {
@@ -70,7 +70,7 @@ test('늦은 이력 응답과 오류는 최신 조회 결과를 덮지 않는다
   const start = source.indexOf('  async function refreshHistory(signal)');
   const end = source.indexOf('  useEffect(', start);
   const pending = []; let jobs;
-  const context = vm.createContext({validCatalogHistory, historyRevision: {current: 0}, setJobs: value => jobs = value, setHistoryError: () => {},
+  const context = vm.createContext({validCatalogHistory, historyRevision: {current: 0}, setJobs: value => jobs = value, setHistoryError: () => {},setHistoryCheckedAt:()=>{},
     managementCommand: () => new Promise((resolve, reject) => pending.push({resolve, reject}))});
   vm.runInContext(source.slice(start, end), context);
   const old = context.refreshHistory(), latest = context.refreshHistory();
@@ -88,7 +88,7 @@ test('손상된 백업 이력은 이전 이력을 유지하고 재조회할 수 
   const start=source.indexOf('  async function refreshHistory(signal)'),end=source.indexOf('  useEffect(',start);
   const previous=[{job_id:'previous'}],good=[{job_id:'next',status:'completed'}];let jobs=previous,error='',response={records:[null]};
   const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validCatalogHistory,historyRevision:{current:0},historyRequest:{current:null},setTimeout,clearTimeout,
-    setHistoryLoading:()=>{},setHistoryError:value=>error=value,setJobs:value=>jobs=value,managementCommand:async()=>response});
+    setHistoryLoading:()=>{},setHistoryError:value=>error=value,setJobs:value=>jobs=value,setHistoryCheckedAt:()=>{},managementCommand:async()=>response});
   vm.runInContext(source.slice(start,end),context);await context.reloadHistory();
   assert.equal(jobs,previous);assert.match(error,/응답이 올바르지/);
   response={records:good};await context.reloadHistory();assert.equal(jobs,good);assert.equal(error,'');
@@ -101,7 +101,7 @@ test('작업 결과 조회 성공과 이력 갱신 실패를 구분한다', asyn
   let result, error = '', busy = false;
   const response = {job_id:'job',model:'kimodo',target:'canonical',status:'completed',result:{model:'kimodo',target:'canonical',complete:true,comparison_basis:'sha256',files:[]}};
   const context = vm.createContext({AbortController, untilAborted, requestErrorMessage, validBackupJob, jobReadRequest: {current: null}, setTimeout, clearTimeout, managementCommand: async () => response, refreshHistory: async () => {throw new Error('offline');},
-    setBusy: value => busy = value, setError: value => error = value, setHistoryError: value => error = value, setJobResult: value => result = value, setShownJobId: () => {}, setFailedJobId: () => {},
+    setBusy: value => busy = value, setLoadingJobId:()=>{},setError: value => error = value, setHistoryError: value => error = value, setJobResult: value => result = value, setShownJobId: () => {}, setFailedJobId: () => {},
     setComparisonOrigin: () => {}, setComparison: () => {}, setFilter: () => {}, setFileQuery: () => {}, setPage: () => {}});
   vm.runInContext(source.slice(start, end), context);
   await context.showJob('job');
@@ -161,13 +161,13 @@ test('메타정보 조회 시간 초과 후 이전 결과를 유지하고 재조
   const source=readFileSync(new URL('../../gui/ModelBackupCompare.jsx',import.meta.url),'utf8');
   const start=source.indexOf('  async function showMetadata(event)'),end=source.indexOf('  async function submitRequest(',start);
   const previous={model:'model'},good={model:'model',services:[],declared_sources:[],declared_files:[],manifest_state:'missing'};
-  let timer,result=previous,error='',busy=false,calls=0;
+  let timer,result=previous,error='',busy=false,calls=0,checkedAt=null;
   const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validBackupMetadata,metadataRequest:{current:null},selected:'model',metadata:previous,
-    setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setMetadataLoading:()=>{},setError:value=>error=value,setMetadata:value=>result=value,
+    setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setMetadataLoading:()=>{},setError:value=>error=value,setMetadata:value=>result=value,setMetadataCheckedAt:value=>checkedAt=value,
     managementCommand:()=>{calls++;return calls===1?new Promise(()=>{}):Promise.resolve(good);}});
   vm.runInContext(source.slice(start,end),context);const first=context.showMetadata();await context.showMetadata();assert.equal(calls,1);timer();await first;
-  assert.equal(result,previous);assert.match(error,/시간이 초과.*이전 메타정보/);assert.equal(busy,false);
-  await context.showMetadata();assert.equal(result,good);assert.equal(error,'');assert.equal(busy,false);
+  assert.equal(result,previous);assert.equal(checkedAt,null);assert.match(error,/시간이 초과.*이전 메타정보/);assert.equal(busy,false);
+  await context.showMetadata();assert.equal(result,good);assert.ok(checkedAt);assert.equal(error,'');assert.equal(busy,false);
   assert.equal(validBackupMetadata({...good,services:[{}]},'model'),false);
   assert.equal(validBackupMetadata(good,'other'),false);
 });
@@ -189,7 +189,7 @@ test('잘못된 작업 결과는 이전 결과를 유지하고 같은 작업을 
   const old={job_id:'previous'},good={job_id:'job',model:'model',target:'canonical',status:'completed',result:{model:'model',target:'canonical',complete:true,comparison_basis:'sha256',files:[]}};
   let response={...good,job_id:'other'},result=old,error='',failed=null;
   const context=vm.createContext({AbortController,untilAborted,requestErrorMessage,validBackupJob,jobReadRequest:{current:null},setTimeout,clearTimeout,
-    managementCommand:async()=>response,refreshHistory:async()=>{},setBusy:()=>{},setError:value=>error=value,setHistoryError:()=>{},setJobResult:value=>result=value,
+    managementCommand:async()=>response,refreshHistory:async()=>{},setBusy:()=>{},setLoadingJobId:()=>{},setError:value=>error=value,setHistoryError:()=>{},setJobResult:value=>result=value,
     setShownJobId:()=>{},setFailedJobId:value=>failed=value,setComparisonOrigin:()=>{},setComparison:()=>{},setFilter:()=>{},setFileQuery:()=>{},setPage:()=>{}});
   vm.runInContext(source.slice(start,end),context);await context.showJob('job');
   assert.equal(result,old);assert.equal(failed,'job');assert.match(error,/작업 ID/);
@@ -213,6 +213,8 @@ test('백업 조작 사유는 기존 비활성 조건을 그대로 따른다',()
     assert.equal(Boolean(reason.verify),Boolean(common||backupError||(localMissing&&target!=='snapshot_manifest')||pendingRequest));
     assert.equal(Boolean(reason.sync),Boolean(common||backupError||localMissing||pendingRequest));
   }
+  const changed=backupActionReasons({selected:'model',target:'canonical',selectionNeedsConfirmation:true});
+  for(const reason of Object.values(changed))assert.match(reason,/직접 선택해 확인/);
 });
 
 test('all differences remain reachable after the first page', () => {

@@ -39,8 +39,7 @@ def load_saved_input(root, job):
             raise ValueError('참조 이미지가 변경됐습니다.')
         images.append(base64.b64encode(data).decode('ascii'))
     request = {key: saved[key] for key in ('action', 'width', 'height', 'steps', 'seed')}
-    if saved.get('sampler', 'euler') != 'euler':
-        request['sampler'] = saved['sampler']
+    request['sampler'] = saved.get('sampler', 'euler')
     request['prompt'] = saved['user_prompt']
     request['images'] = images
     if 'output_size' in saved:

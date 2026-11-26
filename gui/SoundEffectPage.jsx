@@ -62,7 +62,8 @@ function AudioGeneratorPage({music=false,embedded=false,session:embeddedSession=
   useEffect(()=>()=>{const request=reviewRequest.current;reviewRequest.current=null;request?.abort();if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);},[]);
   const prepareReasonId=useId(),durationErrorId=useId(),inputLockId=useId(),historyLockId=useId(),tagCountId=useId();
   const prepareReason=busy ? "다른 요청을 처리하고 있습니다. 완료될 때까지 기다리세요." : review ? "현재 요청의 확인을 마치거나 취소하세요." : handoff.id ? "진행 중인 GPU 양도 요청을 확인하세요." : "";
-  useEffect(()=>{if(!review)return;const origin=reviewOrigin.current;const frame=requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===origin) && reviewRef.current?.isConnected)reviewRef.current.focus();});return ()=>cancelAnimationFrame(frame);},[review]);
+  useEffect(()=>{if(!review)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>{if((document.activeElement===document.body || document.activeElement===origin) && reviewRef.current?.isConnected)reviewRef.current.focus();});return ()=>cancelAnimationFrame(frame);},[review]);
+  useEffect(()=>{if(busy || !noticeError || !reviewOrigin.current)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(origin)));return ()=>cancelAnimationFrame(frame);},[busy,noticeError,notice]);
   useEffect(()=>{
     if(!inputRetryFocus.current || (!form && !inputError))return;
     inputRetryFocus.current=false;
