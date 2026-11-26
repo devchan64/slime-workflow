@@ -28,3 +28,12 @@ test('다운로드 기록의 손상 응답은 오류를 알리고 재조회에�
  cleanup();context.revision=1;vm.runInContext(effect,context);await new Promise(done=>setImmediate(done));
  assert.equal(error,'');assert.deepEqual(lines,['받는 중']);assert.equal(context.pending.current,false);cleanup();
 });
+
+test('다운로드 기록의 JSON 파싱 실패 후 재조회가 복구된다',async()=>{
+ const source=readFileSync(new URL('../../gui/DownloadProgress.jsx',import.meta.url),'utf8');
+ const effect=source.slice(source.indexOf('  useEffect(() => {\n    let active='),source.indexOf('  const stale='));
+ let cleanup,error='',lines=null,attempt=0;
+ const context=vm.createContext({pending:{current:true},service:'service',revision:0,AbortController,untilAborted,requestErrorMessage:problem=>problem.message,useEffect:fn=>cleanup=fn(),setTimeout,clearTimeout,fetch:async()=>({ok:true,json:async()=>{if(++attempt===1)throw new SyntaxError('Unexpected token');return {active:false,lines:['완료']};}}),setChecking:()=>{},setLines:value=>lines=value,setDownloading:()=>{},setCheckedAt:()=>{},setError:value=>error=value});
+ vm.runInContext(effect,context);await new Promise(done=>setImmediate(done));assert.equal(error,'다운로드 기록 응답을 확인할 수 없습니다.');assert.equal(lines,null);
+ cleanup();vm.runInContext(effect,context);await new Promise(done=>setImmediate(done));assert.equal(error,'');assert.deepEqual(lines,['완료']);cleanup();
+});

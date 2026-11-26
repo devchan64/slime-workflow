@@ -35,7 +35,8 @@ function DownloadProgressForService({service}) {
         const data = await untilAborted((async()=>{
           const response = await fetch("/management/assistant/model-downloads/" + encodeURIComponent(service), {signal:controller.signal, cache:"no-store"});
           if (!response.ok) throw new Error("다운로드 기록을 조회할 수 없습니다.");
-          return response.json();
+          try{return await response.json();}
+          catch(problem){controller.signal.throwIfAborted();throw new Error("다운로드 기록 응답을 확인할 수 없습니다.");}
         })(),controller.signal);
         if (!data || typeof data.active!=="boolean" || !Array.isArray(data.lines) || data.lines.some(line=>typeof line!=="string")) throw new Error("다운로드 기록 응답을 확인할 수 없습니다.");
         if (active) {
