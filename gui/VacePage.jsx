@@ -224,7 +224,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     finally{handoff.clearReview();sending.current=false;setBusy(false);}
   }
   const modelService=values?.model_profile === "q8-gguf-resident-v1" ? "wan22-vace-q8" : service;
-  return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}><GeneratorPageIdentity service={service} embedded={embedded} session={session} showReturn changelogCard/>
+  return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}><GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
     <GeneratorUsage generator="wan22-vace"/><GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "모델 상태 조회 실패" : !model ? "상태 확인 필요" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"}>
       <ModelReadiness session={session} service={modelService} onStatus={setModel} onError={setModelError}/>

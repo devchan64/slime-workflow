@@ -51,7 +51,7 @@ export default function AnimatePage({embedded=false,session:embeddedSession=""}=
   function cleaned(message){setSaved(null);setJob("");refreshHistory(n=>n+1);setNotice(message);}
   function openResult(id){setJob(id);const details=historyRef.current?.querySelector('details.generator-history');if(details)details.open=true;}
   return <article className={"animate-page generator-page-common"+(embedded ? "" : " animate-standalone")}>
-    <GeneratorPageIdentity service={service} embedded={embedded} session={session} showReturn changelogCard description="참조 이미지에 동작 영상의 움직임을 전사합니다."/>
+    <GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard description="참조 이미지에 동작 영상의 움직임을 전사합니다."/>
     <GeneratorUsage generator={service}/>
     <GeneratorSectionNavigation inputRef={inputRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError || loraError ? "상태 조회 실패 · 다시 확인하세요" : !model || !loraModel ? "상태 확인 중" : !model.ready ? "기본 모델 준비 필요" : !loraModel.ready ? "기본 모델 준비 완료 · LoRA 별도 준비" : "기본 모델·LoRA 준비 완료"}>
