@@ -16,6 +16,10 @@ test('작가 이력 검색 실패는 기존 결과와 목록을 보존하고 오
  const f=fixture(async()=>{throw Error('연결 실패');});await f.context.search();
  assert.equal(f.selected(),'기존');assert.equal(f.context.resultTrigger.current,f.trigger);assert.equal(f.matches(),undefined);assert.match(f.notice(),/마지막으로 확인한 검색 결과/);assert.equal(f.settings().error,true);assert.equal(f.busy(),false);
 });
+test('빈 검색 결과가 있는 상태에서 실패하면 이전 결과가 0건이었다고 안내한다',async()=>{
+ const f=fixture(async()=>{throw Error('연결 실패');});f.context.matches=[];await f.context.search();
+ assert.match(f.notice(),/마지막 검색 결과는 0건/);assert.doesNotMatch(f.notice(),/아래에는/);assert.equal(f.settings().error,true);assert.equal(f.busy(),false);
+});
 test('검색 중 새 작업을 선택하면 늦은 검색 응답이 선택과 안내를 덮지 않는다',async()=>{
  let resolve;const f=fixture(()=>new Promise(done=>resolve=done)),pending=f.context.search();
  f.context.selectionEpoch.current++;f.context.select('새 작업');
