@@ -5,7 +5,7 @@ date: '2026-11-26'
 image: default-broadsword-combat-right-480p-v3.png
 image_size: [832, 480]
 image_sha256: 9a0bb376b4e1ac8511145735967d81b69fa50615700f09cc0a3d69dae308a9a8
-previous_baseline: default-broadsword-combat-right-480p-v2.png
+previous_baseline: 삭제된 v2 · Git 이력에서 확인 가능
 reference_sha256: 11651967c9d77ffa3be8576b9fe47c428fd2773d801a3d82f22d417d12020ca6
 operation: imagegen-edit-and-resize
 provenance:
