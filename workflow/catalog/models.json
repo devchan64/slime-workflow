@@ -237,15 +237,33 @@
     },
     {
       "id": "wan-animate-components",
-      "label": "Wan 공용 구성요소",
-      "kind": "shared",
+      "label": "이관 전 Wan 공용 경로",
+      "kind": "collection",
       "path": "wan22-animate-components",
-      "services": [
-        "wan22-fun-control",
-        "wan22-vace"
-      ],
+      "services": [],
       "source": null,
-      "revision": null
+      "revision": null,
+      "usage_note": "UMT5와 VAE를 독립 경로로 이관하기 전의 백업 대상이다. 기존 상위 스냅샷은 보존하며 두 모델의 현재 설치본은 각각 확인한다."
+    },
+    {
+      "id": "wan-umt5-fp16",
+      "label": "UMT5 XXL FP16 텍스트 인코더",
+      "kind": "shared",
+      "path": "wan22-animate-components/split_files/text_encoders",
+      "services": ["wan22-fun-control", "wan22-i2v"],
+      "source": "Comfy-Org/Wan-2.1",
+      "revision": "2bb519992ec7fb8ca66f6807335f67a92bf13e0b",
+      "usage_note": "독립 경로로 이관된 모델이다. 이관 전 상위 wan22-animate-components 스냅샷은 개별 대상 이력과 별도다."
+    },
+    {
+      "id": "wan-21-vae",
+      "label": "Wan 2.1 공용 VAE",
+      "kind": "shared",
+      "path": "wan22-animate-components/split_files/vae",
+      "services": ["wan22-fun-control", "wan22-vace", "wan22-i2v"],
+      "source": "Comfy-Org/Wan-2.1",
+      "revision": "2bb519992ec7fb8ca66f6807335f67a92bf13e0b",
+      "usage_note": "Wan 2.2 서비스가 사용하는 VAE다. 상위 wan22-animate-components 스냅샷에 포함되며 개별 대상 이력과는 별도다."
     },
     {
       "id": "wan-fun-control",
@@ -264,10 +282,12 @@
       "kind": "collection",
       "path": "wan22-i2v",
       "services": [
-        "wan22-i2v-assets"
+        "wan22-i2v-assets",
+        "wan22-i2v"
       ],
       "source": null,
-      "revision": null
+      "revision": null,
+      "usage_note": "I2V 본체 고·저 가중치와 Lightning 고·저 LoRA가 함께 있다. KungFu LoRA 파일도 남아 있으나 현재 생성 요청은 KungFu 모드를 지원하지 않는다."
     },
     {
       "id": "wan-vace-assets",
@@ -287,10 +307,12 @@
       "path": "wan22-vace-loras",
       "services": [
         "wan22-fighting-lora",
-        "wan22-vace-lightning"
+        "wan22-vace-lightning",
+        "wan22-vace"
       ],
       "source": null,
-      "revision": null
+      "revision": null,
+      "usage_note": "서로 다른 Fighting High LoRA와 Lightning T2V 고·저 LoRA를 포함한다. 각 모델의 출처와 해시는 해당 준비 코드에 별도로 고정돼 있다."
     },
     {
       "id": "heartmula",

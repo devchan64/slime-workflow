@@ -1,7 +1,9 @@
 """Stable backup names for selected catalog installations."""
 from pathlib import Path
 
-CATALOG_TARGETS = {'catalog-flux-report-vision': ('models', 'flux-report-vision'),
+CATALOG_TARGETS = {'catalog-wan-umt5-fp16': ('wan22-animate-components', 'split_files', 'text_encoders'),
+                   'catalog-wan-21-vae': ('wan22-animate-components', 'split_files', 'vae'),
+                   'catalog-flux-report-vision': ('models', 'flux-report-vision'),
                    'catalog-heartmula-demucs': ('audio', 'demucs'),
                    'catalog-trellis-dinov2': ('models', 'trellis-dinov2'),
                    'catalog-trellis-image-large': ('models', 'trellis-image-large'),
@@ -29,6 +31,8 @@ LEGACY_TARGETS = {'catalog-flux-report-vision': 'flux-report-vision',
 
 FLATTENED_TARGETS = {name: parts[1:] for name, parts in CATALOG_TARGETS.items()
                      if parts[0] == 'models' and name not in ('catalog-trellis-dinov2', 'catalog-trellis-image-large')}
+FLATTENED_TARGETS['catalog-wan-umt5-fp16'] = ('umt5-xxl-fp16',)
+FLATTENED_TARGETS['catalog-wan-21-vae'] = ('wan-2.1-vae',)
 FLATTENED_TARGETS['catalog-heartmula-demucs'] = ('demucs',)
 FLATTENED_TARGETS['catalog-hermes-coding'] = ('qwen3.8-27b-iq4-xs',)
 FLATTENED_TARGETS['catalog-heartmula'] = ('heartmula-oss-3b',)

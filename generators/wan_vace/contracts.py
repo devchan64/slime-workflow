@@ -28,13 +28,35 @@ VACE_EXPERT_BOUNDARY = 0.875
 VACE_INPUT_MODES = ('text', 'reference', 'first_frame', 'video_edit', 'video_condition', 'pose')
 
 
+def vace_model_path(name, *, root=None, files=None):
+    from workflow.common.model_storage_layout import resolve_wan_shared_model_directory
+    root = Path(root) if root is not None else VACE_WORKSPACE_ROOT
+    files = files if files is not None else VACE_MODEL_FILES
+    relative = files[name][0]
+    if name == 'vae' and relative == '.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors':
+        return resolve_wan_shared_model_directory(root/'.model', 'vae')/Path(relative).name
+    return root/relative
+
+
+def vace_model_records(*, root=None, files=None):
+    """Return declared asset records with the actual current paths."""
+    root = Path(root) if root is not None else VACE_WORKSPACE_ROOT
+    files = files if files is not None else VACE_MODEL_FILES
+    return {key: (str(vace_model_path(key, root=root, files=files).relative_to(root)), *record[1:])
+            for key, record in files.items()}
+
+
 def inspect_vace_assets(profile='official-bf16-resident-v1'):
     if profile not in ('official-bf16-resident-v1', 'q8-gguf-resident-v1'):
         raise ValueError('지원하지 않는 VACE 모델 프로필입니다.')
     missing_model_paths = []
     asset_files = VACE_MODEL_FILES if profile == 'official-bf16-resident-v1' else {k: v for k, v in VACE_MODEL_FILES.items() if k not in ('high', 'low')}
-    for current_model_name, expected_model_size, expected_model_hash in asset_files.values():
-        current_model_path = VACE_WORKSPACE_ROOT / current_model_name
+    for key, (current_model_name, expected_model_size, expected_model_hash) in asset_files.items():
+        try:
+            current_model_path = vace_model_path(key)
+        except ValueError:
+            missing_model_paths.append(current_model_name + ' · 경로 확인 불가')
+            continue
         if not current_model_path.is_file() or current_model_path.stat().st_size != expected_model_size:
             missing_model_paths.append(current_model_name)
     if profile == 'q8-gguf-resident-v1':
@@ -71,10 +93,10 @@ def verify_vace_weights(profile='official-bf16-resident-v1'):
         if not inspect_q8_assets():
             raise ValueError('Q8 전문가 파일 SHA-256 검증 실패')
     asset_files = VACE_MODEL_FILES if profile == 'official-bf16-resident-v1' else {k: v for k, v in VACE_MODEL_FILES.items() if k not in ('high', 'low')}
-    for current_model_name, expected_model_size, expected_model_hash in asset_files.values():
+    for key, (current_model_name, expected_model_size, expected_model_hash) in asset_files.items():
         if expected_model_hash is None:
             continue
-        with (VACE_WORKSPACE_ROOT / current_model_name).open('rb') as current_model_stream:
+        with vace_model_path(key).open('rb') as current_model_stream:
             current_model_digest = hashlib.file_digest(current_model_stream, 'sha256').hexdigest()
         if current_model_digest != expected_model_hash:
             raise ValueError(f'모델 SHA-256 불일치: {current_model_name}')

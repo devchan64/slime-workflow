@@ -1229,6 +1229,14 @@ Dasheng의 대기열 `prepare` 작업은 기존 `prepared.json`을 임시 보존
 
 MiniMax H3 이미지 독립 화면과 CLI는 `--sampler euler|lcm`을 지원한다. 새 요청의 기본값은 실험 기능인 LCM이며 Euler를 선택할 수 있다. 요청·이력·결과에 선택과 노이즈 설정을 기록한다. 대화 접수폼의 새 요청도 LCM을 사용하고 과거 샘플러 미기록 이력은 Euler로 해석한다.
 
-Dasheng-AudioGen을 Samba에서 복원한 뒤 준비할 때는 `python3 tools/manager.py command sfx-dasheng-audiogen prepare --offline-backup`을 사용할 수 있다. 게이트웨이는 요청을 GPU 대기열에 등록하고, 작업자는 Dasheng·FLAN-T5·오디오 토크나이저의 최신 완료 스냅샷과 로컬 파일을 SHA-256으로 비교한 후에만 준비한다. 각 스냅샷 내용은 한 번 읽으며, 로컬 대조 후 백업의 파일 목록·식별 정보와 최신 스냅샷 변경을 다시 확인한다. 이 검증은 Samba 연결이 필요하고 대용량 파일을 읽는 동안 GPU 대기열을 점유할 수 있다. 결과는 해당 시도의 `backup-verification.json`에 남는다. 검증 실패 시 기존 준비 기록을 변경하지 않는다. 준비 단계의 공용 Hub 다운로드 호출에는 `local_files_only`를 강제하고 Transformers 오프라인 환경을 설정한다. 이 옵션은 파일 복원 명령이 아니며 사전에 각 파일을 복원해야 한다. 스냅샷 해시는 백업 당시 관측값으로 공급처 진본을 인증하지 않는다. 검증과 모델 로딩 사이의 외부 파일 변경을 막는 잠금이나 임의의 모델 코드에 대한 네트워크 차단은 제공하지 않으므로 해당 시간 동안 파일을 변경하지 않아야 한다. 이전 두 번 읽기 구현으로 실제 GPU 준비와 생성을 확인했고, 한 번 읽기 구현은 격리 테스트와 실제 Demucs 및 Dasheng 전체 구성의 스냅샷·로컬 해시 비교로 확인했다. 새 구현의 전체 Dasheng GPU 준비 경로는 아직 별도로 검증하지 않았다. 서버 반영에는 관리 게이트웨이 재시작이 필요할 수 있다.
+Dasheng은 본체·텍스트 인코더·오디오 토크나이저 세 대상이 필요하다. 각 대상의 기존 경로가 없는 경우에만 아래처럼 각각 복원한다. 이미 있는 경로는 덮어쓰지 않으며, 일부만 없는 경우 해당 대상만 복원한다. 복원 전 백업 목록·디스크 여유 공간과 다른 작업의 사용 여부를 확인한다.
+
+```bash
+.venv/bin/python -m workflow.common.model_snapshot_offline_restore dasheng-audiogen
+.venv/bin/python -m workflow.common.model_snapshot_offline_restore flan-t5-large
+.venv/bin/python -m workflow.common.model_snapshot_offline_restore dasheng-tokenizer
+```
+
+Dasheng-AudioGen을 Samba에서 복원한 뒤 준비할 때는 `python3 tools/manager.py command sfx-dasheng-audiogen prepare --offline-backup`을 사용할 수 있다. 게이트웨이는 요청을 GPU 대기열에 등록하고, 작업자는 Dasheng·FLAN-T5·오디오 토크나이저의 최신 완료 스냅샷과 로컬 파일을 SHA-256으로 비교한 후에만 준비한다. 각 스냅샷 내용은 한 번 읽으며, 로컬 대조 후 백업의 파일 목록·식별 정보와 최신 스냅샷 변경을 다시 확인한다. 이 검증은 Samba 연결이 필요하고 대용량 파일을 읽는 동안 GPU 대기열을 점유할 수 있다. 결과는 해당 시도의 `backup-verification.json`에 남는다. 검증 실패 시 기존 준비 기록을 변경하지 않는다. 준비 단계의 공용 Hub 다운로드 호출에는 `local_files_only`를 강제하고 Transformers 오프라인 환경을 설정한다. 이 옵션은 파일 복원 명령이 아니며 사전에 각 파일을 복원해야 한다. 스냅샷 해시는 백업 당시 관측값으로 공급처 진본을 인증하지 않는다. 검증과 모델 로딩 사이의 외부 파일 변경을 막는 잠금이나 임의의 모델 코드에 대한 네트워크 차단은 제공하지 않으므로 해당 시간 동안 파일을 변경하지 않아야 한다. 실제 GPU 준비와 생성은 기존 로컬 설치본을 대상으로 확인했다. 세 구성 요소를 별도의 빈 임시 루트에 복원해 각 스냅샷 해시와 설정·토크나이저 로딩도 확인했으나, 그 복원본을 이용한 GPU 준비·생성은 아직 검증하지 않았다. 서버 반영에는 관리 게이트웨이 재시작이 필요할 수 있다.
 
 중단·실패한 스냅샷 백업에 `.pending-작업ID`가 남아 있으면 모델 백업 비교의 이력에서 **백업 재개**를 선택할 수 있다. 기존 부분을 원본과 대조해 일치할 때만 이어 쓰고 완성 후 전체 사본 SHA-256을 확인한다. 불일치·예상 밖 파일·링크가 있거나 미완료 디렉터리가 없으면 기존 데이터를 보존하고 실패한다. 이미 매니페스트가 만들어진 미완료 폴더는 자동으로 게시하지 않는다. 완료 게시에는 덮어쓰기 없는 원자적 이름 변경을 사용한다. 대상 충돌이나 파일시스템 미지원 시 기존 대상과 미완료 폴더를 보존하고 실패하므로 내용을 확인해야 한다. CLI는 `{"job_id":"작업ID"}` JSON 파일을 준비해 `python3 tools/manager.py command model-downloads backup-resume --payload-file 요청파일.json`을 사용한다. 운영 서비스에 변경을 반영하려면 게이트웨이 갱신이 필요할 수 있다.

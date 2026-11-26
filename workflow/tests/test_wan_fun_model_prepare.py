@@ -6,6 +6,78 @@ from workflow.common.management_gateway import resolve_management_command
 
 
 class FunModelPrepareTests(unittest.TestCase):
+    def test_missing_pinned_assets_use_backup_without_touching_existing(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from generators.wan_fun.prepare import restore_missing_fun_asset
+        with TemporaryDirectory() as directory:
+            target = Path(directory)/'nested'/'asset'
+            with patch('workflow.common.model_backup_restore.restore_verified_backup', return_value=True) as restore:
+                self.assertTrue(restore_missing_fun_asset(target, 'a'*64, 42))
+                restore.assert_called_once_with(target, 'a'*64, 42)
+                target.write_text('keep')
+                self.assertFalse(restore_missing_fun_asset(target, 'a'*64, 42))
+                self.assertEqual(restore.call_count, 1)
+                self.assertEqual(target.read_text(), 'keep')
+
+    def test_shared_fun_paths_follow_moves_and_reject_conflicts(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from generators.wan_fun.contracts import fun_model_path
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, nested, flat, filename in (
+                ('encoder', 'text_encoders', 'umt5-xxl-fp16', 'umt5_xxl_fp16.safetensors'),
+                ('vae', 'vae', 'wan-2.1-vae', 'wan_2.1_vae.safetensors')):
+                old = root/'.model/wan22-animate-components/split_files'/nested
+                old.mkdir(parents=True)
+                self.assertEqual(fun_model_path(name, root=root), old/filename)
+                new = root/'.model'/flat
+                old.rename(new)
+                self.assertEqual(fun_model_path(name, root=root), new/filename)
+                old.mkdir()
+                with self.assertRaises(ValueError):
+                    fun_model_path(name, root=root)
+                old.rmdir()
+
+    def test_full_prepare_uses_backup_for_missing_pinned_assets(self):
+        import hashlib
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from generators.wan_fun import prepare
+        import torch
+        data = b'known model data'
+        digest = hashlib.sha256(data).hexdigest()
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = {'high': 'model/high', 'low': 'model/low',
+                     'encoder': 'shared/encoder', 'vae': 'shared/vae'}
+            files = {key: (path, len(data)) for key, path in paths.items()}
+            sources = {key: ('repo', 'revision', key, digest) for key in ('encoder', 'vae')}
+            def restore(path, expected, size):
+                self.assertEqual((expected, size), (digest, len(data)))
+                path.write_bytes(data)
+                return True
+            with patch.object(prepare, 'FUN_WORKSPACE_ROOT', root), \
+                 patch.object(prepare, 'FUN_MODEL_DIRECTORY', root/'model'), \
+                 patch.object(prepare, 'FUN_PREPARE_LOG_DIRECTORY', root/'logs'), \
+                 patch.object(prepare, 'FUN_RUNTIME_DIRECTORY', root/'runtime'), \
+                 patch.object(prepare, 'FUN_MODEL_FILES', files), \
+                 patch.object(prepare, 'FUN_DIFFUSION_HASHES', {'high': digest, 'low': digest}), \
+                 patch.object(prepare, 'FUN_SHARED_MODEL_SOURCES', sources), \
+                 patch.object(prepare, 'FUN_RUNTIME_SOURCES', {}), \
+                 patch.object(prepare, 'inspect_fun_assets', return_value={'ready': True}), \
+                 patch.object(prepare.subprocess, 'run'), \
+                 patch.object(torch.version, 'hip', 'test'), \
+                 patch.object(torch.cuda, 'is_available', return_value=True), \
+                 patch('workflow.common.model_backup_restore.restore_verified_backup', side_effect=restore) as backup, \
+                 patch('workflow.common.model_huggingface_download.tracked_hf_hub_download', side_effect=AssertionError('Hub contacted')):
+                prepare.download_fun_control_models()
+            self.assertEqual(backup.call_count, 4)
+            self.assertTrue(all((root/path).read_bytes() == data for path in paths.values()))
+
     def test_rocm_install_applies_shared_constraints_to_each_pip_step(self):
         import os
         from pathlib import Path

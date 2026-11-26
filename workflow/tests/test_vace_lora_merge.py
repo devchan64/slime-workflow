@@ -12,6 +12,21 @@ from generators.wan_vace.contracts import VACE_DEFAULT_SETTINGS, validate_vace_r
 
 
 class VaceLoraMergeTests(unittest.TestCase):
+    def test_lora_consumers_follow_separated_directories(self):
+        from generators.wan_vace import fighting_lora, lightning_lora
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            old = root/'.model/wan22-vace-loras'
+            lightning = old/'lightning-t2v-v1.1'
+            lightning.mkdir(parents=True)
+            with patch.object(fighting_lora, 'ROOT', root), patch.object(lightning_lora, 'ROOT', root):
+                self.assertEqual(fighting_lora.current_fighting_lora_path().parent, old)
+                self.assertEqual(lightning_lora.current_lightning_lora_directory(), lightning)
+                lightning.rename(root/'.model/wan22-lightning-t2v-v11')
+                old.rename(root/'.model/wan22-fighting-lora-high')
+                self.assertEqual(fighting_lora.current_fighting_lora_path().parent, root/'.model/wan22-fighting-lora-high')
+                self.assertEqual(lightning_lora.current_lightning_lora_directory(), root/'.model/wan22-lightning-t2v-v11')
+
     def test_combined_request_requires_four_step_preset(self):
         request = {**VACE_DEFAULT_SETTINGS, 'mode': 'text', 'action': 'generate', 'prompt': 'FIGHTSCENE',
                    'negative_prompt': '', 'images': [], 'width': 832, 'height': 480,

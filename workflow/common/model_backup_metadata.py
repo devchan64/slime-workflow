@@ -67,6 +67,31 @@ def model_metadata(model, *, config_path=None, service_paths=None):
             else:
                 manifest = None
         if manifest is None:
+            if model in ('wan22-fighting-lora-high', 'wan22-lightning-t2v-v11'):
+                if model == 'wan22-fighting-lora-high':
+                    from generators.wan_vace.fighting_lora import SHA256 as FIGHTING_SHA256, PATH
+                    repository, revision = 'r4tn4/Bubble', '338e12cb179abf0573b61c310db6163018effdde'
+                    hashes = {PATH.name: FIGHTING_SHA256}
+                else:
+                    from generators.wan_vace.lightning_lora import FILES, REVISION
+                    repository, revision = 'lightx2v/Wan2.2-Lightning', REVISION
+                    hashes = {record[0]: record[2] for record in FILES.values()}
+                result['manifest_state'] = 'code_pinned'
+                result['declared_sources'] = [{'repository': repository, 'revision': revision}]
+                result['declared_files'] = [{'path': path, 'sha256': digest, 'hash_origin': 'application_pinned',
+                                             'repository': repository, 'revision': revision}
+                                            for path, digest in sorted(hashes.items())]
+                return result
+            if model in ('umt5-xxl-fp16', 'catalog-wan-umt5-fp16', 'wan-2.1-vae', 'catalog-wan-21-vae'):
+                from generators.wan_fun.prepare import FUN_SHARED_MODEL_SOURCES
+                component = 'encoder' if model in ('umt5-xxl-fp16', 'catalog-wan-umt5-fp16') else 'vae'
+                repository, revision, remote, digest = FUN_SHARED_MODEL_SOURCES[component]
+                result['manifest_state'] = 'code_pinned'
+                result['declared_sources'] = [{'repository': repository, 'revision': revision}]
+                result['declared_files'] = [{'path': Path(remote).name, 'sha256': digest,
+                                             'hash_origin': 'application_pinned',
+                                             'repository': repository, 'revision': revision}]
+                return result
             if model in ('flan-t5-base', 'animationgpt-author'):
                 from workflow.common.animationgpt_model_download import (AUTHOR_WEIGHT_SHA256, FILENAME,
                     T5_REVISION, author_t5_required_files)

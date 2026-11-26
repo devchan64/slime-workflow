@@ -77,8 +77,9 @@ def execute_i2v(job, attempt, request, metrics):
     if not torch.version.hip or not torch.cuda.is_available():
         raise RuntimeError('ROCm GPU가 필요합니다.')
     comfy.model_management.text_encoder_device = lambda: torch.device('cuda:0')
-    folder_paths.add_model_folder_path('text_encoders', str(ROOT / '.model/wan22-animate-components/split_files/text_encoders'))
-    folder_paths.add_model_folder_path('vae', str(ROOT / '.model/wan22-animate-components/split_files/vae'))
+    from workflow.common.model_storage_layout import resolve_wan_shared_model_directory
+    folder_paths.add_model_folder_path('text_encoders', str(resolve_wan_shared_model_directory(ROOT/'.model', 'umt5')))
+    folder_paths.add_model_folder_path('vae', str(resolve_wan_shared_model_directory(ROOT/'.model', 'vae')))
     metrics.update_generation_stage('load')
     clip = nodes.CLIPLoader().load_clip('umt5_xxl_fp16.safetensors', type='wan')[0]
     if clip.patcher.load_device.type != 'cuda' or clip.patcher.offload_device.type != 'cuda':

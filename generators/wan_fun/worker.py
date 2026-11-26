@@ -78,8 +78,9 @@ def execute_fun_inference(current_job_root, current_attempt_root, current_reques
     comfy.model_management.text_encoder_device = resolve_encoder_cuda
     if not torch.version.hip:
         raise RuntimeError('AMD ROCm PyTorch가 필요합니다.')
-    for current_folder_name, current_folder_path in [('diffusion_models', '.model/wan22-fun-control/split_files/diffusion_models'), ('text_encoders', '.model/wan22-animate-components/split_files/text_encoders'), ('vae', '.model/wan22-animate-components/split_files/vae')]:
-        folder_paths.add_model_folder_path(current_folder_name, str(FUN_WORKSPACE_ROOT / current_folder_path))
+    from workflow.common.model_storage_layout import resolve_wan_shared_model_directory
+    for current_folder_name, current_folder_path in [('diffusion_models', FUN_WORKSPACE_ROOT/'.model/wan22-fun-control/split_files/diffusion_models'), ('text_encoders', resolve_wan_shared_model_directory(FUN_WORKSPACE_ROOT/'.model', 'umt5')), ('vae', resolve_wan_shared_model_directory(FUN_WORKSPACE_ROOT/'.model', 'vae'))]:
+        folder_paths.add_model_folder_path(current_folder_name, str(current_folder_path))
     current_metrics_recorder.update_generation_stage('load')
     current_text_encoder = nodes.CLIPLoader().load_clip('umt5_xxl_fp16.safetensors', type='wan')[0]
     if current_text_encoder.patcher.load_device.type != 'cuda' or current_text_encoder.patcher.offload_device.type != 'cuda':

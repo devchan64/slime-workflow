@@ -23,10 +23,27 @@ FUN_MAX_SEED_VALUE = 2147483647
 FUN_CONTROL_TYPES = ('pose', 'depth', 'canny', 'mlsd')
 
 
+def fun_model_path(name, *, root=None, files=None):
+    """Resolve the shared model paths dynamically across the migration."""
+    from workflow.common.model_storage_layout import resolve_wan_shared_model_directory
+    root = Path(root) if root is not None else FUN_WORKSPACE_ROOT
+    files = files if files is not None else FUN_MODEL_FILES
+    relative = files[name][0]
+    shared = {'encoder': ('umt5', '.model/wan22-animate-components/split_files/text_encoders/umt5_xxl_fp16.safetensors'),
+              'vae': ('vae', '.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors')}
+    if name in shared and relative == shared[name][1]:
+        return resolve_wan_shared_model_directory(root/'.model', shared[name][0])/Path(relative).name
+    return root/relative
+
+
 def inspect_fun_assets():
     missing_model_paths = []
-    for current_model_name, expected_model_size in FUN_MODEL_FILES.values():
-        current_model_path = FUN_WORKSPACE_ROOT / current_model_name
+    for name, (current_model_name, expected_model_size) in FUN_MODEL_FILES.items():
+        try:
+            current_model_path = fun_model_path(name)
+        except ValueError:
+            missing_model_paths.append(current_model_name + ' · 경로 확인 불가')
+            continue
         if not current_model_path.is_file() or current_model_path.stat().st_size != expected_model_size:
             missing_model_paths.append(current_model_name)
     for current_runtime_name, expected_revision_text in [('ComfyUI', 'b8730510db30c8858e1e5d8e126ef19eac395560')]:

@@ -21,6 +21,42 @@ from workflow.common.model_backup_verification import read_verification, list_ve
 
 
 class ModelBackupInventoryTest(unittest.TestCase):
+    def test_separated_vace_loras_expose_their_pinned_hashes(self):
+        from generators.wan_vace.fighting_lora import SHA256
+        from generators.wan_vace.lightning_lora import FILES
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            backup.mkdir()
+            for name in ('wan22-fighting-lora-high', 'wan22-lightning-t2v-v11'):
+                (source/name).mkdir(parents=True)
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            expected = {'wan22-fighting-lora-high': {SHA256},
+                        'wan22-lightning-t2v-v11': {entry[2] for entry in FILES.values()}}
+            for name, hashes in expected.items():
+                result = model_metadata(name, config_path=config, service_paths={})
+                self.assertEqual(result['manifest_state'], 'code_pinned')
+                self.assertEqual({item['sha256'] for item in result['declared_files']}, hashes)
+                self.assertTrue(all(item['hash_origin'] == 'application_pinned' for item in result['declared_files']))
+
+    def test_wan_shared_models_report_pinned_hash_origin(self):
+        from generators.wan_fun.prepare import FUN_SHARED_MODEL_SOURCES
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            backup.mkdir()
+            for folder in ('umt5-xxl-fp16', 'wan-2.1-vae'):
+                (source/folder).mkdir(parents=True)
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            for name, component in (('umt5-xxl-fp16', 'encoder'), ('wan-2.1-vae', 'vae')):
+                result = model_metadata(name, config_path=config, service_paths={})
+                self.assertEqual(result['manifest_state'], 'code_pinned')
+                self.assertEqual(result['declared_files'][0]['hash_origin'], 'application_pinned')
+                self.assertEqual(result['declared_files'][0]['sha256'], FUN_SHARED_MODEL_SOURCES[component][3])
+                self.assertEqual(result['declared_sources'][0]['revision'], FUN_SHARED_MODEL_SOURCES[component][1])
+
     def test_snapshot_records_that_internal_links_are_copied_as_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

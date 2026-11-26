@@ -81,3 +81,49 @@ def resolve_huggingface_cache(root):
 
 def resolve_minimax_snapshot(root):
     return resolve_huggingface_cache(root) / MINIMAX_SNAPSHOT
+
+
+def resolve_wan_shared_model_directory(root, component):
+    """Resolve one shared Wan model without choosing between conflicting trees."""
+    paths = {
+        'umt5': ('wan22-animate-components/split_files/text_encoders', 'umt5-xxl-fp16'),
+        'vae': ('wan22-animate-components/split_files/vae', 'wan-2.1-vae'),
+    }
+    if component not in paths:
+        raise ValueError('지원하지 않는 Wan 공용 모델입니다.')
+    root = Path(root)
+    old, new = (root / value for value in paths[component])
+    for path in (old, new):
+        for parent in (path, *path.parents):
+            if parent == root.parent:
+                break
+            if parent.is_symlink():
+                raise ValueError('Wan 모델 경로에 심볼릭 링크를 사용할 수 없습니다.')
+        if path.exists() and not path.is_dir():
+            raise ValueError('Wan 모델 경로가 디렉터리가 아닙니다.')
+    if old.exists() and new.exists():
+        raise ValueError('Wan 모델의 이전 경로와 새 경로가 모두 존재합니다.')
+    return old if old.exists() else new
+
+
+def resolve_wan_vace_lora_directory(root, component):
+    """Resolve one VACE LoRA installation across a directory separation."""
+    paths = {
+        'lightning': ('wan22-vace-loras/lightning-t2v-v1.1', 'wan22-lightning-t2v-v11'),
+        'fighting': ('wan22-vace-loras', 'wan22-fighting-lora-high'),
+    }
+    if component not in paths:
+        raise ValueError('지원하지 않는 VACE LoRA입니다.')
+    root = Path(root)
+    old, new = (root/value for value in paths[component])
+    for path in (old, new):
+        for parent in (path, *path.parents):
+            if parent == root.parent:
+                break
+            if parent.is_symlink():
+                raise ValueError('LoRA 경로에 심볼릭 링크를 사용할 수 없습니다.')
+        if path.exists() and not path.is_dir():
+            raise ValueError('LoRA 경로가 디렉터리가 아닙니다.')
+    if old.exists() and new.exists():
+        raise ValueError('LoRA 이전 경로와 새 경로가 모두 존재합니다.')
+    return old if old.exists() else new

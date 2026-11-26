@@ -22,6 +22,10 @@ LEGACY_BACKUP_PREFIXES = {('models', 'flux-report-vision'): ('flux-report-vision
 # The flattened paths may need files from either earlier layout. These aliases
 # only select candidates; the caller's trusted digest still verifies all bytes.
 FLATTENED_BACKUP_PREFIXES = {
+    ('wan22-lightning-t2v-v11',): (('wan22-vace-loras', 'lightning-t2v-v1.1'),),
+    ('wan22-fighting-lora-high',): (('wan22-vace-loras',),),
+    ('umt5-xxl-fp16',): (('wan22-animate-components', 'split_files', 'text_encoders'),),
+    ('wan-2.1-vae',): (('wan22-animate-components', 'split_files', 'vae'),),
     ('qwen3.8-27b-iq4-xs',): (('hermes-coding',), ('models', 'hermes-coding'), ('hermes-agent',)),
     ('heartmula-oss-3b', 'generation'): (('audio', 'heartmula', 'bundle'), ('models', 'audio', 'heartmula', 'bundle'), ('music', 'music-heartmula', 'bundle')),
     ('heartmula-oss-3b',): (('audio', 'heartmula', 'bundle', 'HeartMuLa-oss-3B'), ('models', 'audio', 'heartmula', 'bundle', 'HeartMuLa-oss-3B'), ('music', 'music-heartmula', 'bundle', 'HeartMuLa-oss-3B')),

@@ -4,7 +4,7 @@ import os
 import json
 import hashlib
 from pathlib import Path
-from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES, VACE_MODEL_REVISION, VACE_SOURCE_REVISION, VACE_MODEL_IDENTIFIER, VACE_ENCODER_REVISION
+from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES, vace_model_path, vace_model_records, VACE_MODEL_REVISION, VACE_SOURCE_REVISION, VACE_MODEL_IDENTIFIER, VACE_ENCODER_REVISION
 from generators.wan_vace.official_prepare import VACE_OFFICIAL_INSTALL_ROOT as VACE_OFFICIAL_SOURCE_ROOT
 from generators.wan_vace.official_full_precision import load_full_precision_expert
 
@@ -23,21 +23,21 @@ def apply_vace_loras(current_high_model, current_low_model, lora_mode, current_a
     from generators.wan_vace.lora_merge import merge_adapter
     from workflow.common.generation_records import write_record_atomically
     if lora_mode in ('lightning', 'fighting_lightning'):
-        from generators.wan_vace.lightning_lora import DIRECTORY, FILES, REVISION, inspect_lightning_loras
+        from generators.wan_vace.lightning_lora import current_lightning_lora_directory, FILES, REVISION, inspect_lightning_loras
         if not inspect_lightning_loras():
             raise ValueError('Lightning LoRA 파일 검증에 실패했습니다. 모델 관리에서 준비하세요.')
     if lora_mode in ('fighting', 'fighting_lightning'):
-        from generators.wan_vace.fighting_lora import PATH as fighting_path, SHA256 as fighting_hash, inspect_fighting_lora
+        from generators.wan_vace.fighting_lora import current_fighting_lora_path, SHA256 as fighting_hash, inspect_fighting_lora
         if not inspect_fighting_lora():
             raise ValueError('격투 LoRA 파일 검증에 실패했습니다. 모델 관리에서 준비하세요.')
     uses_q8 = getattr(current_high_model, '_vace_q8_expert', False)
     record = {'mode': lora_mode, 'strength': 1.0, 'application': 'runtime-low-rank' if uses_q8 else 'bf16-merged'}
     if lora_mode in ('lightning', 'fighting_lightning'):
-        high_count = merge_adapter(current_high_model, DIRECTORY / FILES['high'][0])
-        low_count = merge_adapter(current_low_model, DIRECTORY / FILES['low'][0])
+        high_count = merge_adapter(current_high_model, current_lightning_lora_directory() / FILES['high'][0])
+        low_count = merge_adapter(current_low_model, current_lightning_lora_directory() / FILES['low'][0])
         record.update(lightning_revision=REVISION, lightning_sha256={name: item[2] for name,item in FILES.items()}, high_layers=high_count, low_layers=low_count)
     if lora_mode in ('fighting', 'fighting_lightning'):
-        record.update(fighting_sha256=fighting_hash, fighting_strength=fighting_strength, fighting_high_layers=merge_adapter(current_high_model, fighting_path, strength=fighting_strength))
+        record.update(fighting_sha256=fighting_hash, fighting_strength=fighting_strength, fighting_high_layers=merge_adapter(current_high_model, current_fighting_lora_path(), strength=fighting_strength))
     write_record_atomically(current_attempt_root / 'lora-merge.json', record)
 
 
@@ -65,7 +65,7 @@ def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.
     current_text_encoder.to(device='cuda', dtype=torch.bfloat16).eval().requires_grad_(False)
     del current_encoder_state
     current_vae_model = AutoencoderKLWan()
-    current_vae_state = load_file(str(VACE_WORKSPACE_ROOT / VACE_MODEL_FILES['vae'][0]))
+    current_vae_state = load_file(str(vace_model_path('vae')))
     current_vae_model.load_state_dict({'model.' + current_tensor_name: current_tensor_value for current_tensor_name, current_tensor_value in current_vae_state.items()}, strict=True)
     current_vae_model.to(device='cuda', dtype=torch.bfloat16).eval().requires_grad_(False)
     del current_vae_state
@@ -106,9 +106,10 @@ def execute_official_inference(current_job_root,current_attempt_root,current_req
     is_q8 = current_request_record.get('model_profile') == 'q8-gguf-resident-v1'
     if is_q8:
         from generators.wan_vace.q8_assets import REPOSITORY, REVISION, FILES
+    current_asset_records = vace_model_records()
     write_record_atomically(current_attempt_root / 'model-selection.json', {
         'model_id': REPOSITORY if is_q8 else VACE_MODEL_IDENTIFIER, 'revision': REVISION if is_q8 else VACE_MODEL_REVISION,
-        'files': {'experts': FILES, 'components': {k: v for k, v in VACE_MODEL_FILES.items() if k not in ('high', 'low')}} if is_q8 else VACE_MODEL_FILES, 'quantization': 'Q8_0' if is_q8 else None, 'precision': 'Q8_0/BF16' if is_q8 else 'BF16',
+        'files': {'experts': FILES, 'components': {k: v for k, v in current_asset_records.items() if k not in ('high', 'low')}} if is_q8 else current_asset_records, 'quantization': 'Q8_0' if is_q8 else None, 'precision': 'Q8_0/BF16' if is_q8 else 'BF16',
         'pytorch_version': torch.__version__, 'rocm_version': torch.version.hip,
         'gpu_name': torch.cuda.get_device_name(0), 'allocator_backend': torch.cuda.memory.get_allocator_backend(),
         'allocator_configuration': os.environ.get('PYTORCH_ALLOC_CONF'),

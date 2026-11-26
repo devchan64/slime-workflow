@@ -17,6 +17,25 @@ from workflow.common.model_backup_targets import FLATTENED_TARGETS, target_path
 from workflow.common.model_storage_move import _rename_noreplace
 
 
+def _manifest_entries(files):
+    if not isinstance(files, list) or not files:
+        raise ValueError('스냅샷 파일 목록이 올바르지 않습니다.')
+    entries = {}
+    for item in files:
+        if not isinstance(item, dict):
+            raise ValueError('스냅샷 파일 기록이 올바르지 않습니다.')
+        name, size, digest = item.get('path'), item.get('size'), item.get('sha256')
+        mtime = item.get('source_mtime_ns')
+        if (not isinstance(name, str) or not name or name.startswith('/') or '\\' in name or '\x00' in name
+                or any(part in ('', '.', '..') for part in name.split('/')) or name == '.snapshot.json'
+                or name in entries or type(size) is not int or size < 0
+                or not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest)
+                or (mtime is not None and (type(mtime) is not int or mtime < 0))):
+            raise ValueError('스냅샷 파일 기록이 올바르지 않습니다.')
+        entries[name] = (size, digest, mtime)
+    return entries
+
+
 def list_snapshot_versions(model, *, roots=None):
     """List snapshot declarations without asserting file integrity."""
     if not isinstance(model, str) or not model or model in ('.', '..') or '/' in model or '\\' in model or '\x00' in model:
@@ -44,13 +63,11 @@ def list_snapshot_versions(model, *, roots=None):
                 if os.fstat(stream.fileno()).st_size > 16*1024*1024:
                     raise ValueError('매니페스트 크기 오류')
                 record = json.loads(stream.read(16*1024*1024 + 1))
-            if (not isinstance(record, dict) or record.get('version') != 1 or record.get('model') != model
+            if (not isinstance(record, dict) or type(record.get('version')) is not int or record['version'] != 1 or record.get('model') != model
                     or record.get('job_id') != snapshot.name or not isinstance(record.get('created_at'), str)
                     or not isinstance(record.get('files'), list)):
                 raise ValueError('매니페스트 형식 오류')
-            paths = [item.get('path') if isinstance(item, dict) else None for item in record['files']]
-            if any(not isinstance(path, str) or not path for path in paths):
-                raise ValueError('매니페스트 파일 경로 오류')
+            paths = _manifest_entries(record['files'])
             versions.append({'snapshot_id': snapshot.name, 'created_at': record['created_at'],
                              'file_count': len(paths),
                              'partial_file_count': sum(path.endswith(('.incomplete', '.partial')) for path in paths),
@@ -134,19 +151,7 @@ def restore_snapshot_offline(model, *, snapshot_id=None, roots=None, progress=No
             or data.get('model') != model or data.get('job_id') != snapshot.name
             or not isinstance(data.get('files'), list) or not data['files']):
         raise ValueError('스냅샷 식별 정보 또는 파일 목록이 올바르지 않습니다.')
-    entries = {}
-    for item in data['files']:
-        if not isinstance(item, dict):
-            raise ValueError('스냅샷 파일 기록이 올바르지 않습니다.')
-        name, size, digest = item.get('path'), item.get('size'), item.get('sha256')
-        mtime = item.get('source_mtime_ns')
-        if (not isinstance(name, str) or not name or name.startswith('/') or '\\' in name or '\x00' in name
-                or any(part in ('', '.', '..') for part in name.split('/')) or name == '.snapshot.json'
-                or name in entries or type(size) is not int or size < 0
-                or not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest)
-                or (mtime is not None and (type(mtime) is not int or mtime < 0))):
-            raise ValueError('스냅샷 파일 기록이 올바르지 않습니다.')
-        entries[name] = (size, digest, mtime)
+    entries = _manifest_entries(data['files'])
     inventory = inventory_model_tree(snapshot, containment_root=backup)
     inventory['files'].pop('.snapshot.json', None)
     if (not inventory['complete'] or inventory['files'].keys() != entries.keys()

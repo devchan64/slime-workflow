@@ -9,18 +9,24 @@ SIZE = 38435368
 URL = 'https://huggingface.co/r4tn4/Bubble/resolve/338e12cb179abf0573b61c310db6163018effdde/wan2.2fighting_high_noise.safetensors'
 
 
+def current_fighting_lora_path():
+    from workflow.common.model_storage_layout import resolve_wan_vace_lora_directory
+    return resolve_wan_vace_lora_directory(ROOT/'.model', 'fighting') / PATH.name
+
+
 def inspect_fighting_lora():
     try:
-        if PATH.is_symlink() or not PATH.is_file() or PATH.stat().st_size != SIZE:
+        path = current_fighting_lora_path()
+        if path.is_symlink() or not path.is_file() or path.stat().st_size != SIZE:
             return False
-        with PATH.open('rb') as stream:
+        with path.open('rb') as stream:
             return hashlib.file_digest(stream, 'sha256').hexdigest() == SHA256
-    except OSError:
+    except (OSError, ValueError):
         return False
 
 
 def prepare_fighting_lora():
     from workflow.common.model_http_download import download_verified_http
-    download_verified_http(URL, PATH, SHA256, 'wan22-fighting-lora/high', expected_total_bytes=SIZE)
+    download_verified_http(URL, current_fighting_lora_path(), SHA256, 'wan22-fighting-lora/high', expected_total_bytes=SIZE)
     if not inspect_fighting_lora():
         raise ValueError('격투 LoRA 파일 검증 실패')

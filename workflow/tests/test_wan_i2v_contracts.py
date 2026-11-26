@@ -22,6 +22,32 @@ class I2VContractsTest(unittest.TestCase):
                             frames=21, steps=4, seed=45, flow_shift=5, guidance_scale=1,
                             lora_mode='lightning', kungfu_strength=1)
 
+    def test_runtime_follows_moved_shared_models_and_rejects_conflict(self):
+        from tempfile import TemporaryDirectory
+        from generators.wan_i2v import contracts
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            model = root/'.model'
+            encoder = model/'wan22-animate-components/split_files/text_encoders'
+            vae = model/'wan22-animate-components/split_files/vae'
+            encoder.mkdir(parents=True)
+            vae.mkdir(parents=True)
+            (encoder/'encoder').write_bytes(b'e')
+            (vae/'vae').write_bytes(b'v')
+            python = root/'python'; python.touch()
+            runtime = root/'runtime'; runtime.mkdir()
+            (runtime/'PINNED_REVISION').write_text(contracts.COMFY_REVISION)
+            shared = ((encoder/'encoder', 1), (vae/'vae', 1))
+            with patch.object(contracts, 'ROOT', root), patch.object(contracts, 'PYTHON', python), \
+                 patch.object(contracts, 'RUNTIME', runtime), patch.object(contracts, 'FILES', ()), \
+                 patch.object(contracts, 'SHARED_FILES', shared):
+                self.assertTrue(contracts.inspect_runtime()['ready'])
+                encoder.rename(model/'umt5-xxl-fp16')
+                vae.rename(model/'wan-2.1-vae')
+                self.assertTrue(contracts.inspect_runtime()['ready'])
+                vae.mkdir()
+                self.assertFalse(contracts.inspect_runtime()['ready'])
+
     def test_input_and_lightning_constraints(self):
         self.assertEqual(validate_request(self.request)['tag'], 'wan22-i2v')
         for field, value in [('frames', 20), ('steps', 5), ('guidance_scale', 2),

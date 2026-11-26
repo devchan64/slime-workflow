@@ -27,6 +27,10 @@
 
 기록은 `.tmp/test/sfx-dasheng-audiogen/<생성ID>/`, 이력 색인은 `.tmp/manager-current/sfx-dasheng-audiogen/`에 저장한다. WAV는 `attempts/<UUID>/sound.wav`다. 공용 실행기가 5초 heartbeat·ETA·VRAM 관측 피크와 실패·취소·재개 시도를 기록한다. 길이 자동 예측으로 예상 소요 시간의 편차가 클 수 있으며 표본이 없으면 미정으로 제공한다. 이력 삭제는 확인 후 해당 작업 파일까지 삭제하며 외부 원본·모델은 보호한다.
 
+## Samba 백업 복원
+
+세 모델을 인터넷 공급처 없이 복원하는 명령과 복원 후 준비 절차는 [Samba 스냅샷 복원 안내](../../docs/management-clients.md#인터넷-없이-samba-스냅샷-복원)를 따른다. 복원은 기존 디렉터리를 덮어쓰지 않으며, `prepare --offline-backup`은 복원이 아니라 복원된 파일을 최신 스냅샷과 대조한 뒤 준비하는 명령이다. 실행 환경과 준비 기록은 모델 스냅샷과 별도로 관리한다.
+
 ## 라이선스와 폐기 경계
 
 공식 본체 [Dasheng-AudioGen](https://huggingface.co/mispeech/Dasheng-AudioGen), [FLAN-T5-large](https://huggingface.co/google/flan-t5-large), [Dasheng Tokenizer](https://huggingface.co/mispeech/dashengtokenizer)는 Apache-2.0으로 공개되어 있다. 소프트웨어·가중치 재배포 시 해당 라이선스와 고지를 보존한다. 생성물 권리와 품질을 별도로 검수한다.

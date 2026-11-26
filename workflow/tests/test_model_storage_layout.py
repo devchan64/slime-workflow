@@ -35,6 +35,99 @@ class ModelStorageLayoutTest(unittest.TestCase):
             self.assertEqual((old / 'weights').read_bytes(), b'known')
             self.assertFalse((project / '.model/qwen3-embedding-0.6b').exists())
 
+    def test_vace_lora_moves_require_lightning_first_and_rollback(self):
+        from workflow.common.model_storage_move import move_verified_storage
+        with TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            root = project/'.model'
+            old = root/'wan22-vace-loras'
+            lightning = old/'lightning-t2v-v1.1'
+            lightning.mkdir(parents=True)
+            (lightning/'high').write_bytes(b'lightning')
+            (old/'fighting').write_bytes(b'fighting')
+            with self.assertRaisesRegex(ValueError, 'Lightning'):
+                assess_storage_move(root, 'vace-fighting-top')
+            journal = project/'lightning.json'
+            move_verified_storage(root, journal, name='vace-lightning-top')
+            fighting_journal = project/'fighting.json'
+            move_verified_storage(root, fighting_journal, name='vace-fighting-top')
+            self.assertEqual((root/'wan22-fighting-lora-high/fighting').read_bytes(), b'fighting')
+            rollback_storage(root, 'vace-fighting-top', fighting_journal)
+            rollback_storage(root, 'vace-lightning-top', journal)
+            self.assertEqual((lightning/'high').read_bytes(), b'lightning')
+            self.assertEqual((old/'fighting').read_bytes(), b'fighting')
+
+    def test_vace_lora_paths_follow_move_and_reject_conflict(self):
+        from workflow.common.model_storage_layout import resolve_wan_vace_lora_directory
+        for component, old_path, new_path in (
+                ('lightning', 'wan22-vace-loras/lightning-t2v-v1.1', 'wan22-lightning-t2v-v11'),
+                ('fighting', 'wan22-vace-loras', 'wan22-fighting-lora-high')):
+            with self.subTest(component=component), TemporaryDirectory() as temporary:
+                root = Path(temporary)/'.model'
+                old, new = root/old_path, root/new_path
+                old.mkdir(parents=True)
+                self.assertEqual(resolve_wan_vace_lora_directory(root, component), old)
+                old.rename(new)
+                self.assertEqual(resolve_wan_vace_lora_directory(root, component), new)
+                old.mkdir(parents=True)
+                with self.assertRaises(ValueError):
+                    resolve_wan_vace_lora_directory(root, component)
+
+    def test_wan_shared_paths_resolve_before_after_and_reject_conflict(self):
+        from workflow.common.model_storage_layout import resolve_wan_shared_model_directory
+        for component, old, new in (('umt5', 'text_encoders', 'umt5-xxl-fp16'),
+                                    ('vae', 'vae', 'wan-2.1-vae')):
+            with self.subTest(component=component), TemporaryDirectory() as temporary:
+                root = Path(temporary)/'.model'
+                previous = root/'wan22-animate-components/split_files'/old
+                current = root/new
+                previous.mkdir(parents=True)
+                self.assertEqual(resolve_wan_shared_model_directory(root, component), previous)
+                previous.rename(current)
+                self.assertEqual(resolve_wan_shared_model_directory(root, component), current)
+                previous.mkdir()
+                with self.assertRaises(ValueError):
+                    resolve_wan_shared_model_directory(root, component)
+
+    def test_wan_legacy_cache_move_can_be_rolled_back(self):
+        from workflow.common.model_storage_move import move_verified_storage
+        with TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            root = project/'.model'
+            old = root/'wan22-animate-components/.cache/huggingface'
+            old.mkdir(parents=True)
+            (old/'metadata').write_bytes(b'cache metadata')
+            (project/'.cache').mkdir()
+            journal = project/'move.json'
+            move_verified_storage(root, journal, name='wan-components-legacy-cache')
+            new = project/'.cache/wan22-animate-components-legacy/.cache/huggingface/metadata'
+            self.assertEqual(new.read_bytes(), b'cache metadata')
+            rollback_storage(root, 'wan-components-legacy-cache', journal)
+            self.assertEqual((old/'metadata').read_bytes(), b'cache metadata')
+
+    def test_wan_components_guarded_move_and_rollback(self):
+        from workflow.common.model_storage_move import move_flattened_with_queue_guard
+        for name, old, new in (('wan-umt5-top', 'text_encoders', 'umt5-xxl-fp16'),
+                               ('wan-vae-top', 'vae', 'wan-2.1-vae')):
+            with self.subTest(name=name), TemporaryDirectory() as temporary:
+                project = Path(temporary)
+                source = project/'.model/wan22-animate-components/split_files'/old
+                source.mkdir(parents=True)
+                (source/'weights').write_bytes(b'known')
+                queue = project/'.tmp/gpu-queue'
+                (queue/'active').mkdir(parents=True)
+                (queue/'execution.lock').touch()
+                backup = project/'.local/hermes/model-backup-verification'
+                backup.mkdir(parents=True)
+                (backup/'worker.lock').touch()
+                journal = project/'move.json'
+                def reject():
+                    raise ValueError('consumer unavailable')
+                with self.assertRaisesRegex(ValueError, 'consumer unavailable'):
+                    move_flattened_with_queue_guard(project, journal, name=name, validate=reject)
+                self.assertEqual((source/'weights').read_bytes(), b'known')
+                self.assertFalse((project/'.model'/new).exists())
+
     def test_flatten_move_verifies_and_can_restore_original_directory(self):
         from workflow.common.model_storage_move import move_verified_storage
         with TemporaryDirectory() as directory:

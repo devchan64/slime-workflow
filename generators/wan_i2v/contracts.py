@@ -18,12 +18,14 @@ COMFY_REVISION = 'b8730510db30c8858e1e5d8e126ef19eac395560'
 
 def inspect_runtime(*, verify_hash=False):
     missing = []
-    for path, size in SHARED_FILES:
+    from workflow.common.model_storage_layout import resolve_wan_shared_model_directory
+    for (original, size), component in zip(SHARED_FILES, ('umt5', 'vae')):
         try:
+            path = resolve_wan_shared_model_directory(ROOT/'.model', component)/original.name
             if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
                 missing.append(str(path))
-        except OSError:
-            missing.append(str(path))
+        except (OSError, ValueError):
+            missing.append(str(original) + ' · 경로 확인 불가')
     if not PYTHON.is_file():
         missing.append(str(PYTHON))
     try:

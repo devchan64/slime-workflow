@@ -337,6 +337,13 @@ class ModelManagementTest(unittest.TestCase):
         current_start_mock.assert_called_once()
         self.assertEqual(current_response_mock.call_args.args[2]['preparation_status'], 'running')
 
+    def test_fun_shared_http_downloads_appear_in_progress(self):
+        from workflow.common.model_download_progress import format_model_download_status
+        records = [{'model': 'wan22-fun-control/encoder', 'status': 'running',
+                    'stage': '다운로드', 'bytes': 4, 'total_bytes': 8}]
+        self.assertIn('wan22-fun-control/encoder', format_model_download_status(records, 'wan22-fun-control'))
+        self.assertIn('50.0%', format_model_download_status(records, 'wan22-fun-control'))
+
     def test_vace_preparation_downloads_shared_vae(self):
         import hashlib
         from pathlib import Path
@@ -349,21 +356,16 @@ class ModelManagementTest(unittest.TestCase):
             current_files = {current_key: (f'.model/{"wan22-vace-official" if current_key in ("high", "low") else "wan22-vace"}/{current_key}.bin', 3, 'hash') for current_key in ('high', 'low', 'encoder', 'tokenizer')}
             current_files['vae'] = ('.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors', 3, None)
             def download_test_http(current_url, current_target_path, *current_args, **current_kwargs):
-                current_target_path.write_bytes(b'abc')
-            def download_test_vae(**current_options):
-                current_target_path = Path(current_options['local_dir'])/current_options['filename']
-                current_target_path.parent.mkdir(parents=True, exist_ok=True)
-                current_target_path.write_bytes(b'vae')
-                return str(current_target_path)
+                current_target_path.write_bytes(b'vae' if 'repo/vae/resolve/' in current_url else b'abc')
             current_vae_source = ('repo/vae', 'a'*40, 'split_files/vae/wan_2.1_vae.safetensors', hashlib.sha256(b'vae').hexdigest())
             with patch.object(vace_prepare, 'VACE_WORKSPACE_ROOT', current_root), patch.object(vace_prepare, 'VACE_MODEL_FILES', current_files), \
                  patch.object(vace_prepare, 'validate_vace_assets'), patch.dict(fun_prepare.FUN_SHARED_MODEL_SOURCES, {'vae': current_vae_source}), \
-                 patch('workflow.common.model_http_download.download_verified_http', side_effect=download_test_http), \
-                 patch('workflow.common.model_huggingface_download.tracked_hf_hub_download', side_effect=download_test_vae) as current_vae_mock, \
+                 patch('workflow.common.model_http_download.download_verified_http', side_effect=download_test_http) as current_download_mock, \
+                 patch('workflow.common.model_backup_restore.restore_verified_backup', return_value=False), \
                  patch('generators.wan_vace.official_prepare.prepare_official_runtime'):
                 vace_prepare.execute_vace_preparation(Mock())
-            current_vae_mock.assert_called_once()
-            self.assertEqual((current_root/current_files['vae'][0]).read_bytes(), b'vae')
+            self.assertTrue(any('repo/vae/resolve/' in call.args[0] for call in current_download_mock.call_args_list))
+            self.assertEqual((current_root/'.model/wan-2.1-vae/wan_2.1_vae.safetensors').read_bytes(), b'vae')
 
     def test_writer_models_verify_without_document_workspace(self):
         import hashlib
@@ -488,6 +490,25 @@ class ModelManagementTest(unittest.TestCase):
         from workflow.common.model_management_catalog import MODEL_PREPARATION_SERVICES
         self.assertEqual(resolve_model_inventory_paths()['flux-image'], [FLUX_MODEL_ROOT_DIRECTORY])
         self.assertIn(('FLUX 3 Image Klein', 'flux-image'), MODEL_PREPARATION_SERVICES)
+
+    def test_model_inventory_tracks_separated_wan_shared_paths(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from workflow.common.model_file_inventory import resolve_model_inventory_paths
+        from generators.wan_fun import contracts as fun
+        from generators.wan_vace import contracts as vace
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'.model/umt5-xxl-fp16').mkdir(parents=True)
+            (root/'.model/wan-2.1-vae').mkdir()
+            with patch.object(fun, 'FUN_WORKSPACE_ROOT', root), patch.object(vace, 'VACE_WORKSPACE_ROOT', root):
+                paths = resolve_model_inventory_paths()
+            self.assertIn(root/'.model/umt5-xxl-fp16/umt5_xxl_fp16.safetensors', paths['wan22-fun-control'])
+            self.assertIn(root/'.model/wan-2.1-vae/wan_2.1_vae.safetensors', paths['wan22-fun-control'])
+            self.assertIn(root/'.model/wan-2.1-vae/wan_2.1_vae.safetensors', paths['wan22-vace'])
+            self.assertIn(root/'.model/umt5-xxl-fp16/umt5_xxl_fp16.safetensors', paths['wan22-i2v'])
+            self.assertIn(root/'.model/wan-2.1-vae/wan_2.1_vae.safetensors', paths['wan22-i2v'])
 
     def test_model_file_inventory_excludes_partial_cache_and_symlinks(self):
         from pathlib import Path

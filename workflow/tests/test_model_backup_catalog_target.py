@@ -243,6 +243,66 @@ class CatalogBackupTargetTest(unittest.TestCase):
             self.assertFalse(item['backup_present'])
             self.assertTrue(item['legacy_backup_present'])
 
+    def test_wan_catalog_targets_follow_directory_move(self):
+        from workflow.common.model_backup_targets import target_path
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for target, folder, new in (
+                ('catalog-wan-umt5-fp16', 'text_encoders', 'umt5-xxl-fp16'),
+                ('catalog-wan-21-vae', 'vae', 'wan-2.1-vae')):
+                old = root/'wan22-animate-components/split_files'/folder
+                old.mkdir(parents=True)
+                self.assertEqual(target_path(root, target), old)
+                new_path = root/new
+                old.rename(new_path)
+                self.assertEqual(target_path(root, target), new_path)
+                old.mkdir()
+                with self.assertRaises(ValueError):
+                    target_path(root, target)
+                old.rmdir()
+
+    def test_separated_vace_loras_restore_from_parent_snapshot(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'.model', root/'backup'
+            backup.mkdir()
+            old = source/'wan22-vace-loras'
+            lightning = old/'lightning-t2v-v1.1'
+            lightning.mkdir(parents=True)
+            (lightning/'high.safetensors').write_bytes(b'lightning')
+            (old/'fighting.safetensors').write_bytes(b'fighting')
+            sync_snapshot('wan22-vace-loras', 'd'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                for folder, name, data in (('wan22-lightning-t2v-v11', 'high.safetensors', b'lightning'),
+                                           ('wan22-fighting-lora-high', 'fighting.safetensors', b'fighting')):
+                    target = source/folder/name
+                    target.parent.mkdir()
+                    self.assertTrue(restore_verified_backup(target, hashlib.sha256(data).hexdigest(), len(data)))
+                    self.assertEqual(target.read_bytes(), data)
+
+    def test_separated_wan_models_restore_from_parent_snapshot(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'.model', root/'backup'
+            backup.mkdir()
+            cases = (('text_encoders', 'umt5-xxl-fp16', 'umt5.safetensors'),
+                     ('vae', 'wan-2.1-vae', 'vae.safetensors'))
+            for old, _, name in cases:
+                folder = source/'wan22-animate-components'/'split_files'/old
+                folder.mkdir(parents=True)
+                (folder/name).write_bytes(name.encode())
+            sync_snapshot('wan22-animate-components', 'e'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                for _, new, name in cases:
+                    target = source/new/name
+                    target.parent.mkdir()
+                    self.assertTrue(restore_verified_backup(target, hashlib.sha256(name.encode()).hexdigest(), len(name)))
+                    self.assertEqual(target.read_bytes(), name.encode())
+
     def test_relocated_hermes_readiness_and_backup_recovery(self):
         from workflow.common.model_storage_move import move_storage, rollback_storage
         from workflow.common import hermes_model_download as hermes

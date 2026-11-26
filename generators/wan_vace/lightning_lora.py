@@ -12,16 +12,21 @@ FILES = {
 DIRECTORY = ROOT / '.model/wan22-vace-loras/lightning-t2v-v1.1'
 
 
+def current_lightning_lora_directory():
+    from workflow.common.model_storage_layout import resolve_wan_vace_lora_directory
+    return resolve_wan_vace_lora_directory(ROOT/'.model', 'lightning')
+
+
 def inspect_lightning_loras():
     for filename, size, digest in FILES.values():
-        path = DIRECTORY / filename
         try:
+            path = current_lightning_lora_directory() / filename
             if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
                 return False
             with path.open('rb') as stream:
                 if hashlib.file_digest(stream, 'sha256').hexdigest() != digest:
                     return False
-        except OSError:
+        except (OSError, ValueError):
             return False
     return True
 
@@ -30,6 +35,6 @@ def prepare_lightning_loras():
     from workflow.common.model_http_download import download_verified_http
     for name, (filename, size, digest) in FILES.items():
         url = f'https://huggingface.co/lightx2v/Wan2.2-Lightning/resolve/{REVISION}/{MODEL_FOLDER}/{filename}'
-        download_verified_http(url, DIRECTORY / filename, digest, 'wan22-vace-lightning/' + name, expected_total_bytes=size)
+        download_verified_http(url, current_lightning_lora_directory() / filename, digest, 'wan22-vace-lightning/' + name, expected_total_bytes=size)
     if not inspect_lightning_loras():
         raise ValueError('Lightning LoRA 파일 검증 실패')

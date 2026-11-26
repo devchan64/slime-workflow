@@ -12,7 +12,12 @@ from pathlib import Path
 import stat
 
 
-LAYOUTS = {'hermes-coding': ('hermes-agent', 'models/hermes-coding'),
+LAYOUTS = {'vace-lightning-top': ('wan22-vace-loras/lightning-t2v-v1.1', 'wan22-lightning-t2v-v11'),
+           'vace-fighting-top': ('wan22-vace-loras', 'wan22-fighting-lora-high'),
+           'wan-components-legacy-cache': ('wan22-animate-components', None),
+           'wan-umt5-top': ('wan22-animate-components/split_files/text_encoders', 'umt5-xxl-fp16'),
+           'wan-vae-top': ('wan22-animate-components/split_files/vae', 'wan-2.1-vae'),
+           'hermes-coding': ('hermes-agent', 'models/hermes-coding'),
            'writer-embedding': ('writer-agent', 'models/qwen3-embedding-0.6b'),
            'translation-model': ('prompt-translation', 'models/translategemma-4b'),
            'heartmula': ('music/music-heartmula', 'models/audio/heartmula'),
@@ -37,6 +42,8 @@ LAYOUTS = {'hermes-coding': ('hermes-agent', 'models/hermes-coding'),
 
 def storage_paths(root, name):
     old, new = LAYOUTS[name]
+    if name == 'wan-components-legacy-cache':
+        return root / old, root.parent / '.cache/wan22-animate-components-legacy'
     return root / old, root.parent / '.cache/huggingface' if new is None else root / new
 
 
@@ -47,6 +54,8 @@ def assess_storage_move(root, name):
     source, target = storage_paths(root, name)
     if source.parent.is_symlink() or source.is_symlink() or not source.is_dir():
         raise ValueError('기존 디렉터리를 확인할 수 없습니다.')
+    if name == 'vace-fighting-top' and (source/'lightning-t2v-v1.1').exists():
+        raise ValueError('Lightning LoRA를 먼저 분리해야 합니다.')
     parent = target.parent
     if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
         raise ValueError('대상 상위 경로가 안전하지 않습니다.')
@@ -172,7 +181,7 @@ def move_flattened_with_queue_guard(project_root, journal, *, name, validate, al
     The caller must also exclude independently launched readers and writers.
     Validation runs under the locks and must check the affected consumers.
     """
-    if name not in {'flatten-hermes-coding', 'flatten-writer-embedding', 'flatten-translation',
+    if name not in {'vace-lightning-top', 'vace-fighting-top', 'wan-components-legacy-cache', 'wan-umt5-top', 'wan-vae-top', 'flatten-hermes-coding', 'flatten-writer-embedding', 'flatten-translation',
                     'flatten-visual', 'flatten-audio', 'audio-demucs', 'demucs-top', 'heartcodec-reference-top', 'heartcodec-top', 'qwen-model-name',
                     'dasheng-core-top', 'flan-t5-top', 'dasheng-tokenizer-top', 'heartmula-core-top'} or not callable(validate):
         raise ValueError('이관 대상과 소비자 검증이 필요합니다.')

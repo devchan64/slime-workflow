@@ -9,7 +9,7 @@ import threading
 import traceback
 from datetime import datetime
 
-from generators.wan_fun.contracts import FUN_MODEL_FILES, FUN_MODEL_IDENTIFIER, FUN_MODEL_REVISION, FUN_RUNTIME_DIRECTORY, FUN_WORKSPACE_ROOT, inspect_fun_assets
+from generators.wan_fun.contracts import FUN_MODEL_FILES, FUN_MODEL_IDENTIFIER, FUN_MODEL_REVISION, FUN_RUNTIME_DIRECTORY, FUN_WORKSPACE_ROOT, inspect_fun_assets, fun_model_path
 
 FUN_MODEL_DIRECTORY = FUN_WORKSPACE_ROOT / '.model/wan22-fun-control'
 FUN_PREPARE_LOG_DIRECTORY = FUN_WORKSPACE_ROOT / '.tmp/test/wan22-fun-control-prepare'
@@ -22,6 +22,15 @@ FUN_RUNTIME_SOURCES = {
 }
 FUN_DIFFUSION_HASHES = {'high': 'e4be07ca25d67aaf3461ef87fbb5ad8762f602a5efa620aea9dc250ac2747a9d',
                         'low': 'd82bc21cd703e089eee4f6fabc25e90ebbd00965623fdc5e83d46d01dbeac2c3'}
+
+
+def restore_missing_fun_asset(path, expected_hash, expected_size):
+    """Restore absent pinned bytes without changing an existing installation."""
+    if path.exists() or path.is_symlink():
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    from workflow.common.model_backup_restore import restore_verified_backup
+    return restore_verified_backup(path, expected_hash, expected_size)
 
 
 def download_fun_control_models():
@@ -54,17 +63,19 @@ def download_fun_control_models():
     current_heartbeat_thread.start()
     try:
         write_prepare_trace('start', f'model_id={FUN_MODEL_IDENTIFIER} revision={FUN_MODEL_REVISION} model_root={FUN_MODEL_DIRECTORY} binary={sys.executable}')
-        current_missing_bytes = sum(current_size for current_path, current_size in FUN_MODEL_FILES.values()
-                                    if not (FUN_WORKSPACE_ROOT / current_path).is_file())
+        current_missing_bytes = sum(size for key, (_, size) in FUN_MODEL_FILES.items()
+                                    if not fun_model_path(key, root=FUN_WORKSPACE_ROOT, files=FUN_MODEL_FILES).is_file())
         if shutil.disk_usage(FUN_WORKSPACE_ROOT).free < current_missing_bytes:
             raise RuntimeError(f'모델 다운로드 공간 부족: {current_missing_bytes}바이트 필요')
         for current_model_stage in ('high', 'low'):
             current_relative_path, current_expected_size = FUN_MODEL_FILES[current_model_stage]
-            current_model_path = FUN_WORKSPACE_ROOT / current_relative_path
+            current_model_path = fun_model_path(current_model_stage, root=FUN_WORKSPACE_ROOT, files=FUN_MODEL_FILES)
             current_remote_path = current_model_path.relative_to(FUN_MODEL_DIRECTORY).as_posix()
             write_prepare_trace('download', f'model_id={FUN_MODEL_IDENTIFIER} model_path={current_model_path}')
-            current_download_path = hf_hub_download(repo_id=FUN_MODEL_IDENTIFIER, filename=current_remote_path,
-                revision=FUN_MODEL_REVISION, local_dir=FUN_MODEL_DIRECTORY)
+            restored = restore_missing_fun_asset(current_model_path, FUN_DIFFUSION_HASHES[current_model_stage], current_expected_size)
+            current_download_path = (current_model_path if restored else
+                hf_hub_download(repo_id=FUN_MODEL_IDENTIFIER, filename=current_remote_path,
+                                revision=FUN_MODEL_REVISION, local_dir=FUN_MODEL_DIRECTORY))
             if current_model_path.stat().st_size != current_expected_size:
                 raise ValueError(f'모델 파일 크기 불일치: {current_download_path}')
             with current_model_path.open('rb') as current_model_stream:
@@ -74,11 +85,14 @@ def download_fun_control_models():
         for current_model_stage, current_source_record in FUN_SHARED_MODEL_SOURCES.items():
             current_repository_name, current_revision_hash, current_remote_path, current_expected_hash = current_source_record
             current_relative_path, current_expected_size = FUN_MODEL_FILES[current_model_stage]
-            current_model_path = FUN_WORKSPACE_ROOT / current_relative_path
+            current_model_path = fun_model_path(current_model_stage, root=FUN_WORKSPACE_ROOT, files=FUN_MODEL_FILES)
             write_prepare_trace('download', f'model_id={current_repository_name} model_path={current_model_path}')
             if not current_model_path.exists():
-                hf_hub_download(repo_id=current_repository_name, filename=current_remote_path,
-                    revision=current_revision_hash, local_dir=FUN_WORKSPACE_ROOT / '.model/wan22-animate-components')
+                if not restore_missing_fun_asset(current_model_path, current_expected_hash, current_expected_size):
+                    from workflow.common.model_http_download import download_verified_http
+                    url = f'https://huggingface.co/{current_repository_name}/resolve/{current_revision_hash}/{current_remote_path}'
+                    download_verified_http(url, current_model_path, current_expected_hash,
+                                           'wan22-fun-control/'+current_model_stage, expected_total_bytes=current_expected_size)
             with current_model_path.open('rb') as current_model_stream:
                 current_model_hash = hashlib.file_digest(current_model_stream, 'sha256').hexdigest()
             if current_model_path.stat().st_size != current_expected_size or current_model_hash != current_expected_hash:

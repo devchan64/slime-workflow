@@ -71,6 +71,33 @@ class OfflineSnapshotRestoreTests(unittest.TestCase):
                          [('a'*32, 'declared'), ('b'*32, 'unavailable')])
         self.assertEqual(versions[0]['file_count'], 2)
 
+    def test_list_marks_boolean_schema_version_unavailable(self):
+        manifest = self.backup/'.model-backup-snapshots/example'/('a'*32)/'.snapshot.json'
+        record = json.loads(manifest.read_text())
+        record['version'] = True
+        manifest.write_text(json.dumps(record))
+        self.assertEqual(list_snapshot_versions('example', roots=self.roots),
+                         [{'snapshot_id': 'a'*32, 'state': 'unavailable'}])
+
+    def test_list_rejects_invalid_file_declarations(self):
+        manifest = self.backup/'.model-backup-snapshots/example'/('a'*32)/'.snapshot.json'
+        original = json.loads(manifest.read_text())
+        for mutation in ('duplicate', 'traversal', 'missing_hash', 'empty'):
+            with self.subTest(mutation=mutation):
+                record = json.loads(json.dumps(original))
+                if mutation == 'duplicate':
+                    record['files'].append(dict(record['files'][0]))
+                elif mutation == 'traversal':
+                    record['files'][0]['path'] = '../escape'
+                elif mutation == 'missing_hash':
+                    record['files'][0].pop('sha256')
+                else:
+                    record['files'] = []
+                manifest.write_text(json.dumps(record))
+                self.assertEqual(list_snapshot_versions('example', roots=self.roots)[0]['state'], 'unavailable')
+                with self.assertRaises(ValueError):
+                    restore_snapshot_offline('example', roots=self.roots)
+
     def test_rejects_pending_or_invalid_snapshot_id(self):
         for snapshot_id in ('../escape', '.pending-' + 'a'*32, 'A'*32, 'c'*32):
             with self.subTest(snapshot_id=snapshot_id), self.assertRaises(ValueError):
@@ -90,6 +117,18 @@ class OfflineSnapshotRestoreTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             restore_snapshot_offline('example', roots=self.roots)
         self.assertEqual((self.model/'keep').read_text(), 'keep')
+
+    def test_restore_does_not_replace_directory_created_during_copy(self):
+        def create_destination(name, done, total):
+            if not self.model.exists():
+                self.model.mkdir()
+                (self.model/'keep').write_text('concurrent data')
+
+        with self.assertRaises(FileExistsError):
+            restore_snapshot_offline('example', roots=self.roots, progress=create_destination)
+        self.assertEqual((self.model/'keep').read_text(), 'concurrent data')
+        self.assertEqual(sorted(p.name for p in self.model.iterdir()), ['keep'])
+        self.assertFalse(any(p.name.startswith('.snapshot-restore-') for p in self.source.iterdir()))
 
     def test_rejects_manifest_path_traversal(self):
         manifest = self.backup/'.model-backup-snapshots/example'/('a'*32)/'.snapshot.json'
