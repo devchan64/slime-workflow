@@ -43,7 +43,7 @@ test('이력 화면 종료 후 늦은 요청은 초점 복구를 예약하지 �
  const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
  const method=source.slice(source.indexOf('  async function perform('),source.indexOf('  async function list('));
  let finish,timers=0,changes=0;const body={},button={closest:()=>null},document={body,activeElement:button},mounted={current:true};
- const context=vm.createContext({document,pending:{current:false},mounted,focusTimer:{current:null},detailsRef:{current:{contains:()=>true}},searchRef:{current:null},setBusyInSelection:()=>{},setBusy:()=>changes++,setError:()=>changes++,setErrorScope:()=>{},requestErrorMessage,setTimeout:()=>timers++,clearTimeout:()=>{}});
+ const context=vm.createContext({document,pending:{current:false},mounted,focusTimer:{current:null},historyEpoch:{current:0},detailsRef:{current:{contains:()=>true}},searchRef:{current:null},setBusyInSelection:()=>{},setBusy:()=>changes++,setError:()=>changes++,setErrorScope:()=>{},requestErrorMessage,setTimeout:()=>timers++,clearTimeout:()=>{}});
  vm.runInContext(method,context);const task=context.perform(()=>new Promise(resolve=>finish=resolve));mounted.current=false;const before=changes;finish();await task;
  assert.equal(timers,0);assert.equal(changes,before);
 });
@@ -54,9 +54,27 @@ test('이력 페이지 이동 후 비활성화된 버튼 대신 사용 가능한
  for(const moved of [false,true]){
   let timer,focusedCount=0;const body={},other={},document={body,activeElement:null};
   const target={focus:()=>focusedCount++},button={isConnected:true,disabled:true,closest:selector=>selector==='.generator-history-pagination'};document.activeElement=button;
-  const context=vm.createContext({document,pending:{current:false},mounted:{current:true},focusTimer:{current:null},detailsRef:{current:{contains:node=>node===button,querySelector:()=>target}},searchRef:{current:null},setBusyInSelection:()=>{},setBusy:()=>{},setError:()=>{},setErrorScope:()=>{},requestErrorMessage,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{}});
+  const context=vm.createContext({document,pending:{current:false},mounted:{current:true},focusTimer:{current:null},historyEpoch:{current:0},detailsRef:{current:{open:true,contains:node=>node===button,querySelector:()=>target}},searchRef:{current:null},setBusyInSelection:()=>{},setBusy:()=>{},setError:()=>{},setErrorScope:()=>{},requestErrorMessage,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{}});
   vm.runInContext(method,context);await context.perform(async()=>{});document.activeElement=moved?other:body;timer();assert.equal(focusedCount,moved?0:1);
  }
+});
+
+test('이력 카드가 접힌 뒤 완료된 조회는 숨겨진 버튼에 초점을 돌리지 않는다',async()=>{
+ const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('  async function perform('),source.indexOf('  async function list('));
+ let finish,timer,focused=0;const body={},button={isConnected:true,disabled:false,closest:()=>null,focus:()=>focused++},document={body,activeElement:button};
+ const details={open:true,contains:node=>node===button};
+ const context=vm.createContext({document,pending:{current:false},mounted:{current:true},focusTimer:{current:null},historyEpoch:{current:0},detailsRef:{current:details},setBusyInSelection:()=>{},setBusy:()=>{},setError:()=>{},setErrorScope:()=>{},requestErrorMessage,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{}});
+ vm.runInContext(method,context);const task=context.perform(()=>new Promise(resolve=>finish=resolve));details.open=false;document.activeElement=body;finish();await task;timer();assert.equal(focused,0);
+});
+
+test('조회 중 이력을 접었다 다시 열어도 이전 버튼에 초점을 돌리지 않는다',async()=>{
+ const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('  async function perform('),source.indexOf('  async function list('));
+ let finish,timer,focused=0;const body={},button={isConnected:true,disabled:false,closest:()=>null,focus:()=>focused++},document={body,activeElement:button};
+ const details={open:true,contains:node=>node===button},historyEpoch={current:0};
+ const context=vm.createContext({document,pending:{current:false},mounted:{current:true},focusTimer:{current:null},historyEpoch,detailsRef:{current:details},setBusyInSelection:()=>{},setBusy:()=>{},setError:()=>{},setErrorScope:()=>{},requestErrorMessage,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{}});
+ vm.runInContext(method,context);const task=context.perform(()=>new Promise(resolve=>finish=resolve));historyEpoch.current++;document.activeElement=body;finish();await task;timer();assert.equal(focused,0);
 });
 
 test('이력 요약의 손상된 항목은 제외하고 일부 확인 불가를 표시한다',async()=>{
@@ -83,14 +101,16 @@ test('이력 페이지 응답이 손상되면 기존 선택과 목록을 유지�
  const method=source.slice(source.indexOf('  async function list('),source.indexOf('  function deleted('));
  const previous={records:[{id:'old',recorded_status:'completed'}],total:1,offset:0,next_offset:null,snapshot:'a'.repeat(64)};
  let selected={id:'old'},page=previous,job={id:'old',request:{}};
- const context=vm.createContext({AbortController,untilAborted,validGeneratorHistoryPage,requestErrorMessage,page,pageSize:10,resultId:'',externalResultId:'',expanded:null,service:'service',listRequest:{current:null},cancelLookup:()=>{},setTimeout:()=>1,clearTimeout:()=>{},managementCommand:async()=>({records:[{id:'bad',recorded_status:'completed'}],total:3,offset:0,next_offset:null,snapshot:'a'.repeat(64)}),setSelected:fn=>selected=fn(selected),setJob:fn=>job=fn(job),setPage:value=>page=value,setFilter:()=>{},setPageSize:()=>{},setResultLookup:()=>{}});
+ const context=vm.createContext({AbortController,untilAborted,validGeneratorHistoryPage,requestErrorMessage,page,selected,pageSize:10,resultId:'',externalResultId:'',expanded:null,service:'service',listRequest:{current:null},cancelLookup:()=>{},setTimeout:()=>1,clearTimeout:()=>{},managementCommand:async()=>({records:[{id:'bad',recorded_status:'completed'}],total:3,offset:0,next_offset:null,snapshot:'a'.repeat(64)}),setSelected:fn=>selected=fn(selected),setJob:fn=>job=fn(job),setPage:value=>page=value,setFilter:()=>{},setPageSize:()=>{},setResultLookup:()=>{}});
  vm.runInContext(method,context);await assert.rejects(context.list(0,''),/이전 이력과 선택을 유지/);
  assert.equal(page,previous);assert.equal(selected.id,'old');assert.equal(job.id,'old');
+ context.selected=null;await assert.rejects(context.list(0,''),/이전 이력을 유지합니다/);
+ context.page={...previous,records:[],total:0};await assert.rejects(context.list(0,''),/이전 조회에서 이력이 없었습니다/);
 });
 
 test('이력 밖 결과 재조회는 초점이 결과 안에 있을 때만 복구를 예약한다',()=>{
  const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
- const method=source.slice(source.indexOf('  function retryResultLookup()'),source.indexOf('  useEffect(()=>{\n    if(!focusOpenedResult.current'));
+ const method=source.slice(source.indexOf('  function retryResultLookup()'),source.indexOf('  useEffect(()=>{\n    if(!resultId){focusOpenedResult.current=false;return;}'));
  for(const inside of [true,false]){
   let retries=0;const focusOpenedResult={current:false},button={},document={activeElement:button};
   const context=vm.createContext({focusOpenedResult,document,resultPanelRef:{current:{contains:element=>inside && element===button}},retryLookup:()=>retries++});
@@ -100,7 +120,7 @@ test('이력 밖 결과 재조회는 초점이 결과 안에 있을 때만 복�
 
 test('이력 결과 초점 예약은 결과 전환 시 취소한다',()=>{
  const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
- const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(!focusOpenedResult.current'),source.indexOf('  useEffect(()=>{\n    cancelList();'));
+ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(!resultId){focusOpenedResult.current=false;return;}'),source.indexOf('  useEffect(()=>{\n    cancelList();'));
  let cleanup,frame,cancelled=0,focused=0;const body={},document={body,activeElement:body};
  const context=vm.createContext({document,focusOpenedResult:{current:true},resultId:'job',resultLookup:{id:'job',loading:false},resultPanelRef:{current:{isConnected:true,focus:()=>focused++}},useEffect:fn=>cleanup=fn(),requestAnimationFrame:fn=>(frame=fn,7),cancelAnimationFrame:id=>{assert.equal(id,7);cancelled++;}});
  vm.runInContext(effect,context);assert.equal(typeof frame,'function');cleanup();assert.equal(cancelled,1);
@@ -108,12 +128,31 @@ test('이력 결과 초점 예약은 결과 전환 시 취소한다',()=>{
  vm.runInContext(effect,context);frame();assert.equal(focused,1);assert.equal(context.focusOpenedResult.current,false);
 });
 
+test('결과를 닫으면 대기 중인 결과 초점 예약을 지운다',()=>{
+ const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
+ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(!resultId){focusOpenedResult.current=false;return;}'),source.indexOf('  useEffect(()=>{\n    cancelList();'));
+ assert.ok(effect);let frames=0;const focusOpenedResult={current:true};
+ const context=vm.createContext({focusOpenedResult,resultId:'',resultLookup:{id:'old',loading:true},useEffect:fn=>fn(),requestAnimationFrame:()=>frames++});
+ vm.runInContext(effect,context);assert.equal(focusOpenedResult.current,false);assert.equal(frames,0);
+});
+
+test('이력 접기는 열린 결과를 보존하고 다시 열 때 필요한 경우만 목록을 조회한다',()=>{
+ const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('  function toggleHistory(event){'),source.indexOf('  return <details ref={detailsRef}'));
+ assert.ok(method);let closed=0,expanded='job',queries=0,cancelled=0;
+ const context=vm.createContext({resultId:'job',expanded,page:{},error:'',query:'',historyEpoch:{current:0},cancelInput:()=>cancelled++,onCloseResult:()=>closed++,setExpanded:value=>expanded=value,perform:fn=>fn(),list:()=>queries++});
+ vm.runInContext(method+'\nthis.toggleHistory=toggleHistory;',context);
+ context.toggleHistory({currentTarget:{open:false}});assert.equal(closed,0);assert.equal(expanded,'job');assert.equal(cancelled,1);
+ context.resultId='';context.expanded=null;context.page=null;context.toggleHistory({currentTarget:{open:true}});assert.equal(queries,1);
+ context.error='오류';context.toggleHistory({currentTarget:{open:true}});assert.equal(queries,1);
+});
+
 test('이력 밖 결과 영역도 결과 초점 이동 대상으로 연결된다',()=>{
  const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
  for(const label of ['이력 밖 선택 결과','이력 범위 밖 선택 결과']){
   assert.ok(source.includes(`ref={resultPanelRef} tabIndex={-1} className="history-action-detail" aria-label="${label}"`));
  }
- const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(!focusOpenedResult.current'),source.indexOf('  useEffect(()=>{\n    cancelList();'));
+ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    if(!resultId){focusOpenedResult.current=false;return;}'),source.indexOf('  useEffect(()=>{\n    cancelList();'));
  let frame,focused=0;const body={},document={body,activeElement:body};
  const context=vm.createContext({document,focusOpenedResult:{current:true},resultId:'job',resultLookup:{id:'job',error:'찾지 못했습니다'},resultPanelRef:{current:{isConnected:true,focus:()=>focused++}},useEffect:fn=>fn(),requestAnimationFrame:fn=>(frame=fn,1),cancelAnimationFrame:()=>{}});
  vm.runInContext(effect,context);frame();assert.equal(focused,1);
@@ -162,4 +201,24 @@ test('취소 후 늦게 끝난 이력 입력은 반환하지 않는다',async()=
   vm.runInContext(cancel+'\n'+read,context);
   const pending=context.read('job');context.cancelInput();assert.equal(receivedSignal.aborted,true);
   assert.equal(await pending,null);resolveLate({id:'job',request:{}});await Promise.resolve();assert.equal(context.inputRequest.current,null);
+});
+
+test('닫거나 전환한 결과의 이전 조회 오류는 이력 요약에 남지 않는다',()=>{
+  const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
+  const start=source.indexOf('  const currentLookup='),end=source.indexOf('  async function showInput',start);
+  const code=source.slice(start,end)+'\nthis.summary=historySummary;';
+  for(const [resultId,expected] of [['old',true],['new',false],['',false]]){
+    const context=vm.createContext({resultId,resultLookup:{id:'old',error:'오류'},busy:false,error:'',summaryNotice:'',externalResultId:'',openResult:null,expanded:null,page:null});
+    vm.runInContext(code,context);assert.equal(context.summary.includes('확인 필요'),expected);
+  }
+});
+
+test('결과 자동 조회 중과 실패 시 범위 밖으로 단정하지 않는다',()=>{
+  const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
+  const start=source.indexOf('  const currentLookup='),end=source.indexOf('  async function showInput',start);
+  const code=source.slice(start,end)+'\nthis.summary=historySummary;';
+  for(const [lookup,expected] of [[{id:'job',loading:true},'조회 중'],[{id:'job',error:'오류'},'확인 필요'],[{id:'job'},'선택 결과 범위 밖']]){
+    const context=vm.createContext({resultId:'job',resultLookup:lookup,busy:false,error:'',summaryNotice:'',externalResultId:'',openResult:()=>{},expanded:null,page:{records:[],total:0},query:'',filter:''});
+    vm.runInContext(code,context);assert.ok(context.summary.includes(expected));assert.equal(context.summary.includes('선택 결과 범위 밖'),expected==='선택 결과 범위 밖');
+  }
 });
