@@ -10,14 +10,14 @@ const source=readFileSync(new URL('../../gui/AnchorHistory.jsx',import.meta.url)
 test('앵커 이력이 메시지 없이 실패해도 이전 결과와 재조회 안내를 유지한다',async()=>{
   const start=source.indexOf('  async function load(next,offset=null,event) {'),end=source.indexOf('\n  function edit(',start);
   for(const problem of [null,new Error('')]){
-    let error='',busy=true;const context=vm.createContext({document:{activeElement:{}},request:{current:latestRequest()},activeRequest:{current:null},AbortController,TypeError,untilAborted,animation:'walk',version:'v1',page:{next_offset:20},filtersChanged:false,focusPage:{current:null},anchorHistoryRequest:()=>({}),setTimeout,clearTimeout,setBusy:value=>busy=value,setError:value=>error=value,managementCommand:async()=>{throw problem;}});
+    let error='',busy=true;const context=vm.createContext({document:{activeElement:{}},request:{current:latestRequest()},activeRequest:{current:null},AbortController,TypeError,untilAborted,animation:'walk',version:'v1',page:{next_offset:20,records:[{id:'previous'}]},filtersChanged:false,focusPage:{current:null},anchorHistoryRequest:()=>({}),setTimeout,clearTimeout,setBusy:value=>busy=value,setError:value=>error=value,managementCommand:async()=>{throw problem;}});
     vm.runInContext(source.slice(start,end)+'\nthis.load=load;',context);await context.load(false);
     assert.match(error,/다시 조회/);assert.match(error,/이전 조회 결과/);assert.equal(busy,false);
   }
 });
 test('앵커 이력 요청이 중단을 무시해도 시간 초과 후 이전 결과를 유지한다',async()=>{
   const start=source.indexOf('  async function load(next,offset=null,event) {'),end=source.indexOf('\n  function edit(',start);assert.ok(start>=0 && end>start);
-  let timeout,finish,error='',busy=false,updates=0;const context=vm.createContext({document:{activeElement:{}},request:{current:latestRequest()},activeRequest:{current:null},AbortController,untilAborted,animation:'walk',version:'v1',page:{next_offset:20},filtersChanged:false,focusPage:{current:null},
+  let timeout,finish,error='',busy=false,updates=0;const context=vm.createContext({document:{activeElement:{}},request:{current:latestRequest()},activeRequest:{current:null},AbortController,untilAborted,animation:'walk',version:'v1',page:{next_offset:20,records:[{id:'previous'}]},filtersChanged:false,focusPage:{current:null},
     anchorHistoryRequest:()=>({}),validAnchorHistoryPage:()=>true,setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setError:value=>error=value,setPage:()=>updates++,setReceivedAt:()=>{},managementCommand:()=>new Promise(resolve=>finish=resolve)});
   vm.runInContext(source.slice(start,end)+'\nthis.load=load;',context);const pending=context.load(true);timeout();await pending;
   assert.equal(busy,false);assert.match(error,/시간이 초과/);assert.match(error,/이전 조회 결과/);finish({});await new Promise(resolve=>setImmediate(resolve));assert.equal(updates,0);

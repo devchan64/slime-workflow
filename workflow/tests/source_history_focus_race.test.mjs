@@ -11,7 +11,7 @@ test('대화 이력 조회가 메시지 없이 실패해도 이전 결과와 재
   let error='',busy=true;const page={records:[]};
   const context=vm.createContext({AbortController,untilAborted,TypeError,setTimeout,clearTimeout,query:'',page,selectionEpoch:{current:0},request:{current:{start:()=>1,isCurrent:()=>true}},controllerRef:{current:null},source:{service:'writer-agent',command:'history'},managementCommand:async()=>{throw problem;},failedPageTrigger:{current:null},setBusy:value=>busy=value,setError:value=>error=value});
   vm.runInContext(code+'\nthis.load=load;',context);await context.load(0,undefined,true);
-  assert.match(error,/다시 조회/);assert.match(error,/이전 조회 결과/);assert.equal(busy,false);
+  assert.match(error,/다시 조회/);assert.match(error,/마지막 조회에서 표시할 이력이 없었습니다/);assert.equal(busy,false);
  }
 });
 test('대화 이력 결과 닫기는 새 선택과 사용자가 옮긴 초점을 존중한다',()=>{

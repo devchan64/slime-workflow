@@ -54,7 +54,7 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
       const result=await untilAborted(managementCommand("hermes-agent",source.command,payload,{signal:controller.signal}),controller.signal);
       if(!validSourceHistoryPage(result,source.service,offset,snapshot))throw new Error("이력 페이지를 확인할 수 없습니다. 다시 조회하세요.");
       if(request.current.isCurrent(token)){const unchanged=selectionEpoch.current===selectionAtStart;focusList.current=navigate && unchanged;setPage(result);setReceivedAt(new Date());setFilter(payload.query);}
-    } catch(problem) {if(request.current.isCurrent(token)){failedPageTrigger.current=navigate ? trigger : null;setError((timedOut ? "이력 조회 시간이 초과됐습니다. 다시 조회하세요." : problem instanceof TypeError ? "이력 서버에 연결하지 못했습니다. 연결 상태를 확인한 후 다시 조회하세요." : problem?.message || "이력을 조회하지 못했습니다. 다시 조회하세요.")+(page ? " · 이전 조회 결과를 유지합니다." : ""));}}
+    } catch(problem) {if(request.current.isCurrent(token)){failedPageTrigger.current=navigate ? trigger : null;setError((timedOut ? "이력 조회 시간이 초과됐습니다. 다시 조회하세요." : problem instanceof TypeError ? "이력 서버에 연결하지 못했습니다. 연결 상태를 확인한 후 다시 조회하세요." : problem?.message || "이력을 조회하지 못했습니다. 다시 조회하세요.")+(page ? (page.records.length ? " · 이전 조회 결과를 유지합니다." : " · 마지막 조회에서 표시할 이력이 없었습니다.") : ""));}}
     finally {clearTimeout(timeout);if(controllerRef.current===controller)controllerRef.current=null;if(request.current.isCurrent(token))setBusy(false);}
   }
   function cleaned(message){setNotice(message);selectJob("");load(0,undefined,false,null,filter);}
@@ -66,7 +66,7 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
     <button onClick={event=>load(0,undefined,true,event.currentTarget)}>{busy?"조회 중…":"이력 조회"}</button>
     {query && <button type="button" onClick={()=>{request.current.invalidate();controllerRef.current?.abort();setQuery("");setError("");searchRef.current?.focus();}}>검색어 지우기</button>}
     {error && <p role="alert">{error}</p>}
-    {page && query.trim()!==filter && <p id={filterChangedId} role="status">검색어가 변경되었습니다. 아래는 이전 검색 결과입니다. 이력 조회를 눌러 적용하세요.</p>}
+    {page && !busy && query.trim()!==filter && <p id={filterChangedId} role="status">검색어가 변경되었습니다. {page.records.length ? "아래는 이전 검색 결과입니다." : "이전 검색에는 표시할 이력이 없었습니다."} 이력 조회를 눌러 적용하세요.</p>}
     {notice && <p role="status">{notice}</p>}
     {page && <>
       <section ref={listRef} tabIndex={-1} aria-label={source.service+" 생성 이력"}><strong>{label} 생성 이력</strong>
@@ -74,7 +74,7 @@ export function HistoryPage({source, choose, session, initialJob="", label=sourc
         <p>{filter ? <>검색어 · <strong>{filter}</strong></> : "검색 조건 · 전체 이력"}</p>
         <p>전체 {page.total}건 · 조회 {page.records.length}건 · 확인 불가 {page.unavailable_count}건</p>
         <button type="button" onClick={()=>{searchRef.current?.focus({preventScroll:true});searchRef.current?.scrollIntoView({block:"center",inline:"nearest"});}}>검색 조건으로 이동</button>
-        {page.records.length===0 && <div><p>{filter ? "검색 조건에 맞는 이력이 없습니다." : "조회된 이력이 없습니다."}</p>{filter && <button type="button" onClick={event=>{setQuery("");load(0,undefined,true,event.currentTarget,"");}}>전체 이력 보기</button>}</div>}
+        {page.records.length===0 && <div><p>{busy || error || query.trim()!==filter ? "마지막 조회에서 표시할 이력이 없었습니다." : filter ? "검색 조건에 맞는 이력이 없습니다." : "조회된 이력이 없습니다."}</p>{filter && <button type="button" onClick={event=>{setQuery("");load(0,undefined,true,event.currentTarget,"");}}>전체 이력 보기</button>}</div>}
         <div className="session-job-list source-history-list">{page.records.map(record=><article className="session-job" key={record.id}>
           <div className="session-job-heading"><JobIdentifier id={record.id} compact/><div className="source-history-recorded-status"><small>기록 상태</small><JobStatus state={record.recorded_status}/></div></div>
           <div className="session-job-actions"><button type="button" aria-label={record.id+" 작업을 대화에 추가"} onClick={()=>choose(source.service+" 작업",record.id)}>대화에 추가</button>

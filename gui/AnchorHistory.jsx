@@ -43,7 +43,7 @@ export default function AnchorHistory() {
       }
       focusPage.current=focusTrigger;setPage(result);setPageFilters({animation:payload.animation_id,version:payload.animation_version});setReceivedAt(new Date());
     } catch(problem) {
-      if(request.current.isCurrent(token)){focusPage.current=null;setError((timedOut?"앵커 이력 조회 시간이 초과됐습니다. 다시 조회하세요.":problem instanceof TypeError?"앵커 이력에 연결하지 못했습니다. 다시 조회하세요.":problem?.message || "앵커 이력을 조회하지 못했습니다. 다시 조회하세요.")+(page?" 이전 조회 결과를 유지합니다.":""));}
+      if(request.current.isCurrent(token)){focusPage.current=null;setError((timedOut?"앵커 이력 조회 시간이 초과됐습니다. 다시 조회하세요.":problem instanceof TypeError?"앵커 이력에 연결하지 못했습니다. 다시 조회하세요.":problem?.message || "앵커 이력을 조회하지 못했습니다. 다시 조회하세요.")+(page ? (page.records.length ? " 이전 조회 결과를 유지합니다." : " 마지막 조회에서 표시할 이력이 없었습니다.") : ""));}
     } finally {
       clearTimeout(timer);if(activeRequest.current===controller)activeRequest.current=null;
       if(request.current.isCurrent(token))setBusy(false);
@@ -71,15 +71,15 @@ export default function AnchorHistory() {
     </form>
     {searchReason && <p id={searchReasonId}>{searchReason}</p>}
     {error && <p role="alert">{error}</p>}
-    {busy && <p role="status">앵커 이력을 조회하고 있습니다.{page && " 아래는 마지막 조회 결과입니다."}</p>}
-    {page && filtersChanged && <p role="status">검색 조건이 변경되었습니다. 아래는 이전 조건의 결과입니다. 이력 조회를 눌러 새 조건을 적용하세요.</p>}
+    {busy && <p role="status">앵커 이력을 조회하고 있습니다.{page && (page.records.length ? " 아래는 마지막 조회 결과입니다." : " 마지막 조회에서 표시할 이력이 없었습니다.")}</p>}
+    {page && filtersChanged && !busy && <p role="status">검색 조건이 변경되었습니다. {page.records.length ? "아래는 이전 조건의 결과입니다." : "이전 조회에서 표시할 이력이 없었습니다."} 이력 조회를 눌러 새 조건을 적용하세요.</p>}
     {page && pageBlock && <p id={pageBlockId}>{pageBlock}</p>}
     {page && !pageBlock && page.offset<=0 && <p id={firstPageId}>첫 번째 이력 페이지입니다.</p>}
     {page && !pageBlock && page.next_offset==null && <p id={lastPageId}>마지막 이력 페이지입니다.</p>}
     {!page && !busy && !error && <p>애니메이션 ID와 버전을 입력한 뒤 이력을 조회하세요.</p>}
     {page && <p>화면 수신 시각 · {receivedAt?.toLocaleString("ko-KR")}</p>}
     {pagination("상단")}
-    {page && <div ref={resultRef} tabIndex={-1} className="ui-focus-target" aria-label="앵커 검수 이력 결과"><div className="anchor-history-table"><ResultTable table={{title:"과거 좌표 검수 기록",emptyMessage:page.total ? "현재 페이지에 표시할 이력이 없습니다. 이전 페이지를 확인하세요." : "조회한 조건에 맞는 좌표 검수 이력이 없습니다.",summary:"전체 "+page.total+"건",
+    {page && <div ref={resultRef} tabIndex={-1} className="ui-focus-target" aria-label="앵커 검수 이력 결과"><div className="anchor-history-table"><ResultTable table={{title:"과거 좌표 검수 기록",emptyMessage:busy || error || filtersChanged ? "마지막 조회에서 표시할 이력이 없었습니다." : page.total ? "현재 페이지에 표시할 이력이 없습니다. 이전 페이지를 확인하세요." : "조회한 조건에 맞는 좌표 검수 이력이 없습니다.",summary:"전체 "+page.total+"건",
       columns:["이력 ID","저장 시각","프레임 수"],rows:page.records.map(row=>[row.id,row.created_at,row.frames])}}/></div></div>}
     {page?.note && <p>{page.note}</p>}
     {page?.records.length>5 && pagination("하단")}
