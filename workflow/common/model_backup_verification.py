@@ -81,6 +81,64 @@ def start_verification(model, *, target='canonical', request_id=None, state_root
     return start_backup_job(model, 'verify', target=target, request_id=request_id, state_root=state_root)
 
 
+def resume_backup_job(job_id, *, state_root=STATE_ROOT, config_path=None):
+    """Explicitly resume an interrupted snapshot without replacing its data."""
+    state_root = Path(state_root)
+    existing = read_verification(job_id, state_root=state_root)
+    if (existing.get('operation') == 'sync' and existing.get('target', 'canonical') == 'canonical'
+            and existing.get('status') in ('running', 'completed')):
+        return {key: existing[key] for key in ('job_id', 'model', 'operation', 'target', 'status') if key in existing}
+    if existing.get('operation') != 'sync' or existing.get('target', 'canonical') != 'canonical' or existing.get('status') not in ('interrupted', 'failed'):
+        raise ValueError('중단되거나 실패한 스냅샷 백업만 재개할 수 있습니다.')
+    model = existing.get('model')
+    if not isinstance(model, str) or not model or model in ('.', '..') or '/' in model or '\\' in model or '\x00' in model:
+        raise ValueError('백업 모델 이름이 올바르지 않습니다.')
+    from workflow.common.model_backup_service import read_backup_roots
+    if config_path is not None:
+        config_path = Path(config_path).resolve(strict=True)
+    _, backup, _ = read_backup_roots(config_path) if config_path is not None else read_backup_roots()
+    parent = backup / '.model-backup-snapshots' / model
+    pending, final = parent / ('.pending-' + job_id), parent / job_id
+    if (parent.parent.is_symlink() or parent.is_symlink() or pending.is_symlink()
+            or not pending.is_dir() or final.exists() or final.is_symlink()):
+        raise ValueError('재개할 미완료 스냅샷을 확인할 수 없습니다.')
+    with (state_root / 'worker.lock').open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as error:
+            raise ValueError('다른 백업 작업이 진행 중입니다.') from error
+        path = state_root/'jobs'/(job_id+'.json')
+        current = json.loads(path.read_text(encoding='utf-8'))
+        if (current.get('job_id') != job_id or current.get('model') != model or current.get('operation') != 'sync'
+                or current.get('target', 'canonical') != 'canonical' or current.get('status') not in ('running', 'interrupted', 'failed')):
+            raise ValueError('재개할 백업 기록이 변경됐습니다.')
+        history = current.get('attempt_history', [])
+        if not isinstance(history, list) or len(history) >= 100:
+            raise ValueError('백업 시도 기록을 확인할 수 없습니다.')
+        previous = {key: current[key] for key in ('status', 'started_at', 'finished_at', 'stage', 'error') if key in current}
+        if previous.get('status') == 'running':
+            previous['status'] = 'interrupted'
+        history = [*history, previous]
+        record = {'job_id': job_id, 'model': model, 'operation': 'sync', 'target': 'canonical',
+                  'status': 'running', 'started_at': datetime.now(timezone.utc).isoformat(), 'attempt_history': history}
+        write_record_atomically(path, record)
+        write_record_atomically(state_root/'current.json', {'job_id': job_id})
+        command = [sys.executable, '-m', 'workflow.common.model_backup_verification', '--model', model,
+                   '--job-id', job_id, '--state-root', str(state_root), '--operation', 'sync', '--target', 'canonical',
+                   '--status-path', str(state_root/'status.json'), '--lock-fd', str(lock.fileno()), '--resume']
+        if config_path is not None:
+            command.extend(['--config-path', str(config_path)])
+        try:
+            with (state_root/'worker.log').open('ab') as log:
+                subprocess.Popen(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
+                                 start_new_session=True, pass_fds=(lock.fileno(),))
+        except BaseException:
+            record.update(status='failed', error='백업 재개 작업을 시작하지 못했습니다.')
+            write_record_atomically(path, record)
+            raise
+    return {'job_id': job_id, 'status': 'running', 'model': model, 'operation': 'sync', 'target': 'canonical'}
+
+
 def read_verification(job_id, *, state_root=STATE_ROOT):
     if not isinstance(job_id, str) or len(job_id) != 32 or any(char not in '0123456789abcdef' for char in job_id):
         raise ValueError('검증 작업 ID가 올바르지 않습니다.')
@@ -134,11 +192,20 @@ def run_worker():
     parser.add_argument('--lock-fd', type=int, required=True)
     parser.add_argument('--operation', choices=('verify', 'sync'), default='verify')
     parser.add_argument('--target', choices=('canonical', 'latest_snapshot', 'snapshot_manifest', 'legacy'), default='canonical')
+    parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--config-path', type=Path)
     args = parser.parse_args()
     job_path = args.state_root / 'jobs' / (args.job_id + '.json')
     job_path.parent.mkdir(parents=True, exist_ok=True)
-    record = {'job_id': args.job_id, 'model': args.model, 'operation': args.operation, 'target': args.target, 'status': 'running',
-              'started_at': datetime.now(timezone.utc).isoformat()}
+    if args.resume:
+        if args.operation != 'sync' or args.target != 'canonical':
+            raise ValueError('스냅샷 백업만 재개할 수 있습니다.')
+        record = json.loads(job_path.read_text(encoding='utf-8'))
+        if (record.get('job_id'), record.get('model'), record.get('operation'), record.get('status')) != (args.job_id, args.model, 'sync', 'running'):
+            raise ValueError('백업 재개 작업 기록이 일치하지 않습니다.')
+    else:
+        record = {'job_id': args.job_id, 'model': args.model, 'operation': args.operation, 'target': args.target, 'status': 'running',
+                  'started_at': datetime.now(timezone.utc).isoformat()}
     with os.fdopen(args.lock_fd, 'a'):
         try:
             write_record_atomically(job_path, record)
@@ -153,7 +220,7 @@ def run_worker():
                 from workflow.common.model_backup_sync import sync_snapshot
                 from workflow.common.model_backup_metadata import model_metadata
                 try:
-                    model_info = model_metadata(args.model)
+                    model_info = model_metadata(args.model, **({'config_path': args.config_path} if args.config_path is not None else {}))
                 except (OSError, ValueError, TypeError, KeyError, ImportError):
                     model_info = {'state': 'unavailable'}
                 def report_progress(done, total, path):
@@ -164,7 +231,12 @@ def run_worker():
                         record.update(stage='스냅샷 복사', bytes=done, total_bytes=total, current_file=path)
                         write_record_atomically(job_path, record)
                         last_update[0] = now
-                result = sync_snapshot(args.model, args.job_id, progress=report_progress, model_info=model_info, phase=report_scan)
+                options = {'resume': True} if args.resume else {}
+                if args.config_path is not None:
+                    from workflow.common.model_backup_service import read_backup_roots
+                    options['roots'] = read_backup_roots(args.config_path)
+                result = sync_snapshot(args.model, args.job_id, progress=report_progress, model_info=model_info,
+                                       phase=report_scan, **options)
                 record.update(bytes=result['bytes'], total_bytes=result['bytes'])
             else:
                 if args.target == 'snapshot_manifest':

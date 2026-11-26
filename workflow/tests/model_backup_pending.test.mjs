@@ -2,6 +2,16 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readPendingBackupRequest, validateBackupReceipt} from '../../gui/modelBackupPending.mjs';
 
+test('resume retains original job and validates model and receipt', () => {
+  const request = {command:'backup-resume', model:'sample', payload:{job_id:'d'.repeat(32)}};
+  assert.deepEqual(readPendingBackupRequest({getItem:()=>JSON.stringify(request)}), request);
+  const receipt={job_id:request.payload.job_id, model:'sample', operation:'sync', target:'canonical', status:'running'};
+  assert.equal(validateBackupReceipt(request,receipt),receipt);
+  assert.throws(()=>validateBackupReceipt(request,{...receipt,job_id:'e'.repeat(32)}));
+  assert.throws(()=>validateBackupReceipt(request,{...receipt,model:'other'}));
+  assert.equal(readPendingBackupRequest({getItem:()=>JSON.stringify({...request,payload:{job_id:'bad'}})}),null);
+});
+
 test('valid pending backup request retains its id and target across page reload', () => {
   const request = {command: 'backup-verify', payload: {model: 'sample', target: 'latest_snapshot', request_id: 'a'.repeat(32)}};
   const storage = {getItem: () => JSON.stringify(request)};

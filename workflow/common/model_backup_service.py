@@ -261,11 +261,11 @@ def compare_backup_model(model, config_path=None, *, hash_content=False, target=
             **compare_inventories(source_inventory, backup_inventory)}
 
 
-def verify_snapshot_manifest(model, config_path=None, *, progress=None):
+def verify_snapshot_manifest(model, config_path=None, *, progress=None, compare_source=False):
     """Verify stored bytes against observed-at-backup hashes, without a local model."""
     if not isinstance(model, str) or not model or model in ('.', '..') or '/' in model or '\\' in model or '\x00' in model:
         raise ValueError('모델 이름이 올바르지 않습니다.')
-    _, backup, uri = read_backup_roots(config_path)
+    source, backup, uri = read_backup_roots(config_path)
     snapshot = latest_model_snapshot(backup, model)
     if snapshot is None:
         raise ValueError('완료된 모델 스냅샷을 찾을 수 없습니다.')
@@ -302,8 +302,28 @@ def verify_snapshot_manifest(model, config_path=None, *, progress=None):
         backup_inventory['files'].pop('.snapshot.json', None)
         if _identity(manifest.lstat()) != _identity(before):
             raise ValueError('검증 중 매니페스트가 변경됐습니다.')
-        return {'model': model, 'samba_uri': uri, 'target': 'snapshot_manifest', 'snapshot_id': snapshot.name,
-                'note': '백업 당시 관측한 해시와 현재 스냅샷을 비교합니다. 공급처 원본 인증은 별도입니다.',
-                **compare_inventories(source_inventory, backup_inventory)}
+        result = {'model': model, 'samba_uri': uri, 'target': 'snapshot_manifest', 'snapshot_id': snapshot.name,
+                  'note': '백업 당시 관측한 해시와 현재 스냅샷을 비교합니다. 공급처 원본 인증은 별도입니다.',
+                  **compare_inventories(source_inventory, backup_inventory)}
+        if compare_source:
+            source_model = target_path(source, model)
+            if source_model.is_symlink() or not source_model.is_dir():
+                raise ValueError('모델 디렉터리를 찾을 수 없습니다.')
+            local_progress = (lambda path, done, total: progress('원본 해시 확인', path, done, total)) if progress else None
+            local_inventory = inventory_model_tree(source_model, containment_root=source, hash_content=True, progress=local_progress)
+            # Recheck identities and membership after hashing local files; do not
+            # silently reuse a snapshot that changed between the two scans.
+            after_inventory = inventory_model_tree(snapshot, containment_root=backup, hash_content=False)
+            after_inventory['files'].pop('.snapshot.json', None)
+            identity_fields = ('size', 'mtime_ns', 'change_token')
+            if (not after_inventory['complete'] or after_inventory['files'].keys() != backup_inventory['files'].keys()
+                    or any(any(backup_inventory['files'][path].get(key) != after_inventory['files'][path].get(key)
+                               for key in identity_fields) for path in backup_inventory['files'])
+                    or _identity(manifest.lstat()) != _identity(before)
+                    or latest_model_snapshot(backup, model) != snapshot):
+                raise ValueError('로컬 비교 중 스냅샷 또는 최신 스냅샷이 변경됐습니다.')
+            result['local_comparison'] = {'snapshot_id': snapshot.name,
+                                          **compare_inventories(local_inventory, backup_inventory)}
+        return result
     except (OSError, UnicodeError, KeyError, TypeError, json.JSONDecodeError) as error:
         raise ValueError('스냅샷 매니페스트를 검증할 수 없습니다.') from error

@@ -9,6 +9,80 @@ from workflow.common.model_offline_audio_check import check_restored_audio
 
 
 class OfflineAudioCheckTests(unittest.TestCase):
+    def test_reads_backup_contents_once_and_rejects_change_during_local_scan(self):
+        from workflow.common import model_backup_service as service
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            (source/'first').mkdir(parents=True)
+            backup.mkdir()
+            (source/'first'/'weights').write_bytes(b'good weights')
+            sync_snapshot('first', 'a'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            original = service.inventory_model_tree
+            calls = []
+            def observe(path, **kwargs):
+                calls.append((Path(path), kwargs.get('hash_content', False)))
+                return original(path, **kwargs)
+            with patch.dict('workflow.common.model_offline_audio_check.COMPONENTS', {'test': ('first',)}), \
+                 patch.object(service, 'inventory_model_tree', side_effect=observe):
+                self.assertTrue(check_restored_audio('test', config)['matches'])
+            backup_reads = [hash_content for path, hash_content in calls if path.is_relative_to(backup)]
+            self.assertEqual(backup_reads, [True, False])
+            def change_snapshot(path, **kwargs):
+                result = original(path, **kwargs)
+                if Path(path) == source/'first':
+                    (backup/'.model-backup-snapshots'/'first'/('a'*32)/'weights').write_bytes(b'bad weights!')
+                return result
+            with patch.dict('workflow.common.model_offline_audio_check.COMPONENTS', {'test': ('first',)}), \
+                 patch.object(service, 'inventory_model_tree', side_effect=change_snapshot):
+                result = check_restored_audio('test', config)
+            self.assertFalse(result['matches'])
+            self.assertIn('변경', result['components'][0]['error'])
+
+    def test_rejects_latest_snapshot_change_during_comparison(self):
+        from workflow.common import model_backup_service as service
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            (source/'first').mkdir(parents=True)
+            backup.mkdir()
+            (source/'first'/'weights').write_bytes(b'good weights')
+            sync_snapshot('first', 'a'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            parent = backup/'.model-backup-snapshots'/'first'
+            with patch.dict('workflow.common.model_offline_audio_check.COMPONENTS', {'test': ('first',)}), \
+                 patch.object(service, 'latest_model_snapshot', side_effect=[parent/('a'*32), parent/('b'*32)]):
+                result = check_restored_audio('test', config)
+            self.assertFalse(result['matches'])
+            self.assertIn('최신 스냅샷', result['components'][0]['error'])
+
+    def test_rejects_manifest_change_during_local_comparison(self):
+        from workflow.common import model_backup_service as service
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            (source/'first').mkdir(parents=True)
+            backup.mkdir()
+            (source/'first'/'weights').write_bytes(b'good weights')
+            sync_snapshot('first', 'a'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            manifest = backup/'.model-backup-snapshots'/'first'/('a'*32)/'.snapshot.json'
+            original = service.inventory_model_tree
+            def change_manifest(path, **kwargs):
+                result = original(path, **kwargs)
+                if Path(path) == source/'first':
+                    manifest.write_text(manifest.read_text() + ' ')
+                return result
+            with patch.dict('workflow.common.model_offline_audio_check.COMPONENTS', {'test': ('first',)}), \
+                 patch.object(service, 'inventory_model_tree', side_effect=change_manifest):
+                result = check_restored_audio('test', config)
+            self.assertFalse(result['matches'])
+            self.assertIn('변경', result['components'][0]['error'])
+
     def test_detects_local_and_backup_damage_and_partial_files(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -50,9 +124,9 @@ class OfflineAudioCheckTests(unittest.TestCase):
         item = {'path': 'weights', 'status': 'verified'}
         snapshot = {'snapshot_id': 'a'*32, 'complete': True, 'files': [item]}
         local = {'snapshot_id': 'b'*32, 'complete': True, 'files': [item]}
+        snapshot['local_comparison'] = local
         with patch.dict('workflow.common.model_offline_audio_check.COMPONENTS', {'test': ('model',)}), \
-             patch('workflow.common.model_offline_audio_check.verify_snapshot_manifest', return_value=snapshot), \
-             patch('workflow.common.model_offline_audio_check.compare_backup_model', return_value=local):
+             patch('workflow.common.model_offline_audio_check.verify_snapshot_manifest', return_value=snapshot):
             result = check_restored_audio('test')
         self.assertFalse(result['matches'])
         self.assertFalse(result['components'][0]['same_snapshot'])
@@ -61,10 +135,10 @@ class OfflineAudioCheckTests(unittest.TestCase):
     def test_matching_snapshot_without_a_required_file_is_not_success(self):
         item = {'path': 'weights', 'status': 'verified'}
         comparison = {'snapshot_id': 'a'*32, 'complete': True, 'files': [item]}
+        snapshot = {**comparison, 'local_comparison': comparison}
         with patch.dict('workflow.common.model_offline_audio_check.COMPONENTS', {'test': ('model',)}), \
              patch.dict('workflow.common.model_offline_audio_check.REQUIRED', {'test': {'model': ('config.json',)}}), \
-             patch('workflow.common.model_offline_audio_check.verify_snapshot_manifest', return_value=comparison), \
-             patch('workflow.common.model_offline_audio_check.compare_backup_model', return_value=comparison):
+             patch('workflow.common.model_offline_audio_check.verify_snapshot_manifest', return_value=snapshot):
             result = check_restored_audio('test')
         self.assertFalse(result['matches'])
         self.assertEqual(result['components'][0]['missing_required'], ['config.json'])
@@ -72,10 +146,10 @@ class OfflineAudioCheckTests(unittest.TestCase):
     def test_matching_empty_required_file_is_not_success(self):
         item = {'path': 'config.json', 'status': 'verified', 'source': {'size': 0}}
         comparison = {'snapshot_id': 'a'*32, 'complete': True, 'files': [item]}
+        snapshot = {**comparison, 'local_comparison': comparison}
         with patch.dict('workflow.common.model_offline_audio_check.COMPONENTS', {'test': ('model',)}), \
              patch.dict('workflow.common.model_offline_audio_check.REQUIRED', {'test': {'model': ('config.json',)}}), \
-             patch('workflow.common.model_offline_audio_check.verify_snapshot_manifest', return_value=comparison), \
-             patch('workflow.common.model_offline_audio_check.compare_backup_model', return_value=comparison):
+             patch('workflow.common.model_offline_audio_check.verify_snapshot_manifest', return_value=snapshot):
             result = check_restored_audio('test')
         self.assertFalse(result['matches'])
         self.assertEqual(result['components'][0]['missing_required'], ['config.json'])

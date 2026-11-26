@@ -5,11 +5,11 @@ import ModelInventory from "./ModelInventory.jsx";
 import {startModelReadinessPoller} from "./modelReadinessPoller.mjs";
 
 export function modelPrepareReason(status,error,sending,checking=false) {
-  return sending ? "다운로드 요청을 접수하고 있습니다." : checking ? "모델 준비 상태를 확인하고 있습니다." : error ? "모델 준비 상태를 다시 확인하세요." : !status ? "모델 준비 상태를 확인하고 있습니다." : ["queued","running"].includes(status.preparation_status) ? "모델 준비가 진행 중입니다." : status.ready ? "모델 파일이 이미 준비되어 있습니다." : status.can_prepare===false || !status.prepare_request ? (status.prepare_blocked_reason || "현재 상태에서는 다운로드 요청을 사용할 수 없습니다.") : "";
+  return sending ? "다운로드 요청을 접수하고 있습니다." : checking ? "모델 준비 상태를 확인하고 있습니다." : error ? "모델 준비 상태를 다시 확인하세요." : !status ? "모델 준비 상태를 확인하고 있습니다." : ["queued","running"].includes(status.preparation_status) ? "모델 준비가 진행 중입니다." : status.verification_status === "verifying" ? "파일 SHA-256 검증이 진행 중입니다. 완료 후 다시 확인합니다." : status.ready ? "모델 파일이 이미 준비되어 있습니다." : status.can_prepare===false || !status.prepare_request ? (status.prepare_blocked_reason || "현재 상태에서는 다운로드 요청을 사용할 수 없습니다.") : "";
 }
 
 export function modelReadinessPollDelay(status,manage) {
-  return ["queued","running"].includes(status.preparation_status) ? 5000 : manage ? 30000 : null;
+  return ["queued","running"].includes(status.preparation_status) || status.verification_status === "verifying" ? 5000 : manage ? 30000 : null;
 }
 
 export function validModelReadiness(status) {
@@ -17,6 +17,7 @@ export function validModelReadiness(status) {
      (status.generation_ready!=null && typeof status.generation_ready!=="boolean") ||
      (status.can_prepare!=null && typeof status.can_prepare!=="boolean") ||
      (status.preparation_status!=null && typeof status.preparation_status!=="string") ||
+     (status.verification_status!=null && !["missing","verifying","verified","invalid"].includes(status.verification_status)) ||
      (status.prepare_blocked_reason!=null && typeof status.prepare_blocked_reason!=="string") ||
      (status.missing!=null && (!Array.isArray(status.missing) || status.missing.some(item=>typeof item!=="string"))))return false;
   const request=status.prepare_request;
@@ -31,17 +32,23 @@ export function ModelDownloadButton({sending,reason,reasonId,onPrepare}) {
   </button>{reason && <p id={reasonId}>{reason}</p>}</>;
 }
 
-export function ModelReadinessMessage({service,status,error,hasStatusSummary=false,id}) {
+export function modelReadinessText(service,status,error,hasStatusSummary=false) {
   let text="모델 상태 확인 중…";
   if(error) text="모델 상태 조회 실패 · "+error;
   else if(status) {
-    const ready=["wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora"].includes(service) ? status.ready : (status.generation_ready ?? status.ready);
+    const ready=["wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora"].includes(service) ? status.ready : (status.generation_ready ?? status.ready);
     if(hasStatusSummary) {
       text=status.message.replace(/^(?:모델 파일 준비 완료 · |모델 준비 필요: )/,"");
       if(!ready && status.missing?.length) text="준비가 필요한 파일 · "+status.missing.join(", ");
-    } else if(service==="wan22-animate2") text=ready && status.message.startsWith("모델 파일 준비 완료") ? status.message : (ready ? "모델 파일 준비 완료" : "모델 파일 준비 필요")+" · "+status.message;
+    } else if(status.verification_status === "verifying") text="모델 파일 검증 중 · "+status.message;
+    else if(service==="wan22-animate2") text=ready && status.message.startsWith("모델 파일 준비 완료") ? status.message : (ready ? "모델 파일 준비 완료" : "모델 파일 준비 필요")+" · "+status.message;
     else text=(["animationgpt","wan22-fighting-lora","wan22-vace-lightning","wan22-animate2-lightx2v","wan22-vace-q8","wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
   }
+  return text;
+}
+
+export function ModelReadinessMessage({service,status,error,hasStatusSummary=false,id}) {
+  const text=modelReadinessText(service,status,error,hasStatusSummary);
   return <p id={id} role={error ? "alert" : "status"}>{text}</p>;
 }
 

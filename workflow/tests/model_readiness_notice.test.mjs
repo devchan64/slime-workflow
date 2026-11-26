@@ -4,6 +4,29 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 
+test('SHA 검증 중에는 다운로드를 보류하고 완료 상태를 자동으로 다시 확인한다',()=>{
+ const source=readFileSync(new URL('../../gui/ModelReadiness.jsx',import.meta.url),'utf8');
+ const code=source.slice(source.indexOf('export function modelPrepareReason'),source.indexOf('export function ModelDownloadButton')).replaceAll('export function','function');
+ const context=vm.createContext({});vm.runInContext(code,context);
+ const status={ready:false,message:'검증 중',can_prepare:false,verification_status:'verifying'};
+ assert.match(context.modelPrepareReason(status,'',false),/SHA-256 검증이 진행 중/);
+ assert.equal(context.modelReadinessPollDelay(status,false),5000);
+ assert.equal(context.validModelReadiness(status),true);
+ assert.equal(context.validModelReadiness({...status,verification_status:'unexpected'}),false);
+ assert.equal(context.modelReadinessPollDelay({...status,verification_status:'verified'},false),null);
+});
+
+test('I2V 파일 검증 상태와 생성 준비 상태를 구분한다',()=>{
+ const source=readFileSync(new URL('../../gui/ModelReadiness.jsx',import.meta.url),'utf8');
+ const code=source.slice(source.indexOf('export function modelReadinessText'),source.indexOf('export function ModelReadinessMessage')).replace('export function','function');
+ const context=vm.createContext({});vm.runInContext(code,context);
+ const status={ready:false,generation_ready:false,verification_status:'verifying',message:'SHA-256 검증 중'};
+ assert.match(context.modelReadinessText('wan22-i2v-assets',status,''),/^모델 파일 검증 중/);
+ const complete={...status,ready:true,verification_status:'verified',message:'SHA-256 검증 완료 · 생성기와 GPU는 별도'};
+ assert.match(context.modelReadinessText('wan22-i2v-assets',complete,''),/^모델 파일 준비 완료/);
+ assert.match(context.modelReadinessText('other',complete,''),/^모델 준비 필요/);
+});
+
 test('모델 준비 응답 실패는 불확실성을 알리고 성공은 정상 상태로 안내한다',async()=>{
  const source=readFileSync(new URL('../../gui/ModelReadiness.jsx',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('  async function prepare()'),source.indexOf('  const prepareReason='));

@@ -5,6 +5,27 @@ from workflow.common.model_catalog import catalog_overview, read_catalog, read_r
 
 
 class CatalogTest(unittest.TestCase):
+    def test_unverified_wanmove_and_flux_upsampler_provenance_is_explicit(self):
+        entries = {item['id']: item for item in read_catalog()['components']}
+        wan = entries['wan-move']
+        self.assertIn('Wan 2.1', wan['label'])
+        self.assertIn('Wan21-WanMove', wan['usage_note'])
+        self.assertIn('폐기됨', wan['label'])
+        self.assertIn('확인되지 않았습니다', wan['usage_note'])
+        self.assertIsNone(wan['source'])
+        pup = entries['flux-klein-prompt-upsampler']
+        self.assertEqual(pup['source'], 'black-forest-labs/flux-3-image-klein-pup')
+        self.assertIsNone(pup['revision'])
+        self.assertIn('로컬 README', pup['usage_note'])
+
+    def test_animationgpt_declares_primary_weight_source_only(self):
+        from workflow.common.animationgpt_model_download import REVISION, URL
+        item = next(entry for entry in read_catalog()['components'] if entry['id'] == 'animationgpt')
+        self.assertEqual(item['source'], 'Kijai/AnimationGPT_pruned')
+        self.assertEqual(item['revision'], REVISION)
+        self.assertIn(f"/{item['source']}/resolve/{item['revision']}/", URL)
+        self.assertIn('별도 출처', item['usage_note'])
+
     def test_dflash_is_an_optional_separate_model(self):
         from workflow.domains.hermes_agent.resident_worker import DFLASH_MODEL
         item = next(entry for entry in read_catalog()['components'] if entry['id'] == 'qwen3-8-27b-dflash2')

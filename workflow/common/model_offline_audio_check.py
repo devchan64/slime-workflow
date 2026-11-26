@@ -4,7 +4,7 @@ import json
 import sys
 import time
 
-from workflow.common.model_backup_service import compare_backup_model, verify_snapshot_manifest
+from workflow.common.model_backup_service import verify_snapshot_manifest
 
 COMPONENTS = {
     'sfx-dasheng-audiogen': ('dasheng-audiogen', 'flan-t5-large', 'dasheng-tokenizer'),
@@ -37,8 +37,8 @@ def check_restored_audio(service, config_path=None, *, progress=None):
     for model in COMPONENTS[service]:
         try:
             report = (lambda phase, path, done, total: progress(model, phase, path, done, total)) if progress else None
-            snapshot = verify_snapshot_manifest(model, config_path, progress=report)
-            local = compare_backup_model(model, config_path, hash_content=True, target='latest_snapshot', progress=report)
+            snapshot = verify_snapshot_manifest(model, config_path, progress=report, compare_source=True)
+            local = snapshot['local_comparison']
             same_snapshot = snapshot['snapshot_id'] == local['snapshot_id']
             snapshot_files, local_files = snapshot['files'], local['files']
             valid = (snapshot['complete'] and local['complete'] and same_snapshot

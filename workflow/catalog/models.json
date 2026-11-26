@@ -81,8 +81,9 @@
       "services": [
         "animationgpt"
       ],
-      "source": null,
-      "revision": null
+      "source": "Kijai/AnimationGPT_pruned",
+      "revision": "511d227763e63acb1efbe28992636e3dd31d5f87",
+      "usage_note": "주 FP16 가중치의 제3자 배포본과 고정 리비전입니다. 같은 설치 경로의 FLAN-T5 토크나이저와 모션 통계는 별도 출처·리비전입니다."
     },
     {
       "id": "minimax-h3-diffusers",
@@ -432,17 +433,19 @@
       "kind": "model",
       "path": "flux-3-image-klein-pup",
       "services": [],
-      "source": null,
-      "revision": null
+      "source": "black-forest-labs/flux-3-image-klein-pup",
+      "revision": null,
+      "usage_note": "저장소는 로컬 README의 선언입니다. 파일의 실제 배포처와 리비전 일치는 확인되지 않았습니다."
     },
     {
       "id": "wan-move",
-      "label": "WanMove 가중치",
+      "label": "Wan 2.1 WanMove 가중치 · 폐기됨",
       "kind": "model",
       "path": "wan-move",
       "services": [],
       "source": null,
-      "revision": null
+      "revision": null,
+      "usage_note": "Wan21-WanMove 로컬 가중치는 백업 해시 확인 후 제거했습니다. Samba 완료 스냅샷은 보존하며 외부 실행 경로의 사용 여부는 확인되지 않았습니다."
     }
   ]
 }

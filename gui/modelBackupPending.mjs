@@ -1,8 +1,13 @@
 export function readPendingBackupRequest(storage) {
   try {
     const request = JSON.parse(storage.getItem('model-backup-pending') || 'null');
-    if (!request || !['backup-sync', 'backup-verify'].includes(request.command)) return null;
+    if (!request || !['backup-sync', 'backup-verify', 'backup-resume'].includes(request.command)) return null;
     const payload = request.payload;
+    if (request.command === 'backup-resume') {
+      if (!payload || Object.keys(payload).length !== 1 || !/^[0-9a-f]{32}$/.test(payload.job_id) ||
+          typeof request.model !== 'string' || !request.model) return null;
+      return request;
+    }
     if (!payload || typeof payload.model !== 'string' || !payload.model ||
         !/^[0-9a-f]{32}$/.test(payload.request_id)) return null;
     const allowed = request.command === 'backup-sync' ? ['model', 'request_id'] : ['model', 'request_id', 'target'];
@@ -15,8 +20,9 @@ export function readPendingBackupRequest(storage) {
 }
 
 export function validateBackupReceipt(request, receipt) {
-  const expectedOperation = request.command === 'backup-sync' ? 'sync' : 'verify';
-  if (!receipt || receipt.job_id !== request.payload.request_id || receipt.model !== request.payload.model ||
+  const resume = request.command === 'backup-resume';
+  const expectedOperation = request.command === 'backup-sync' || resume ? 'sync' : 'verify';
+  if (!receipt || receipt.job_id !== (resume ? request.payload.job_id : request.payload.request_id) || receipt.model !== (resume ? request.model : request.payload.model) ||
       receipt.operation !== expectedOperation || !['running', 'completed', 'failed', 'interrupted', 'unknown'].includes(receipt.status)) {
     throw new Error('접수 응답이 요청과 일치하지 않습니다. 이력에서 작업을 확인하세요.');
   }

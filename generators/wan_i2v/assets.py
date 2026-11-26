@@ -1,6 +1,8 @@
 """고정된 Wan 2.2 I2V 및 Lightning 파일 준비."""
 import hashlib
+import os
 from pathlib import Path
+import threading
 
 ROOT = Path(__file__).resolve().parents[2]
 DIRECTORY = ROOT / '.model/wan22-i2v'
@@ -16,14 +18,71 @@ def inspect_assets():
     for relative, _, _, _, size, digest in FILES:
         path = DIRECTORY / relative
         try:
-            if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
+            if path.is_symlink() or not path.is_file():
+                return False
+            before = path.stat()
+            if before.st_size != size:
                 return False
             with path.open('rb') as stream:
-                if hashlib.file_digest(stream, 'sha256').hexdigest() != digest:
+                opened = os.fstat(stream.fileno())
+                identity = lambda x: (x.st_dev, x.st_ino, x.st_size, x.st_mtime_ns, x.st_ctime_ns)
+                if identity(opened) != identity(before) or hashlib.file_digest(stream, 'sha256').hexdigest() != digest:
                     return False
+                if identity(os.fstat(stream.fileno())) != identity(before):
+                    return False
+            if path.is_symlink() or identity(path.stat()) != identity(before):
+                return False
         except OSError:
             return False
     return True
+
+
+_status_lock = threading.Lock()
+_status_state = {'signature': None, 'state': 'unverified', 'thread': None}
+
+
+def _asset_signature():
+    """Observe file identity without treating file presence as integrity."""
+    signature = []
+    for relative, _, _, _, size, _ in FILES:
+        path = DIRECTORY / relative
+        try:
+            if path.is_symlink() or not path.is_file():
+                return None
+            info = path.stat()
+            if info.st_size != size:
+                return None
+            signature.append((info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns))
+        except OSError:
+            return None
+    return tuple(signature)
+
+
+def inspect_assets_nonblocking():
+    """Return promptly; a verified result applies only to unchanged files."""
+    signature = _asset_signature()
+    with _status_lock:
+        if signature is None:
+            _status_state.update(signature=None, state='missing')
+            return 'missing'
+        if _status_state['signature'] == signature and _status_state['state'] in ('verified', 'invalid'):
+            return _status_state['state']
+        if _status_state['thread'] is not None and _status_state['thread'].is_alive():
+            return 'verifying'
+        _status_state.update(signature=signature, state='verifying')
+        def verify():
+            try:
+                valid = inspect_assets()
+                unchanged = _asset_signature() == signature
+            except Exception:
+                valid, unchanged = False, False
+            with _status_lock:
+                if _status_state['signature'] == signature:
+                    _status_state['state'] = ('verified' if valid else 'invalid') if unchanged else 'unverified'
+        worker = threading.Thread(target=verify, name='wan22-i2v-asset-verification', daemon=True)
+        _status_state['thread'] = worker
+        worker.start()
+        return 'verifying'
 
 
 def prepare_assets():
