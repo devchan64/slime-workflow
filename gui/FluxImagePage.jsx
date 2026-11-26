@@ -324,7 +324,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
     }catch(problem){if(!dispatched)setNotice(problem.message+" · 요청은 접수되지 않았습니다.");else if(handoffReview)setNotice(problem.message+" · GPU 양도 상태를 확인하세요.");else if(receiptKey){setReceiptState("unknown");setReceiptNotice(problem.message+" · 생성 이력에서 접수 여부를 확인하세요.");}else setNotice(problem.message+" · 생성 이력에서 접수 여부를 확인하세요.");}
     finally{sending.current=false;setBusy(false);setReview(null);setHandoffReview(null);}
   }
-  return <article className={"flux-page generator-page-common"+(embedded ? "" : " flux-standalone")}><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a>
+  return <article className={"flux-page generator-page-common"+(embedded ? "" : " flux-standalone")}>{!embedded && <nav aria-label="워크플로우 탐색"><a href={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화</a></nav>}
     <h1 className={embedded ? "embedded-page-title" : undefined}>FLUX 이미지 생성 · {profile?.label}</h1><GeneratorChangelog generator={service+"-generator"} card/>
     <GeneratorSectionCard title="사용설명" summary="사용 방법과 제한 사항">{profile ? <>
       <p>{profile.description}</p>
