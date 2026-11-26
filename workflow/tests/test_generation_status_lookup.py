@@ -74,6 +74,7 @@ class GenerationStatusLookupTests(unittest.TestCase):
               assert.notEqual(key({service:'one',id:'job'}),key({service:'two',id:'job'}));
               assert.notEqual(key({service:'one',id:'job'}),key({service:'one',id:'job',kind:'audio'}));
               const render=(error,stale)=>server.renderToStaticMarkup(React.createElement(MediaResultError,{error,stale}));
+              assert.match(render('서버 응답을 확인할 수 없습니다. 다시 시도하세요.',true),/작업 결과의 내용을 확인하지 못했습니다/);
               process.stdout.write(JSON.stringify([render('영상 원본 작업 경로 오류',true),render('이미지 원본 작업 경로 오류',false),render('FLUX 원본 작업 경로 오류',false),render('캐릭터 작업 경로 오류',false),render('접속 오류',true),render('접속 오류',false)]));"""
             missing,image_missing,flux_missing,character_missing,stale,empty=json.loads(subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True))
         self.assertIn('작업을 찾지 못했습니다',missing);self.assertIn('마지막으로 조회한 결과',missing)

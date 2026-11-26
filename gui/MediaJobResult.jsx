@@ -1,5 +1,5 @@
 import JobStatus from "./JobStatus.jsx";
-import React, {useEffect,useRef,useState} from "react";
+import React, {useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import GenerationProgress from "./GenerationProgress.jsx";
 import {validGenerationEstimate} from "./generationEstimate.mjs";
@@ -100,7 +100,7 @@ function SavedPoseVideo({id,resultVideo,resultPoster}) {
 export function MediaResultError({error,stale}) {
   if(!error)return null;
   const missing=["영상 원본 작업 경로 오류","이미지 원본 작업 경로 오류","FLUX 원본 작업 경로 오류","캐릭터 작업 경로 오류","음악 작업 경로가 없거나 허용되지 않습니다"].some(message=>error.includes(message));
-  return <p role="alert">{missing ? "이 생성기에서 해당 작업을 찾지 못했습니다. 작업 ID와 이력을 확인해 주세요." : error.includes("시간이 초과") ? "작업 결과 조회 시간이 초과됐습니다. 다시 조회해 주세요." : error.includes("형식") || error.includes("요청과 일치") ? "작업 결과의 내용을 확인하지 못했습니다. 결과를 다시 조회해 주세요." : "작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요."}{stale && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>;
+  return <p role="alert">{missing ? "이 생성기에서 해당 작업을 찾지 못했습니다. 작업 ID와 이력을 확인해 주세요." : error.includes("시간이 초과") ? "작업 결과 조회 시간이 초과됐습니다. 다시 조회해 주세요." : error.includes("형식") || error.includes("요청과 일치") || error.includes("서버 응답을 확인할 수 없습니다") ? "작업 결과의 내용을 확인하지 못했습니다. 결과를 다시 조회해 주세요." : "작업 결과를 불러오지 못했습니다. 연결 상태를 확인하고 결과를 새로고침해 주세요."}{stale && " 아래 내용은 마지막으로 조회한 결과입니다."}</p>;
 }
 
 export function MediaResultPending({job}){
@@ -123,6 +123,7 @@ export default function MediaJobResult(props) {
 }
 
 function MediaJobResultForSelection({service,id,kind="video",children,folderLink=false,onReuse,hideProgress=false,onStatusChange,inGenerator=false}) {
+  const loadingId=useId();
   const [job,setJob]=useState(null);
   const [error,setError]=useState("");
   const [checkedAt,setCheckedAt]=useState(null);
@@ -188,7 +189,7 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
     {!directFolder && <RecordFolder key={service+"/"+id} service={service} id={id}/>}
     <MediaResultError error={error} stale={Boolean(job)}/>
     {error && attemptedAt && <p className="media-result-checked">조회 실패 시각 · <time dateTime={attemptedAt.toISOString()}>{attemptedAt.toLocaleString("ko-KR",{timeZone:"Asia/Seoul",hour12:false})}</time></p>}
-    {loading && job && <p role="status">작업 결과를 다시 조회하고 있습니다.</p>}
+    {loading && <p id={loadingId} role="status">{job ? "작업 결과를 다시 조회하고 있습니다." : "작업 결과를 조회하고 있습니다."}</p>}
     {job ? <>
       <p className="media-result-note" role="status">{inGenerator && kind==="audio" && typeof job.note==="string" ? job.note.replace(/^완료 결과와 상세 로그·분리 음원은 해당 생성기 이력에서 확인하세요\.\s*/,"") : job.note}</p>
       {!hideProgress && (["queued","running"].includes(job.status) ? <GenerationProgress jobId={id} service={service} job={job} live={live} supportsProgress={kind==="video"} showQueryTime={false} referenceTime={checkedAt}/> : <details><summary>진행 정보 보기</summary><GenerationProgress jobId={id} service={service} job={job} supportsProgress={kind==="video"} showQueryTime={false} referenceTime={checkedAt}/></details>)}
@@ -215,8 +216,8 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
       {(job.result_status==="unavailable" || job.file_observation==="unavailable") && <p>완료 기록의 결과 파일을 확인할 수 없습니다.</p>}
       <MediaResultPending job={job}/>
       {job.result_status==="partial" && job.file_observation!=="unavailable" && <p role="status">완료 기록의 결과 파일 일부만 확인되었습니다. 기록 폴더에서 결과를 확인하세요.</p>}
-    </> : !error && <p role="status">결과 조회 중…</p>}
+    </> : !error && !loading && <p role="status">결과를 확인할 수 없습니다.</p>}
     {children?.(job,()=>refresh(value=>value+1),{stale:Boolean(error)})}
-    <div className="media-result-actions">{onReuse && job && <button type="button" onClick={onReuse}>입력 다시 사용</button>}<button ref={refreshRef} type="button" disabled={loading} onClick={()=>{restoreRefreshFocus.current=true;refresh(value=>value+1);}}>{loading?"조회 중…":"결과 새로고침"}</button></div>
+    <div className="media-result-actions">{onReuse && job && <button type="button" onClick={onReuse}>입력 다시 사용</button>}<button ref={refreshRef} type="button" disabled={loading} aria-describedby={loading ? loadingId : undefined} onClick={()=>{restoreRefreshFocus.current=true;refresh(value=>value+1);}}>{loading?"조회 중…":"결과 새로고침"}</button></div>
   </section>;
 }
