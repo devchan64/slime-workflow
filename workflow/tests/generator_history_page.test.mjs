@@ -8,6 +8,7 @@ test('이력 페이지의 경계, 다음 위치, 중복과 스냅샷을 확인�
   assert.equal(validGeneratorHistoryPage(page,0,2),true);
   assert.equal(validGeneratorHistoryPage({...page,next_offset:3},0,2),false);
   assert.equal(validGeneratorHistoryPage({...page,next_offset:null},0,2),false);
+  assert.equal(validGeneratorHistoryPage({...page,records:[row('one')],next_offset:1},0,2),false);
   assert.equal(validGeneratorHistoryPage({...page,records:[row('one'),row('one')]},0,2),false);
   assert.equal(validGeneratorHistoryPage({...page,total:1},0,2),false);
   assert.equal(validGeneratorHistoryPage(page,0,1),false);
