@@ -1,5 +1,7 @@
 # 기본 캐릭터 기준 자료
 
+버클러가 포함된 자세 자료는 과거 생성 기록으로 보존하며 현행 전투 에셋의 기준으로 사용하지 않는다.
+
 - [휴식 16프레임 v3](default-rest-front-right-16frames-v3.png) · [기록](default-rest-front-right-16frames-v3.yaml): 8방향 시트를 외형 기준으로 보정한 사용자 지정 베이스라인. 프레임 좌표·앵커, 접지와 동작 연결은 추가 검수가 필요하다.
 - [전신 8방향 시트](default-eight-directions-v1.png) · [생성 기록](default-eight-directions-v1.yaml): 사용자 지정 기본 자료. 아래 행 두 번째의 방향과 참조 대비 신체 비율은 추가 검수가 필요하다.
 - [한손검 전투 기본자세 · 오른쪽 방향 480p v2](480p/default-broadsword-combat-right-480p-v2.png) · [생성 기록](480p/default-broadsword-combat-right-480p-v2.yaml): 왼손 한손검과 오른쪽 방향, 머리 위 약 20% 여백. 몸통은 정면에 가까우며 자세와 비율의 정밀 검수가 필요하다. [이전 v1](480p/default-broadsword-combat-right-480p-v1.png)은 기존 버클러 기준의 참조로 보존한다.
