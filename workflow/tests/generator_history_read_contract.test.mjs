@@ -140,9 +140,9 @@ test('이력 접기는 열린 결과를 보존하고 다시 열 때 필요한 �
  const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
  const method=source.slice(source.indexOf('  function toggleHistory(event){'),source.indexOf('  return <details ref={detailsRef}'));
  assert.ok(method);let closed=0,expanded='job',queries=0,cancelled=0;
- const context=vm.createContext({resultId:'job',expanded,page:{},error:'',query:'',historyEpoch:{current:0},cancelInput:()=>cancelled++,onCloseResult:()=>closed++,setExpanded:value=>expanded=value,perform:fn=>fn(),list:()=>queries++});
+ let pauses=0;const context=vm.createContext({resultId:'job',expanded,page:{},error:'',query:'',historyEpoch:{current:0},cancelInput:()=>cancelled++,onCloseResult:()=>closed++,setExpanded:value=>expanded=value,perform:fn=>fn(),list:()=>queries++});
  vm.runInContext(method+'\nthis.toggleHistory=toggleHistory;',context);
- context.toggleHistory({currentTarget:{open:false}});assert.equal(closed,0);assert.equal(expanded,'job');assert.equal(cancelled,1);
+ context.toggleHistory({currentTarget:{open:false,querySelectorAll:()=>[{pause:()=>pauses++},{pause:()=>pauses++}]}});assert.equal(closed,0);assert.equal(expanded,'job');assert.equal(cancelled,1);assert.equal(pauses,2);
  context.resultId='';context.expanded=null;context.page=null;context.toggleHistory({currentTarget:{open:true}});assert.equal(queries,1);
  context.error='오류';context.toggleHistory({currentTarget:{open:true}});assert.equal(queries,1);
 });

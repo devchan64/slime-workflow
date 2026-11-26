@@ -237,6 +237,7 @@ function GeneratorHistoryForService({service, statusCommand, restore, inspectRes
     if(event.currentTarget.open){if(!page && !error && !resultId)perform(()=>list(0,query.trim()));return;}
     historyEpoch.current++;
     cancelInput();
+    event.currentTarget.querySelectorAll('video,audio').forEach(media=>media.pause());
   }
   return <details ref={detailsRef} className={`generator-history${card ? ' generator-section-card' : ''}`} onToggle={toggleHistory}><summary>{card ? <><span className="generator-section-card-heading" role="heading" aria-level="2">생성 이력</span><span className="generator-section-card-summary">{historySummary}</span></> : <>생성 이력 · {historySummary}</>}</summary>
     {busy && !busyInSelection && <p id={busyId} role="status">이력 요청을 처리하고 있습니다.</p>}
