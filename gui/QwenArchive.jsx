@@ -50,7 +50,7 @@ export default function QwenArchive(){
   useEffect(()=>{
     if(!id || !pendingFocus.current)return;
     pendingFocus.current=false;
-    if(document.activeElement===triggerRef.current || document.activeElement===document.body)resultRef.current?.focus();
+    if(document.activeElement===document.body)resultRef.current?.focus();
   },[id]);
   function openResult(job){
     focusEpoch.current++;
@@ -73,11 +73,7 @@ export default function QwenArchive(){
   return <main className="single-generator-shell"><article className="single-generator-page generator-page-common"><a href={"/management/frame/hermes-agent/"+(session?"?"+new URLSearchParams({session}):"")}>헤르메스 대화로 돌아가기</a>
     <h1>Qwen 이미지 생성 이력</h1><p>{service} · 보관된 작업</p>
     <GeneratorChangelog card generator={service}/>
-    <div ref={historyRef}><GeneratorHistory card service={service} readJobWithSignal={readJob} openResult={openResult} externalResultId={id} emptyMessage="조회된 보관 이력이 없습니다. 검색 조건을 바꾸어 다시 조회하세요."/></div>
-    {id && <section ref={resultRef} tabIndex={-1} aria-label="보관된 작업 결과" className="qwen-archive-result">
-      <h2>보관된 작업 결과</h2><JobIdentifier id={id}/>
-      <button type="button" onClick={closeResult}>결과 닫기</button>
-      <ArchiveDetail key={id} service={service} id={id}/>
-    </section>}
-  </article></main>;
-}
+    <div ref={historyRef}><GeneratorHistory car    <div ref={historyRef}><GeneratorHistory card toggleResult service={service} readJobWithSignal={readJob} openResult={openResult} resultId={id} onCloseResult={closeResult} emptyMessage="조회된 보관 이력이 없습니다." emptySearchMessage="검색 조건에 맞는 보관 이력이 없습니다. 검색 조건을 바꾸거나 초기화하세요." renderResult={job=><section ref={resultRef} tabIndex={-1} aria-label="보관된 작업 결과" className="qwen-archive-result">
+      <h2>보관된 작업 결과</h2><JobIdentifier id={job}/>
+      <ArchiveDetail key={job} service={service} id={job}/>
+    </section>}/></div>

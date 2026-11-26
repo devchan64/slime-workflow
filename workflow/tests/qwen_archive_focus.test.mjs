@@ -30,6 +30,6 @@ test('보관 결과를 열 때 잃은 초점을 복구하고 사용자가 옮긴
   for(const focusKind of ['body','trigger','other']){
     const body={},trigger={},other={},document={body,activeElement:focusKind==='body'?body:focusKind==='trigger'?trigger:other};let focused=false;
     const context=vm.createContext({document,id:'job',pendingFocus:{current:true},triggerRef:{current:trigger},resultRef:{current:{focus(){focused=true;}}},useEffect:fn=>fn()});
-    vm.runInContext(source.slice(start,end),context);assert.equal(focused,focusKind!=='other');assert.equal(context.pendingFocus.current,false);
+    vm.runInContext(source.slice(start,end),context);assert.equal(focused,focusKind==='body');assert.equal(context.pendingFocus.current,false);
   }
 });
