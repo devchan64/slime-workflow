@@ -73,7 +73,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const imageSelectionRevision=useRef(0),imageChecking=useRef(false);
   const [imageCheckPending,setImageCheckPending]=useState(false);
   const [videoInfo,setVideoInfo]=useState({}),[checking,setChecking]=useState({});
-  const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null),sending=useRef(false),focusResult=useRef(false),nonLoraSettings=useRef(null);
+  const videoSequences=useRef({}),formRef=useRef(null),reviewRef=useRef(null),resultRef=useRef(null),historyRef=useRef(null),sending=useRef(false),nonLoraSettings=useRef(null);
   const videoControllers=useRef({});
   useEffect(()=>()=>{Object.values(videoControllers.current).forEach(controller=>controller.abort());for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;},[]);
   const [busy,setBusy]=useState(false),[pending,setPending]=useState(null),[modelError,setModelError]=useState("");
@@ -160,7 +160,6 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     requestAnimationFrame(()=>{const form=formRef.current;if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && form?.isConnected){form.focus();form.scrollIntoView({block:'start'});}});
   }
   function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
-  function openResult(id){focusResult.current=true;if(id===job){const card=historyRef.current?.querySelector('details.generator-history');if(card)card.open=true;resultRef.current?.focus();focusResult.current=false;}else setJob(id);}
   function field(key,value){setValues(old=>({...old,[key]:value}));}
   async function inspectVideo(file,signal){
     const response=await untilAborted(fetch("/management/assistant/fun-video-info",{method:"POST",body:file,signal}),signal);
@@ -289,7 +288,7 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><ReviewPrompt label="부정 프롬프트" text={pending.negative_prompt}/>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setPending(null);handoff.clearReview();if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(formRef.current?.querySelector("textarea"))));}} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
-    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending} aria-label="생성 이력" aria-describedby={busy || pending ? historyLockId : undefined}><GeneratorHistory card directApply allowPriority onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={(id,close)=><section ref={node=>{resultRef.current=node;if(node && focusResult.current){focusResult.current=false;requestAnimationFrame(()=>{if(node.isConnected){node.focus();node.scrollIntoView({block:'start'});}});}}} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><button type="button" onClick={close}>결과 닫기</button><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
+    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending} aria-label="생성 이력" aria-describedby={busy || pending ? historyLockId : undefined}><GeneratorHistory card directApply allowPriority toggleResult onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
       {(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}
     </MediaJobResult></section>}/></fieldset>
     {(busy || pending) && <p id={historyLockId} role="status">{busy ? "요청 처리 후 이력을 사용할 수 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}
