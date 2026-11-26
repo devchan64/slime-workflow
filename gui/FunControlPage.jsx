@@ -13,7 +13,7 @@ import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
 import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
-import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
+import GeneratorSectionNavigation,{openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
 
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import {FunControlFields,FunControlResult} from "./FunControlSchema.jsx";
@@ -60,9 +60,9 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   const [imageCheckPending,setImageCheckPending]=useState(false);
   const [loadingInput,setLoadingInput]=useState(false);
   const [pending,setPending]=useState(null),[job,setJobState]=useState(embedded ? "" : new URLSearchParams(location.search).get("job") || "");
-  const jobEpoch=useRef(0);function setJob(value){jobEpoch.current++;setJobState(value);}
-  const resultRef=useRef(null),historyRef=useRef(null),focusResult=useRef(null),resultFocusFrame=useRef(null),activeProgressRef=useRef(null);
-  useEffect(()=>{const focus=focusResult.current;if(!focus || !job || !resultRef.current)return;focusResult.current=null;if(focus.id===job && (document.activeElement===document.body || document.activeElement===focus.origin)){resultRef.current.focus();resultRef.current.scrollIntoView({block:"start"});}},[job]);
+  const [resultId,setResultId]=useState(job),currentJob=useRef(job);
+  function setJob(value){const previous=currentJob.current;if(previous===value)return;currentJob.current=value;setJobState(value);setResultId(selected=>value?(selected||value):(selected===previous?"":selected));}
+  const resultRef=useRef(null),historyRef=useRef(null);
   const reviewEpoch=useRef(0),interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
   const [model,setModel]=useState(null),[modelError,setModelError]=useState("");
   const modelReason=(model?.generation_ready ?? model?.ready) ? "" : model ? "모델 준비가 필요합니다. 모델 상태에서 준비 절차를 확인하세요." : "모델 준비 상태를 확인해야 접수할 수 있습니다.";
@@ -99,10 +99,10 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     setNotice(record.id+" 입력을 복원했습니다.");if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);
     restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && formRef.current?.isConnected)formRef.current.focus();});
   }
-  function cleaned(message){setJob("");setNotice(message);refreshHistory(n=>n+1);}
+  function cleaned(message){setJob("");setResultId("");setNotice(message);refreshHistory(n=>n+1);}
   const sending=useRef(false),formRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null),reviewRequest=useRef(null),restoreFrame=useRef(null);
   const poseInspection=useRef(null),inputLoading=useRef(null),saveRequest=useRef(null),attachmentEpoch=useRef(0),mounted=useRef(true);
-  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;attachmentEpoch.current++;poseInspection.current?.abort();inputLoading.current?.abort();saveRequest.current?.abort();const review=reviewRequest.current;reviewRequest.current=null;review?.abort();if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);if(resultFocusFrame.current!==null)cancelAnimationFrame(resultFocusFrame.current);};},[]);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;attachmentEpoch.current++;poseInspection.current?.abort();inputLoading.current?.abort();saveRequest.current?.abort();const review=reviewRequest.current;reviewRequest.current=null;review?.abort();if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);};},[]);
   useEffect(()=>{if(pending && (document.activeElement===document.body || document.activeElement===reviewOrigin.current))reviewRef.current?.focus();},[pending]);
   useEffect(()=>{
     if(!templateRetryFocus.current || (!template && !templateError))return;
@@ -289,26 +289,21 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     }catch(problem){if(reviewRequest.current===controller){setHandoffReview(null);setError(timedOut ? "생성 요청 검토 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem));}}finally{clearTimeout(timeout);if(reviewRequest.current===controller){reviewRequest.current=null;setBusy(false);}}
   }
   function cancelReview(){const restore=reviewRef.current?.contains(document.activeElement),epoch=reviewEpoch.current;setPending(null);setHandoffReview(null);if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);if(restore)restoreFrame.current=requestAnimationFrame(()=>{restoreFrame.current=null;const target=formRef.current?.querySelector("textarea");if(epoch===reviewEpoch.current && !reviewRequest.current && target && !target.matches(":disabled"))restoreLostFocus(document,visibleFocusTarget(target));});}
-  function closeResult(){
-    const closedId=job,restore=resultRef.current?.contains(document.activeElement);setJob("");const epoch=jobEpoch.current;
-    if(resultFocusFrame.current!==null)cancelAnimationFrame(resultFocusFrame.current);
-    if(restore)resultFocusFrame.current=requestAnimationFrame(()=>{resultFocusFrame.current=null;if(epoch!==jobEpoch.current || document.activeElement!==document.body)return;const buttons=[...activeProgressRef.current?.querySelectorAll('button') || []];const target=buttons.find(button=>button.getAttribute('aria-label')===closedId+' 작업 결과 보기') || activeProgressRef.current?.querySelector('summary');if(target?.isConnected && !target.matches(':disabled'))target.focus();});
-  }
   function renderResult(id){
-    return <><SavedGeneratorInputs id={id} service={service} readJobWithSignal={readJob}/><FunControlResult key={id} job={id} folderLink={embedded}>
+    return <section ref={resultRef} tabIndex={-1} aria-label="선택한 작업 결과"><SavedGeneratorInputs id={id} service={service} readJobWithSignal={readJob}/><FunControlResult key={id} job={id} folderLink={embedded}>
       {(record,reload)=>record && <React.Fragment key={record.status}>
         <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>
       </React.Fragment>}
-    </FunControlResult></>;
+    </FunControlResult></section>;
   }
   return <article className={"fun-control-page generator-page-common"+(embedded?" fun-embedded":"")}>
     <GeneratorPageIdentity session={session || new URLSearchParams(location.search).get("session") || ""} service={service} embedded={embedded} changelogCard description="참조 이미지의 외형과 포즈 영상의 움직임으로 영상을 만듭니다."/>
     <GeneratorSectionCard title="사용설명" summary="사용 방법과 제한 사항"><p>참조 이미지와 포즈 영상을 선택하고 동작 프롬프트와 생성 설정을 입력하세요. 제작 예제로 입력을 채울 수도 있습니다.</p><p>모델 준비를 확인하고 생성 요청을 검토한 뒤 접수하세요. 진행 상태와 결과는 생성 이력에서 확인할 수 있습니다.</p></GeneratorSectionCard>
-    <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(template && request)} resultReady={Boolean(job)} openOnNavigate/>
+    <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(template && request)} resultReady={Boolean(resultId)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session || new URLSearchParams(location.search).get("session") || ""} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);}}/>}
-    <div ref={activeProgressRef}><ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>{if(id===job){resultRef.current?.focus();resultRef.current?.scrollIntoView({block:"start"});}else{focusResult.current={id,origin:document.activeElement};setJob(id);}}}/></div>
+    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setResultId)}/>
     {template && request && <GeneratorSectionCard title="생성 입력" summary="참조 이미지와 포즈 영상" defaultOpen><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending || Boolean(handoffId)} aria-describedby={busy || pending || handoffId ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
     <fieldset className="fun-source" disabled={busy || !!pending || !template}><legend>원본 작업</legend>
       {loadingInput && <p role="status">입력을 불러오고 있습니다. 현재 입력은 유지됩니다.</p>}
@@ -344,9 +339,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     {!template && templateError && <button ref={templateRetryRef} type="button" onClick={()=>{templateRetryFocus.current=true;retryTemplate(value=>value+1);}}>생성 입력 다시 불러오기</button>}
     {notice && <p role="status">{notice}</p>}
     <fieldset ref={historyRef} className="fun-history" aria-label="작업 이력" disabled={busy || !!pending} aria-describedby={busy || pending ? historyLockId : undefined}>
-      <GeneratorHistory card allowPriority onSelectedDeleted={(id,message)=>{if(job===id)setJob("");if(sourceJob===id)setSourceJob("");setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} restore={restore} renderResult={renderResult} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}/>
+      <GeneratorHistory card allowPriority toggleResult resultId={resultId} openResult={setResultId} onCloseResult={()=>setResultId("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");if(resultId===id)setResultId("");if(sourceJob===id)setSourceJob("");setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} restore={restore} renderResult={renderResult} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}/>
     </fieldset>
     {(busy || pending) && <p id={historyLockId} role="status">{busy ? "요청 처리 후 이력을 사용할 수 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}
-    {job && <section ref={resultRef} tabIndex={-1} aria-label="현재 작업 결과"><button type="button" onClick={closeResult}>결과 닫기</button>{renderResult(job)}</section>}
   </article>;
 }
