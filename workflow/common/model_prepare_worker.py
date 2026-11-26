@@ -8,6 +8,7 @@ import traceback
 from workflow.common.generation_records import write_record_atomically
 
 MODEL_PREPARATION_PROFILES = {
+    'minimax-h3-int8-encoder': (('generators.minimax_h3.assets', 'prepare_int8_encoder_from_backup'),),
     'animationgpt': (('workflow.common.animationgpt_model_download', 'prepare_animationgpt_model_files'),
                      ('workflow.common.animationgpt_model_download', 'prepare_author_t5_model_files'),
                      ('workflow.common.animationgpt_model_download', 'prepare_author_weight')),

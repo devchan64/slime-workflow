@@ -18,8 +18,21 @@ FILES = ((TRANSFORMER, 20272349984), (ENCODER, 27141342152),
          (BASE / 'vae/diffusion_pytorch_model.safetensors', 2336964672))
 
 
+def current_encoder_path():
+    from workflow.common.model_storage_layout import resolve_minimax_qwen_encoder
+    return resolve_minimax_qwen_encoder(ROOT/'.model', 'int8-convrot')
+
+
+def current_files():
+    return tuple((current_encoder_path() if path == ENCODER else path, size) for path, size in FILES)
+
+
 def inspect_runtime():
-    missing = [str(path.relative_to(ROOT)) for path, size in FILES
+    try:
+        records = current_files()
+    except ValueError as error:
+        return {'ready': False, 'generation_ready': False, 'missing': [str(error)], 'message': '준비 필요: ' + str(error)}
+    missing = [str(path.relative_to(ROOT)) for path, size in records
                if path.is_symlink() or not path.is_file() or path.stat().st_size != size]
     for path in (PYTHON, RUNTIME / 'backend/core/inference/diffusion_minimax_h3_image.py',
                  BASE / 'model_index.json', BASE / 'pdd_config.json', BASE / 'transformer/config.json',

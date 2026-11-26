@@ -17,7 +17,7 @@ export function validModelReadiness(status) {
      (status.generation_ready!=null && typeof status.generation_ready!=="boolean") ||
      (status.can_prepare!=null && typeof status.can_prepare!=="boolean") ||
      (status.preparation_status!=null && typeof status.preparation_status!=="string") ||
-     (status.verification_status!=null && !["missing","verifying","verified","invalid"].includes(status.verification_status)) ||
+     (status.verification_status!=null && !["missing","unverified","verifying","verified","invalid"].includes(status.verification_status)) ||
      (status.prepare_blocked_reason!=null && typeof status.prepare_blocked_reason!=="string") ||
      (status.missing!=null && (!Array.isArray(status.missing) || status.missing.some(item=>typeof item!=="string"))))return false;
   const request=status.prepare_request;
@@ -26,9 +26,9 @@ export function validModelReadiness(status) {
     request.payload && typeof request.payload==="object" && !Array.isArray(request.payload));
 }
 
-export function ModelDownloadButton({sending,reason,reasonId,onPrepare}) {
+export function ModelDownloadButton({sending,reason,reasonId,onPrepare,label="모델 다운로드 · 이어받기"}) {
   return <><button type="button" disabled={Boolean(reason)} aria-describedby={reason ? reasonId : undefined} onClick={onPrepare}>
-    {sending?"접수 중…":"모델 다운로드 · 이어받기"}
+    {sending?"접수 중…":label}
   </button>{reason && <p id={reasonId}>{reason}</p>}</>;
 }
 
@@ -36,13 +36,13 @@ export function modelReadinessText(service,status,error,hasStatusSummary=false) 
   let text="모델 상태 확인 중…";
   if(error) text="모델 상태 조회 실패 · "+error;
   else if(status) {
-    const ready=["wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora"].includes(service) ? status.ready : (status.generation_ready ?? status.ready);
+    const ready=["minimax-h3-int8-encoder","wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora"].includes(service) ? status.ready : (status.generation_ready ?? status.ready);
     if(hasStatusSummary) {
       text=status.message.replace(/^(?:모델 파일 준비 완료 · |모델 준비 필요: )/,"");
       if(!ready && status.missing?.length) text="준비가 필요한 파일 · "+status.missing.join(", ");
     } else if(status.verification_status === "verifying") text="모델 파일 검증 중 · "+status.message;
     else if(service==="wan22-animate2") text=ready && status.message.startsWith("모델 파일 준비 완료") ? status.message : (ready ? "모델 파일 준비 완료" : "모델 파일 준비 필요")+" · "+status.message;
-    else text=(["animationgpt","wan22-fighting-lora","wan22-vace-lightning","wan22-animate2-lightx2v","wan22-vace-q8","wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
+    else text=(["minimax-h3-int8-encoder","animationgpt","wan22-fighting-lora","wan22-vace-lightning","wan22-animate2-lightx2v","wan22-vace-q8","wan22-i2v-assets","wan21-t2v-assets","wan21-i2v-assets","wan21-i2v-attack-lora","writer-agent"].includes(service) ? (ready?"모델 파일 준비 완료":"모델 파일 준비 필요") : (ready?"생성 준비 완료":"모델 준비 필요"))+" · "+status.message;
   }
   return text;
 }
@@ -131,7 +131,7 @@ function ModelReadinessForService({service, modelManagementService=service, mana
     {sending ? <p id={pendingId} role="status">모델 준비 요청을 접수하고 있습니다.</p> : checking && status && <p id={pendingId} role="status">모델 준비 상태를 다시 확인하고 있습니다. 위 상태는 마지막 조회 결과입니다.</p>}
     <button type="button" aria-disabled={checking || sending} aria-describedby={checking || sending ? pendingId : undefined} onClick={refreshReadiness}>{sending ? "준비 요청 접수 중…" : checking ? "모델 준비 상태 확인 중…" : "모델 준비 상태 확인"}</button>
     {manage && <>
-      <ModelDownloadButton sending={sending} reason={prepareReason} reasonId={reasonId} onPrepare={prepare}/>
+      <ModelDownloadButton sending={sending} reason={prepareReason} reasonId={reasonId} onPrepare={prepare} label={service==="minimax-h3-int8-encoder"?(status?.verification_status==="missing"?"Samba 백업에서 복원":"인코더 SHA-256 검증"):"모델 다운로드 · 이어받기"}/>
       {notice && <p role={noticeError ? "alert" : "status"}>{notice}</p>}
     </>}
     <ModelInventory service={modelManagementService}/>

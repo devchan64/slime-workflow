@@ -40,6 +40,83 @@ class ModelBackupInventoryTest(unittest.TestCase):
                 self.assertEqual({item['sha256'] for item in result['declared_files']}, hashes)
                 self.assertTrue(all(item['hash_origin'] == 'application_pinned' for item in result['declared_files']))
 
+    def test_minimax_int8_metadata_is_code_pinned_without_claiming_origin(self):
+        from generators.minimax_h3.assets import FILES
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            (source/'qwen3vl-32b-minimax-h3-int8-convrot').mkdir(parents=True)
+            backup.mkdir()
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            result = model_metadata('qwen3vl-32b-minimax-h3-int8-convrot', config_path=config, service_paths={})
+            self.assertEqual(result['manifest_state'], 'code_pinned')
+            self.assertEqual(result['declared_files'][0]['sha256'], FILES[1][2])
+            self.assertIsNone(result['declared_files'][0]['repository'])
+
+    def test_vace_tokenizer_metadata_is_code_pinned(self):
+        import yaml
+        from generators.wan_vace.official_prepare import VACE_OFFICIAL_MANIFEST_PATH
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            (source/'umt5-xxl-tokenizer-vace').mkdir(parents=True)
+            backup.mkdir()
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            result = model_metadata('umt5-xxl-tokenizer-vace', config_path=config, service_paths={})
+            expected = yaml.safe_load(VACE_OFFICIAL_MANIFEST_PATH.read_text())['tokenizer_files']
+            self.assertEqual({item['path']: item['sha256'] for item in result['declared_files']}, expected)
+            self.assertTrue(all(item['hash_origin'] == 'application_pinned' for item in result['declared_files']))
+
+    def test_vace_bf16_encoder_metadata_is_code_pinned(self):
+        from generators.wan_vace.contracts import VACE_MODEL_FILES
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            (source/'umt5-xxl-encoder-bf16').mkdir(parents=True)
+            backup.mkdir()
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            result = model_metadata('umt5-xxl-encoder-bf16', config_path=config, service_paths={})
+            self.assertEqual(result['manifest_state'], 'code_pinned')
+            self.assertEqual(result['declared_files'][0]['sha256'], VACE_MODEL_FILES['encoder'][2])
+            self.assertEqual(result['declared_files'][0]['hash_origin'], 'application_pinned')
+
+    def test_animate_reference_metadata_remains_local_declaration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            (source/'yolov10m-animate').mkdir(parents=True)
+            legacy = source/'wan22-animate-preprocess'
+            legacy.mkdir()
+            backup.mkdir()
+            digest = 'a'*64
+            (legacy/'prepared-reference.json').write_text(json.dumps({'revision': 'revision', 'files': {
+                'process_checkpoint/det/yolov10m.onnx': {'size': 4, 'sha256': digest},
+                'process_checkpoint/pose2d/vitpose_h_wholebody.onnx/tensor': {'size': 2, 'sha256': 'b'*64}}}))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            result = model_metadata('yolov10m-animate', config_path=config, service_paths={})
+            self.assertEqual(result['manifest_state'], 'prepared_record')
+            self.assertEqual([(x['path'], x['sha256'], x['hash_origin']) for x in result['declared_files']],
+                             [('yolov10m.onnx', digest, 'local_preparation_record')])
+
+    def test_i2v_lightning_reports_pinned_declarations(self):
+        from generators.wan_i2v.assets import FILES
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source, backup = root/'source', root/'backup'
+            (source/'wan22-lightning-i2v-seko-v1').mkdir(parents=True)
+            backup.mkdir()
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            result = model_metadata('wan22-lightning-i2v-seko-v1', config_path=config, service_paths={})
+            self.assertEqual(result['manifest_state'], 'code_pinned')
+            self.assertEqual({entry['sha256'] for entry in result['declared_files']},
+                             {entry[5] for entry in FILES if entry[0].startswith('lightning/')})
+            self.assertTrue(all(entry['hash_origin'] == 'application_pinned' for entry in result['declared_files']))
+
     def test_wan_shared_models_report_pinned_hash_origin(self):
         from generators.wan_fun.prepare import FUN_SHARED_MODEL_SOURCES
         with tempfile.TemporaryDirectory() as directory:

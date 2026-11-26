@@ -7,13 +7,13 @@ os.environ['HF_HUB_OFFLINE']='1';os.environ['UNSLOTH_DIFFUSION_FP8_STORAGE']='1'
 from generators.common.reference_video_worker import run_reference_video_worker,save_video_outputs
 from workflow.common.generation_records import write_record_atomically
 from workflow.generators.minimax_h3_ref2va.assets import PIPELINE as BASE, prepare_pipeline_config
-from generators.minimax_h3.assets import ASSETS, FILES
+from generators.minimax_h3.assets import ASSETS, FILES, current_files
 REF=ROOT/'.model/minimax-h3-ref2va'
 REF_FILES=[(REF/'diffusion_models/minimax_h3_ref2va_pruned_fp8_scaled.safetensors',20958205608,'f86f2f79ebd2d76eb8eeb46091e83982e6ff51d255747e7b16e92834b392b8e9'),(REF/'minimax_h3_ref2v_turbo_8step_v1.0_768p_bf16.safetensors',1383677808,'9bac880b1a5d7ac052171cf6cce769f0cceaaa42ffa51de4b8e41143a2bdd2d2')]
 
 
 def validate(request):
- for path,size,digest in [*FILES[1:6],*REF_FILES]:
+ for path,size,digest in [*current_files(FILES)[1:6],*REF_FILES]:
   if path.is_symlink() or not path.is_file() or path.stat().st_size!=size:raise ValueError(f'파일 준비 오류: {path}')
   with path.open('rb') as f:
    if hashlib.file_digest(f,'sha256').hexdigest()!=digest:raise ValueError(f'파일 해시 불일치: {path}')
@@ -27,7 +27,7 @@ def execute(job,attempt,request,metrics):
  from core.inference.diffusion_comfy_quant import load_comfy_quant_transformer,scan_comfy_quant
  from transformers import AutoTokenizer,AutoProcessor
  assert torch.version.hip and torch.cuda.is_available()
- helper.hf_hub_download_with_xet_fallback=lambda *args,**kwargs:str(FILES[1][0])
+ helper.hf_hub_download_with_xet_fallback=lambda *args,**kwargs:str(current_files(FILES)[1][0])
  metrics.update_generation_stage('load')
  prepare_pipeline_config()
  pipe=diffusers.ModularPipeline.from_pretrained(str(BASE),workflow='ref2va',local_files_only=True)

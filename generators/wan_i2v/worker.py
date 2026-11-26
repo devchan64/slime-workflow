@@ -15,7 +15,7 @@ if __name__ == '__main__':
     os.environ['TMPDIR'] = str(TEMP_ROOT)
 sys.path.insert(0, str(ROOT))
 
-from generators.wan_i2v.assets import DIRECTORY, FILES
+from generators.wan_i2v.assets import DIRECTORY, FILES, asset_path
 from generators.wan_i2v.contracts import JOB_STORAGE, RUNTIME, inspect_runtime
 from generators.common.reference_video_worker import run_reference_video_worker, save_video_outputs
 from workflow.common.generation_records import write_record_atomically
@@ -118,9 +118,9 @@ def execute_i2v(job, attempt, request, metrics):
         metrics.update_generation_stage('load')
         model = load_i2v_model(torch, comfy.sd, comfy.utils, comfy.supported_models, DIRECTORY / f'base/{stage}.safetensors')
         if 'lightning' in request['lora_mode']:
-            model, counts[f'lightning_{stage}'] = apply_adapter(model, DIRECTORY / f'lightning/{stage}.safetensors', 1.0, comfy.sd, comfy.utils)
+            model, counts[f'lightning_{stage}'] = apply_adapter(model, asset_path(f'lightning/{stage}.safetensors'), 1.0, comfy.sd, comfy.utils)
         if 'kungfu' in request['lora_mode']:
-            model, counts[f'kungfu_{stage}'] = apply_adapter(model, DIRECTORY / f'kungfu/{stage}.safetensors', request['kungfu_strength'], comfy.sd, comfy.utils)
+            model, counts[f'kungfu_{stage}'] = apply_adapter(model, asset_path(f'kungfu/{stage}.safetensors'), request['kungfu_strength'], comfy.sd, comfy.utils)
         model = ModelSamplingSD3().patch(model, request['flow_shift'])[0]
         metrics.update_generation_stage('inference')
         def callback(index, denoised, sample_value, total):

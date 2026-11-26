@@ -12,7 +12,12 @@ from pathlib import Path
 import stat
 
 
-LAYOUTS = {'vace-lightning-top': ('wan22-vace-loras/lightning-t2v-v1.1', 'wan22-lightning-t2v-v11'),
+LAYOUTS = {'vace-tokenizer-top': ('wan22-vace/official-tokenizer', 'umt5-xxl-tokenizer-vace'),
+           'animate-yolov10m-top': ('wan22-animate-preprocess/process_checkpoint/det', 'yolov10m-animate'),
+           'animate-vitpose-top': ('wan22-animate-preprocess/process_checkpoint/pose2d/vitpose_h_wholebody.onnx', 'vitpose-h-wholebody-animate'),
+           'i2v-kungfu-top': ('wan22-i2v/kungfu', 'wan22-i2v-kungfu'),
+           'i2v-lightning-top': ('wan22-i2v/lightning', 'wan22-lightning-i2v-seko-v1'),
+           'vace-lightning-top': ('wan22-vace-loras/lightning-t2v-v1.1', 'wan22-lightning-t2v-v11'),
            'vace-fighting-top': ('wan22-vace-loras', 'wan22-fighting-lora-high'),
            'wan-components-legacy-cache': ('wan22-animate-components', None),
            'wan-umt5-top': ('wan22-animate-components/split_files/text_encoders', 'umt5-xxl-fp16'),
@@ -181,7 +186,7 @@ def move_flattened_with_queue_guard(project_root, journal, *, name, validate, al
     The caller must also exclude independently launched readers and writers.
     Validation runs under the locks and must check the affected consumers.
     """
-    if name not in {'vace-lightning-top', 'vace-fighting-top', 'wan-components-legacy-cache', 'wan-umt5-top', 'wan-vae-top', 'flatten-hermes-coding', 'flatten-writer-embedding', 'flatten-translation',
+    if name not in {'vace-tokenizer-top', 'animate-yolov10m-top', 'animate-vitpose-top', 'i2v-kungfu-top', 'i2v-lightning-top', 'vace-lightning-top', 'vace-fighting-top', 'wan-components-legacy-cache', 'wan-umt5-top', 'wan-vae-top', 'flatten-hermes-coding', 'flatten-writer-embedding', 'flatten-translation',
                     'flatten-visual', 'flatten-audio', 'audio-demucs', 'demucs-top', 'heartcodec-reference-top', 'heartcodec-top', 'qwen-model-name',
                     'dasheng-core-top', 'flan-t5-top', 'dasheng-tokenizer-top', 'heartmula-core-top'} or not callable(validate):
         raise ValueError('이관 대상과 소비자 검증이 필요합니다.')

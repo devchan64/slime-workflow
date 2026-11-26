@@ -5,6 +5,35 @@ from workflow.common.management_gateway import resolve_management_command, MANAG
 from workflow.common.management_catalog import NATIVE_MANAGEMENT_APPLICATIONS
 
 class WanAnimateRetirementTests(unittest.TestCase):
+    def test_shared_validation_accepts_separated_pose_files_and_rejects_conflict(self):
+        import hashlib, json, tempfile
+        from unittest.mock import patch
+        from generators.kimodo import dwpose_runtime
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            legacy = root/'wan22-fun-pose'
+            legacy.mkdir()
+            hashes = {}
+            for name, folder in (('yolox_l.cuda.onnx', 'yolox-l'),
+                                 ('dw-ll_ucoco_384.cuda.onnx', 'dwpose-ll-ucoco-384')):
+                path = root/folder/name
+                path.parent.mkdir()
+                path.write_bytes(name.encode())
+                hashes[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+            (legacy/'prepared.json').write_text(json.dumps({'revision': dwpose_runtime.FUN_POSE_MODEL_REVISION, 'files': hashes}))
+            with patch.object(dwpose_runtime, 'FUN_POSE_MODEL_DIRECTORY', legacy):
+                dwpose_runtime.validate_fun_pose_assets()
+                for name, folder in (('yolox_l.cuda.onnx', 'yolox-l'),
+                                     ('dw-ll_ucoco_384.cuda.onnx', 'dwpose-ll-ucoco-384')):
+                    (root/folder/'prepared.json').write_text(json.dumps({'revision': dwpose_runtime.FUN_POSE_MODEL_REVISION, 'files': {name: hashes[name]}}))
+                dwpose_runtime.validate_fun_pose_assets()
+                (root/'yolox-l'/'prepared.json').write_text(json.dumps({'revision': dwpose_runtime.FUN_POSE_MODEL_REVISION, 'files': {'yolox_l.cuda.onnx': 'bad'}}))
+                with self.assertRaisesRegex(ValueError, '해시 불일치'):
+                    dwpose_runtime.validate_fun_pose_assets()
+                (legacy/'yolox_l.cuda.onnx').write_bytes(b'duplicate')
+                with self.assertRaises(ValueError):
+                    dwpose_runtime.validate_fun_pose_assets()
+
     def test_retired_service_and_ui(self):
         self.assertNotIn('wan22-animate', MANAGEMENT_SERVICE_COMMANDS)
         self.assertNotIn('wan22-animate-generator', NATIVE_MANAGEMENT_APPLICATIONS)

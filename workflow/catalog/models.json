@@ -25,16 +25,33 @@
     },
     {
       "id": "wan-fun-pose",
-      "label": "공유 포즈 모델",
-      "kind": "shared",
+      "label": "포즈 모델 이전 준비 기록",
+      "kind": "collection",
       "path": "wan22-fun-pose",
-      "services": [
-        "kimodo",
-        "dwpose",
-        "wan22-fun-control"
-      ],
-      "source": null,
-      "revision": null
+      "services": [],
+      "source": "yzd-v/DWPose",
+      "revision": "1a7144101628d69ee7a3768d1ee3a094070dc388",
+      "usage_note": "YOLOX-L과 DWPose 이관 전 준비 기록 및 다운로드 메타데이터를 보존한다. 기존 상위 백업도 유지한다."
+    },
+    {
+      "id": "yolox-l",
+      "label": "YOLOX-L 인물 검출",
+      "kind": "model",
+      "path": "yolox-l",
+      "services": ["kimodo", "dwpose", "wan22-fun-control"],
+      "source": "yzd-v/DWPose",
+      "revision": "1a7144101628d69ee7a3768d1ee3a094070dc388",
+      "usage_note": "원본 ONNX와 입력 형상 고정 변환본을 함께 보관한다. 이관 전 wan22-fun-pose 스냅샷에서 로컬 준비 기록 해시로 복원한 이력이 있으며 독립 경로의 새 백업과 구분한다."
+    },
+    {
+      "id": "dwpose-ll-ucoco-384",
+      "label": "DWPose LL UCOCO 384",
+      "kind": "model",
+      "path": "dwpose-ll-ucoco-384",
+      "services": ["kimodo", "dwpose", "wan22-fun-control"],
+      "source": "yzd-v/DWPose",
+      "revision": "1a7144101628d69ee7a3768d1ee3a094070dc388",
+      "usage_note": "관절 추정용 원본 ONNX와 입력 형상 고정 변환본을 함께 보관한다. 이관 전 wan22-fun-pose 스냅샷에서 로컬 준비 기록 해시로 복원한 이력이 있으며 독립 경로의 새 백업과 구분한다."
     },
     {
       "id": "minimax-hf-cache",
@@ -108,7 +125,8 @@
         "minimax-h3-ref2va"
       ],
       "source": null,
-      "revision": null
+      "revision": null,
+      "usage_note": "I2V 본체, INT8·NVFP4 텍스트 인코더, VAE 및 Turbo LoRA 파일 모음이다. INT8 인코더는 이미지·영상·Ref2VA가 공유한다. 일부 파일의 현재 소비 여부는 확인되지 않아 보존한다."
     },
     {
       "id": "minimax-h3-image",
@@ -136,7 +154,7 @@
       "id": "translation-model",
       "label": "TranslateGemma 번역 모델",
       "kind": "model",
-      "path": "prompt-translation",
+      "path": "translategemma-4b",
       "services": [
         "prompt-translation"
       ],
@@ -147,7 +165,7 @@
       "id": "writer-agent",
       "label": "작가 AI 임베딩 모델",
       "kind": "model",
-      "path": "writer-agent",
+      "path": "qwen3-embedding-0.6b",
       "services": [
         "writer-agent"
       ],
@@ -249,7 +267,7 @@
       "id": "wan-umt5-fp16",
       "label": "UMT5 XXL FP16 텍스트 인코더",
       "kind": "shared",
-      "path": "wan22-animate-components/split_files/text_encoders",
+      "path": "umt5-xxl-fp16",
       "services": ["wan22-fun-control", "wan22-i2v"],
       "source": "Comfy-Org/Wan-2.1",
       "revision": "2bb519992ec7fb8ca66f6807335f67a92bf13e0b",
@@ -259,7 +277,7 @@
       "id": "wan-21-vae",
       "label": "Wan 2.1 공용 VAE",
       "kind": "shared",
-      "path": "wan22-animate-components/split_files/vae",
+      "path": "wan-2.1-vae",
       "services": ["wan22-fun-control", "wan22-vace", "wan22-i2v"],
       "source": "Comfy-Org/Wan-2.1",
       "revision": "2bb519992ec7fb8ca66f6807335f67a92bf13e0b",
@@ -287,7 +305,27 @@
       ],
       "source": null,
       "revision": null,
-      "usage_note": "I2V 본체 고·저 가중치와 Lightning 고·저 LoRA가 함께 있다. KungFu LoRA 파일도 남아 있으나 현재 생성 요청은 KungFu 모드를 지원하지 않는다."
+      "usage_note": "I2V 본체 고·저 가중치를 포함한다. Lightning과 이전 KungFu LoRA 쌍은 각각 독립 경로로 이관했다."
+    },
+    {
+      "id": "wan22-lightning-i2v-seko-v1",
+      "label": "Wan 2.2 Lightning I2V Seko V1",
+      "kind": "model",
+      "path": "wan22-lightning-i2v-seko-v1",
+      "services": ["wan22-i2v-assets", "wan22-i2v"],
+      "source": "lightx2v/Wan2.2-Lightning",
+      "revision": "18bccf8884ec0a078eed79785eb4ef13ea16ce1e",
+      "usage_note": "I2V용 고·저 LoRA 쌍이며 T2V용과 다르다. 이전 wan22-i2v 스냅샷을 보존한다."
+    },
+    {
+      "id": "wan22-i2v-kungfu",
+      "label": "Wan 2.2 I2V KungFu LoRA (보존)",
+      "kind": "model",
+      "path": "wan22-i2v-kungfu",
+      "services": [],
+      "source": "starsfriday/Wan2.2-I2V-KungFu",
+      "revision": "ba38b9bc97e6b1c2dfb461b3cc95ce20ee9c0d75",
+      "usage_note": "고·저 LoRA를 보존한다. 현재 생성 요청에서는 폐기된 옵션이며 이전 wan22-i2v 백업도 보존한다."
     },
     {
       "id": "wan-vace-assets",
@@ -298,21 +336,58 @@
         "wan22-vace"
       ],
       "source": null,
-      "revision": null
+      "revision": null,
+      "usage_note": "이전 상위 스냅샷과 대체 인코더의 SentencePiece 사본을 보존한다. BF16 UMT5와 공식 토크나이저는 별도 경로에서 관리한다."
+    },
+    {
+      "id": "umt5-xxl-encoder-bf16",
+      "label": "UMT5-XXL BF16 텍스트 인코더",
+      "kind": "model",
+      "path": "umt5-xxl-encoder-bf16",
+      "services": ["wan22-vace"],
+      "source": "alibaba-pai/Wan2.2-VACE-Fun-A14B",
+      "revision": "4438caabbfdd7437bbb0283d86cb200d1b7223ba",
+      "usage_note": "VACE용 BF16 인코더이며 별도의 UMT5 FP16 파일과 다르다. 이관 전 wan22-vace 스냅샷에서 코드 고정 해시로 복원한 이력이 있다."
+    },
+    {
+      "id": "umt5-xxl-tokenizer-vace",
+      "label": "UMT5-XXL 토크나이저 · VACE",
+      "kind": "model",
+      "path": "umt5-xxl-tokenizer-vace",
+      "services": ["wan22-vace"],
+      "source": "alibaba-pai/Wan2.2-VACE-Fun-A14B",
+      "revision": "4438caabbfdd7437bbb0283d86cb200d1b7223ba",
+      "usage_note": "공식 토크나이저 파일 묶음이다. 기존 상위 스냅샷과 별도 SentencePiece 사본은 보존한다."
     },
     {
       "id": "wan-vace-loras",
-      "label": "Wan VACE LoRA 모음",
+      "label": "Wan VACE LoRA 이전 모음 (백업 이력)",
       "kind": "collection",
       "path": "wan22-vace-loras",
-      "services": [
-        "wan22-fighting-lora",
-        "wan22-vace-lightning",
-        "wan22-vace"
-      ],
+      "services": [],
       "source": null,
       "revision": null,
-      "usage_note": "서로 다른 Fighting High LoRA와 Lightning T2V 고·저 LoRA를 포함한다. 각 모델의 출처와 해시는 해당 준비 코드에 별도로 고정돼 있다."
+      "usage_note": "Fighting High와 Lightning T2V를 독립 경로로 이관한 이전 모음이다. 기존 상위 백업 스냅샷은 보존한다."
+    },
+    {
+      "id": "wan22-fighting-lora-high",
+      "label": "Wan 2.2 Fighting LoRA · High",
+      "kind": "model",
+      "path": "wan22-fighting-lora-high",
+      "services": ["wan22-fighting-lora", "wan22-vace"],
+      "source": "r4tn4/Bubble",
+      "revision": "338e12cb179abf0573b61c310db6163018effdde",
+      "usage_note": "이전 wan22-vace-loras 상위 스냅샷을 보존한다."
+    },
+    {
+      "id": "wan22-lightning-t2v-v11",
+      "label": "Wan 2.2 Lightning T2V v1.1",
+      "kind": "model",
+      "path": "wan22-lightning-t2v-v11",
+      "services": ["wan22-vace-lightning", "wan22-vace"],
+      "source": "lightx2v/Wan2.2-Lightning",
+      "revision": "18bccf8884ec0a078eed79785eb4ef13ea16ce1e",
+      "usage_note": "고·저 노이즈 LoRA 쌍이다. 이전 wan22-vace-loras 상위 스냅샷을 보존한다."
     },
     {
       "id": "heartmula",
@@ -452,12 +527,33 @@
     },
     {
       "id": "wan-animate-preprocess",
-      "label": "Wan Animate 전처리 참조 파일",
+      "label": "Animate 전처리 이전 준비 기록",
       "kind": "collection",
       "path": "wan22-animate-preprocess",
       "services": [],
       "source": null,
-      "revision": null
+      "revision": "cb93a225fbaf1ca100f54e79da8f994995b689b3",
+      "usage_note": "YOLOv10m과 ViTPose-H 이관 전 준비 기록 및 다운로드 메타데이터를 보존한다. 리비전은 기존 기록의 선언이다."
+    },
+    {
+      "id": "yolov10m-animate",
+      "label": "YOLOv10m 전처리 참조",
+      "kind": "model",
+      "path": "yolov10m-animate",
+      "services": [],
+      "source": null,
+      "revision": "cb93a225fbaf1ca100f54e79da8f994995b689b3",
+      "usage_note": "기존 Animate 전처리 참조 검출기다. 이관 전 wan22-animate-preprocess 스냅샷의 파일 내용을 대조했으며 독립 경로의 새 백업과 구분한다. 리비전은 로컬 준비 기록의 선언이며 현재 등록된 소비 서비스는 없다."
+    },
+    {
+      "id": "vitpose-h-wholebody-animate",
+      "label": "ViTPose-H WholeBody 전처리 참조",
+      "kind": "model",
+      "path": "vitpose-h-wholebody-animate",
+      "services": [],
+      "source": null,
+      "revision": "cb93a225fbaf1ca100f54e79da8f994995b689b3",
+      "usage_note": "ONNX 그래프·외부 텐서와 ROCm 그래프를 보존한다. 이관 전 wan22-animate-preprocess 스냅샷의 파일 내용을 대조했으며 독립 경로의 새 백업과 구분한다. 리비전은 로컬 준비 기록의 선언이며 현재 등록된 소비 서비스는 없다."
     },
     {
       "id": "flux-klein-prompt-upsampler",

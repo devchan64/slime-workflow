@@ -29,10 +29,12 @@ VACE_INPUT_MODES = ('text', 'reference', 'first_frame', 'video_edit', 'video_con
 
 
 def vace_model_path(name, *, root=None, files=None):
-    from workflow.common.model_storage_layout import resolve_wan_shared_model_directory
+    from workflow.common.model_storage_layout import resolve_wan_shared_model_directory, resolve_vace_bf16_encoder
     root = Path(root) if root is not None else VACE_WORKSPACE_ROOT
     files = files if files is not None else VACE_MODEL_FILES
     relative = files[name][0]
+    if name == 'encoder' and relative == '.model/wan22-vace/models_t5_umt5-xxl-enc-bf16.pth':
+        return resolve_vace_bf16_encoder(root/'.model')
     if name == 'vae' and relative == '.model/wan22-animate-components/split_files/vae/wan_2.1_vae.safetensors':
         return resolve_wan_shared_model_directory(root/'.model', 'vae')/Path(relative).name
     return root/relative

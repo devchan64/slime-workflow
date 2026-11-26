@@ -3,7 +3,7 @@ from pathlib import Path
 import io
 from PIL import Image
 from workflow.domains.image.three_reference_generation import decode_reference_image
-from generators.minimax_h3.assets import FILES
+from generators.minimax_h3.assets import FILES, current_files
 from workflow.common.model_storage_layout import resolve_minimax_snapshot
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -15,7 +15,11 @@ REVISION = 'e9e031d2fabec27d62269623737fbc0ba611862c'
 
 def inspect_runtime():
     missing=[]
-    for path,size,_ in FILES:
+    try:
+        records = current_files(FILES)
+    except ValueError as error:
+        return {'ready': False, 'missing': [str(error)], 'message': '준비 필요: '+str(error)}
+    for path,size,_ in records:
         if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
             missing.append(path.name)
     for path in (PYTHON,RUNTIME/'deps/diffusers/__init__.py',RUNTIME/'deps/accelerate/__init__.py',

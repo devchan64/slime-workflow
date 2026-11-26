@@ -36,6 +36,8 @@ MANAGEMENT_SERVICE_ROUTES['wan22-vace-lightning'] = '/wan22-vace-lightning'
 MANAGEMENT_SERVICE_COMMANDS['wan22-vace-lightning'] = ('model-status', 'prepare')
 MANAGEMENT_SERVICE_ROUTES['wan22-i2v-assets'] = '/wan22-i2v-assets'
 MANAGEMENT_SERVICE_COMMANDS['wan22-i2v-assets'] = ('model-status', 'prepare')
+MANAGEMENT_SERVICE_ROUTES['minimax-h3-int8-encoder'] = '/minimax-h3-int8-encoder'
+MANAGEMENT_SERVICE_COMMANDS['minimax-h3-int8-encoder'] = ('model-status', 'prepare')
 for _wan21_assets_service in ('wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora'):
     MANAGEMENT_SERVICE_ROUTES[_wan21_assets_service] = '/' + _wan21_assets_service
     MANAGEMENT_SERVICE_COMMANDS[_wan21_assets_service] = ('model-status', 'prepare')
@@ -280,9 +282,9 @@ def resolve_management_command(service_command_name, operation_command_name, com
         raise ValueError('소품 모델 준비에는 action=prepare만 허용합니다.')
     if service_command_name == 'wan22-fun-control' and operation_command_name == 'prepare' and command_payload_value not in ({'action': 'prepare'}, {'action': 'prepare', 'model_profile': 'wan21-1.3b'}):
         raise ValueError('Fun Control 준비 프로필이 올바르지 않습니다.')
-    if service_command_name in ('wan22-vace', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-animate2-lightx2v', 'wan22-i2v-assets', 'wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora', 'writer-agent', 'prompt-translation', 'hermes-model', 'animationgpt', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
+    if service_command_name in ('minimax-h3-int8-encoder', 'wan22-vace', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-animate2-lightx2v', 'wan22-i2v-assets', 'wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora', 'writer-agent', 'prompt-translation', 'hermes-model', 'animationgpt', 'dwpose') and operation_command_name == 'prepare' and command_payload_value != {'action': 'prepare'}:
         raise ValueError('모델 준비에는 action=prepare만 허용합니다.')
-    if service_command_name in ('hermes-model', 'animationgpt', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-animate2-lightx2v', 'wan22-i2v-assets', 'wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora') and operation_command_name == 'model-status' and command_payload_value:
+    if service_command_name in ('minimax-h3-int8-encoder', 'hermes-model', 'animationgpt', 'wan22-vace-q8', 'wan22-fighting-lora', 'wan22-vace-lightning', 'wan22-animate2-lightx2v', 'wan22-i2v-assets', 'wan21-t2v-assets', 'wan21-i2v-assets', 'wan21-i2v-attack-lora') and operation_command_name == 'model-status' and command_payload_value:
         raise ValueError('모델 상태 조회에는 입력을 전달할 수 없습니다.')
     request_method_value, request_suffix_value = MANAGEMENT_COMMAND_ROUTES[operation_command_name]
     if '{id}' in request_suffix_value:
@@ -401,10 +403,12 @@ MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace-q8']='Wan VACE Q8_0 High/Low 파일 
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-fighting-lora']='Wan 2.2 Videogame Fighting High LoRA 다운로드와 SHA-256 검증 · VACE 추론 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-vace-lightning']='Wan 2.2 T2V Lightning High/Low LoRA 다운로드와 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v-assets']='Wan 2.2 I2V FP16 및 Lightning LoRA 파일 다운로드와 SHA-256 검증'
+MANAGEMENT_COMMAND_DESCRIPTIONS['minimax-h3-int8-encoder']='MiniMax 공유 INT8 인코더의 Samba 복원과 SHA-256 검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v-assets']='폐기 · Wan 2.1 T2V 모델 상태 기록 조회 · 새 준비 차단'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-assets']='폐기 · Wan 2.1 I2V 모델 상태 기록 조회 · 새 준비 차단'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-i2v-attack-lora']='폐기 · Wan 2.1 공격 LoRA 상태 기록 조회 · 새 준비 차단'
 MANAGEMENT_COMMAND_DESCRIPTIONS['minimax-h3-i2v']='MiniMax H3 Diffusers I2V · 참조 1장 · 8스텝 Turbo'
+MANAGEMENT_COMMAND_DESCRIPTIONS['minimax-h3-ref2va']='MiniMax H3 Ref2VA · 참조 영상 기반 생성'
 MANAGEMENT_COMMAND_DESCRIPTIONS['minimax-h3-image']='MiniMax H3 Image INT8 · 텍스트 이미지 생성 · 6스텝'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan22-i2v']='Wan 2.2 I2V 실험 · 참조 1장 · --payload-file · GPU 품질 미검증'
 MANAGEMENT_COMMAND_DESCRIPTIONS['wan21-t2v']='폐기 · Wan 2.1 T2V 기존 이력 조회 · 생성과 재개 차단'
@@ -560,6 +564,29 @@ def execute_management_command(service_command_name, operation_command_name, com
             return send_management_json_response(gateway_request_handler, 200,
                 {'ready': False, 'generation_ready': False, 'preparation_status': status, 'can_prepare': False,
                  'message': 'Wan 2.1 모델 준비 기능은 폐기되었습니다. 기존 작업 이력만 확인할 수 있습니다.'})
+        if service_command_name == 'minimax-h3-int8-encoder':
+            from generators.minimax_h3.assets import ROOT, inspect_int8_encoder_nonblocking
+            from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation
+            from workflow.common.management_transport import send_management_json_response
+            try:
+                status = inspect_registered_preparation_strict(ROOT, service_command_name)
+            except (OSError, ValueError, TypeError, UnicodeError):
+                status = 'unknown'
+            verification = inspect_int8_encoder_nonblocking()
+            if operation_command_name == 'prepare' and status == 'unknown':
+                raise ValueError('인코더 준비 상태를 확인할 수 없습니다.')
+            if operation_command_name == 'prepare' and status != 'running' and verification in ('missing', 'unverified'):
+                status = start_registered_preparation(ROOT, service_command_name)['preparation_status']
+            messages = {'verified': 'INT8 인코더 SHA-256 검증 기록과 파일 식별 정보 일치', 'unverified': 'INT8 인코더의 SHA-256 검증 필요',
+                        'missing': 'INT8 인코더 없음 · Samba 백업에서 복원 가능',
+                        'invalid': '기존 인코더 또는 경로가 올바르지 않음 · 덮어쓰지 않음'}
+            message = messages.get(verification, '인코더 상태 확인 중')
+            if status == 'failed':
+                message += ' · 복원 실패: 모델 준비 로그 확인'
+            return send_management_json_response(gateway_request_handler, 200,
+                {'ready': verification == 'verified', 'generation_ready': False, 'preparation_status': status,
+                 'verification_status': verification, 'can_prepare': status not in ('running', 'unknown') and verification in ('missing', 'unverified'),
+                 'message': message + ' · 다른 모델과 실행 환경은 별도'})
         if service_command_name == 'wan22-i2v-assets':
             from generators.wan_i2v.assets import ROOT, inspect_assets_nonblocking
             from workflow.common.model_prepare_process import inspect_registered_preparation_strict, start_registered_preparation

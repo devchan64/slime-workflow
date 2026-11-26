@@ -1156,6 +1156,8 @@ GUI와 `map-assets building-save`는 `shadowShape`(`circle`/`rectangle`), `shado
 
 `backup-sync`는 최신 스냅샷과 원본의 SHA-256, 스냅샷 매니페스트의 파일 목록·해시와 원본 수정 시각, 모델 메타정보가 모두 일치하면 기존 스냅샷을 재사용한다. 변경된 경우 선택 모델 전체를 `.model-backup-snapshots/모델/작업ID`의 새 스냅샷으로 복사하고 각 복사본을 다시 읽어 SHA-256을 확인한다. 스냅샷 매니페스트에는 파일별 관측 해시와 작업 시작 시 조회한 모델 출처·리비전 선언값을 구분해 기록한다. 기존 공유 파일을 덮어쓰지 않으며 새 스냅샷에는 모델 용량만큼 추가 공간이 필요하다. 실행 중 원본 파일 목록이나 상태가 달라지거나 오류가 발생하면 완료로 게시하지 않고 `.pending-작업ID`를 남긴다. 중단된 작업을 다시 접수하면 검사를 새로 수행한다. 삭제 전에는 최신 결과와 복원 가능성을 별도로 확인한다.
 
+모델 관리의 `MiniMax Qwen3VL INT8 · Samba 복원`은 공유 인코더가 없으면 설정된 Samba 스냅샷에서 코드 고정 크기·SHA-256으로 복원한다. 파일이 있으면 덮어쓰지 않고 SHA-256을 검증하며 불일치나 경로 충돌은 실패한다. 일치하는 백업이 없으면 실패하며 공급처 다운로드로 자동 전환하지 않는다. 상태 조회는 대용량 파일을 읽지 않고 과거 검증 기록과 현재 파일 식별 정보를 비교하므로 이후 내용의 무결성을 보증하지 않는다. 파일이 없을 때는 `Samba 백업에서 복원`, 검증 기록이 없을 때는 `인코더 SHA-256 검증`을 선택한다. CLI는 `python3 tools/manager.py command minimax-h3-int8-encoder model-status`와 `python3 tools/manager.py command minimax-h3-int8-encoder prepare`를 사용한다. 인코더 외 모델과 실행 환경은 별도다.
+
 이관된 설치본은 `catalog-flux-report-vision`, `catalog-trellis-dinov2`, `catalog-trellis-image-large`, `catalog-hermes-coding`, `catalog-writer-agent`, `catalog-translation-model`, `catalog-heartmula`, `catalog-dasheng-audiogen`으로 개별 선택할 수 있다. 상위 `models`를 백업하면 이 설치본들도 포함되므로 상위와 개별 대상을 모두 백업하면 내용이 별도 스냅샷에 중복 저장된다. `.local/model-catalog/retained`의 보존 원본은 모델 백업 루트 밖에 있다. 모델 루트 내부 심볼릭 링크는 대상 파일을 따라 복사하므로 링크 구조는 복원되지 않는다. 폴더 정리가 끝난 뒤 사용자가 백업을 시작하며, 완료 상태와 파일별 검증·복원 결과를 확인하기 전에는 보존 원본을 제거하지 않는다.
 
 MiniMax가 참조하는 Hugging Face 캐시는 프로젝트의 `.cache/huggingface`에 있으며 Git과 `.model` 백업 대상에서 제외된다. 이전 Samba의 `huggingface` 디렉터리나 과거 스냅샷은 별도로 보존된다. 캐시 전체의 백업·복원과 심볼릭 링크 보존은 모델 스냅샷의 보장 범위가 아니다.

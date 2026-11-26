@@ -12,7 +12,7 @@ def resolve_model_inventory_paths():
     from workflow.domains.image.flux_expression_generation import FLUX_MODEL_ROOT_DIRECTORY
     from workflow.domains.image.expression_generation import EXPRESSION_ADAPTER_PATH
     from generators.kimodo.contracts import KIMODO_MODEL_ROOT
-    from generators.kimodo.dwpose_runtime import FUN_POSE_MODEL_DIRECTORY
+    from generators.kimodo.dwpose_runtime import FUN_POSE_MODEL_DIRECTORY, FUN_POSE_MODEL_NAMES, pose_model_path
     from generators.music.contracts import resolve_music_paths
     from generators.music.heartmula.runtime import resolve_heart_component, resolve_heart_bundle
     from generators.music.heartmula.separation import resolve_demucs_directory
@@ -22,10 +22,11 @@ def resolve_model_inventory_paths():
     from generators.wan_fun.contracts import FUN_MODEL_FILES, fun_model_path
     from generators.wan_fun.wan13_model_assets import WAN13_MODEL_DIRECTORY
     from generators.wan_vace.contracts import VACE_MODEL_FILES, vace_model_path
+    from generators.wan_vace.official_prepare import current_tokenizer_root
     from generators.wan_vace.q8_assets import DIRECTORY as Q8_DIRECTORY, FILES as Q8_FILES
     from generators.wan_vace.fighting_lora import current_fighting_lora_path
     from generators.wan_vace.lightning_lora import current_lightning_lora_directory, FILES as LIGHTNING_FILES
-    from generators.wan_i2v.assets import DIRECTORY as I2V_DIRECTORY, FILES as I2V_FILES
+    from generators.wan_i2v.assets import asset_path as i2v_asset_path, FILES as I2V_FILES
     from generators.wan21_t2v.assets import DIRECTORY as T2V21_DIRECTORY, FILES as T2V21_FILES
     from generators.wan21_i2v.assets import DIRECTORY as I2V21_DIRECTORY, FILES as I2V21_FILES
     from generators.wan21_i2v.attack_lora import FILES as I2V21_ATTACK_FILES
@@ -34,25 +35,26 @@ def resolve_model_inventory_paths():
     from workflow.common.hermes_model_download import current_hermes_model_directory
     from workflow.common.animationgpt_model_download import ANIMATIONGPT_MODEL_DIRECTORY, AUTHOR_T5_DIRECTORY
     from workflow.generators.minimax_h3_ref2va.assets import REF as REF2VA_MODEL_ROOT, FILES as MINIMAX_SHARED_FILES
+    from generators.minimax_h3.assets import current_files as minimax_shared_paths
     from generators.minimax_h3.assets import ASSETS as MINIMAX_I2V_CONFIG
-    from generators.minimax_h3_image.contracts import BASE as MINIMAX_IMAGE_CONFIG, FILES as MINIMAX_IMAGE_FILES
+    from generators.minimax_h3_image.contracts import BASE as MINIMAX_IMAGE_CONFIG, current_files as minimax_image_paths
     return {
         'animationgpt': [ANIMATIONGPT_MODEL_DIRECTORY, AUTHOR_T5_DIRECTORY, MODEL_INVENTORY_ROOT / '.model/animationgpt-author'],
         'flux-image': [FLUX_MODEL_ROOT_DIRECTORY],
         'prop-generator': [QWEN_MODEL_DIRECTORY],
         'expression-lora': [EXPRESSION_ADAPTER_PATH],
-        'kimodo': [KIMODO_MODEL_ROOT, FUN_POSE_MODEL_DIRECTORY],
-        'dwpose': [FUN_POSE_MODEL_DIRECTORY],
+        'kimodo': [KIMODO_MODEL_ROOT, *(pose_model_path(Path(name).with_suffix('.cuda.onnx').name) for name in FUN_POSE_MODEL_NAMES)],
+        'dwpose': [pose_model_path(Path(name).with_suffix('.cuda.onnx').name) for name in FUN_POSE_MODEL_NAMES],
         'wan22-animate2': [ANIMATE_MODEL_DIRECTORY],
         'wan22-animate2-lightx2v': [ANIMATE_LIGHTX2V_PATH],
-        'wan22-fun-control': [*(fun_model_path(name) for name in FUN_MODEL_FILES), FUN_POSE_MODEL_DIRECTORY],
+        'wan22-fun-control': [*(fun_model_path(name) for name in FUN_MODEL_FILES), *(pose_model_path(Path(name).with_suffix('.cuda.onnx').name) for name in FUN_POSE_MODEL_NAMES)],
         'wan21-fun-1.3b': [WAN13_MODEL_DIRECTORY],
-        'wan22-vace': [vace_model_path(name) for name in VACE_MODEL_FILES],
+        'wan22-vace': [*(vace_model_path(name) for name in VACE_MODEL_FILES), current_tokenizer_root()],
         'wan22-vace-q8': [Q8_DIRECTORY / entry[0] for entry in Q8_FILES.values()],
         'wan22-fighting-lora': [current_fighting_lora_path()],
         'wan22-vace-lightning': [current_lightning_lora_directory() / entry[0] for entry in LIGHTNING_FILES.values()],
-        'wan22-i2v': [*(I2V_DIRECTORY / entry[0] for entry in I2V_FILES), fun_model_path('encoder'), fun_model_path('vae')],
-        'wan22-i2v-assets': [I2V_DIRECTORY / entry[0] for entry in I2V_FILES],
+        'wan22-i2v': [*(i2v_asset_path(entry[0]) for entry in I2V_FILES), fun_model_path('encoder'), fun_model_path('vae')],
+        'wan22-i2v-assets': [i2v_asset_path(entry[0]) for entry in I2V_FILES],
         'wan21-t2v-assets': [T2V21_DIRECTORY / entry[0] for entry in T2V21_FILES],
         'wan21-i2v-assets': [I2V21_DIRECTORY / entry[0] for entry in I2V21_FILES],
         'wan21-i2v-attack-lora': [I2V21_DIRECTORY / entry[0] for entry in I2V21_ATTACK_FILES],
@@ -61,9 +63,10 @@ def resolve_model_inventory_paths():
         'writer-agent': [embedding_model_directory(), current_hermes_model_directory()],
         'prompt-translation': [current_translation_model_root()],
         'hermes-model': [current_hermes_model_directory()],
-        'minimax-h3-ref2va': [REF2VA_MODEL_ROOT, *(entry[0] for entry in MINIMAX_SHARED_FILES[1:6])],
-        'minimax-h3-i2v': [MINIMAX_I2V_CONFIG, *(entry[0] for entry in MINIMAX_SHARED_FILES)],
-        'minimax-h3-image': [MINIMAX_IMAGE_CONFIG, *(entry[0] for entry in MINIMAX_IMAGE_FILES)],
+        'minimax-h3-ref2va': [REF2VA_MODEL_ROOT, *(entry[0] for entry in minimax_shared_paths(MINIMAX_SHARED_FILES)[1:6])],
+        'minimax-h3-i2v': [MINIMAX_I2V_CONFIG, *(entry[0] for entry in minimax_shared_paths(MINIMAX_SHARED_FILES))],
+        'minimax-h3-image': [MINIMAX_IMAGE_CONFIG, *(entry[0] for entry in minimax_image_paths())],
+        'minimax-h3-int8-encoder': [minimax_shared_paths(MINIMAX_SHARED_FILES)[1][0]],
     }
 
 

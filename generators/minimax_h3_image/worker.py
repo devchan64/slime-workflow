@@ -13,7 +13,7 @@ os.environ['HF_HUB_OFFLINE'] = '1'
 os.environ['PYTORCH_ALLOC_CONF'] = 'expandable_segments:False'
 os.environ.pop('PYTORCH_CUDA_ALLOC_CONF', None)
 
-from generators.minimax_h3_image.contracts import BASE, ENCODER, ENCODER_BASE, FILES, STORAGE, TRANSFORMER, inspect_runtime
+from generators.minimax_h3_image.contracts import BASE, ENCODER_BASE, STORAGE, TRANSFORMER, inspect_runtime, current_encoder_path, current_files
 from workflow.common.generation_records import write_record_atomically
 from workflow.common.worker_generation_progress import WorkerGenerationProgress
 
@@ -62,14 +62,15 @@ def execute(job):
     if not status['generation_ready']:
         raise ValueError(status['message'])
     checksums = {}
-    for path, size in FILES:
+    encoder = current_encoder_path()
+    for path, size in current_files():
         if path.is_symlink() or path.stat().st_size != size:
             raise ValueError('모델 파일이 변경됐습니다: ' + path.name)
         with path.open('rb') as stream:
             checksums[path.name] = hashlib.file_digest(stream, 'sha256').hexdigest()
     if checksums[TRANSFORMER.name] != 'b4d94247ec1292f3fb9aafc738c8eb5961b63685f19f5e5275630b53721e8da5':
         raise ValueError('INT8 이미지 모델 SHA-256 불일치')
-    if checksums[ENCODER.name] != 'bc2ced0fbea64757fa9acddccfc0b3f4819d1dcf1da6c124d690d368be283923':
+    if checksums[encoder.name] != 'bc2ced0fbea64757fa9acddccfc0b3f4819d1dcf1da6c124d690d368be283923':
         raise ValueError('INT8 텍스트 인코더 SHA-256 불일치')
     if checksums['diffusion_pytorch_model.safetensors'] != 'a7c8bb1e181865e7cf87c29d3d6bc728d944ce4862b92d0e1cbdcc36b3b180b2':
         raise ValueError('이미지 VAE SHA-256 불일치')
@@ -83,7 +84,7 @@ def execute(job):
         h3_image_prepare_prequant_model, load_h3_image_vae, install_h3_image_forward,
         install_pdd_head_bank, MiniMaxH3ImagePipeline, MiniMaxH3ImageScheduler, H3_IMAGE_SIGMAS)
     from transformers import AutoProcessor, AutoTokenizer
-    helper.hf_hub_download_with_xet_fallback = lambda *args, **kwargs: str(ENCODER)
+    helper.hf_hub_download_with_xet_fallback = lambda *args, **kwargs: str(encoder)
     os.environ['UNSLOTH_ALLOW_LOCAL_PREQUANT_PATH'] = str(TRANSFORMER.parent)
     encoder = load_h3_quantized_text_encoder(str(ENCODER_BASE), 'int8', dtype=torch.bfloat16,
                                              local_base=str(ENCODER_BASE), local_files_only=True)

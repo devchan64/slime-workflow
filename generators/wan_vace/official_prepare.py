@@ -11,6 +11,13 @@ VACE_OFFICIAL_INSTALL_ROOT = VACE_WORKSPACE_ROOT/'.local/videox-fun-vace-pinned'
 VACE_OFFICIAL_TOKENIZER_ROOT = VACE_WORKSPACE_ROOT/'.model/wan22-vace/official-tokenizer'
 
 
+def current_tokenizer_root():
+    if VACE_OFFICIAL_TOKENIZER_ROOT != VACE_WORKSPACE_ROOT/'.model/wan22-vace/official-tokenizer':
+        return VACE_OFFICIAL_TOKENIZER_ROOT
+    from workflow.common.model_storage_layout import resolve_vace_tokenizer_directory
+    return resolve_vace_tokenizer_directory(VACE_WORKSPACE_ROOT/'.model')
+
+
 def verify_official_runtime():
     current_manifest_record=yaml.safe_load(VACE_OFFICIAL_MANIFEST_PATH.read_text())
     for current_relative_name,current_expected_hash in current_manifest_record['source_files'].items():
@@ -18,7 +25,7 @@ def verify_official_runtime():
         if not current_input_path.is_file() or hashlib.sha256(current_input_path.read_bytes()).hexdigest()!=current_expected_hash:
             raise ValueError(f'공식 소스 누락·변조: {current_input_path}')
     for current_file_name,current_expected_hash in current_manifest_record['tokenizer_files'].items():
-        current_input_path=VACE_OFFICIAL_TOKENIZER_ROOT/current_file_name
+        current_input_path=current_tokenizer_root()/current_file_name
         if not current_input_path.is_file() or hashlib.sha256(current_input_path.read_bytes()).hexdigest()!=current_expected_hash:
             raise ValueError(f'공식 토크나이저 누락·변조: {current_input_path}')
 
@@ -41,9 +48,10 @@ def prepare_official_runtime():
             current_output_path=VACE_OFFICIAL_INSTALL_ROOT/current_relative_path
             current_output_path.parent.mkdir(parents=True,exist_ok=True)
             current_output_path.write_bytes(current_archive_file.extractfile(current_member_record).read())
-    VACE_OFFICIAL_TOKENIZER_ROOT.mkdir(parents=True,exist_ok=True)
+    current_tokenizer_directory = current_tokenizer_root()
+    current_tokenizer_directory.mkdir(parents=True,exist_ok=True)
     for current_file_name,current_expected_hash in current_manifest_record['tokenizer_files'].items():
-        current_tokenizer_path = VACE_OFFICIAL_TOKENIZER_ROOT/current_file_name
+        current_tokenizer_path = current_tokenizer_directory/current_file_name
         download_verified_http(f'https://huggingface.co/{VACE_ENCODER_IDENTIFIER}/resolve/{VACE_ENCODER_REVISION}/google/umt5-xxl/{current_file_name}', current_tokenizer_path, current_expected_hash, 'wan-vace/tokenizer/'+current_file_name)
     (VACE_OFFICIAL_INSTALL_ROOT/'PINNED_REVISION').write_text(current_revision_text+'\n')
     verify_official_runtime()

@@ -491,6 +491,31 @@ class ModelManagementTest(unittest.TestCase):
         self.assertEqual(resolve_model_inventory_paths()['flux-image'], [FLUX_MODEL_ROOT_DIRECTORY])
         self.assertIn(('FLUX 3 Image Klein', 'flux-image'), MODEL_PREPARATION_SERVICES)
 
+    def test_model_inventory_tracks_shared_minimax_encoder_after_move(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+        from workflow.common.model_file_inventory import resolve_model_inventory_paths
+        from generators.minimax_h3 import assets
+        from generators.minimax_h3_image import contracts as image
+        from workflow.generators.minimax_h3_ref2va import assets as ref
+        with TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            old_root = project/'.model/minimax-h3-i2v'
+            old = old_root/'text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors'
+            old.parent.mkdir(parents=True)
+            new = project/'.model/qwen3vl-32b-minimax-h3-int8-convrot'/old.name
+            new.parent.mkdir()
+            new.write_bytes(b'encoder')
+            records = [(project/'.model/other', 0, ''), (old, 7, 'digest')]
+            with patch.object(assets, 'ROOT', project), patch.object(assets, 'OLD', old_root), \
+                 patch.object(ref, 'FILES', records), patch.object(image, 'ROOT', project), \
+                 patch.object(image, 'ENCODER', old), patch.object(image, 'FILES', ((old, 7),)):
+                paths = resolve_model_inventory_paths()
+            for service in ('minimax-h3-i2v', 'minimax-h3-image', 'minimax-h3-ref2va'):
+                self.assertIn(new, paths[service])
+                self.assertNotIn(old, paths[service])
+
     def test_model_inventory_tracks_separated_wan_shared_paths(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory

@@ -16,6 +16,18 @@ def png(width=832,height=480):
 
 
 class MiniMaxH3GeneratorTests(unittest.TestCase):
+    def test_encoder_path_conflict_reports_not_ready_for_all_consumers(self):
+        from generators.minimax_h3 import contracts as video
+        from generators.minimax_h3_image import contracts as image
+        from workflow.generators.minimax_h3_ref2va import assets as ref
+        for module in (video, image, ref):
+            with self.subTest(module=module.__name__), patch.object(module, 'current_files', side_effect=ValueError('경로 충돌')):
+                result = module.inspect_runtime()
+                self.assertFalse(result['ready'])
+                self.assertIn('경로 충돌', result['message'])
+                if module is image:
+                    self.assertFalse(result['generation_ready'])
+
     def setUp(self):
         self.request={'action':'generate','prompt':'  Step and slash.  ','images':[png()],'width':832,'height':480,'frames':124,'steps':8,'seed':42}
 

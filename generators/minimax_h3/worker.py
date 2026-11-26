@@ -8,15 +8,16 @@ from generators.common.reference_video_worker import run_reference_video_worker,
 from workflow.common.generation_records import write_record_atomically
 from workflow.common.model_storage_layout import resolve_minimax_snapshot
 BASE=resolve_minimax_snapshot(ROOT / '.model')
-from generators.minimax_h3.assets import ASSETS, FILES
+from generators.minimax_h3.assets import ASSETS, FILES, current_files
 
 def validate(request):
- for path,size,digest in FILES:
+ for path,size,digest in current_files(FILES):
   if path.is_symlink() or not path.is_file() or path.stat().st_size!=size:raise ValueError(f'파일 준비 오류: {path}')
   with path.open('rb') as f:
    if hashlib.file_digest(f,'sha256').hexdigest()!=digest:raise ValueError(f'파일 해시 불일치: {path}')
 
 def execute(job,attempt,request,metrics):
+ files=current_files(FILES)
  # Keep compiler temporary files in this attempt, away from quota-limited /tmp.
  temp_root=attempt/'runtime-tmp'
  if temp_root.is_symlink():raise ValueError('임시 작업 경로 오류')
@@ -33,7 +34,7 @@ def execute(job,attempt,request,metrics):
  from core.inference.diffusion_comfy_quant import load_comfy_quant_transformer,scan_comfy_quant
  from transformers import AutoTokenizer,AutoProcessor
  assert torch.version.hip and torch.cuda.is_available()
- helper.hf_hub_download_with_xet_fallback=lambda *args,**kwargs:str(FILES[1][0])
+ helper.hf_hub_download_with_xet_fallback=lambda *args,**kwargs:str(files[1][0])
  metrics.update_generation_stage('load')
  pipe=diffusers.ModularPipeline.from_pretrained(str(BASE),workflow='fl2va',local_files_only=True)
  tokenizer=AutoTokenizer.from_pretrained(str(BASE/'tokenizer'),local_files_only=True)
@@ -49,7 +50,7 @@ def execute(job,attempt,request,metrics):
  vae=diffusers.AutoencoderKLMiniMaxH3.from_pretrained(str(ASSETS/'vae'),torch_dtype=torch.float16,local_files_only=True).to('cuda')
  audio_vae=diffusers.AutoencoderKLMiniMaxH3Audio.from_pretrained(str(ASSETS/'audio_vae'),torch_dtype=torch.float32,local_files_only=True).to('cuda')
  pipe.update_components(vae=vae,audio_vae=audio_vae)
- path=str(FILES[0][0]);scan=scan_comfy_quant(path)
+ path=str(files[0][0]);scan=scan_comfy_quant(path)
  model=load_comfy_quant_transformer(diffusers.MiniMaxH3Transformer3DModel,path,scan,{'config':str(BASE),'subfolder':'transformer','torch_dtype':torch.bfloat16,'local_files_only':True},int8_backend=None,fp8_backend=None,fp8_storage=True,family='minimax-h3')
  if getattr(model,'_unsloth_comfy_quant',{}).get('fp8_stored')!=300:raise RuntimeError('FP8 계층 수 불일치')
  model=model.to('cuda')
@@ -59,7 +60,7 @@ def execute(job,attempt,request,metrics):
    super().__init__();self.base=base;self.register_buffer('lora_a',a);self.register_buffer('lora_b',b);self.scale=scale
   def forward(self,x,*args,**kwargs):
    return self.base(x,*args,**kwargs)+torch.nn.functional.linear(torch.nn.functional.linear(x,self.lora_a),self.lora_b)*self.scale
- with safe_open(str(FILES[6][0]),framework='pt',device='cpu') as f:
+ with safe_open(str(files[6][0]),framework='pt',device='cpu') as f:
   keys=list(f.keys()); suffix='.lora_A.default.weight'; names=sorted(k[:-len(suffix)] for k in keys if k.endswith(suffix))
   if len(names)*2!=len(keys) or not names:raise ValueError('LoRA 키 구성 오류')
   alpha=float(f.metadata()['alpha'])

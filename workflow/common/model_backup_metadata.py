@@ -67,6 +67,72 @@ def model_metadata(model, *, config_path=None, service_paths=None):
             else:
                 manifest = None
         if manifest is None:
+            if model == 'qwen3vl-32b-minimax-h3-int8-convrot':
+                from generators.minimax_h3.assets import FILES
+                path, _, digest = FILES[1]
+                result['manifest_state'] = 'code_pinned'
+                result['declared_files'] = [{'path': Path(path).name, 'sha256': digest,
+                                             'hash_origin': 'application_pinned',
+                                             'repository': None, 'revision': None}]
+                return result
+            if model == 'umt5-xxl-tokenizer-vace':
+                import yaml
+                from generators.wan_vace.official_prepare import VACE_OFFICIAL_MANIFEST_PATH, VACE_ENCODER_IDENTIFIER, VACE_ENCODER_REVISION
+                manifest_data = yaml.safe_load(VACE_OFFICIAL_MANIFEST_PATH.read_text())
+                result['manifest_state'] = 'code_pinned'
+                result['declared_sources'] = [{'repository': VACE_ENCODER_IDENTIFIER, 'revision': VACE_ENCODER_REVISION}]
+                result['declared_files'] = [{'path': path, 'sha256': digest, 'hash_origin': 'application_pinned',
+                                             'repository': VACE_ENCODER_IDENTIFIER, 'revision': VACE_ENCODER_REVISION}
+                                            for path, digest in sorted(manifest_data['tokenizer_files'].items())]
+                return result
+            if model == 'umt5-xxl-encoder-bf16':
+                from generators.wan_vace.contracts import VACE_MODEL_FILES, VACE_ENCODER_IDENTIFIER, VACE_ENCODER_REVISION
+                path, _, digest = VACE_MODEL_FILES['encoder']
+                result['manifest_state'] = 'code_pinned'
+                result['declared_sources'] = [{'repository': VACE_ENCODER_IDENTIFIER, 'revision': VACE_ENCODER_REVISION}]
+                result['declared_files'] = [{'path': Path(path).name, 'sha256': digest,
+                                             'hash_origin': 'application_pinned',
+                                             'repository': VACE_ENCODER_IDENTIFIER, 'revision': VACE_ENCODER_REVISION}]
+                return result
+            if model in ('yolov10m-animate', 'vitpose-h-wholebody-animate'):
+                prefix = ('process_checkpoint/det/' if model == 'yolov10m-animate'
+                          else 'process_checkpoint/pose2d/vitpose_h_wholebody.onnx/')
+                record = source/'wan22-animate-preprocess'/'prepared-reference.json'
+                try:
+                    if record.parent.is_symlink() or record.is_symlink() or not record.is_file() or record.stat().st_size > 4 * 1024 * 1024:
+                        raise ValueError('준비 기록을 확인할 수 없습니다.')
+                    value = json.loads(record.read_text(encoding='utf-8'))
+                    revision, files = value['revision'], value['files']
+                    if not isinstance(revision, str) or not isinstance(files, dict):
+                        raise ValueError('준비 기록 형식 오류')
+                    for name, entry in files.items():
+                        if not isinstance(name, str) or not name.startswith(prefix) or not isinstance(entry, dict):
+                            continue
+                        path, digest = Path(name[len(prefix):]), entry.get('sha256')
+                        if (not path.parts or path.is_absolute() or '..' in path.parts
+                                or not isinstance(digest, str) or not SHA256.fullmatch(digest)):
+                            raise ValueError('준비 기록 파일 형식 오류')
+                        result['declared_files'].append({'path': path.as_posix(), 'sha256': digest.lower(),
+                                                         'hash_origin': 'local_preparation_record',
+                                                         'repository': None, 'revision': revision})
+                    if not result['declared_files']:
+                        raise ValueError('해당 모델의 준비 기록이 없습니다.')
+                    result['manifest_state'] = 'prepared_record'
+                except (OSError, UnicodeError, ValueError, KeyError, TypeError, AttributeError):
+                    result['declared_files'] = []
+                    result['manifest_state'] = 'unavailable'
+                return result
+            if model == 'wan22-lightning-i2v-seko-v1':
+                from generators.wan_i2v.assets import FILES
+                entries = [entry for entry in FILES if entry[0].startswith('lightning/')]
+                result['manifest_state'] = 'code_pinned'
+                result['declared_sources'] = [{'repository': repo, 'revision': revision}
+                                              for repo, revision in sorted({(entry[1], entry[2]) for entry in entries})]
+                result['declared_files'] = [{'path': Path(relative).name, 'sha256': digest,
+                                             'hash_origin': 'application_pinned',
+                                             'repository': repo, 'revision': revision}
+                                            for relative, repo, revision, _, _, digest in entries]
+                return result
             if model in ('wan22-fighting-lora-high', 'wan22-lightning-t2v-v11'):
                 if model == 'wan22-fighting-lora-high':
                     from generators.wan_vace.fighting_lora import SHA256 as FIGHTING_SHA256, PATH

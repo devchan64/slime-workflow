@@ -3,7 +3,7 @@ from pathlib import Path
 import io
 import math
 from PIL import Image
-from generators.wan_i2v.assets import ROOT, DIRECTORY, FILES, inspect_assets
+from generators.wan_i2v.assets import ROOT, DIRECTORY, FILES, inspect_assets, asset_path
 from workflow.domains.image.three_reference_generation import decode_reference_image
 
 JOB_STORAGE = ROOT / '.tmp/test/wan22-i2v'
@@ -35,11 +35,11 @@ def inspect_runtime(*, verify_hash=False):
         missing.append('ComfyUI 고정 리비전 확인 불가')
     def files_present():
         for relative, _, _, _, size, _ in FILES:
-            path = DIRECTORY / relative
             try:
+                path = asset_path(relative)
                 if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
                     return False
-            except OSError:
+            except (OSError, ValueError):
                 return False
         return True
     if not (inspect_assets() if verify_hash else files_present()):

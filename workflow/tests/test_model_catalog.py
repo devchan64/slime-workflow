@@ -5,6 +5,14 @@ from workflow.common.model_catalog import catalog_overview, read_catalog, read_r
 
 
 class CatalogTest(unittest.TestCase):
+    def test_current_moved_models_are_classified_at_their_current_paths(self):
+        names = ('translategemma-4b', 'qwen3-embedding-0.6b', 'umt5-xxl-fp16', 'wan-2.1-vae')
+        survey = {'version': 1, 'entries': [{'path': name} for name in names], 'errors': []}
+        result = reconcile_catalog(read_catalog(), survey)
+        self.assertEqual(result['unclassified'], [])
+        observed = {item['observation']['path'] for item in result['components'] if item['observation']}
+        self.assertEqual(observed, set(names))
+
     def test_external_survey_is_bounded_and_rejects_escape(self):
         import json, tempfile
         from pathlib import Path
@@ -83,7 +91,8 @@ class CatalogTest(unittest.TestCase):
         result = catalog_overview(catalog, listing, include_manifests=False)
         item = next(entry for entry in result['components'] if entry['declaration']['id'] == 'translation-model')
         histories = {entry['backup_target']: entry['snapshot_present'] for entry in item['alternate_installations']}
-        self.assertEqual(histories, {'catalog-translation-model': False, 'translategemma-4b': True})
+        self.assertTrue(item['presence']['snapshot_present'])
+        self.assertEqual(histories, {'catalog-translation-model': False})
 
     def test_duplicate_observation_joins_declared_services_and_direct_backup(self):
         from pathlib import Path
@@ -304,9 +313,11 @@ class CatalogTest(unittest.TestCase):
                 validate_catalog(data)
 
     def test_shared_services_are_preserved(self):
-        shared = next(x for x in read_catalog()['components'] if x['id'] == 'wan-fun-pose')
-        self.assertIn('kimodo', shared['services'])
-        self.assertIn('dwpose', shared['services'])
+        entries = {x['id']: x for x in read_catalog()['components']}
+        for identifier in ('yolox-l', 'dwpose-ll-ucoco-384'):
+            self.assertIn('kimodo', entries[identifier]['services'])
+            self.assertIn('dwpose', entries[identifier]['services'])
+        self.assertEqual(entries['wan-fun-pose']['services'], [])
 
     def test_optional_service_is_registered_and_must_be_related(self):
         catalog = read_catalog()

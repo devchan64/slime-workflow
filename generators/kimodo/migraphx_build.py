@@ -11,7 +11,7 @@ POSE_BUILD_CACHE_ROOT = WORKFLOW_ROOT_DIRECTORY/'.local/model-builds/kimodo-dwpo
 
 def resolve_pose_cache_directories(current_torch_module, current_ort_module, current_provider_module):
     """가중치, GPU 및 실행 라이브러리별로 캐시 경로를 격리한다."""
-    from generators.kimodo.dwpose_runtime import FUN_POSE_MODEL_DIRECTORY, FUN_POSE_MODEL_NAMES
+    from generators.kimodo.dwpose_runtime import FUN_POSE_MODEL_NAMES, pose_model_path
     current_gpu_properties = current_torch_module.cuda.get_device_properties(0)
     current_provider_path = Path(current_provider_module.get_library_paths()[0])
     with current_provider_path.open('rb') as current_provider_stream:
@@ -37,7 +37,7 @@ def resolve_pose_cache_directories(current_torch_module, current_ort_module, cur
     }
     current_cache_directories = {}
     for current_model_name in FUN_POSE_MODEL_NAMES:
-        current_model_path = (FUN_POSE_MODEL_DIRECTORY/current_model_name).with_suffix('.cuda.onnx')
+        current_model_path = pose_model_path(Path(current_model_name).with_suffix('.cuda.onnx').name)
         with current_model_path.open('rb') as current_model_stream:
             current_model_hash = hashlib.file_digest(current_model_stream, 'sha256').hexdigest()
         current_cache_identity = {**current_identity_record, 'model_sha256': current_model_hash}

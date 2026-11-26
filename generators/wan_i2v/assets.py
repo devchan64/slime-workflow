@@ -14,9 +14,22 @@ FILES = (
 )
 
 
+def asset_path(relative):
+    if relative.startswith('lightning/'):
+        from workflow.common.model_storage_layout import resolve_wan_i2v_lightning_directory
+        return resolve_wan_i2v_lightning_directory(DIRECTORY.parent) / relative.split('/', 1)[1]
+    if relative.startswith('kungfu/'):
+        from workflow.common.model_storage_layout import resolve_wan_i2v_kungfu_directory
+        return resolve_wan_i2v_kungfu_directory(DIRECTORY.parent) / relative.split('/', 1)[1]
+    return DIRECTORY / relative
+
+
 def inspect_assets():
     for relative, _, _, _, size, digest in FILES:
-        path = DIRECTORY / relative
+        try:
+            path = asset_path(relative)
+        except ValueError:
+            return False
         try:
             if path.is_symlink() or not path.is_file():
                 return False
@@ -45,7 +58,10 @@ def _asset_signature():
     """Observe file identity without treating file presence as integrity."""
     signature = []
     for relative, _, _, _, size, _ in FILES:
-        path = DIRECTORY / relative
+        try:
+            path = asset_path(relative)
+        except ValueError:
+            return None
         try:
             if path.is_symlink() or not path.is_file():
                 return None
@@ -89,6 +105,6 @@ def prepare_assets():
     from workflow.common.model_http_download import download_verified_http
     for relative, repo, revision, remote, size, digest in FILES:
         url = f'https://huggingface.co/{repo}/resolve/{revision}/{remote}'
-        download_verified_http(url, DIRECTORY / relative, digest, 'wan22-i2v-assets/' + relative, expected_total_bytes=size)
+        download_verified_http(url, asset_path(relative), digest, 'wan22-i2v-assets/' + relative, expected_total_bytes=size)
     if not inspect_assets():
         raise ValueError('I2V 모델 또는 LoRA 파일 검증 실패')

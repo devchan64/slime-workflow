@@ -1,6 +1,6 @@
 """Ref2VA 가중치와 고정된 공식 구성의 준비 상태."""
 from pathlib import Path
-from generators.minimax_h3.assets import FILES
+from generators.minimax_h3.assets import FILES, current_files
 from workflow.generators.minimax_h3_ref2va.contracts import ROOT, PYTHON
 from workflow.common.model_storage_layout import resolve_minimax_snapshot
 
@@ -15,7 +15,11 @@ REF_FILES = [
 
 def inspect_runtime():
     missing = []
-    for path, size, _digest in [*FILES[1:6], *REF_FILES]:
+    try:
+        records = current_files(FILES)
+    except ValueError as error:
+        return {'ready': False, 'missing': [str(error)], 'message': '준비 필요: ' + str(error)}
+    for path, size, _digest in [*records[1:6], *REF_FILES]:
         if path.is_symlink() or not path.is_file() or path.stat().st_size != size:
             missing.append(path.name)
     for path in (PYTHON, SNAPSHOT / 'modular_model_index.json',

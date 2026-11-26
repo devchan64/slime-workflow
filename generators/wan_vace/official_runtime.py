@@ -60,7 +60,7 @@ def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.
     current_encoder_config = {current_field_name: current_field_value for current_field_name, current_field_value in current_config_record['text_encoder_kwargs'].items() if current_field_name not in ('text_encoder_subpath', 'tokenizer_subpath', 'text_length')}
     with torch.device('meta'):
         current_text_encoder = WanT5EncoderModel(**current_encoder_config)
-    current_encoder_state = torch.load(VACE_WORKSPACE_ROOT / VACE_MODEL_FILES['encoder'][0], map_location='cpu', weights_only=True, mmap=True)
+    current_encoder_state = torch.load(vace_model_path('encoder'), map_location='cpu', weights_only=True, mmap=True)
     current_text_encoder.load_state_dict(current_encoder_state, strict=True, assign=True)
     current_text_encoder.to(device='cuda', dtype=torch.bfloat16).eval().requires_grad_(False)
     del current_encoder_state
@@ -77,7 +77,8 @@ def load_official_pipeline(current_metrics_recorder=None, current_flow_shift=12.
         current_low_model = load_full_precision_expert('low', VaceWanTransformer3DModel)
         current_high_model = load_full_precision_expert('high', VaceWanTransformer3DModel)
     apply_vace_loras(current_high_model, current_low_model, lora_mode, current_attempt_root, fighting_strength)
-    current_tokenizer_model = AutoTokenizer.from_pretrained(str(VACE_WORKSPACE_ROOT / '.model/wan22-vace/official-tokenizer'), local_files_only=True)
+    from generators.wan_vace.official_prepare import current_tokenizer_root
+    current_tokenizer_model = AutoTokenizer.from_pretrained(str(current_tokenizer_root()), local_files_only=True)
     current_pipeline_object = Wan2_2VaceFunPipeline(tokenizer=current_tokenizer_model, text_encoder=current_text_encoder, vae=current_vae_model, transformer=current_low_model, transformer_2=current_high_model, scheduler=build_vace_scheduler(current_flow_shift))
     current_inference_started = False
     def record_inference_start(current_active_model, current_input_values):

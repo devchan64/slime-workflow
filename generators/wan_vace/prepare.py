@@ -59,10 +59,10 @@ def execute_vace_preparation(current_shared_record):
             raise RuntimeError(f'모델 준비 여유 공간 부족: {required_download_bytes}바이트 필요')
         for current_model_key in ('high', 'low', 'encoder', 'tokenizer'):
             current_model_name, expected_model_size, expected_model_hash = VACE_MODEL_FILES[current_model_key]
-            current_model_path = VACE_WORKSPACE_ROOT / current_model_name
+            current_model_path = vace_model_path(current_model_key, root=VACE_WORKSPACE_ROOT, files=VACE_MODEL_FILES)
             current_model_path.parent.mkdir(parents=True, exist_ok=True)
             current_partial_path = current_model_path.with_suffix('.partial')
-            current_remote_name = current_model_path.relative_to(VACE_WORKSPACE_ROOT / ('.model/wan22-vace-official' if current_model_key in ('high', 'low') else '.model/wan22-vace')).as_posix()
+            current_remote_name = (VACE_WORKSPACE_ROOT / current_model_name).relative_to(VACE_WORKSPACE_ROOT / ('.model/wan22-vace-official' if current_model_key in ('high', 'low') else '.model/wan22-vace')).as_posix()
             current_remote_url = f'https://huggingface.co/{VACE_MODEL_IDENTIFIER}/resolve/{VACE_MODEL_REVISION}/{current_remote_name}'
             if current_model_key in VACE_ENCODER_REMOTE_FILES:
                 current_remote_url = f'https://huggingface.co/{VACE_ENCODER_IDENTIFIER}/resolve/{VACE_ENCODER_REVISION}/{VACE_ENCODER_REMOTE_FILES[current_model_key]}'

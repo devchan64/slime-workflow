@@ -22,6 +22,16 @@ LEGACY_BACKUP_PREFIXES = {('models', 'flux-report-vision'): ('flux-report-vision
 # The flattened paths may need files from either earlier layout. These aliases
 # only select candidates; the caller's trusted digest still verifies all bytes.
 FLATTENED_BACKUP_PREFIXES = {
+    ('qwen3vl-32b-minimax-h3-int8-convrot',): (('minimax-h3-i2v', 'text_encoders'),),
+    ('qwen3vl-32b-minimax-h3-nvfp4-awq',): (('minimax-h3-i2v', 'text_encoders'),),
+    ('umt5-xxl-tokenizer-vace',): (('wan22-vace', 'official-tokenizer'),),
+    ('umt5-xxl-encoder-bf16',): (('wan22-vace',),),
+    ('yolov10m-animate',): (('wan22-animate-preprocess', 'process_checkpoint', 'det'),),
+    ('vitpose-h-wholebody-animate',): (('wan22-animate-preprocess', 'process_checkpoint', 'pose2d', 'vitpose_h_wholebody.onnx'),),
+    ('yolox-l',): (('wan22-fun-pose',),),
+    ('dwpose-ll-ucoco-384',): (('wan22-fun-pose',),),
+    ('wan22-i2v-kungfu',): (('wan22-i2v', 'kungfu'),),
+    ('wan22-lightning-i2v-seko-v1',): (('wan22-i2v', 'lightning'),),
     ('wan22-lightning-t2v-v11',): (('wan22-vace-loras', 'lightning-t2v-v1.1'),),
     ('wan22-fighting-lora-high',): (('wan22-vace-loras',),),
     ('umt5-xxl-fp16',): (('wan22-animate-components', 'split_files', 'text_encoders'),),

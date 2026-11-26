@@ -1,5 +1,6 @@
 """모델 서비스별 다운로드 이력과 전송량 표시."""
 MODEL_DOWNLOAD_PREFIXES = {
+    'minimax-h3-int8-encoder': ('minimax-h3-int8-encoder/',),
     'wan21-t2v-assets': ('wan21-t2v-assets/',),
     'wan21-i2v-assets': ('wan21-i2v-assets/',),
     'wan21-i2v-attack-lora': ('wan21-i2v-attack-lora/',),

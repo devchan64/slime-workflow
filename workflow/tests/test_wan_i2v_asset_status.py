@@ -10,6 +10,35 @@ from generators.wan_i2v import assets
 
 
 class WanI2VAssetStatusTests(unittest.TestCase):
+    def test_retained_kungfu_path_tracks_move_and_rejects_conflicts(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            old = root/'wan22-i2v'/'kungfu'
+            new = root/'wan22-i2v-kungfu'
+            old.mkdir(parents=True)
+            with patch.object(assets, 'DIRECTORY', root/'wan22-i2v'):
+                self.assertEqual(assets.asset_path('kungfu/high.safetensors'), old/'high.safetensors')
+                old.rename(new)
+                self.assertEqual(assets.asset_path('kungfu/high.safetensors'), new/'high.safetensors')
+                old.mkdir()
+                with self.assertRaises(ValueError):
+                    assets.asset_path('kungfu/high.safetensors')
+
+    def test_lightning_path_tracks_move_and_rejects_conflicts(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            old = root/'wan22-i2v'/'lightning'
+            new = root/'wan22-lightning-i2v-seko-v1'
+            old.mkdir(parents=True)
+            with patch.object(assets, 'DIRECTORY', root/'wan22-i2v'):
+                self.assertEqual(assets.asset_path('lightning/high.safetensors'), old/'high.safetensors')
+                old.rename(new)
+                self.assertEqual(assets.asset_path('lightning/high.safetensors'), new/'high.safetensors')
+                old.mkdir()
+                with self.assertRaises(ValueError):
+                    assets.asset_path('lightning/high.safetensors')
+                self.assertIsNone(assets._asset_signature())
+
     def test_gateway_does_not_start_prepare_while_hash_verification_runs(self):
         from unittest.mock import Mock
         from workflow.common.management_gateway import ManagementCommandGateway

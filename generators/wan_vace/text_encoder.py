@@ -1,6 +1,6 @@
 """제작자 UMT5 BF16 가중치를 양자화 없이 CUDA에서 인코딩한다."""
 from types import SimpleNamespace
-from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES
+from generators.wan_vace.contracts import VACE_WORKSPACE_ROOT, VACE_MODEL_FILES, vace_model_path
 
 VACE_ENCODER_LAYER_MAPPING = {
     'norm1.weight': 'layer.0.layer_norm.weight',
@@ -34,7 +34,7 @@ def load_vace_encoder():
     import comfy.text_encoders.wan
     if not getattr(torch.version, 'hip', None) or not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
         raise RuntimeError('비양자화 UMT5는 BF16 지원 ROCm GPU가 필요합니다.')
-    current_original_state = torch.load(VACE_WORKSPACE_ROOT / VACE_MODEL_FILES['encoder'][0], map_location='cpu', weights_only=True, mmap=True)
+    current_original_state = torch.load(vace_model_path('encoder'), map_location='cpu', weights_only=True, mmap=True)
     if any(current_weight_tensor.dtype != torch.bfloat16 for current_weight_tensor in current_original_state.values()):
         raise ValueError('UMT5 원본 가중치는 모두 BF16이어야 합니다.')
     current_converted_state = convert_encoder_state(current_original_state)

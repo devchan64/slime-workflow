@@ -7,6 +7,138 @@ from workflow.common.model_storage_move import assess_storage_move, move_storage
 
 
 class ModelStorageLayoutTest(unittest.TestCase):
+    def test_minimax_video_and_image_consumers_resolve_shared_encoder(self):
+        from unittest.mock import patch
+        from generators.minimax_h3 import assets
+        from generators.minimax_h3_image import contracts
+        with TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            root = project/'.model'
+            legacy_root = root/'minimax-h3-i2v'
+            old = legacy_root/'text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors'
+            old.parent.mkdir(parents=True)
+            old.write_bytes(b'weight')
+            records = [(old, 6, 'digest')]
+            with patch.object(assets, 'ROOT', project), patch.object(assets, 'OLD', legacy_root), \
+                 patch.object(contracts, 'ROOT', project), patch.object(contracts, 'ENCODER', old), \
+                 patch.object(contracts, 'FILES', ((old, 6),)):
+                self.assertEqual(assets.current_files(records)[0][0], old)
+                self.assertEqual(contracts.current_files()[0][0], old)
+                new = root/'qwen3vl-32b-minimax-h3-int8-convrot'/old.name
+                new.parent.mkdir()
+                old.rename(new)
+                self.assertEqual(assets.current_files(records)[0][0], new)
+                self.assertEqual(contracts.current_files()[0][0], new)
+                old.write_bytes(b'duplicate')
+                with self.assertRaises(ValueError):
+                    assets.current_files(records)
+                with self.assertRaises(ValueError):
+                    contracts.current_files()
+
+    def test_minimax_encoder_variants_resolve_independently_and_reject_conflicts(self):
+        from workflow.common.model_storage_layout import resolve_minimax_qwen_encoder
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for variant, filename, directory in (
+                ('int8-convrot', 'qwen3vl_32b_minimax_h3_int8_convrot.safetensors', 'qwen3vl-32b-minimax-h3-int8-convrot'),
+                ('nvfp4-awq', 'qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors', 'qwen3vl-32b-minimax-h3-nvfp4-awq'),
+            ):
+                old = root/'minimax-h3-i2v/text_encoders'/filename
+                old.parent.mkdir(parents=True, exist_ok=True)
+                old.write_bytes(variant.encode())
+                self.assertEqual(resolve_minimax_qwen_encoder(root, variant), old)
+                new = root/directory/filename
+                new.parent.mkdir()
+                old.rename(new)
+                self.assertEqual(resolve_minimax_qwen_encoder(root, variant), new)
+                old.write_bytes(b'duplicate')
+                with self.assertRaises(ValueError):
+                    resolve_minimax_qwen_encoder(root, variant)
+                old.unlink()
+
+    def test_vace_tokenizer_path_tracks_move_and_rejects_conflict(self):
+        from workflow.common.model_storage_layout import resolve_vace_tokenizer_directory
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            old = root/'wan22-vace/official-tokenizer'
+            new = root/'umt5-xxl-tokenizer-vace'
+            old.mkdir(parents=True)
+            self.assertEqual(resolve_vace_tokenizer_directory(root), old)
+            old.rename(new)
+            self.assertEqual(resolve_vace_tokenizer_directory(root), new)
+            old.mkdir()
+            with self.assertRaises(ValueError):
+                resolve_vace_tokenizer_directory(root)
+
+    def test_vace_bf16_encoder_path_tracks_move_and_rejects_conflict(self):
+        from workflow.common.model_storage_layout import resolve_vace_bf16_encoder
+        from generators.wan_vace.contracts import vace_model_path, vace_model_records
+        with TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            root = project/'.model'
+            old = root/'wan22-vace/models_t5_umt5-xxl-enc-bf16.pth'
+            old.parent.mkdir(parents=True)
+            old.write_bytes(b'encoder')
+            self.assertEqual(vace_model_path('encoder', root=project), old)
+            new = root/'umt5-xxl-encoder-bf16'/old.name
+            new.parent.mkdir()
+            old.rename(new)
+            self.assertEqual(resolve_vace_bf16_encoder(root), new)
+            self.assertEqual(vace_model_path('encoder', root=project), new)
+            self.assertEqual(vace_model_records(root=project)['encoder'][0],
+                             '.model/umt5-xxl-encoder-bf16/'+old.name)
+            old.write_bytes(b'duplicate')
+            with self.assertRaises(ValueError):
+                vace_model_path('encoder', root=project)
+
+    def test_animate_reference_models_guarded_move_and_rollback(self):
+        from workflow.common.model_storage_move import move_flattened_with_queue_guard
+        for name, old, new in (
+            ('animate-yolov10m-top', 'det', 'yolov10m-animate'),
+            ('animate-vitpose-top', 'pose2d/vitpose_h_wholebody.onnx', 'vitpose-h-wholebody-animate'),
+        ):
+            with self.subTest(name=name), TemporaryDirectory() as temporary:
+                project = Path(temporary)
+                source = project/'.model/wan22-animate-preprocess/process_checkpoint'/old
+                source.mkdir(parents=True)
+                (source/'weights').write_bytes(b'known')
+                queue = project/'.tmp/gpu-queue'
+                (queue/'active').mkdir(parents=True)
+                (queue/'execution.lock').touch()
+                backup = project/'.local/hermes/model-backup-verification'
+                backup.mkdir(parents=True)
+                (backup/'worker.lock').touch()
+                def reject():
+                    raise ValueError('consumer unavailable')
+                with self.assertRaisesRegex(ValueError, 'consumer unavailable'):
+                    move_flattened_with_queue_guard(project, project/'move.json', name=name, validate=reject)
+                self.assertEqual((source/'weights').read_bytes(), b'known')
+                self.assertFalse((project/'.model'/new).exists())
+
+    def test_pose_model_files_follow_separate_paths_and_reject_conflicts(self):
+        from workflow.common.model_storage_layout import resolve_pose_model_file
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            legacy = root/'wan22-fun-pose'
+            legacy.mkdir()
+            for name, target in (('yolox_l.onnx', 'yolox-l'),
+                                 ('dw-ll_ucoco_384.cuda.onnx', 'dwpose-ll-ucoco-384')):
+                old = legacy/name
+                old.write_bytes(b'weight')
+                self.assertEqual(resolve_pose_model_file(root, name), old)
+                new = root/target/name
+                new.parent.mkdir(exist_ok=True)
+                old.rename(new)
+                self.assertEqual(resolve_pose_model_file(root, name), new)
+                old.write_bytes(b'duplicate')
+                with self.assertRaises(ValueError):
+                    resolve_pose_model_file(root, name)
+                old.unlink()
+                new.unlink()
+                self.assertEqual(resolve_pose_model_file(root, name), new)
+            with self.assertRaises(ValueError):
+                resolve_pose_model_file(root, '../unknown')
+
     def test_guarded_flatten_refuses_active_job_and_rolls_back_failed_consumer(self):
         from workflow.common.model_storage_move import move_flattened_with_queue_guard
         with TemporaryDirectory() as temporary:
@@ -104,6 +236,46 @@ class ModelStorageLayoutTest(unittest.TestCase):
             self.assertEqual(new.read_bytes(), b'cache metadata')
             rollback_storage(root, 'wan-components-legacy-cache', journal)
             self.assertEqual((old/'metadata').read_bytes(), b'cache metadata')
+
+    def test_i2v_lightning_guarded_move_rolls_back_on_consumer_failure(self):
+        from workflow.common.model_storage_move import move_flattened_with_queue_guard
+        with TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            source = project/'.model/wan22-i2v/lightning'
+            source.mkdir(parents=True)
+            (source/'high.safetensors').write_bytes(b'known')
+            queue = project/'.tmp/gpu-queue'
+            (queue/'active').mkdir(parents=True)
+            (queue/'execution.lock').touch()
+            backup = project/'.local/hermes/model-backup-verification'
+            backup.mkdir(parents=True)
+            (backup/'worker.lock').touch()
+            def reject():
+                raise ValueError('consumer unavailable')
+            with self.assertRaisesRegex(ValueError, 'consumer unavailable'):
+                move_flattened_with_queue_guard(project, project/'move.json', name='i2v-lightning-top', validate=reject)
+            self.assertEqual((source/'high.safetensors').read_bytes(), b'known')
+            self.assertFalse((project/'.model/wan22-lightning-i2v-seko-v1').exists())
+
+    def test_i2v_kungfu_guarded_move_rolls_back_on_consumer_failure(self):
+        from workflow.common.model_storage_move import move_flattened_with_queue_guard
+        with TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            source = project/'.model/wan22-i2v/kungfu'
+            source.mkdir(parents=True)
+            (source/'high.safetensors').write_bytes(b'known')
+            queue = project/'.tmp/gpu-queue'
+            (queue/'active').mkdir(parents=True)
+            (queue/'execution.lock').touch()
+            backup = project/'.local/hermes/model-backup-verification'
+            backup.mkdir(parents=True)
+            (backup/'worker.lock').touch()
+            def reject():
+                raise ValueError('consumer unavailable')
+            with self.assertRaisesRegex(ValueError, 'consumer unavailable'):
+                move_flattened_with_queue_guard(project, project/'move.json', name='i2v-kungfu-top', validate=reject)
+            self.assertEqual((source/'high.safetensors').read_bytes(), b'known')
+            self.assertFalse((project/'.model/wan22-i2v-kungfu').exists())
 
     def test_wan_components_guarded_move_and_rollback(self):
         from workflow.common.model_storage_move import move_flattened_with_queue_guard

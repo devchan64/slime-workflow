@@ -261,6 +261,141 @@ class CatalogBackupTargetTest(unittest.TestCase):
                     target_path(root, target)
                 old.rmdir()
 
+    def test_minimax_encoder_variants_restore_from_parent_snapshot(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'.model', root/'backup'
+            backup.mkdir()
+            old = source/'minimax-h3-i2v/text_encoders'
+            old.mkdir(parents=True)
+            files = (('qwen3vl-32b-minimax-h3-int8-convrot', 'int8.safetensors', b'int8'),
+                     ('qwen3vl-32b-minimax-h3-nvfp4-awq', 'nvfp4.safetensors', b'nvfp4'))
+            for _, name, data in files:
+                (old/name).write_bytes(data)
+            sync_snapshot('minimax-h3-i2v', '8'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                for folder, name, data in files:
+                    target = source/folder/name
+                    target.parent.mkdir()
+                    self.assertTrue(restore_verified_backup(target, hashlib.sha256(data).hexdigest(), len(data)))
+                    self.assertEqual(target.read_bytes(), data)
+
+    def test_vace_tokenizer_restores_from_parent_snapshot(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'.model', root/'backup'
+            backup.mkdir()
+            old = source/'wan22-vace/official-tokenizer'
+            old.mkdir(parents=True)
+            data = b'tokenizer'
+            (old/'tokenizer.json').write_bytes(data)
+            sync_snapshot('wan22-vace', '9'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            target = source/'umt5-xxl-tokenizer-vace/tokenizer.json'
+            target.parent.mkdir()
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                self.assertTrue(restore_verified_backup(target, hashlib.sha256(data).hexdigest(), len(data)))
+            self.assertEqual(target.read_bytes(), data)
+
+    def test_vace_bf16_encoder_restores_from_parent_snapshot(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'.model', root/'backup'
+            backup.mkdir()
+            old = source/'wan22-vace'
+            old.mkdir(parents=True)
+            name, data = 'models_t5_umt5-xxl-enc-bf16.pth', b'encoder'
+            (old/name).write_bytes(data)
+            sync_snapshot('wan22-vace', 'c'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            target = source/'umt5-xxl-encoder-bf16'/name
+            target.parent.mkdir()
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                self.assertTrue(restore_verified_backup(target, hashlib.sha256(data).hexdigest(), len(data)))
+            self.assertEqual(target.read_bytes(), data)
+
+    def test_animate_reference_models_restore_from_parent_snapshot(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'.model', root/'backup'
+            backup.mkdir()
+            old = source/'wan22-animate-preprocess'/'process_checkpoint'
+            files = (('det', 'yolov10m-animate', 'yolov10m.onnx', b'detector'),
+                     ('pose2d/vitpose_h_wholebody.onnx', 'vitpose-h-wholebody-animate', 'tensor', b'pose'))
+            for nested, _, name, data in files:
+                (old/nested).mkdir(parents=True)
+                (old/nested/name).write_bytes(data)
+            sync_snapshot('wan22-animate-preprocess', 'b'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                for _, folder, name, data in files:
+                    target = source/folder/name
+                    target.parent.mkdir()
+                    self.assertTrue(restore_verified_backup(target, hashlib.sha256(data).hexdigest(), len(data)))
+                    self.assertEqual(target.read_bytes(), data)
+
+    def test_separated_pose_files_restore_from_parent_snapshot(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'.model', root/'backup'
+            backup.mkdir()
+            old = source/'wan22-fun-pose'
+            old.mkdir(parents=True)
+            files = (('yolox-l', 'yolox_l.onnx', b'detector'),
+                     ('dwpose-ll-ucoco-384', 'dw-ll_ucoco_384.cuda.onnx', b'pose'))
+            for _, name, data in files:
+                (old/name).write_bytes(data)
+            sync_snapshot('wan22-fun-pose', 'a'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                for folder, name, data in files:
+                    target = source/folder/name
+                    target.parent.mkdir()
+                    self.assertTrue(restore_verified_backup(target, hashlib.sha256(data).hexdigest(), len(data)))
+                    self.assertEqual(target.read_bytes(), data)
+
+    def test_i2v_kungfu_restores_from_parent_snapshot(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'.model', root/'backup'
+            backup.mkdir()
+            old = source/'wan22-i2v'/'kungfu'
+            old.mkdir(parents=True)
+            data = b'kungfu'
+            (old/'high.safetensors').write_bytes(data)
+            sync_snapshot('wan22-i2v', 'f'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            target = source/'wan22-i2v-kungfu'/'high.safetensors'
+            target.parent.mkdir()
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                self.assertTrue(restore_verified_backup(target, hashlib.sha256(data).hexdigest(), len(data)))
+            self.assertEqual(target.read_bytes(), data)
+
+    def test_i2v_lightning_restores_from_parent_snapshot(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root/'.model', root/'backup'
+            backup.mkdir()
+            old = source/'wan22-i2v'/'lightning'
+            old.mkdir(parents=True)
+            data = b'i2v-lightning'
+            (old/'high.safetensors').write_bytes(data)
+            sync_snapshot('wan22-i2v', 'e'*32, roots=(source, backup, None))
+            config = root/'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+            target = source/'wan22-lightning-i2v-seko-v1'/'high.safetensors'
+            target.parent.mkdir()
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                self.assertTrue(restore_verified_backup(target, hashlib.sha256(data).hexdigest(), len(data)))
+            self.assertEqual(target.read_bytes(), data)
+
     def test_separated_vace_loras_restore_from_parent_snapshot(self):
         with TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -12,6 +12,11 @@ FUN_POSE_MODEL_DIRECTORY = Path(__file__).resolve().parents[2]/'.model/wan22-fun
 FUN_POSE_MODEL_NAMES = ('yolox_l.onnx', 'dw-ll_ucoco_384.onnx')
 
 
+def pose_model_path(name):
+    from workflow.common.model_storage_layout import resolve_pose_model_file
+    return resolve_pose_model_file(FUN_POSE_MODEL_DIRECTORY.parent, name, legacy_directory=FUN_POSE_MODEL_DIRECTORY)
+
+
 class MigraphxPoseInferenceSession:
     """MIGraphX가 반환한 SimCC 축을 입력 크기에 맞춰 확인한다."""
     def __init__(self, current_session_instance):
@@ -43,11 +48,16 @@ class MigraphxPoseInferenceSession:
 
 
 def validate_fun_pose_assets():
-    current_prepared_record = json.loads((FUN_POSE_MODEL_DIRECTORY/'prepared.json').read_text())
-    if current_prepared_record.get('revision') != FUN_POSE_MODEL_REVISION:
-        raise ValueError('VideoX-Fun 포즈 모델 리비전 불일치')
     for current_model_name in FUN_POSE_MODEL_NAMES:
-        current_model_path = (FUN_POSE_MODEL_DIRECTORY/current_model_name).with_suffix('.cuda.onnx')
+        current_model_path = pose_model_path(Path(current_model_name).with_suffix('.cuda.onnx').name)
+        current_record_path = current_model_path.parent/'prepared.json'
+        if not current_record_path.exists() and not current_record_path.is_symlink() and current_model_path.parent != FUN_POSE_MODEL_DIRECTORY:
+            current_record_path = FUN_POSE_MODEL_DIRECTORY/'prepared.json'
+        if current_record_path.is_symlink():
+            raise ValueError('포즈 준비 기록에 심볼릭 링크를 사용할 수 없습니다.')
+        current_prepared_record = json.loads(current_record_path.read_text())
+        if current_prepared_record.get('revision') != FUN_POSE_MODEL_REVISION:
+            raise ValueError('VideoX-Fun 포즈 모델 리비전 불일치')
         with current_model_path.open('rb') as current_model_stream:
             current_model_hash = hashlib.file_digest(current_model_stream, 'sha256').hexdigest()
         if current_prepared_record.get('files', {}).get(current_model_path.name) != current_model_hash:
@@ -69,7 +79,7 @@ def prepare_dwpose_combined_output(current_attempt_root):
     """순서가 정해진 단일 출력으로 SimCC 두 축을 연결한 실행용 모델을 만든다."""
     import onnx
     from onnx import TensorProto, helper
-    current_source_path = (FUN_POSE_MODEL_DIRECTORY / FUN_POSE_MODEL_NAMES[1]).with_suffix('.cuda.onnx')
+    current_source_path = pose_model_path(Path(FUN_POSE_MODEL_NAMES[1]).with_suffix('.cuda.onnx').name)
     current_model_graph = onnx.load(str(current_source_path))
     if [current_output_value.name for current_output_value in current_model_graph.graph.output] != ['simcc_x', 'simcc_y']:
         raise ValueError('DWPose ONNX 출력 이름이 예상과 다릅니다.')
@@ -119,7 +129,7 @@ def create_fun_pose_detector(current_build_cache=False, current_pose_model_path=
                 current_cache_directory.mkdir(parents=True, exist_ok=True)
                 os.environ['ORT_MIGRAPHX_CACHE_DIR'] = str(current_cache_directory)
             current_session_options.add_provider_for_devices(current_gpu_devices[:1], current_provider_options)
-            current_model_path = current_pose_model_path if current_session_field == 'session_pose' and current_pose_model_path is not None else (FUN_POSE_MODEL_DIRECTORY/current_model_name).with_suffix('.cuda.onnx')
+            current_model_path = current_pose_model_path if current_session_field == 'session_pose' and current_pose_model_path is not None else pose_model_path(Path(current_model_name).with_suffix('.cuda.onnx').name)
             current_gpu_session = ort.InferenceSession(str(current_model_path), sess_options=current_session_options)
         finally:
             os.environ.pop('ORT_MIGRAPHX_CACHE_DIR', None)
