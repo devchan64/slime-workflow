@@ -278,6 +278,13 @@ class ModelBackupInventoryTest(unittest.TestCase):
             comparison = compare_backup_model('model', config, hash_content=True, target='latest_snapshot')
             self.assertEqual(comparison['snapshot_id'], 'a' * 32)
             self.assertEqual([(item['path'], item['status']) for item in comparison['files']], [('weight', 'verified')])
+            os.utime(snapshot / 'weight', ns=(1_000_000_000, 1_000_000_000))
+            metadata_comparison = compare_backup_model('model', config, target='latest_snapshot')
+            self.assertEqual([(item['path'], item['status']) for item in metadata_comparison['files']], [('weight', 'matches_metadata')])
+            (snapshot / 'weight').write_bytes(b'short')
+            metadata_comparison = compare_backup_model('model', config, target='latest_snapshot')
+            self.assertEqual(metadata_comparison['files'][0]['status'], 'different')
+            (snapshot / 'weight').write_bytes(b'new model')
             with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
                 self.assertTrue(restore_verified_backup(stage / 'weight', manifest['files'][0]['sha256'], backup_source_target=source / 'model' / 'weight'))
             self.assertEqual((stage / 'weight').read_bytes(), b'new model')

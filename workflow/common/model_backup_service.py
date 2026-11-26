@@ -219,6 +219,40 @@ def compare_backup_model(model, config_path=None, *, hash_content=False, target=
         backup_inventory = inventory_model_tree(backup_model, containment_root=backup, hash_content=hash_content, progress=backup_progress)
         if target == 'latest_snapshot':
             backup_inventory['files'].pop('.snapshot.json', None)
+            if not hash_content:
+                # A Samba server may not preserve nanosecond timestamps. Compare
+                # against the original timestamps recorded when the snapshot
+                # was made, while still checking the stored file's actual size.
+                manifest = backup_model / '.snapshot.json'
+                try:
+                    before = manifest.lstat()
+                    if not stat.S_ISREG(before.st_mode) or before.st_size > 16 * 1024 * 1024:
+                        raise ValueError('스냅샷 매니페스트를 읽을 수 없습니다.')
+                    with manifest.open('rb') as stream:
+                        if _identity(os.fstat(stream.fileno())) != _identity(before):
+                            raise ValueError('스냅샷 매니페스트가 변경됐습니다.')
+                        record = json.load(stream)
+                        if _identity(os.fstat(stream.fileno())) != _identity(before):
+                            raise ValueError('스냅샷 매니페스트가 변경됐습니다.')
+                    if (record.get('version') != 1 or record.get('model') != model
+                            or record.get('job_id') != snapshot_id or not isinstance(record.get('files'), list)):
+                        raise ValueError('스냅샷 매니페스트 형식이 올바르지 않습니다.')
+                    entries = {}
+                    for item in record['files']:
+                        name, size, mtime = item['path'], item['size'], item['source_mtime_ns']
+                        if (not isinstance(name, str) or not name or name.startswith('/') or '\\' in name
+                                or '\x00' in name or any(part in ('', '.', '..') for part in name.split('/'))
+                                or name == '.snapshot.json' or name in entries or type(size) is not int or size < 0
+                                or type(mtime) is not int or mtime < 0):
+                            raise ValueError('스냅샷 파일 목록이 올바르지 않습니다.')
+                        entries[name] = (size, mtime)
+                    for name, info in backup_inventory['files'].items():
+                        entry = entries.get(name)
+                        info['mtime_ns'] = entry[1] if entry and entry[0] == info['size'] else None
+                    if _identity(manifest.lstat()) != _identity(before):
+                        raise ValueError('스냅샷 매니페스트가 변경됐습니다.')
+                except (OSError, UnicodeError, KeyError, TypeError, AttributeError, json.JSONDecodeError) as error:
+                    raise ValueError('스냅샷 매니페스트를 읽을 수 없습니다.') from error
     elif backup_stat is not None:
         raise ValueError('백업 모델 경로가 디렉터리가 아닙니다.')
     else:
