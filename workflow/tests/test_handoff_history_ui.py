@@ -10,6 +10,23 @@ import unittest
 
 
 class HandoffHistoryUiTests(unittest.TestCase):
+    def test_pagination_lock_preserves_default_and_explains_disabled_controls(self):
+        gui = Path(__file__).resolve().parents[2]/'gui'
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory)/'pagination.cjs'
+            subprocess.run([str(gui/'node_modules/.bin/esbuild'), 'QueuePagination.jsx', '--bundle',
+                            '--platform=node', '--format=cjs', '--external:react', '--outfile='+str(bundle)],
+                           cwd=gui, check=True, capture_output=True, text=True)
+            script = """const React=require('react'),server=require('react-dom/server'),Page=require(process.argv[1]).default;
+              const base={page:1,size:5,total:15,label:'목록',onPage:()=>{},onSize:()=>{}};
+              for(const extra of [{},{disabled:true,disabledReasonId:'loading'}])
+                console.log(server.renderToStaticMarkup(React.createElement(Page,{...base,...extra})));"""
+            default, locked = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True,
+                env={**os.environ, 'NODE_PATH':str(gui/'node_modules')}).splitlines()
+        self.assertNotIn('disabled=""', default)
+        self.assertEqual(locked.count('disabled=""'), 3)
+        self.assertEqual(locked.count('aria-describedby="loading"'), 3)
+
     def test_isolated_store_history_matches_ui_contract(self):
         from workflow.domains.hermes_agent.gpu_handoff_store import GpuHandoffStore
         root = Path(__file__).resolve().parents[2]
