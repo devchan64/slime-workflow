@@ -130,7 +130,9 @@ def restore_snapshot_offline(model, *, snapshot_id=None, roots=None, progress=No
                 manifest_identity.st_mtime_ns, manifest_identity.st_ctime_ns) != (manifest_read_after.st_dev,
                 manifest_read_after.st_ino, manifest_read_after.st_size, manifest_read_after.st_mtime_ns, manifest_read_after.st_ctime_ns):
             raise ValueError('읽는 중 스냅샷 매니페스트가 변경됐습니다.')
-    if not isinstance(data, dict) or data.get('model') != model or data.get('job_id') != snapshot.name or not isinstance(data.get('files'), list) or not data['files']:
+    if (not isinstance(data, dict) or type(data.get('version')) is not int or data['version'] != 1
+            or data.get('model') != model or data.get('job_id') != snapshot.name
+            or not isinstance(data.get('files'), list) or not data['files']):
         raise ValueError('스냅샷 식별 정보 또는 파일 목록이 올바르지 않습니다.')
     entries = {}
     for item in data['files']:

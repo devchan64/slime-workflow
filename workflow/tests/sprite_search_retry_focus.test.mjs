@@ -32,9 +32,20 @@ test('같은 원본 재검색은 이전 결과를 유지하고 원본이 바뀌�
   const start=sourceText.indexOf('  function applyChange(change){'),end=sourceText.indexOf('\n  function requestChange(',start);
   for(const nextSource of ['assets','baseline']){
     let items=['이전 결과'],busy=false,request;
-    const context=vm.createContext({source:'assets',selected:'',setItems:value=>items=value,setSource:()=>{},setSearchBusy:value=>busy=value,setError:()=>{},select:()=>{},setRequest:value=>request=value});
+    const context=vm.createContext({source:'assets',selected:'',setItems:value=>items=value,setSource:()=>{},setSearchBusy:value=>busy=value,setError:()=>{},setLinkNotice:()=>{},select:()=>{},setRequest:value=>request=value});
     vm.runInContext(sourceText.slice(start,end)+'\nthis.applyChange=applyChange;',context);
     context.applyChange({kind:'search',source:nextSource,query:'rest'});
     assert.equal(items===null,nextSource==='baseline');assert.equal(busy,true);assert.equal(request.source,nextSource);
   }
+});
+
+test('연결 후보를 직접 선택하면 원본 선택 안내를 해제한다',()=>{
+  const sourceText=readFileSync(new URL('../../gui/SpriteSheetEditor.jsx',import.meta.url),'utf8');
+  const start=sourceText.indexOf('  function applyChange(change){'),end=sourceText.indexOf('\n  function requestChange(',start);
+  let notice='원본 선택', chosen='';
+  const context=vm.createContext({selected:'',document:{activeElement:{}},selectionFocus:{current:null},setLinkNotice:value=>notice=value,select:value=>chosen=value});
+  vm.runInContext(sourceText.slice(start,end)+'\nthis.applyChange=applyChange;',context);
+  context.applyChange({kind:'select',path:'candidate.png'});
+  assert.equal(notice,'');
+  assert.equal(chosen,'candidate.png');
 });

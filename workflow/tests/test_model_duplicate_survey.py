@@ -9,6 +9,19 @@ from workflow.common.model_catalog import read_duplicate_survey
 
 
 class DuplicateSurveyTests(unittest.TestCase):
+    def test_rejects_repeated_or_invalid_paths_in_saved_observations(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            report = root / 'report.json'
+            item = {'path': 'model/weights', 'state': 'matches', 'device': 1, 'inode': 2}
+            record = {'version': 1, 'root': str(root), 'observed_at': 'then', 'errors': [],
+                      'groups': [{'size': 1, 'paths': [item, dict(item)]}]}
+            for bad_path in ('model/weights', '../outside', '/absolute', 'model//weights', 'model/../weights', 'model\\weights'):
+                with self.subTest(path=bad_path):
+                    record['groups'][0]['paths'][1]['path'] = bad_path
+                    report.write_text(json.dumps(record))
+                    self.assertIsNone(read_duplicate_survey(report, root))
+
     def test_reports_current_matches_and_changed_files_without_following_external_links(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

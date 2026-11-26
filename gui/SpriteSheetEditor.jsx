@@ -437,6 +437,7 @@ export default function SpriteSheetEditor(){
   const [request,setRequest]=useState(link.animation?{source:"assets",query:link.animation,linked:true}:null);
   const [items,setItems]=useState(null),[selected,select]=useState(link.path || "");
   const [error,setError]=useState(link.error || ""),[searchBusy,setSearchBusy]=useState(Boolean(link.animation));
+  const [linkNotice,setLinkNotice]=useState("");
   const [pendingChange,setPendingChange]=useState(null);
   const changeDescriptionId=useId(),searchStatusId=useId();
   const changeTrigger=useRef(null),searchRef=useRef(null),selectionFocus=useRef(null),sheetRegion=useRef(null);
@@ -453,17 +454,18 @@ export default function SpriteSheetEditor(){
       if(request.linked){
         const match=findLinkedSprite(result.items,request.query);
         if(match)select(match);
-        else setError("동작 ID에 연결된 시트가 없거나 여러 개입니다. 검색 결과에서 원본을 선택하세요.");
+        else setLinkNotice(result.items.length ? "동작 ID에 연결된 시트를 하나로 확인할 수 없습니다. 검색 결과에서 원본을 선택하세요." : "동작 ID에 연결된 시트가 없습니다. 검색어를 바꾸고 원본 검색을 눌러 주세요.");
       }
     }).catch(problem=>{if(active)setError(timedOut ? "스프라이트 검색 시간이 초과됐습니다." : requestErrorMessage(problem));}).finally(()=>{clearTimeout(timeout);if(active)setSearchBusy(false);});
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[request]);
   function applyChange(change){
     if(change.kind==="select"){
+      setLinkNotice("");
       if(change.path===selected){sheetRegion.current?.focus();return;}
       selectionFocus.current=document.activeElement;select(change.path);return;
     }
-    if(change.source!==source)setItems(null);setSource(change.source);setSearchBusy(true);setError("");select("");setRequest({source:change.source,query:change.query});
+    if(change.source!==source)setItems(null);setSource(change.source);setSearchBusy(true);setError("");setLinkNotice("");select("");setRequest({source:change.source,query:change.query});
   }
   function requestChange(change){
     if(selected && (change.kind!=="select" || change.path!==selected)){changeTrigger.current=document.activeElement;setPendingChange(change);}
@@ -481,10 +483,11 @@ export default function SpriteSheetEditor(){
       <button disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:searchBusy?searchStatusId:undefined}>원본 검색</button>
     </form>
     {request && query!==request.query && <p role="status">검색어가 변경되었습니다. {items?.length === 0 ? "이전 검색 조건에 일치하는 시트가 없었습니다." : items?.length ? "아래 결과는 이전 검색 조건입니다." : "표시된 검색 결과가 없습니다."} 원본 검색을 눌러 적용하세요.</p>}
+    {linkNotice && <p role="status">{linkNotice}</p>}
     {error && <div role="alert"><p>{error}</p>{request && <button type="button" disabled={!!pendingChange} aria-describedby={pendingChange?changeDescriptionId:undefined} onClick={event=>{if(document.activeElement===event.currentTarget)searchRef.current?.focus();setSearchBusy(true);setError("");setRequest({...request});}}>이전 조건으로 다시 검색</button>}</div>}
     {searchBusy && <p id={searchStatusId} role="status">스프라이트 검색 중…{items && (items.length ? " 이전 검색 결과를 표시합니다." : " 이전 검색 결과는 없습니다.")}</p>}
     {error && items && <p role="status">{items.length ? "이전 검색 결과를 표시합니다. 검색 결과를 다시 확인하세요." : "이전 검색 결과가 없습니다. 검색을 다시 시도하세요."}</p>}
-    {!searchBusy && !error && items?.length === 0 && query===request?.query && <p role="status">일치하는 시트가 없습니다. 검색어를 바꾸거나 지운 후 원본 검색을 누르세요.</p>}
+    {!searchBusy && !error && !linkNotice && items?.length === 0 && query===request?.query && <p role="status">일치하는 시트가 없습니다. 검색어를 바꾸거나 지운 후 원본 검색을 누르세요.</p>}
     {items && <ResultTable table={{title:"검색 결과",summary:items.length+"개 시트",columns:["스프라이트","원본 경로"],
       rows:items.map(item=>[<button type="button" disabled={!!pendingChange || searchBusy} aria-describedby={pendingChange?changeDescriptionId:searchBusy?searchStatusId:undefined} aria-current={selected===item.path ? "true" : undefined} onClick={()=>requestChange({kind:"select",path:item.path})}>{item.label}{selected===item.path && " · 선택됨"}</button>,item.path])}}/>}
     {pendingChange && <SheetSourceChangeConfirmation change={pendingChange} returnFocus={changeTrigger.current} descriptionId={changeDescriptionId} onConfirm={()=>{const change=pendingChange;setPendingChange(null);applyChange(change);}} onCancel={()=>setPendingChange(null)}/>}

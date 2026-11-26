@@ -7,6 +7,7 @@ import ReferenceImageInput from "./ReferenceImageInput.jsx";
 import PromptWordCount from "./PromptWordCount.jsx";
 import SeedInput from "./SeedInput.jsx";
 import {fluxNumericIssues} from "./fluxNumericIssues.mjs";
+import {fluxPromptIssue,fluxTranslationIssue} from "./fluxPromptIssue.mjs";
 import React,{useEffect,useId,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
 import GeneratorHistory from "./GeneratorHistory.jsx";
@@ -61,7 +62,7 @@ export default function FluxImagePage(props={}){
 }
 
 function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=null,receiptScope=null,session:embeddedSession=""}={}){
-  const referenceOrderHelpId=useId(),guidePageHelpId=useId(),numericErrorId=useId(),fixedSizeHelpId=useId(),inputLockId=useId(),historyLockId=useId(),translationHelpId=useId();
+  const referenceOrderHelpId=useId(),guidePageHelpId=useId(),numericErrorId=useId(),fixedSizeHelpId=useId(),inputLockId=useId(),historyLockId=useId(),translationHelpId=useId(),promptHelpId=useId(),promptErrorId=useId(),translationErrorId=useId();
   const service=serviceOverride || location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
   const [profile,setProfile]=useState(null),[attempt,setAttempt]=useState(0);
   const [profileError,setProfileError]=useState("");
@@ -79,6 +80,8 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
   const currentPreviewScope=useRef(previewScope);currentPreviewScope.current=previewScope;
   const [form,setForm]=useState({prompt:"",translation_source_ko:"",width:768,height:768,steps:16,seed:10107,tag:""});
   const numericIssues=fluxNumericIssues(form,service);
+  const promptIssue=fluxPromptIssue(form,service);
+  const translationIssue=fluxTranslationIssue(form,service);
   const [files,setFiles]=useState([]),[review,setReview]=useState(null);
   const inputRef=useRef({form,files});inputRef.current={form,files};
   const imageSelectionRevision=useRef(0),checkingSlots=useRef(new Set());
@@ -278,6 +281,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
   async function preview(event){
     event.preventDefault();
     if(previewRequest.current || busy || review)return;
+    if(promptIssue || translationIssue)return;
     if(checkingSlots.current.size){event.preventDefault();setNotice("이미지 확인이 끝난 뒤 생성 요청을 검토하세요.");return;}
     const controller=new AbortController();previewRequest.current=controller;let timedOut=false;
     const requestScope=previewScope;
@@ -372,9 +376,9 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
         <label>표정 <select value={form.prompt} onChange={e=>edit("prompt",e.target.value)}>{profile.expressions.map(item=><option value={item.id} key={item.id}>{item.label}</option>)}</select></label>
         <p>{profile.expressions.find(item=>item.id===form.prompt)?.text}<PromptWordCount text={profile.expressions.find(item=>item.id===form.prompt)?.text} label="기본 프롬프트"/></p>
         <button type="button" onClick={defaultFace}>기본 캐릭터 정면 얼굴 불러오기</button>
-      </> : <><label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} onChange={e=>edit("prompt",e.target.value)}/></label><PromptWordCount text={form.prompt}/></>}
+      </> : <><label>{service==="flux-building"?"건물 디자인 (한국어)":"프롬프트"} <textarea value={form.prompt} aria-invalid={promptIssue ? true : undefined} aria-describedby={[promptHelpId,promptIssue && promptErrorId].filter(Boolean).join(" ")} onChange={e=>edit("prompt",e.target.value)}/></label><small id={promptHelpId}>{service==="flux-building" ? "건물 디자인을 입력하세요." : "프롬프트 또는 번역할 한국어 설명 중 하나 이상을 입력하세요."}</small>{promptIssue && <p id={promptErrorId}>{promptIssue}</p>}<PromptWordCount text={form.prompt}/></>}
       <FluxToolFeedback loading={toolLoading} notice={toolNotice} error={toolError}/>
-      {service!=="flux-building" && <><label>번역할 한국어 설명 <textarea value={form.translation_source_ko} aria-describedby={translationHelpId} onChange={e=>edit("translation_source_ko",e.target.value)}/></label><PromptWordCount text={form.translation_source_ko}/><small id={translationHelpId}>입력하면 번역을 먼저 진행하고 번역문을 위 프롬프트 뒤에 추가합니다.</small></>}
+      {service!=="flux-building" && <><label>번역할 한국어 설명 <textarea value={form.translation_source_ko} aria-invalid={translationIssue ? true : undefined} aria-describedby={[translationHelpId,!profile?.expressions && promptHelpId,translationIssue && translationErrorId].filter(Boolean).join(" ")} onChange={e=>edit("translation_source_ko",e.target.value)}/></label><PromptWordCount text={form.translation_source_ko}/><small id={translationHelpId}>입력하면 번역을 먼저 진행하고 번역문을 위 프롬프트 뒤에 추가합니다.{!profile?.expressions && " 두 항목을 함께 입력할 때 프롬프트는 영어로 작성하세요."}</small>{translationIssue && <p id={translationErrorId}>{translationIssue}</p>}</>}
       {profile?.rolePrompt && form.prompt.trim()===profile.rolePrompt.trim() && !form.translation_source_ko.trim() && <p role="status">현재 입력에는 신체 비율 참조 안내만 있습니다. 원하는 캐릭터 외형이나 자세를 추가할 수 있습니다.</p>}
       {!seamless && <section aria-label="참조 이미지"><p>{profile?.expressions?"얼굴 참조 PNG (1장)":"참조 PNG (최대 2장)"}</p><div className="reference-image-slots">
         {Array.from({length:profile?.expressions?1:2},(_,index)=><ReferenceImageInput key={index===1 ? "second-"+Boolean(files[0]) : "first"} resetErrorKey={referenceReset} onPreviewErrorChange={value=>setPreviewErrors(previous=>{const next=[...previous];next[index]=value;return next;})} onErrorChange={value=>setReferenceErrors(previous=>{const next=[...previous];next[index]=value;return next;})} label={profile?.expressions?"얼굴 참조 이미지":"참조 이미지 "+(index+1)}
@@ -393,6 +397,8 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
         imagesChecking && "선택한 이미지 확인이 끝날 때까지 기다리세요.",
         profile && files.length < profile.minimum && "필수 참조 이미지를 선택하세요.",
         !form.prompt.trim() && !form.translation_source_ko.trim() && "프롬프트 또는 번역할 설명을 입력하세요.",
+        promptIssue,
+        translationIssue,
         ...Object.values(numericIssues)
       ]}>생성 요청 검토</ActionButton>
     </fieldset>{(!profile || busy || review || handoffId || (receiptKey && receiptState!=="editing")) && <p id={inputLockId} role="status">{!profile ? "생성기 설정을 확인하세요." : busy ? "요청을 처리하고 있습니다." : review ? "입력을 수정하려면 생성 요청 검토에서 입력 수정을 선택하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : "대화 접수 상태를 확인하세요."}</p>}</form></GeneratorSectionCard>

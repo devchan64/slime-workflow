@@ -677,6 +677,8 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     command_subparser_group=command_argument_parser.add_subparsers(dest='command',required=True)
     for operation_command_name in MANAGEMENT_SERVICE_COMMANDS[service_command_name]:
         operation_argument_parser=command_subparser_group.add_parser(operation_command_name)
+        if service_command_name == 'sfx-dasheng-audiogen' and operation_command_name == 'prepare':
+            operation_argument_parser.add_argument('--offline-backup', action='store_true', help='Samba 스냅샷과 로컬 파일을 SHA-256 검증한 뒤 로컬 파일만 사용')
         if service_command_name == 'model-downloads' and operation_command_name in ('backup-compare', 'backup-metadata', 'backup-sync', 'backup-verify', 'backup-verify-status'):
             operation_argument_parser.add_argument('--payload-file', type=Path, required=True, help='모델 이름 또는 작업 ID를 담은 JSON 파일')
         if operation_command_name == 'preview':
@@ -831,7 +833,10 @@ def execute_gateway_arguments(service_command_name, command_argument_list):
     if operation_command_name=='anchor-save':command_payload_value={'document':parse_management_request_json(command_argument_values.document_file.read_text())}
     if operation_command_name in ('anchor-history','anchor-history-reset'):command_payload_value={'animation_id':command_argument_values.animation_id,'animation_version':command_argument_values.animation_version}
     if operation_command_name=='history-reset':command_payload_value={'action':'reset'}
-    if operation_command_name=='prepare':command_payload_value={'action':'prepare'}
+    if operation_command_name=='prepare':
+        command_payload_value={'action':'prepare'}
+        if getattr(command_argument_values, 'offline_backup', False):
+            command_payload_value['offline_backup'] = True
     if operation_command_name in ('generate','queue'):
         if service_command_name in AUDIO_SERVICE_NAMES:
             command_payload_value = {'action':'generate','prompt':command_argument_values.prompt if command_argument_values.prompt is not None else command_argument_values.prompt_file.read_text(),

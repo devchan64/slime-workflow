@@ -9,7 +9,7 @@ async function withinTime(promise){
   finally{clearTimeout(timer);}
 }
 
-async function verifyImage(file,accept){
+export async function verifyReferenceImage(file,accept){
   if(accept==="image/png"){
     const signature=new Uint8Array(await withinTime(file.slice(0,8).arrayBuffer()));
     if(signature.join(",")!=="137,80,78,71,13,10,26,10")throw new Error("PNG 이미지 파일을 선택하세요.");
@@ -60,7 +60,7 @@ export default function ReferenceImageInput({label,source,onChange,onSelectionSt
     if(document.activeElement===input.current)restoreFileFocus.current=true;
     setError("");updateChecking(true);
     try {
-      await verifyImage(file,accept);
+      await verifyReferenceImage(file,accept);
       if(validate)await withinTime(validate(file));
       if(sequence===requestRef.current && !disabledRef.current)onChange(file);
     } catch(problem) {if(sequence===requestRef.current)setError(problem?.message || "이미지를 확인할 수 없습니다.");}

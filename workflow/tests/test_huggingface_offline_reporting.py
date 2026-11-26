@@ -9,6 +9,21 @@ from workflow.common.model_download_records import list_model_download_records, 
 
 
 class OfflineReportingTests(unittest.TestCase):
+    def test_local_only_scope_forces_hub_download_option_and_restores_it(self):
+        calls = []
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            def fake_download(repo_id, *, local_dir=None, local_files_only=False, tqdm_class=None):
+                calls.append(local_files_only)
+                return str(local_dir)
+            with patch.object(model_huggingface_download, 'track_model_download',
+                              lambda name: track_model_download(name, root/'records')), \
+                 patch('huggingface_hub.snapshot_download', fake_download):
+                with model_huggingface_download.local_only_huggingface_downloads():
+                    model_huggingface_download.tracked_snapshot_download('test', local_dir=str(root), local_files_only=False)
+                model_huggingface_download.tracked_snapshot_download('test', local_dir=str(root))
+        self.assertEqual(calls, [True, False])
+
     def test_unverified_local_directory_is_reported_as_needing_validation(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

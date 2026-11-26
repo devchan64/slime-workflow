@@ -14,7 +14,7 @@ MAGENTA_DEFAULTS_FILE = Path(__file__).with_name('magenta_defaults.yaml')
 SOUND_EFFECT_DEFAULTS = WORKFLOW_ROOT_DIRECTORY/'generators/sound_effects/defaults.yaml'
 MUSIC_IDENTIFIER_PATTERN = r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-[a-f0-9]{8}'
 MUSIC_PROFILE_FIELDS = {'label','model_id','runtime_directory','max_duration_seconds','sample_rate','steps','license_url','license_notice'}
-MUSIC_REQUEST_FIELDS = {'action','prompt','lyrics','duration_seconds','max_new_tokens','min_duration_seconds','seed','loop_request','tag'}
+MUSIC_REQUEST_FIELDS = {'action','prompt','lyrics','duration_seconds','max_new_tokens','min_duration_seconds','seed','loop_request','tag','offline_backup'}
 MINIMAX_AUDIO_FRAME_RATE = 25
 MINIMAX_MAXIMUM_AUDIO_FRAMES = 3000
 
@@ -124,11 +124,18 @@ def validate_music_request(current_service_name, current_request_record):
         raise ValueError('음악 요청의 알 수 없는 필드 또는 객체 형식 오류')
     current_action_name = current_request_record.get('action','generate')
     if current_action_name == 'prepare':
+        if 'offline_backup' in current_request_record:
+            if (current_service_name != SOUND_EFFECT_SERVICE or set(current_request_record) != {'action', 'offline_backup'}
+                    or current_request_record['offline_backup'] is not True):
+                raise ValueError('백업 오프라인 준비는 Dasheng 준비에서만 명시적으로 선택할 수 있습니다.')
+            return {'action':'prepare', 'offline_backup':True}
         if set(current_request_record) != {'action'}:
             raise ValueError('모델 준비에는 다른 입력을 지정할 수 없습니다.')
         return {'action':'prepare'}
     if current_action_name != 'generate':
         raise ValueError('지원하지 않는 음악 작업')
+    if 'offline_backup' in current_request_record:
+        raise ValueError('백업 오프라인 옵션은 모델 준비에서만 사용할 수 있습니다.')
     current_default_record = load_music_defaults(current_service_name)
     current_profile_record = resolve_music_profile(current_service_name)
     current_prompt_text = current_request_record.get('prompt')

@@ -159,12 +159,17 @@ def read_duplicate_survey(path=DUPLICATE_SURVEY, root=DEFAULT_MODEL_ROOT):
                 return None
             paths = []
             inodes = set()
+            seen_paths = set()
             can_estimate = True
             for item in group['paths']:
                 if (not isinstance(item, dict) or not isinstance(item.get('path'), str) or not item['path']
+                        or item['path'].startswith('/') or '\\' in item['path'] or '\x00' in item['path']
+                        or any(part in ('', '.', '..') for part in item['path'].split('/'))
+                        or item['path'] in seen_paths
                         or item.get('state') not in ('matches', 'different', 'unavailable')
                         or (item.get('via_link') is not None and type(item['via_link']) is not bool)):
                     return None
+                seen_paths.add(item['path'])
                 paths.append({'path': item['path'], 'state': item['state'], 'via_link': item.get('via_link')})
                 if item['state'] != 'matches' or type(item.get('device')) is not int or type(item.get('inode')) is not int:
                     can_estimate = False

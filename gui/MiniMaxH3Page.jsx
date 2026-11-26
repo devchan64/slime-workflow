@@ -1,3 +1,4 @@
+import {useMiniMaxPages,MiniMaxPageNavigation} from "./MiniMaxPageNavigation.jsx";
 import React,{useEffect,useId,useRef,useState} from "react";
 import {generationProposalScope,readGenerationProposal} from "./generationProposal.mjs";
 import {managementCommand,untilAborted} from "./managementCommand.js";
@@ -27,6 +28,7 @@ import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 
 const service="minimax-h3-i2v";
 export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""}={}) {
+  const {page,navigate}=useMiniMaxPages(!embedded);
   const inputLockId=useId();
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [proposalScope,setProposalScope]=useState(null);
@@ -70,12 +72,14 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
     }catch(problem){if(reviewRequest.current===controller)setError(timedOut ? "이미지 확인 시간이 초과됐습니다. 다시 시도하세요." : problem.message || "이미지를 읽을 수 없습니다.");}
     finally{clearTimeout(timer);if(reviewRequest.current===controller){reviewRequest.current=null;setBusy(false);}}
   }
+  useEffect(()=>{if(embedded)return;const syncJob=()=>{const id=new URLSearchParams(location.search).get("job");setJob(id || "");};window.addEventListener("popstate",syncJob);return ()=>window.removeEventListener("popstate",syncJob);},[embedded]);
+  useEffect(()=>{if(!embedded && page==="history"){const details=historyRef.current?.querySelector('details.generator-history');if(details)details.open=true;}},[embedded,page]);
   async function submit(){
     if(!pending || sending.current || !generationReady(model) || (hasProposal && (!proposalScope || receipt.state!=="editing")))return;
     sending.current=true;setBusy(true);setError("");setNotice("");const request=pending;
     const controller=new AbortController();let timedOut=false;
     const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
-    try{if(proposalScope)await untilAborted(readGenerationProposal(managementCommand,proposalScope),controller.signal);const result=await untilAborted(proposalScope ? managementCommand("hermes-agent","hermes-minimax-submit",{session_id:proposalScope.session,proposal_job_id:proposalScope.job,request_id:receipt.id,service,request},{signal:controller.signal}) : managementCommand(service,"generate",request,{signal:controller.signal}),controller.signal);const resultId=proposalScope ? (result?.state==="accepted" ? result.job_id : null) : result?.id;if(!validVideoJobId(resultId))throw new Error("접수 ID를 확인할 수 없습니다.");if(proposalScope)receipt.refresh();setJob(resultId);setRevision(n=>n+1);setNotice("생성 요청을 접수했습니다. 작업 이력에서 진행 상태를 확인하세요.");}
+    try{if(proposalScope)await untilAborted(readGenerationProposal(managementCommand,proposalScope),controller.signal);const result=await untilAborted(proposalScope ? managementCommand("hermes-agent","hermes-minimax-submit",{session_id:proposalScope.session,proposal_job_id:proposalScope.job,request_id:receipt.id,service,request},{signal:controller.signal}) : managementCommand(service,"generate",request,{signal:controller.signal}),controller.signal);const resultId=proposalScope ? (result?.state==="accepted" ? result.job_id : null) : result?.id;if(!validVideoJobId(resultId))throw new Error("접수 ID를 확인할 수 없습니다.");if(proposalScope)receipt.refresh();setJob(resultId);if(!embedded)navigate("history",resultId);setRevision(n=>n+1);setNotice("생성 요청을 접수했습니다. 작업 이력에서 진행 상태를 확인하세요.");}
     catch(problem){if(proposalScope)receipt.unknown();setError((timedOut ? "접수 응답 시간이 초과됐습니다." : problem.message || "접수 여부를 확인할 수 없습니다.")+" · 접수 여부가 불확실합니다. 재접수하기 전에 이력을 확인하세요.");}
     finally{const restore=reviewRef.current?.contains(document.activeElement);clearTimeout(timer);sending.current=false;setBusy(false);setPending(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(formRef.current)));}
   }
@@ -100,6 +104,7 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
   function restoreSavedInput(request,record){
     const now=current.current,start=record.inputAtStart;
     if(now.busy || now.pending || now.checking || reviewRequest.current || now.prompt!==start.prompt || now.seed!==start.seed || now.file!==start.file || imageVersion.current!==record.version)throw new Error('조회 중 입력이 바뀌어 적용하지 않았습니다. 다시 시도하세요.');
+    if(!embedded)navigate("input");
     promptEdited.current=true;setPrompt(request.prompt);setSeed(request.seed);setFile(record.restoredFile);setNotice(record.id+'의 입력을 적용했습니다.');setError('');
     if(inputRef.current)inputRef.current.open=true;requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===record.focusAtStart)formRef.current?.focus();});
   }
@@ -113,11 +118,11 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
     {hasProposal && (proposalScope ? <MinimaxReportStatus receipt={receipt}/> : <p role="status">대화 제안을 확인하고 있습니다.</p>)}
     <button type="button" onClick={()=>setPolicyRevision(n=>n+1)}>정책 상태 새로고침</button>
     <p role="status">헤르메스 MiniMax 우선 정책: {policy===null ? "조회 중" : policy===true ? "적용 중" : policy===false ? "적용 안 함" : policy==="timeout" ? "조회 시간 초과 · 새로고침하여 다시 확인하세요" : "게이트웨이 상태 확인 불가 · 새로고침하여 다시 확인하세요"}</p>
-    <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
+    {!embedded ? <MiniMaxPageNavigation page={page} navigate={navigate} locked={busy || !!pending}/> : <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>}
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
+    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={id=>{if(!embedded){setJob(id);navigate("history",id);}else openGeneratorHistory(historyRef,id,setJob);}}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <GeneratorSectionCard title="생성 입력" summary={[checking && "이미지 확인 중",imageError && "이미지 확인 실패",previewError && "이미지 미리보기 실패"].filter(Boolean).join(" · ") || "첫 이미지와 동작 지시"} defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
+    <div hidden={!embedded && page!=="input"}><GeneratorSectionCard title="생성 입력" summary={[checking && "이미지 확인 중",imageError && "이미지 확인 실패",previewError && "이미지 미리보기 실패"].filter(Boolean).join(" · ") || "첫 이미지와 동작 지시"} defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
       <ReferenceImageInput onPreviewErrorChange={setPreviewError} onErrorChange={setImageError} label="첫 프레임 이미지" source={file} onSelectionStart={()=>imageVersion.current++} onCheckingChange={setChecking} onChange={setFile} disabled={busy || !!pending}/>
       <p>이미지에 흰 여백을 넣어 832×480 영상에 맞춥니다.</p>
       <label>장면·동작 프롬프트<textarea required maxLength={8000} value={prompt} onChange={e=>{promptEdited.current=true;setPrompt(e.target.value);}}/></label><PromptWordCount text={prompt} final/>
@@ -126,6 +131,7 @@ export default function MiniMaxH3Page({embedded=false,session:embeddedSession=""
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
     </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{busy ? "요청을 처리하고 있습니다. 잠시 기다려 주세요." : "입력을 수정하려면 생성 요청 검토에서 입력 수정을 선택하세요."}</p>}</form></GeneratorSectionCard>
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{file?.name} · 832×480 · 124프레임 · 24fps · Turbo 8스텝 · 시드 {pending.seed}</p><ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하세요." : ""} onCancel={cancelReview} onConfirm={submit}/></section>}
-    <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority toggleResult readJobWithSignal={(id,options)=>readSavedInput(id,true,options)} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(n=>n+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(n=>n+1);}}/>} renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 영상 작업 결과"><SavedGeneratorInputs id={id} service={service} readJobWithSignal={(currentId,options)=>readSavedInput(currentId,false,options)}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>
+    </div>
+    {(embedded || page==="history") && <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority toggleResult readJobWithSignal={(id,options)=>readSavedInput(id,true,options)} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(n=>n+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(n=>n+1);}}/>} renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 영상 작업 결과"><SavedGeneratorInputs id={id} service={service} readJobWithSignal={(currentId,options)=>readSavedInput(currentId,false,options)}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>}
   </article>;
 }

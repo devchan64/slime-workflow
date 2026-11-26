@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 
 from generators.music.contracts import build_music_request, load_music_defaults, verify_music_request, resolve_music_paths
 from workflow.common.generation_records import write_record_atomically
-from workflow.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, ManagementCommandGateway, execute_gateway_arguments
+from workflow.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, ManagementCommandGateway, execute_gateway_arguments, identify_management_command, resolve_management_command
 from workflow.domains.music.generation import MusicGenerationManager
 from workflow.tests.test_music_management_audit import MusicManagementAuditTests
 
@@ -28,6 +28,94 @@ class DashengAudioCleanupTests(MusicManagementAuditTests):
 
 
 class DashengAudioEffectsTests(unittest.TestCase):
+    def test_offline_backup_prepare_is_explicit_and_persists_through_gateway(self):
+        request = build_music_request('sfx-dasheng-audiogen', {'action': 'prepare', 'offline_backup': True})
+        self.assertTrue(verify_music_request('sfx-dasheng-audiogen', request)['offline_backup'])
+        job = self.current_service_instance.execute_music_command('prepare', {'action': 'prepare', 'offline_backup': True})
+        saved = json.loads((self.current_service_instance.job_storage_root/job['id']/'request.json').read_text())
+        self.assertTrue(saved['offline_backup'])
+        for payload in ({'action': 'prepare', 'offline_backup': False}, {'action': 'prepare', 'offline_backup': 1},
+                        {'action': 'generate', 'prompt': 'x', 'offline_backup': True}):
+            with self.subTest(payload=payload), self.assertRaises(ValueError):
+                build_music_request('sfx-dasheng-audiogen', payload)
+        with self.assertRaises(ValueError):
+            build_music_request('music-heartmula', {'action': 'prepare', 'offline_backup': True})
+
+    def test_offline_backup_cli_forwards_explicit_option(self):
+        with patch('workflow.common.management_gateway.execute_management_command', return_value={'id': 'queued'}) as gateway, \
+             patch('sys.stdout', new_callable=io.StringIO):
+            execute_gateway_arguments('sfx-dasheng-audiogen', ['prepare', '--offline-backup'])
+        self.assertEqual(gateway.call_args.args[:3], ('sfx-dasheng-audiogen', 'prepare', {'action': 'prepare', 'offline_backup': True}))
+
+    def test_offline_backup_http_route_preserves_request(self):
+        payload = {'action': 'prepare', 'offline_backup': True}
+        method, path = resolve_management_command('sfx-dasheng-audiogen', 'prepare', payload)
+        service, command, identified = identify_management_command(path, method, payload)
+        self.assertEqual((service, command, identified), ('sfx-dasheng-audiogen', 'prepare', payload))
+        job = self.current_service_instance.execute_music_command(command, identified)
+        saved = json.loads((self.current_service_instance.job_storage_root/job['id']/'request.json').read_text())
+        self.assertTrue(saved['offline_backup'])
+
+    def test_offline_backup_failure_does_not_touch_prepare_or_cuda(self):
+        from generators.music.worker import execute_music_worker
+        job = self.current_service_instance.create_music_job({'action': 'prepare', 'offline_backup': True})
+        job_root = self.current_service_instance.job_storage_root/job['id']
+        model_root = self.current_test_root/'model'
+        model_root.mkdir()
+        record = model_root/'prepared.json'
+        record.write_bytes(b'old record')
+        metrics = Mock(current_run_state={})
+        with patch('generators.music.worker.resolve_music_paths', return_value=(self.current_service_instance.job_storage_root, model_root, self.current_service_instance.runtime_python_path)), \
+             patch('generators.music.worker.signal.signal'), patch('generators.music.worker.GenerationTelemetryRecorder', return_value=metrics), \
+             patch('workflow.common.model_offline_audio_check.check_restored_audio', return_value={'matches': False}), \
+             patch('generators.sound_effects.runtime.require_effects_cuda') as cuda, \
+             patch('generators.sound_effects.runtime.prepare_effects_model') as prepare, \
+             patch('sys.stdout', new_callable=io.StringIO), patch('sys.stderr', new_callable=io.StringIO):
+            with self.assertRaisesRegex(ValueError, 'SHA-256'):
+                execute_music_worker('sfx-dasheng-audiogen', job_root)
+        cuda.assert_not_called()
+        prepare.assert_not_called()
+        self.assertEqual(record.read_bytes(), b'old record')
+        self.assertEqual(json.loads((job_root/'status.json').read_text())['status'], 'failed')
+
+    def test_offline_backup_success_prepares_with_local_only_hub_calls(self):
+        from generators.music.worker import execute_music_worker
+        from workflow.common.model_huggingface_download import tracked_snapshot_download
+        from workflow.common.model_download_records import track_model_download
+        job = self.current_service_instance.create_music_job({'action': 'prepare', 'offline_backup': True})
+        job_root = self.current_service_instance.job_storage_root/job['id']
+        model_root = self.current_test_root/'model'
+        model_root.mkdir()
+        metrics = Mock(current_run_state={})
+        torch = Mock()
+        torch.cuda.get_device_name.return_value = 'isolated GPU'
+        calls = []
+        def download(repo_id, *, local_dir=None, local_files_only=False, tqdm_class=None):
+            calls.append(local_files_only)
+            return local_dir
+        def prepare(*args):
+            tracked_snapshot_download('test', local_dir=str(model_root))
+            return {'model_id': 'test'}
+        def check(service, *, progress):
+            self.assertEqual(service, 'sfx-dasheng-audiogen')
+            progress('dasheng-audiogen', '스냅샷 해시 확인', 'config.json', 10, 20)
+            return {'matches': True}
+        with patch.dict('os.environ', {}, clear=False), \
+             patch('generators.music.worker.resolve_music_paths', return_value=(self.current_service_instance.job_storage_root, model_root, self.current_service_instance.runtime_python_path)), \
+             patch('generators.music.worker.signal.signal'), patch('generators.music.worker.GenerationTelemetryRecorder', return_value=metrics), \
+             patch('workflow.common.model_offline_audio_check.check_restored_audio', side_effect=check), \
+             patch('workflow.common.model_huggingface_download.track_model_download', lambda name: track_model_download(name, self.current_test_root/'downloads')), \
+             patch('huggingface_hub.snapshot_download', download), \
+             patch('generators.sound_effects.runtime.require_effects_cuda', return_value=torch), \
+             patch('generators.sound_effects.runtime.prepare_effects_model', side_effect=prepare), \
+             patch('sys.stdout', new_callable=io.StringIO) as output, patch('sys.stderr', new_callable=io.StringIO):
+            execute_music_worker('sfx-dasheng-audiogen', job_root)
+        self.assertIn('backup-verification model=dasheng-audiogen phase=스냅샷 해시 확인 path=config.json bytes=10/20', output.getvalue())
+        self.assertEqual(calls, [True])
+        self.assertEqual(json.loads((job_root/'status.json').read_text())['status'], 'completed')
+        attempt = next((job_root/'attempts').iterdir())
+        self.assertTrue(json.loads((attempt/'backup-verification.json').read_text())['matches'])
+
     def test_independent_components_keep_receipt_paths_and_reject_conflicts(self):
         from generators.sound_effects.runtime import resolve_effects_component, resolve_effects_file
         from workflow.common.audio_model_download import resolve_audio_receipt_file

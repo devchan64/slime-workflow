@@ -101,6 +101,21 @@ class OfflineSnapshotRestoreTests(unittest.TestCase):
         self.assertFalse(self.model.exists())
         self.assertFalse((self.root/'escape').exists())
 
+    def test_rejects_unknown_or_missing_manifest_version_without_publishing(self):
+        manifest = self.backup/'.model-backup-snapshots/example'/('a'*32)/'.snapshot.json'
+        original = json.loads(manifest.read_text())
+        for version in (None, 2, True, '1'):
+            with self.subTest(version=version):
+                record = dict(original)
+                if version is None:
+                    record.pop('version')
+                else:
+                    record['version'] = version
+                manifest.write_text(json.dumps(record))
+                with self.assertRaises(ValueError):
+                    restore_snapshot_offline('example', snapshot_id='a'*32, roots=self.roots)
+                self.assertFalse(self.model.exists())
+
     def test_rejects_snapshot_symlink(self):
         weights = self.backup/'.model-backup-snapshots/example'/('a'*32)/'weights.bin'
         weights.unlink()

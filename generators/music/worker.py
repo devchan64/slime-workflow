@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import signal
 import sys
+import time
 import traceback
 import uuid
 
@@ -81,6 +82,19 @@ def execute_music_worker(current_service_name,current_job_root):
     try:
         current_request_record = verify_music_request(current_service_name,read_music_record(current_job_root/'request.json'))
         write_record_atomically(current_attempt_root/'request.json',current_request_record)
+        if current_request_record.get('offline_backup') is True:
+            from workflow.common.model_offline_audio_check import check_restored_audio
+            current_metrics_recorder.update_generation_stage('backup-verification')
+            current_last_report = [0.0, None]
+            def report_backup_progress(model, phase, path, done, total):
+                now = time.monotonic()
+                if (model, phase) != current_last_report[1] or now - current_last_report[0] >= 5:
+                    print(f'backup-verification model={model} phase={phase} path={path} bytes={done}/{total}', flush=True)
+                    current_last_report[:] = [now, (model, phase)]
+            current_backup_check = check_restored_audio(current_service_name, progress=report_backup_progress)
+            write_record_atomically(current_attempt_root/'backup-verification.json',current_backup_check)
+            if current_backup_check['matches'] is not True:
+                raise ValueError('백업 스냅샷과 로컬 구성 요소의 SHA-256 검증에 실패했습니다.')
         current_torch_module = current_cuda_callback()
         if current_service_name == 'music-heartmula':
             current_allocator_probe = current_torch_module.empty(1, device='cuda')
@@ -100,7 +114,14 @@ def execute_music_worker(current_service_name,current_job_root):
         if current_service_name == 'sfx-dasheng-audiogen' and current_request_record['action'] == 'prepare':
             from generators.sound_effects.prepare_record_guard import guarded_refresh
             current_model_root = resolve_music_paths(current_service_name)[1]
-            current_prepared_record = guarded_refresh(current_model_root, lambda: current_prepare_callback(current_service_name,current_metrics_recorder,True))
+            if current_request_record.get('offline_backup') is True:
+                from workflow.common.model_huggingface_download import local_only_huggingface_downloads
+                os.environ['HF_HUB_OFFLINE'] = '1'
+                os.environ['TRANSFORMERS_OFFLINE'] = '1'
+                with local_only_huggingface_downloads():
+                    current_prepared_record = guarded_refresh(current_model_root, lambda: current_prepare_callback(current_service_name,current_metrics_recorder,True))
+            else:
+                current_prepared_record = guarded_refresh(current_model_root, lambda: current_prepare_callback(current_service_name,current_metrics_recorder,True))
         else:
             current_prepared_record = current_prepare_callback(current_service_name,current_metrics_recorder,current_request_record['action']=='prepare')
         write_record_atomically(current_attempt_root/'model-manifest.json',current_prepared_record)

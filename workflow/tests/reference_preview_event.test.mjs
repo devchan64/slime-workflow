@@ -62,7 +62,7 @@ test('검증 중 입력이 잠기면 나중에 잠금이 풀려도 이전 선택
  let resolve,applied=0,checking=false;
  const context=vm.createContext({disabledRef:{current:false},disabled:true,requestRef:{current:0},restorePasteFocus:{current:true},restoreFileFocus:{current:true},
   onSelectionStart:()=>{},referenceImageError:()=>'',accept:'image/png',maxBytes:null,document:{activeElement:null},input:{current:{}},
-  setError:()=>{},updateChecking:value=>checking=value,verifyImage:()=>new Promise(done=>resolve=done),validate:null,onChange:()=>applied++,useEffect:fn=>fn()});
+  setError:()=>{},updateChecking:value=>checking=value,verifyReferenceImage:()=>new Promise(done=>resolve=done),validate:null,onChange:()=>applied++,useEffect:fn=>fn()});
  vm.runInContext(select,context);
  const pending=context.select({name:'image.png'});assert.equal(checking,true);
  context.disabledRef.current=true;vm.runInContext(lock,context);assert.equal(checking,false);

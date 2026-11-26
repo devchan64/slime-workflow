@@ -3,14 +3,30 @@ import inspect
 import logging
 import threading
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from tqdm.auto import tqdm
 from workflow.common.model_download_records import track_model_download
 from workflow.common.model_huggingface_recovery import ModelRecoveryError
+
+_LOCAL_ONLY = ContextVar('model_download_local_only', default=False)
+
+
+@contextmanager
+def local_only_huggingface_downloads():
+    """Require Hub calls through this wrapper to use local files only."""
+    token = _LOCAL_ONLY.set(True)
+    try:
+        yield
+    finally:
+        _LOCAL_ONLY.reset(token)
 
 
 def execute_huggingface_download(current_function_name, current_argument_values, current_keyword_values):
     from huggingface_hub import hf_hub_download, snapshot_download
     current_keyword_values = dict(current_keyword_values)
+    if _LOCAL_ONLY.get():
+        current_keyword_values['local_files_only'] = True
     backup_local_root = current_keyword_values.pop('backup_local_dir', None)
     current_download_function = {'file': hf_hub_download, 'snapshot': snapshot_download}[current_function_name]
     current_repo_name = current_keyword_values.get('repo_id', current_argument_values[0] if current_argument_values else '')
