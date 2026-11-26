@@ -5,6 +5,7 @@ import GeneratorJobControls from "./GeneratorJobControls.jsx";
 import {JobPriority} from "./QueuePriority.jsx";
 import {useLiveRefresh} from "./LiveRefresh.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
+import {requestErrorMessage} from "./requestError.mjs";
 
 const terminalStates=new Set(["completed","failed","cancelled","paused"]);
 function statusCommand(service) {
@@ -73,7 +74,7 @@ function SelectedHistoryDeletionForJob({service,id,onDeleted,allowPriority=false
       if (!validCleanupResult(result,true))
         throw new Error("삭제 응답을 확인할 수 없습니다.");
       onDeleted(id,formatCleanupResult(result));
-    } catch(problem){setState(null);setError((problem?.message || "요청 결과를 확인할 수 없습니다.")+(deleteStarted ? " · 삭제 결과가 불확실하면 이력을 다시 조회하세요." : " · 삭제 요청은 전송하지 않았습니다."));setReview(false);setAck(false);}
+    } catch(problem){setState(null);setError((problem?.message ? requestErrorMessage(problem) : "요청 결과를 확인할 수 없습니다.")+(deleteStarted ? " · 삭제 결과가 불확실하면 이력을 다시 조회하세요." : " · 삭제 요청은 전송하지 않았습니다."));setReview(false);setAck(false);}
     finally{setBusy(false);}
   }
   return <section className="history-selected-actions" aria-label="선택 작업 관리">

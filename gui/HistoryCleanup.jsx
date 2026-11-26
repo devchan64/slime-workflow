@@ -2,21 +2,23 @@ import React, {useEffect,useId,useRef,useState} from "react";
 import {formatCleanupResult,validCleanupResult} from "./formatCleanupResult.mjs";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
+import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 
 export default function HistoryCleanup({service,job,state,onDeleted,allowSelected=true}) {
   const [review,setReview]=useState(null),[ack,setAck]=useState(false);
   const [busy,setBusy]=useState(false),[notice,setNotice]=useState("");
   const helpId=useId();
   const previewRequest=useRef(null),operationPending=useRef(false);
-  const reviewRef=useRef(null),reviewOrigin=useRef(null);
+  const reviewRef=useRef(null),reviewOrigin=useRef(null),restoreErrorFocus=useRef(false),containerRef=useRef(null);
   useEffect(()=>()=>previewRequest.current?.abort(),[]);
   useEffect(()=>{if(review && (document.activeElement===reviewOrigin.current || document.activeElement===document.body))reviewRef.current?.focus();},[review]);
+  useEffect(()=>{if(busy || !notice || !restoreErrorFocus.current)return;restoreErrorFocus.current=false;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(reviewOrigin.current)));return ()=>cancelAnimationFrame(frame);},[busy,notice]);
   const eligible=["completed","failed","cancelled","paused"].includes(state);
   async function perform(operation) {
     if(operationPending.current)return;
-    operationPending.current=true;
+    operationPending.current=true;const focused=containerRef.current?.contains(document.activeElement);
     setBusy(true);setNotice("");
-    try {await operation();} catch(error){setNotice(requestErrorMessage(error));}
+    try {await operation();} catch(error){restoreErrorFocus.current=Boolean(focused);setNotice(requestErrorMessage(error));}
     finally{operationPending.current=false;setBusy(false);}
   }
   function reset() {setReview(null);setAck(false);}
@@ -66,7 +68,7 @@ export default function HistoryCleanup({service,job,state,onDeleted,allowSelecte
     const restore=reviewRef.current?.contains(document.activeElement);reset();
     if(restore)requestAnimationFrame(()=>{if(document.activeElement===document.body && reviewOrigin.current?.isConnected)reviewOrigin.current.focus();});
   }
-  return <details><summary>생성 이력 정리</summary>
+  return <details ref={containerRef}><summary>생성 이력 정리</summary>
     <fieldset disabled={busy}>
       {allowSelected && <button type="button" aria-describedby={!job || !eligible ? helpId : undefined} disabled={!job || !eligible} onClick={event=>{reviewOrigin.current=event.currentTarget;setAck(false);setReview({id:job});}}>선택 이력 삭제 검토</button>}
       {allowSelected && (!job || !eligible) && <p id={helpId}>{!job ? "삭제하려면 생성 이력에서 작업 결과를 조회하세요." : !state || state==="unknown" ? "삭제하려면 작업 상태를 다시 확인하세요." : state==="canceled" ? "이 취소 상태는 현재 이력 정리에서 지원하지 않아 삭제할 수 없습니다." : "종료된 작업만 삭제할 수 있습니다. 작업이 종료된 후 다시 확인하세요."}</p>}
