@@ -5,6 +5,7 @@ import {generationReady} from "./generationReady.mjs";
 import {useVideoDelegationReceipt} from "./useVideoDelegationReceipt.js";
 import {validVideoJobId} from "./videoJobId.mjs";
 import {videoData} from "./videoInputs.js";
+import {validRef2vaVideoFile} from "./ref2vaVideoFile.mjs";
 import {requestErrorMessage} from "./requestError.mjs";
 import GeneratorPageIdentity from "./GeneratorPageIdentity.jsx";
 import GeneratorUsage from "./GeneratorUsage.jsx";
@@ -28,10 +29,10 @@ import SavedGeneratorInputs from "./SavedGeneratorInputs.jsx";
 
 const service="minimax-h3-ref2va";
 export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSession=""}={}){
-  const inputLockId=useId();
+  const inputLockId=useId(),videoHelpId=useId(),videoErrorId=useId();
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [prompt,setPrompt]=useState(""),[seed,setSeed]=useState(45),[file,setFile]=useState(null);
-  const [model,setModel]=useState(null),[modelError,setModelError]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState("");
+  const [model,setModel]=useState(null),[modelError,setModelError]=useState(""),[fileError,setFileError]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [pending,setPending]=useState(null),[busy,setBusy]=useState(false),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || ""),[revision,setRevision]=useState(0);
   const interactionRef=useRef({busy,pending});interactionRef.current={busy,pending};
   const [proposalScope,setProposalScope]=useState(null);
@@ -46,18 +47,20 @@ export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSess
   }catch(problem){if(active)setError('대화 제안을 확인할 수 없습니다. '+requestErrorMessage(problem));}})();return()=>{active=false;};},[session]);
   useEffect(()=>{if(receipt.state==='accepted' && receipt.job)setJob(receipt.job);},[receipt.state,receipt.job]);
   useEffect(()=>{if(pending){if(document.activeElement===document.body || document.activeElement===reviewOrigin.current)reviewRef.current?.focus();reviewOrigin.current=null;}},[pending]);
+  useEffect(()=>{if(busy || pending || !error || !reviewOrigin.current)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(origin)));return ()=>cancelAnimationFrame(frame);},[busy,pending,error]);
   const invalidSeed=!Number.isInteger(seed) || seed<0 || seed>2147483647;
   const needsProposal=new URLSearchParams(location.search).has('proposal_job');
   const reasons=[!generationReady(model) && '모델 준비 상태를 확인하세요.',needsProposal && (!proposalScope || receipt.state!=='editing') && '대화 제안의 접수 상태를 확인하세요.',!file && '원본 MP4를 선택하세요.',!prompt.trim() && '편집 프롬프트를 입력하세요.',invalidSeed && '시드는 0~2147483647의 정수여야 합니다.'];
   function choose(event){
     const chosen=event.target.files?.[0];event.target.value="";if(!chosen)return;
     setNotice('');
-    if(chosen.size>27*1024*1024 || (chosen.type && chosen.type!=="video/mp4")){setError('27MiB 이하 MP4를 선택하세요.'+(file ? ' 이전에 선택한 영상은 유지됩니다.' : ''));return;}
-    editVersion.current++;setFile(chosen);setError("");
+    if(!validRef2vaVideoFile(chosen)){setFileError('비어 있지 않은 27MiB 이하 MP4를 선택하세요.'+(file ? ' 이전에 선택한 영상은 유지됩니다.' : ''));return;}
+    editVersion.current++;setFile(chosen);setFileError("");setError("");
   }
-  function removeVideo(){
-    editVersion.current++;setFile(null);setError('');setNotice('원본 영상을 제거했습니다.');
-    requestAnimationFrame(()=>{if(document.activeElement===document.body)videoInputRef.current?.focus();});
+  function removeVideo(event){
+    const focused=document.activeElement===event.currentTarget;
+    editVersion.current++;setFile(null);setFileError('');setError('');setNotice('원본 영상을 제거했습니다.');
+    if(focused)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(videoInputRef.current)));
   }
   async function review(event){
     event.preventDefault();if(busy || pending || activeRead.current || reasons.some(Boolean))return;
@@ -93,7 +96,7 @@ export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSess
     const version=editVersion.current,focusAtStart=document.activeElement;
     const response=await untilAborted(fetch('/management/assistant/minimax-h3-ref2va-input/'+encodeURIComponent(id),{cache:'no-store',signal}),signal);
     if(!response.ok)throw new Error('저장된 입력 또는 원본 영상 사본을 확인할 수 없습니다.');
-    const record=await untilAborted(response.json(),signal),request=record?.request;
+    let record;try{record=await untilAborted(response.json(),signal);}catch(problem){signal?.throwIfAborted();throw new Error('저장 입력 형식을 확인할 수 없습니다. 다시 조회하세요.');}const request=record?.request;
     if(record?.id!==id || !request || request.action!=='generate' || typeof request.prompt!=='string' || !request.prompt.trim() || typeof request.edit_video!=='string' || request.width!==832 || request.height!==480 || request.frames!==124 || request.steps!==8 || !Number.isInteger(request.seed) || request.seed<0 || request.seed>2147483647)throw new Error('저장 입력 형식을 확인할 수 없습니다.');
     return {...record,version,focusAtStart};
   }
@@ -101,7 +104,7 @@ export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSess
     if(busy || pending || activeRead.current || editVersion.current!==record.version)throw new Error('조회 중 입력이 바뀌어 적용하지 않았습니다. 다시 시도하세요.');
     const decoded=atob(request.edit_video),bytes=new Uint8Array(decoded.length);
     for(let index=0;index<decoded.length;index++)bytes[index]=decoded.charCodeAt(index);
-    editVersion.current++;promptEdited.current=true;setPrompt(request.prompt);setSeed(request.seed);setFile(new File([bytes],'edit-video.mp4',{type:'video/mp4'}));setError('');setNotice(record.id+'의 입력을 적용했습니다.');
+    editVersion.current++;promptEdited.current=true;setPrompt(request.prompt);setSeed(request.seed);setFile(new File([bytes],'edit-video.mp4',{type:'video/mp4'}));setFileError('');setError('');setNotice(record.id+'의 입력을 적용했습니다.');
     if(inputRef.current)inputRef.current.open=true;
     const appliedVersion=editVersion.current;requestAnimationFrame(()=>{if(editVersion.current===appliedVersion && !activeRead.current && !interactionRef.current.busy && !interactionRef.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && formRef.current?.isConnected)formRef.current.focus();});
   }
@@ -113,10 +116,11 @@ export default function MiniMaxH3Ref2VAPage({embedded=false,session:embeddedSess
     <GeneratorSectionCard title="모델 준비" summary={modelError ? '상태 조회 실패' : !model ? '상태 확인 중' : generationReady(model) ? '준비 완료' : '준비 필요'}><ModelReadiness service={service} session={session} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={revision+':'+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <GeneratorSectionCard title="편집 입력" summary="원본 영상과 편집 지시" defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}>
+    <GeneratorSectionCard title="편집 입력" summary={fileError ? "원본 영상 확인 실패" : "원본 영상과 편집 지시"} defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}>
       <legend className="generator-visually-hidden">영상 편집 입력</legend>
-      <label>원본 MP4<input ref={videoInputRef} type="file" accept="video/mp4" onChange={choose}/></label>
-      <p>{'832×480 · 24fps · 정확히 124프레임 · 최대 27MiB'+(file ? ' · 선택: '+file.name : '')+'. 입력 조건은 접수 시 검증합니다.'}</p>
+      <label>원본 MP4<input ref={videoInputRef} type="file" accept="video/mp4" aria-invalid={Boolean(fileError)} aria-describedby={[videoHelpId,fileError && videoErrorId].filter(Boolean).join(" ")} onChange={choose}/></label>
+      <p id={videoHelpId}>{'832×480 · 24fps · 정확히 124프레임 · 최대 27MiB'+(file ? ' · 선택: '+file.name : '')+'. 입력 조건은 접수 시 검증합니다.'}</p>
+      {fileError && <p id={videoErrorId} role="alert">{fileError}</p>}
       {file && <button type="button" onClick={removeVideo}>원본 영상 제거</button>}
       <InputVideoPreview file={file} label="원본 영상"/>
       <label>편집 프롬프트<textarea required maxLength={8000} value={prompt} onChange={event=>{editVersion.current++;promptEdited.current=true;setPrompt(event.target.value);}}/></label><PromptWordCount text={prompt} final/>
