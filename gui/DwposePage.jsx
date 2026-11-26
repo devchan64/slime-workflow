@@ -125,7 +125,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     finally{setPending(null);handoff.clearReview();sending.current=false;setBusy(false);}
   }
   return <article className={embedded ? "dwpose-page generator-page-common" : "dwpose-page dwpose-standalone generator-page-common"}>
-    <GeneratorPageIdentity service="dwpose" embedded={embedded} showReturn returnHref={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")} returnLabel="헤르메스 대화" changelogCard/>
+    <GeneratorPageIdentity service="dwpose" embedded={embedded} returnHref={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")} returnLabel="헤르메스 대화" changelogCard/>
     <GeneratorSectionCard title="사용설명" summary="사용 방법과 제한 사항"><p>832×480 PNG를 선택하고 필요한 손·얼굴 상세 옵션을 확인하세요.</p><p>모델 준비를 확인하고 추출 요청을 검토한 뒤 접수하세요. 진행 상태와 결과는 생성 이력에서 확인할 수 있습니다.</p></GeneratorSectionCard>
     <GeneratorSectionNavigation inputRef={formRegion} historyRef={historyRegion} resultRef={resultRegion} resultReady={Boolean(job)} openOnNavigate/>
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service="dwpose" onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
