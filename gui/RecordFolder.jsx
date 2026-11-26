@@ -24,7 +24,7 @@ function RecordFolderForJob({service,id,direct=false}) {
     copySequence.current++;
     setBusy(true);setNotice("");setNoticeError(false);
     try {
-      const result=await untilAborted((async()=>{const response=await fetch("/management/record-folder/"+action,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service,id}),signal:controller.signal});const data=await response.json();if(!response.ok || typeof data?.path!=="string" || !data.path || (data.message!=null && typeof data.message!=="string"))throw new Error(typeof data?.error==="string" ? data.error : "기록 폴더를 확인할 수 없습니다.");return data;})(),controller.signal);
+      const result=await untilAborted((async()=>{const response=await fetch("/management/record-folder/"+action,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service,id}),signal:controller.signal});let data;try{data=await response.json();}catch(problem){controller.signal.throwIfAborted();throw new Error("기록 폴더 응답을 확인할 수 없습니다. 다시 확인하세요.");}if(!response.ok || typeof data?.path!=="string" || !data.path || (data.message!=null && typeof data.message!=="string"))throw new Error(typeof data?.error==="string" ? data.error : "기록 폴더를 확인할 수 없습니다.");return data;})(),controller.signal);
       if(controller.signal.aborted || pending.current!==controller)return;
       setPath(result.path);setStale(false);setNotice(result.message || "");
     } catch(problem) {if(pending.current===controller && (!controller.signal.aborted || timedOut)){if(path)setStale(true);setNoticeError(true);setNotice(action==="open" ? "폴더 열기 결과를 확인하지 못했습니다. 이미 열렸는지 확인하세요."+(timedOut ? "" : " "+requestErrorMessage(problem)) : timedOut ? "폴더 경로 조회 시간이 초과됐습니다. 다시 확인하세요." : requestErrorMessage(problem));}}

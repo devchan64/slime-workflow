@@ -25,6 +25,11 @@ test('폴더 조회 실패는 오류 상태로 알리고 정상 재조회는 해
  vm.runInContext(code,context);await context.request('inspect');assert.equal(isError,true);assert.match(notice,/조회 실패/);
  ok=true;await context.request('inspect');assert.equal(isError,false);assert.equal(notice,'');
 });
+test('잘못된 폴더 응답은 재확인을 안내하고 이전 경로를 유지한다',async()=>{
+ let notice='',stale=false,changed=false;
+ const context=vm.createContext({AbortController,untilAborted,document:{activeElement:null},pending:{current:null},copySequence:{current:0},service:'service',id:'job',path:'/old',setTimeout:()=>1,clearTimeout:()=>{},setBusy:()=>{},setNoticeError:()=>{},setNotice:value=>notice=value,setPath:()=>changed=true,setStale:value=>stale=value,requestErrorMessage:e=>e.message,requestAnimationFrame:()=>{},fetch:async()=>({ok:true,json:async()=>{throw new SyntaxError('Unexpected token');}})});
+ vm.runInContext(code,context);await context.request('inspect');assert.match(notice,/폴더 응답을 확인할 수 없습니다/);assert.equal(stale,true);assert.equal(changed,false);
+});
 test('경로 복사 실패는 수동 선택을 안내하고 성공 시 오류 상태를 해제한다',async()=>{
  const copy=source.slice(source.indexOf('  async function copy()'),source.indexOf('  const openButton='));
  for(const fail of [true,false]){
