@@ -10,23 +10,25 @@ import GeneratorSectionNavigation,{openGeneratorHistory} from "./GeneratorSectio
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import GeneratorUsage from "./GeneratorUsage.jsx";
 import HistoryCleanup from "./HistoryCleanup.jsx";
+import {untilAborted} from "./managementCommand.js";
 
 const service="wan22-animate2";
-async function readJob(id){
+async function readJob(id,{signal}={}){
   const prefix="/management/assistant/animate-input/"+encodeURIComponent(id);
   const controller=new AbortController();let timedOut=false;
+  const cancel=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener("abort",cancel,{once:true});
   const timer=setTimeout(()=>{timedOut=true;controller.abort();},30000);
   try{
-    const response=await fetch(prefix+"/request",{cache:"no-store",signal:controller.signal});
+    const response=await untilAborted(fetch(prefix+"/request",{cache:"no-store",signal:controller.signal}),controller.signal);
     if(!response.ok)throw new Error("저장된 입력을 확인할 수 없습니다.");
     let record;
-    try{record=await response.json();}catch{throw new Error("저장된 입력 형식을 확인할 수 없습니다.");}
+    try{record=await untilAborted(response.json(),controller.signal);}catch(problem){if(controller.signal.aborted)throw problem;throw new Error("저장된 입력 형식을 확인할 수 없습니다.");}
     if(!record || record.id!==id || !record.request || typeof record.request.prompt!=="string" ||
       ![record.request.frames,record.request.steps,record.request.seed].every(Number.isInteger) || !['none','lightx2v'].includes(record.request.lora_mode ?? 'none') ||
       record.reference!==prefix+"/reference" || record.motion!==prefix+"/motion")throw new Error("저장된 입력 형식을 확인할 수 없습니다.");
     return record;
   }catch(problem){if(timedOut)throw new Error("저장된 입력 조회 시간이 초과됐습니다.");throw problem;}
-  finally{clearTimeout(timer);}
+  finally{clearTimeout(timer);signal?.removeEventListener("abort",cancel);}
 }
 export default function AnimatePage({embedded=false,session:embeddedSession=""}={}){
   const query=new URLSearchParams(location.search);
@@ -40,9 +42,9 @@ export default function AnimatePage({embedded=false,session:embeddedSession=""}=
   const historyRef=useRef(null);
   const resultRef=useRef(null);
   const inputRevision=useRef(0),attachmentChecking=useRef(false);
-  async function readHistory(id){
+  async function readHistory(id,{signal}={}){
     const revisionAtStart=inputRevision.current,checkingAtStart=attachmentChecking.current,focusAtStart=document.activeElement;
-    return {...await readJob(id),revisionAtStart,checkingAtStart,focusAtStart};
+    return {...await readJob(id,{signal}),revisionAtStart,checkingAtStart,focusAtStart};
   }
   const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
@@ -60,10 +62,10 @@ export default function AnimatePage({embedded=false,session:embeddedSession=""}=
     <GeneratorSectionCard title="생성 입력" summary="참조 이미지와 동작 영상 · 16fps" defaultOpen>
       <section ref={inputRef} tabIndex={-1} aria-label="동작 전사 입력" onChangeCapture={()=>{inputRevision.current++;}}><AnimateInputs saved={saved} onSelectionStart={()=>{inputRevision.current++;}} onJob={openResult} session={session} model={model} loraModel={loraModel} onInteractionChange={setInteracting} onAttachmentCheckingChange={value=>{attachmentChecking.current=value;}}/></section>
     </GeneratorSectionCard>
-    <fieldset ref={historyRef} disabled={interacting} aria-label="생성 이력" aria-describedby={interacting ? historyLockId : undefined}><GeneratorHistory card allowPriority onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} service={service} readJob={readHistory}
+    <fieldset ref={historyRef} disabled={interacting} aria-label="생성 이력" aria-describedby={interacting ? historyLockId : undefined}><GeneratorHistory card allowPriority toggleResult onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} openResult={openResult} resultId={job} onCloseResult={()=>setJob("")} service={service} readJobWithSignal={readHistory}
       restore={(request,record)=>{if(record.checkingAtStart || attachmentChecking.current || record.revisionAtStart!==inputRevision.current)throw new Error("첨부 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");setSaved(record);const card=inputRef.current?.closest("details");if(card)card.open=true;requestAnimationFrame(()=>{if(document.activeElement===document.body || document.activeElement===record.focusAtStart)inputRef.current?.focus();});}}
       footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}
-      renderResult={(id,close)=><section ref={resultRef} tabIndex={-1} aria-label="선택한 Animate-2 작업 결과"><button type="button" onClick={close}>결과 닫기</button><GeneratorJobResult selectionControls job={id} service={service} readJob={readJob} controls={false} onDeleted={cleaned}/></section>}/></fieldset>
+      renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 Animate-2 작업 결과"><GeneratorJobResult selectionControls job={id} service={service} readJobWithSignal={readJob} controls={false} onDeleted={cleaned}/></section>}/></fieldset>
     {interacting && <p id={historyLockId} role="status">요청 처리를 마치거나 생성 요청 검토를 취소하면 이력을 사용할 수 있습니다.</p>}
     {notice && <p role="status">{notice}</p>}
   </article>;

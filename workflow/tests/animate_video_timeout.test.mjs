@@ -5,6 +5,27 @@ import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
 import {generationReady} from '../../gui/generationReady.mjs';
 
+test('Animate 저장 입력 조회는 이력의 취소 신호를 전달한다',async()=>{
+ const source=readFileSync(new URL('../../gui/AnimatePage.jsx',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('async function readJob('),source.indexOf('export default function AnimatePage'));
+ let received;const controller=new AbortController();
+ const context=vm.createContext({AbortController,DOMException,untilAborted,setTimeout,clearTimeout,fetch:(_url,{signal})=>{received=signal;return new Promise((resolve,reject)=>{if(signal.aborted)reject(new DOMException('취소','AbortError'));else signal.addEventListener('abort',()=>reject(new DOMException('취소','AbortError')),{once:true});});}});
+ vm.runInContext(method+'\nthis.readJob=readJob;',context);
+ const pending=context.readJob('job',{signal:controller.signal});controller.abort();
+ await assert.rejects(pending,{name:'AbortError'});assert.equal(received.aborted,true);
+});
+
+test('Animate 저장 입력 조회는 요청이나 본문 읽기가 멈춰도 시간 초과된다',async()=>{
+ const source=readFileSync(new URL('../../gui/AnimatePage.jsx',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('async function readJob('),source.indexOf('export default function AnimatePage'));
+ for(const stage of ['request','body']){
+  let timeout;const never=new Promise(()=>{});
+  const context=vm.createContext({AbortController,DOMException,untilAborted,setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},fetch:()=>stage==='request'?never:Promise.resolve({ok:true,json:()=>never})});
+  vm.runInContext(method+'\nthis.readJob=readJob;',context);const pending=context.readJob('job');await new Promise(resolve=>setImmediate(resolve));timeout();
+  await assert.rejects(pending,/저장된 입력 조회 시간이 초과/);
+ }
+});
+
 test('열린 검토는 모델 재조회 중 생성 요청을 보내지 않는다',async()=>{
  const source=readFileSync(new URL('../../gui/AnimateInputs.jsx',import.meta.url),'utf8');
  const start=source.indexOf('  async function submit(){');
