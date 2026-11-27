@@ -71,8 +71,12 @@ def execute(job,attempt,request,metrics):
    setattr(parent,leaf,LoRALinear(old,a.clone().to('cuda'),b.clone().to('cuda'),alpha/a.shape[0]))
  pipe.update_components(transformer=model)
  write_record_atomically(attempt/'runtime-environment.json',{'backend':'Hugging Face Diffusers','diffusers':diffusers.__version__,'torch':str(torch.__version__),'hip':torch.version.hip,'gpu':torch.cuda.get_device_name(0),'transformer':'FP8 storage / BF16 GPU compute','text_encoder':'INT8 ConvRot','turbo_lora_applied':len(names),'turbo_alpha':alpha,'turbo_rank':128,'unsloth_revision':'e9e031d2fabec27d62269623737fbc0ba611862c','offloading':False,'experimental_resolution':True})
- with Image.open(job/'reference-1.png') as im:
-  im=im.convert('RGB');im.thumbnail((request['width'],request['height']),Image.Resampling.LANCZOS);image=Image.new('RGB',(request['width'],request['height']),'white');image.paste(im,((image.width-im.width)//2,(image.height-im.height)//2))
+ mode=request.get('mode','first')
+ def load_reference(index):
+  with Image.open(job/f'reference-{index}.png') as im:
+   im=im.convert('RGB');im.thumbnail((request['width'],request['height']),Image.Resampling.LANCZOS);out=Image.new('RGB',(request['width'],request['height']),'white');out.paste(im,((out.width-im.width)//2,(out.height-im.height)//2));return out
+ image=load_reference(1) if mode in ('first','first_last') else None
+ last_image=load_reference(2 if mode=='first_last' else 1) if mode in ('last','first_last') else None
  metrics.update_generation_stage('inference')
  step=[0]
  def check_output(_module,_args,output):
@@ -83,7 +87,7 @@ def execute(job,attempt,request,metrics):
   check(output);step[0]+=1;metrics.record_generation_step(step[0])
  hook=model.register_forward_hook(check_output)
  with torch.no_grad():
-  result=pipe(prompt=request['prompt'],image=image,width=request['width'],height=request['height'],num_frames=request['frames'],num_inference_steps=request['steps']+1,generator=torch.Generator(device='cpu').manual_seed(request['seed']),output_type='np',output=['videos','audio','sampling_rate'])
+  result=pipe(prompt=request['prompt'],image=image,last_image=last_image,width=request['width'],height=request['height'],num_frames=request['frames'],num_inference_steps=request['steps']+1,generator=torch.Generator(device='cpu').manual_seed(request['seed']),output_type='np',output=['videos','audio','sampling_rate'])
  hook.remove()
  videos=result['videos'];frames=np.asarray(videos[0])
  if not np.isfinite(frames).all():raise ValueError('영상에 비유한 값이 있습니다.')

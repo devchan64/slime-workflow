@@ -40,18 +40,22 @@ def inspect_runtime():
 
 
 def validate_request(request):
-    if not isinstance(request,dict) or set(request)!={'action','prompt','images','width','height','frames','steps','seed'} or request.get('action')!='generate':
+    if not isinstance(request,dict) or set(request) not in ({'action','prompt','images','width','height','frames','steps','seed'}, {'action','prompt','images','width','height','frames','steps','seed','mode'}) or request.get('action')!='generate':
         raise ValueError('MiniMax H3 요청 필드가 올바르지 않습니다.')
     if not isinstance(request['prompt'],str) or not request['prompt'].strip() or len(request['prompt'])>8000:
         raise ValueError('동작 프롬프트를 1~8000자로 입력하세요.')
     if (type(request['width']) is not int or type(request['height']) is not int
             or (request['width'],request['height']) not in {(832,480),(768,448)}
-            or any(type(request[k]) is not int or request[k]!=v for k,v in {'frames':124,'steps':8}.items())):
-        raise ValueError('832×480 또는 기존 768×448, 124프레임 · 8스텝 설정을 사용하세요.')
+            or type(request['frames']) is not int or request['frames'] not in range(124, 346, 17)
+            or type(request['steps']) is not int or request['steps'] != 8):
+        raise ValueError('832×480 또는 기존 768×448, 124~345프레임(17프레임 간격) · 8스텝 설정을 사용하세요.')
     if type(request['seed']) is not int or not 0<=request['seed']<=2147483647:
         raise ValueError('시드는 0~2147483647의 정수여야 합니다.')
-    if not isinstance(request['images'],list) or len(request['images'])!=1:
-        raise ValueError('첫 프레임 이미지 한 장이 필요합니다.')
-    with Image.open(io.BytesIO(decode_reference_image(request['images'][0]))) as image:
-        if image.size!=(832,480): raise ValueError('첫 프레임 이미지를 다시 선택하세요.')
+    mode=request.get('mode','first')
+    counts={'text':0,'first':1,'last':1,'first_last':2}
+    if mode not in counts or not isinstance(request['images'],list) or len(request['images'])!=counts[mode]:
+        raise ValueError('생성 모드에 맞는 참조 이미지 수를 확인하세요.')
+    for encoded in request['images']:
+        with Image.open(io.BytesIO(decode_reference_image(encoded))) as image:
+            if image.size!=(832,480): raise ValueError('참조 이미지는 832×480이어야 합니다.')
     return {**request,'prompt':request['prompt'].strip(),'tag':'minimax-h3-i2v'}

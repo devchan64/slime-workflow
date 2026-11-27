@@ -42,6 +42,32 @@ class MiniMaxH3GeneratorTests(unittest.TestCase):
         with self.assertRaises(ValueError):validate_request({**self.request,'images':[png(640,480)]})
         with self.assertRaises(ValueError):validate_request({**self.request,'prompt':'  '})
 
+    def test_modes_and_frame_lengths(self):
+        for mode,images in [('text',[]),('first',[png()]),('last',[png()]),('first_last',[png(),png()])]:
+            with self.subTest(mode=mode):
+                request={**self.request,'mode':mode,'images':images,'frames':192}
+                self.assertEqual(validate_request(request)['mode'],mode)
+                with self.assertRaises(ValueError):
+                    validate_request({**request,'images':images+[png()]})
+        for frames in (123,125,346,362,True):
+            with self.subTest(frames=frames), self.assertRaises(ValueError):
+                validate_request({**self.request,'frames':frames})
+
+    def test_saved_inputs_roundtrip_new_modes_and_legacy(self):
+        import tempfile
+        from pathlib import Path
+        from workflow.domains.image.three_reference_generation import save_three_reference_inputs
+        from workflow.domains.minimax_h3.input_restore import load_saved_input
+        import json
+        for mode,images in [(None,[png()]),('text',[]),('last',[png()]),('first_last',[png(),png()])]:
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as tmp:
+                job='2026-11-27_11-07-54-bd6804c6'; path=Path(tmp)/job; path.mkdir()
+                request={**self.request,'images':images,'prompt':self.request['prompt'].strip()}
+                if mode: request['mode']=mode
+                saved=save_three_reference_inputs(path,validate_request(request))
+                (path/'request.json').write_text(json.dumps(saved))
+                self.assertEqual(load_saved_input(Path(tmp),job)['request'],request)
+
     def test_registered_commands_source_and_gpu_reservation(self):
         self.assertEqual(MANAGEMENT_SERVICE_ROUTES['minimax-h3-i2v'],'/minimax-h3-i2v')
         self.assertTrue({'generate','status','history-observe','prioritize','cancel','history-delete','history-reset','model-status'} <= set(MANAGEMENT_SERVICE_COMMANDS['minimax-h3-i2v']))

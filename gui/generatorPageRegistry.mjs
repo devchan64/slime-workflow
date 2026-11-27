@@ -5,7 +5,7 @@ export const generatorPages=Object.freeze({
   'wan22-vace':Object.freeze({title:'Wan VACE 영상 생성',changelog:'wan22-vace-generator'}),
   'wan22-fun-control':Object.freeze({title:'Wan Fun Control 영상 생성',changelog:'wan22-fun-control-generator'}),
   'wan22-animate2':Object.freeze({title:'Wan Animate-2 캐릭터 동작 전사',changelog:'wan22-animate2-generator'}),
-  'minimax-h3-i2v':Object.freeze({title:'MiniMax H3 I2V 영상 생성',changelog:'minimax-h3-i2v-generator'}),
+  'minimax-h3-i2v':Object.freeze({title:'MiniMax H3 FL2VA 영상 생성 · 첫 프레임 모드',changelog:'minimax-h3-i2v-generator'}),
   'minimax-h3-ref2va':Object.freeze({title:'MiniMax H3 영상 편집',changelog:'minimax-h3-ref2va-generator'}),
   'minimax-h3-building':Object.freeze({title:'MiniMax H3 건물 이미지 생성',changelog:'minimax-h3-building-generator'}),
   'minimax-h3-image':Object.freeze({title:'MiniMax H3 이미지 생성',changelog:'minimax-h3-image-generator'}),
