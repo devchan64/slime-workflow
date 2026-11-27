@@ -8,6 +8,7 @@ import ConversationLink from "./ConversationLink.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import ResultTable from "./ResultTable.jsx";
+import CardGallery from "./CardGallery.jsx";
 import {validBillboardCatalogPage,billboardCategoryLabel} from "./billboardCatalogPage.mjs";
 import {restoreLostFocus} from "./restoreLostFocus.mjs";
 
@@ -62,6 +63,13 @@ export default function BillboardCatalog({choose}){
   const resultsStale=!!page && displayedRequest!==request;
   const filtersChanged=query!==(request.query || "") || category!==(request.category || "");
   const pageReason=loading ? "조회가 끝나면 페이지를 이동할 수 있습니다." : resultsStale ? "목록을 다시 검색한 뒤 페이지를 이동하세요." : filtersChanged ? "변경된 검색 조건으로 검색한 뒤 페이지를 이동하세요." : "";
+  const emptyResults=loading || resultsStale || filtersChanged ? "이전 조회에서 표시할 빌보드가 없었습니다." : page?.total ? "현재 페이지에 표시할 빌보드가 없습니다. 이전 페이지를 확인하세요." : "조회한 조건에 맞는 빌보드가 없습니다.";
+  function selectAsset(id,event){
+    const asset=page.items.find(item=>item.id===id);
+    if(!asset)return;
+    focusEpoch.current++;triggerRef.current=event.currentTarget;
+    if(selected?.id===id)detailRef.current?.focus();else select(asset);
+  }
   const DetailHeading=choose ? "h3" : "h2";
   return <section className={"billboard-catalog"+(!choose ? " billboard-standalone" : "")}>{!choose && <ConversationLink/>}{choose ? <h2>공용 빌보드 에셋</h2> : <h1>공용 빌보드 에셋</h1>}
     <fieldset disabled={locked} style={{border:0,padding:0,margin:0}}><BillboardRegistration onSaved={()=>setRequest({...request,offset:0})}/></fieldset>
@@ -79,9 +87,9 @@ export default function BillboardCatalog({choose}){
     {uncertainNotices.map(warning=><div key={warning.texture+"/"+warning.requestId}><p role="alert">{warning.texture} · {warning.message}</p><button type="button" aria-label={"확인 안내 닫기 · "+warning.texture+" · 접수 "+warning.requestId} onClick={event=>{const focused=document.activeElement===event.currentTarget;setUncertainNotices(previous=>previous.filter(item=>item!==warning));if(focused)requestAnimationFrame(()=>restoreLostFocus(document,searchRef.current?.disabled ? detailRef.current : searchRef.current));}}>확인 안내 닫기</button></div>)}
     {error && <p ref={errorRef} tabIndex={-1} role="alert">{error}</p>}
     {page && pageReason && (page.offset>0 || page.next_offset!=null) && <p id={pageReasonId}>{pageReason}</p>}
-    {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><ResultTable table={{title:"검색 결과",emptyMessage:loading || resultsStale || filtersChanged ? "이전 조회에서 표시할 빌보드가 없었습니다." : page.total ? "현재 페이지에 표시할 빌보드가 없습니다. 이전 페이지를 확인하세요." : "조회한 조건에 맞는 빌보드가 없습니다.",summary:page.total+"종"+(page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""),columns:["이름","에셋 ID","분류"],
-      rows:page.items.map(asset=>[<button type="button" aria-label={asset.name+" · "+asset.id} aria-describedby={[locked && selected?.id!==asset.id && lockDescription,loading && loadingId].filter(Boolean).join(" ") || undefined} disabled={loading || (locked && selected?.id!==asset.id)} onClick={event=>{focusEpoch.current++;triggerRef.current=event.currentTarget;if(selected?.id===asset.id)detailRef.current?.focus();else select(asset);}}><img loading="lazy" decoding="async" src={imageUrl(asset.id)+"?r="+imageRevision} alt=""
-          width="64" height="64" style={{objectFit:"contain",verticalAlign:"middle"}}/> {asset.name}</button>,asset.id,billboardCategoryLabel(categories,asset.category)])}}/></div>
+    {page && <><div ref={resultsRef} tabIndex={-1} aria-label="빌보드 검색 결과"><h2>검색 결과</h2><p aria-live="polite">{page.total}종{page.items.length ? " · "+(page.offset+1)+"–"+(page.offset+page.items.length)+"번째" : ""}</p>
+      <CardGallery label="빌보드" items={page.items.map(asset=>({id:asset.id,label:asset.name,description:billboardCategoryLabel(categories,asset.category)}))} selected={selected?.id} imageUrl={item=>imageUrl(item.id)+"?r="+imageRevision} onSelect={selectAsset} external={{emptyMessage:emptyResults,disabledItem:item=>loading || (locked && selected?.id!==item.id),disabledReasonId:[locked && lockDescription,loading && loadingId].filter(Boolean).join(" ") || undefined,focusFallback:searchRef}}/>
+    </div>
       {page.offset>0 && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} aria-describedby={[lockDescription,pageReason && pageReasonId].filter(Boolean).join(" ") || undefined} onClick={event=>movePage(Math.max(0,page.offset-page.limit),event)}>이전 페이지</button>}
       {page.next_offset!=null && <button type="button" disabled={filtersChanged || resultsStale || loading || locked} aria-describedby={[lockDescription,pageReason && pageReasonId].filter(Boolean).join(" ") || undefined} onClick={event=>movePage(page.next_offset,event)}>다음 페이지</button>}</>}
     {selected && <section ref={detailRef} tabIndex={-1} aria-label="선택한 빌보드 상세"><button type="button" disabled={locked} aria-describedby={lockDescription} onClick={closeDetail}>상세 닫기</button><DetailHeading>{selected.name}</DetailHeading>

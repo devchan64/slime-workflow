@@ -27,7 +27,8 @@ import InputVideoPreview from "./InputVideoPreview.jsx";
 
 const service="minimax-h3-ref2va";
 export default function MiniMaxH3Ref2VAPage(props={}){
-  if(!props.embedded && new URLSearchParams(location.search).has('job'))return <MiniMaxVideoHistoryPage service="minimax-h3-ref2va"/>;
+  const query=new URLSearchParams(location.search);
+  if(!props.embedded && (query.has('job') || query.get('view')==='history'))return <MiniMaxVideoHistoryPage service="minimax-h3-ref2va"/>;
   return <MiniMaxH3Ref2VAPageContent {...props}/>;
 }
 

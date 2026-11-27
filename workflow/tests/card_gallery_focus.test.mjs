@@ -6,7 +6,7 @@ import {restoreLostFocus} from '../../gui/restoreLostFocus.mjs';
 
 test('페이지 경계에서 잃은 초점만 복구하고 사용자가 옮긴 초점은 유지한다',()=>{
   const source=readFileSync(new URL('../../gui/CardGallery.jsx',import.meta.url),'utf8');
-  const start=source.indexOf('  function movePage('),end=source.indexOf('\n  return <section',start);
+  const start=source.indexOf('  function movePage('),end=source.indexOf('\n  const failures=',start);
   for(const situation of ['disabled-focused','body','moved']) {
     const document={body:{},activeElement:null};
     const target={disabled:false,isConnected:true,focus(){document.activeElement=this;}};

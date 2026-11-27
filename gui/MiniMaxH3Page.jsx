@@ -25,7 +25,8 @@ import PromptWordCount from "./PromptWordCount.jsx";
 
 const service="minimax-h3-i2v";
 export default function MiniMaxH3Page(props={}){
-  if(!props.embedded && new URLSearchParams(location.search).has('job'))return <MiniMaxVideoHistoryPage service="minimax-h3-i2v"/>;
+  const query=new URLSearchParams(location.search);
+  if(!props.embedded && (query.has('job') || query.get('view')==='history'))return <MiniMaxVideoHistoryPage service="minimax-h3-i2v"/>;
   return <MiniMaxH3PageContent {...props}/>;
 }
 

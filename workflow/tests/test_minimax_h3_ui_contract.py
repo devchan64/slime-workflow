@@ -68,7 +68,7 @@ class MiniMaxH3UiContractTests(unittest.TestCase):
               const Page=require(process.argv[1]).default;
               for(const embedded of [false,true]){
                 const html=server.renderToStaticMarkup(React.createElement(Page,{embedded,session:'session-test'}));
-                for(const text of ['MiniMax H3 I2V 영상 생성','생성 입력','첫 프레임 이미지','장면·동작 프롬프트','생성 요청 검토'])
+                for(const text of ['MiniMax H3 FL2VA 영상 생성','생성 입력','첫 프레임 이미지','장면·동작 프롬프트','생성 요청 검토'])
                   if(!html.includes(text))throw Error('missing '+text+' embedded='+embedded);
                 if(html.includes('헤르메스 대화로 돌아가기')===embedded)throw Error('return link mismatch');
               }"""

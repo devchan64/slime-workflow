@@ -23,6 +23,7 @@ class SeparatedGeneratorNavigationTests(unittest.TestCase):
                     const legacy=server.renderToStaticMarkup(React.createElement(Page));
                     assert.ok(legacy.includes('aria-label="생성기 페이지 이동"'),'legacy opens standalone history');
                     assert.ok(legacy.includes('href="'+process.argv[4]+'?session=test"'),'legacy keeps its original service and session');
+                    if(process.argv[1].includes('MiniMaxH3')){global.location.search='?view=history&session=test';const view=server.renderToStaticMarkup(React.createElement(Page));assert.ok(view.includes('<span aria-current="page">생성기 생성이력</span>'),'legacy history view uses standalone history');assert.ok(!view.includes('aria-label="생성 입력"'),'legacy history view excludes generation form');}
                     const embedded=server.renderToStaticMarkup(React.createElement(Page,{embedded:true,session:'test'}));
                     assert.ok(embedded.includes('aria-label="생성기 영역 이동"'),'embedded form keeps its own navigation');"""
                     subprocess.run(['node','-e',script,str(bundle),export,other_service,form],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
