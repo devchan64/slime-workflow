@@ -28,6 +28,11 @@ class MiniMaxPolicyTests(unittest.TestCase):
         self.assertEqual(parse_hermes_video_proposal(answer)['service'], 'minimax-h3-i2v')
 
 class MiniMaxSelectionTests(unittest.TestCase):
+    def setUp(self):
+        priority_patch = patch('workflow.common.generator_availability.preferred_ready', return_value=None)
+        priority_patch.start()
+        self.addCleanup(priority_patch.stop)
+
     def test_selection_respects_policy_and_explicit_choice(self):
         from workflow.domains.hermes_agent.video_selection import select_video_proposal
         proposal = {'service':'wan22-i2v', 'mode':'first_frame', 'prompt':'walk', 'explicit_service':False}

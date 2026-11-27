@@ -1,5 +1,6 @@
 import json
 import unittest
+from unittest.mock import patch
 from workflow.domains.hermes_agent.delegation_proposal import parse_hermes_flux_proposal
 
 from workflow.domains.hermes_agent.image_selection import select_image_proposal
@@ -38,6 +39,9 @@ class ImageSelectionTests(unittest.TestCase):
             parse_hermes_image_proposal(answer('HERMES_IMAGE_PROPOSAL')+'\n'+answer('HERMES_FLUX_PROPOSAL'))
 
     def setUp(self):
+        self.priority_patch = patch('workflow.common.generator_availability.preferred_ready', return_value=None)
+        self.priority_patch.start()
+        self.addCleanup(self.priority_patch.stop)
         self.proposal = {'service':'flux-image','prompt':'a house','width':1024,'height':1024,'seed':42,'explicit_service':False}
         self.request = {'image_selection_version':1,'minimax_preferred':True,'prompt':'집 이미지 만들어줘'}
 

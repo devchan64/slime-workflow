@@ -43,4 +43,10 @@ def select_video_proposal(proposal, request):
         result['selection_reason'] = 'MiniMax 우선 정책과 첫 프레임 입력을 적용했습니다.'
     else:
         result['selection_reason'] = '요청 형식과 기존 선택을 적용했습니다.'
+    if not explicit and proposal['mode'] == 'first_frame' and service in ('wan22-i2v', 'wan22-vace', 'minimax-h3-i2v'):
+        from workflow.common.generator_availability import preferred_ready
+        selected = preferred_ready('video_first_frame', {'minimax-h3-i2v', 'wan22-i2v', 'wan22-vace'})
+        if selected:
+            result['service'] = selected
+            result['selection_reason'] = '현재 파일 상태와 생성기 우선순위를 적용했습니다. 실행 환경은 별도로 확인합니다.'
     return result

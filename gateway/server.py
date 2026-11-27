@@ -128,6 +128,8 @@ def run_management_gateway(server_port_number, writer_workspace_config=None, min
             from workflow.domains.hermes_agent.workflow_scheduler import start_gateway_workflow_scheduler
             workflow_scheduler_thread = start_gateway_workflow_scheduler(
                 WORKFLOW_ROOT_DIRECTORY, server_port_number, gateway_stop_event)
+            from workflow.common.generator_availability import start_availability_scheduler
+            availability_thread = start_availability_scheduler(gateway_stop_event)
             gateway_heartbeat_thread = threading.Thread(target=emit_gateway_heartbeat, daemon=True)
             gateway_heartbeat_thread.start()
             try:
@@ -138,6 +140,7 @@ def run_management_gateway(server_port_number, writer_workspace_config=None, min
                 gateway_stop_event.set()
                 gateway_heartbeat_thread.join(timeout=1)
                 workflow_scheduler_thread.join(timeout=2)
+                availability_thread.join(timeout=2)
     except Exception:
         emit_gateway_trace('failure', traceback.format_exc())
         print('\n'.join(gateway_log_path.read_text().splitlines()[-20:]), flush=True)

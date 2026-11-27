@@ -126,7 +126,17 @@
       ],
       "source": null,
       "revision": null,
-      "usage_note": "I2V 본체, INT8·NVFP4 텍스트 인코더, VAE 및 Turbo LoRA 파일 모음이다. INT8 인코더는 이미지·영상·Ref2VA가 공유한다. 일부 파일의 현재 소비 여부는 확인되지 않아 보존한다."
+      "usage_note": "I2V 본체, NVFP4 텍스트 인코더, VAE 및 Turbo LoRA 파일 모음이다. INT8 인코더는 별도 경로에서 이미지·영상·Ref2VA가 공유한다. 일부 파일의 현재 소비 여부는 확인되지 않아 보존한다."
+    },
+    {
+      "id": "qwen3vl-32b-minimax-h3-int8-convrot",
+      "label": "Qwen3VL 32B MiniMax H3 INT8 ConvRot",
+      "kind": "shared",
+      "path": "qwen3vl-32b-minimax-h3-int8-convrot",
+      "services": ["minimax-h3-i2v", "minimax-h3-image", "minimax-h3-ref2va"],
+      "source": null,
+      "revision": null,
+      "usage_note": "세 MiniMax 서비스가 공유하는 인코더다. 기존 I2V 상위 스냅샷에서 코드 고정 SHA-256으로 복원을 확인했으며 독립 경로의 새 백업과 구분한다."
     },
     {
       "id": "minimax-h3-image",

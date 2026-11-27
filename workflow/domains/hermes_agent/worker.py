@@ -326,6 +326,19 @@ def prepare_task_guidance(worker_job_directory, worker_workspace_path, worker_re
     guidance = ('작업 전 /workspace/AGENTS.md의 해당 규칙과 /workspace/' + str(SKILL_ROOT / 'workflow-introduction.md')
                 + '를 확인하세요. 생성기는 직접 실행하지 말고 요청에 해당하는 제안·접수 절차를 따르세요. '
                 + '작업별 지침은 /control/task-guides/에서 읽을 수 있습니다.')
+    from workflow.common.generator_availability import read_fresh_availability, read_priorities
+    try:
+        snapshot = read_fresh_availability()
+        priorities = read_priorities()
+        if snapshot is not None:
+            states = {name: entry.get('state', 'unknown') for name, entry in snapshot['services'].items() if isinstance(entry, dict)}
+            guidance += ('\n[생성기 파일 상태 관측] 시각 ' + snapshot['observed_at'] + ' · ' + json.dumps(states, ensure_ascii=False)
+                         + '\n[생성기 우선순위] ' + json.dumps(priorities, ensure_ascii=False)
+                         + '\n관측은 파일 존재·크기 기준이며 해시 검증이나 GPU 실행 성공이 아닙니다. 사용자가 지정한 생성기를 우선하며 확인되지 않은 상태는 사용 가능으로 단정하지 마세요.')
+        else:
+            guidance += '\n[생성기 파일 상태] 최신 관측이 없어 사용 가능 여부를 확인할 수 없습니다.'
+    except (OSError, ValueError, TypeError, KeyError):
+        guidance += '\n[생성기 파일 상태] 우선순위 또는 관측을 읽을 수 없어 사용 가능 여부를 확인할 수 없습니다.'
     guidance += ('\n사용자의 선택이나 추가 정보가 실제로 필요하면 답변에 질문을 설명하고, 마지막에 공통 질문 폼을 추가할 수 있습니다. '
                  '형식은 별도 줄 HERMES_QUESTION_FORM, 다음 줄 JSON 객체 '
                  '{"questions":[{"title":"질문","options":["선택지 1","선택지 2"]}]}, 마지막 줄 END_HERMES_QUESTION_FORM입니다. '

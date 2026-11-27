@@ -31,4 +31,10 @@ def select_image_proposal(proposal, request):
         result['selection_reason'] = '사용자가 FLUX를 지정했습니다.'
     else:
         result['selection_reason'] = '요청 형식에 맞는 기존 생성기를 선택했습니다.'
+    if compatible and service == 'flux-image' and not explicit:
+        from workflow.common.generator_availability import preferred_ready
+        selected = preferred_ready('image', {'minimax-h3-image', 'flux-image'})
+        if selected:
+            result['service'] = selected
+            result['selection_reason'] = '현재 파일 상태와 생성기 우선순위를 적용했습니다. 실행 환경은 별도로 확인합니다.'
     return validate_image_proposal_for_service(result)

@@ -329,12 +329,12 @@ class CatalogTest(unittest.TestCase):
 
     def test_ref2va_shared_assets_are_registered(self):
         from workflow.common.model_file_inventory import resolve_model_inventory_paths
-        from workflow.generators.minimax_h3_ref2va.assets import REF, FILES
+        from workflow.generators.minimax_h3_ref2va.assets import REF, FILES, current_files
         paths = resolve_model_inventory_paths()['minimax-h3-ref2va']
         self.assertIn(REF, paths)
-        self.assertTrue(all(entry[0] in paths for entry in FILES[1:6]))
+        self.assertTrue(all(entry[0] in paths for entry in current_files(FILES)[1:6]))
         components = {item['id']: item for item in read_catalog()['components']}
-        for identifier in ('minimax-h3-ref2va', 'minimax-h3-diffusers', 'minimax-h3-i2v', 'minimax-hf-cache'):
+        for identifier in ('minimax-h3-ref2va', 'minimax-h3-diffusers', 'minimax-h3-i2v', 'minimax-hf-cache', 'qwen3vl-32b-minimax-h3-int8-convrot'):
             self.assertIn('minimax-h3-ref2va', components[identifier]['services'])
 
     def test_inventory_counts_overlapping_paths_once_per_service(self):

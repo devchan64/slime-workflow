@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "image": ["minimax-h3-image", "flux-image"],
+  "video_first_frame": ["minimax-h3-i2v", "wan22-i2v", "wan22-vace"]
+}

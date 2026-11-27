@@ -9,6 +9,28 @@ from workflow.common.model_backup_restore import restore_verified_backup
 
 
 class LegacyAliasTest(unittest.TestCase):
+    def test_concurrent_destination_is_preserved_during_restore(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, backup = root / 'local', root / 'backup'
+            target = source / 'model' / 'weight'
+            target.parent.mkdir(parents=True)
+            backup_file = backup / 'model' / 'weight'
+            backup_file.parent.mkdir(parents=True)
+            backup_file.write_bytes(b'backup')
+            config = root / 'config.json'
+            config.write_text(json.dumps({'source_path': str(source), 'local_mount_path': str(backup)}))
+
+            def concurrent_writer(_count):
+                target.write_bytes(b'concurrent')
+
+            with patch('workflow.common.model_backup_restore.CONFIG_PATH', config):
+                self.assertFalse(restore_verified_backup(
+                    target, hashlib.sha256(b'backup').hexdigest(), report=concurrent_writer))
+            self.assertEqual(target.read_bytes(), b'concurrent')
+            self.assertEqual(backup_file.read_bytes(), b'backup')
+            self.assertEqual(list(target.parent.glob('.backup-restore-*')), [])
+
     def test_flattened_installation_restores_either_prior_backup_layout(self):
         mappings = [
             ('hermes-coding', 'models/hermes-coding', 'hermes-agent'),
