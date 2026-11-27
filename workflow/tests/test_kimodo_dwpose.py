@@ -291,6 +291,9 @@ class KimodoDwposeTests(unittest.TestCase):
             self.assertNotIn('driving_video',current_payload_record)
             current_saved_record = FunControlGenerationManager.save_generation_attachments(None,current_job_root,current_payload_record)
             current_saved_record['references']=['reference-1.png']
+            import hashlib
+            current_reference_bytes = current_reference_path.read_bytes()
+            current_saved_record['reference_snapshots']=[{'path':'reference-1.png','order':1,'bytes':len(current_reference_bytes),'sha256':hashlib.sha256(current_reference_bytes).hexdigest()}]
             current_attempt_root = current_job_root/'attempt'
             current_attempt_root.mkdir()
             self.assertEqual(len(decode_processed_pose_video(current_job_root,current_attempt_root,current_saved_record)),5)

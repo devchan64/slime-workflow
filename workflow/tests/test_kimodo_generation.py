@@ -40,6 +40,24 @@ def write_keyframe_test_previews(current_attempt_root,current_frame_count):
                 self.assertEqual(inspect_kimodo_preparation_for_resume(current_root_path),'running')
 
 class KimodoGenerationContractTests(unittest.TestCase):
+    def test_saved_input_rejects_corrupt_reference_png(self):
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); identifier='2026-11-18_00-00-00-12345678'; job=root/identifier; job.mkdir()
+            (job/'request.json').write_text(json.dumps({'references':['reference-1.png']}))
+            (job/'reference-1.png').write_bytes(b'not a PNG')
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('generators.kimodo.contracts.KIMODO_JOB_STORAGE',root), TestClient(app) as client:
+                self.assertEqual(client.get('/management/assistant/kimodo-input/'+identifier).status_code,422)
+                from PIL import Image
+                with patch('PIL.Image.open',side_effect=Image.DecompressionBombError('too large')):
+                    self.assertEqual(client.get('/management/assistant/kimodo-input/'+identifier).status_code,422)
+                for malformed in ([], None, {'references':'bad'}, {'keyframes':{}}):
+                    (job/'request.json').write_text(json.dumps(malformed))
+                    self.assertEqual(client.get('/management/assistant/kimodo-input/'+identifier).status_code,422)
+
     def read_saved_form(self,request,reference=False):
         from fastapi.testclient import TestClient
         from http.server import SimpleHTTPRequestHandler

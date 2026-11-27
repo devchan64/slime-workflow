@@ -53,7 +53,9 @@ class MiniMaxH3UiContractTests(unittest.TestCase):
                 assert.match(html,/모델 준비 상태를 확인하세요/);assert.match(html,/프롬프트를 입력하세요/);assert.match(html,/aria-describedby=/);
                 assert.match(html,/generator-section-card-heading[^>]*>모델 준비/);assert.match(html,/상태 확인 중/);
                 assert.equal(html.includes('vace-standalone'),!embedded);
-                assert.match(html,/aria-label="생성기 영역 이동"/);assert.match(html,/생성 입력/);assert.match(html,/생성 이력/);assert.match(html,/작업 결과/);}"""
+                assert.match(html,/생성 입력/);
+                if(embedded){assert.match(html,/aria-label="생성기 영역 이동"/);assert.match(html,/생성 이력/);assert.match(html,/작업 결과/);}
+                else {assert.match(html,/aria-label="생성기 페이지 이동"/);assert.match(html,/생성기 생성이력/);}}"""
             subprocess.run(['node', '-e', script, str(bundle)], cwd=gui, check=True, capture_output=True, text=True, env={**os.environ, 'NODE_PATH': str(gui / 'node_modules')})
 
     def test_standalone_and_embedded_render(self):

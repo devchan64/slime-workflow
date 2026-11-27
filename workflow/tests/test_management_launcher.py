@@ -37,7 +37,7 @@ class ManagementLauncherTests(unittest.TestCase):
                     contextlib.redirect_stdout(current_output_stream):
                 self.assertEqual(management_launcher.run_management_launcher(['setup', '--scope', 'writer-runtime', '--plan']), 0)
             current_plan_record = json.loads(current_output_stream.getvalue())
-            self.assertIn('.model/models/qwen3-embedding-0.6b', current_plan_record['targets'])
+            self.assertIn('.model/qwen3-embedding-0.6b', current_plan_record['targets'])
             self.assertIn('모델 두 개', current_plan_record['models'])
             self.assertTrue(current_plan_record['missing_requirements'])
             self.assertFalse(current_missing_path.exists())

@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
+import {validGenerationJobId} from '../../gui/generationJobId.mjs';
+
+test('FLUX 잘못된 복원 ID는 안내하고 세션을 유지하며 주소에서 제거한다',()=>{
+ const source=readFileSync(new URL('../../gui/FluxImagePage.jsx',import.meta.url),'utf8');
+ const effect=source.match(/  useEffect\(\(\)=>\{if\(embedded \|\| !profile\)return;const parameters=.*?\},\[embedded,profile,service\]\);/)?.[0];
+ assert.ok(effect);let notice='',target,state={key:'state'};
+ const location={search:'?session=abc&restore=invalid',href:'http://localhost/flux/?session=abc&restore=invalid'};
+ const context=vm.createContext({embedded:false,profile:{},service:'flux-image',location,URL,URLSearchParams,validGenerationJobId,history:{state,replaceState:(value,_title,url)=>{assert.equal(value,state);target=url;}},setNotice:value=>notice=value,useEffect:fn=>fn()});
+ vm.runInContext(effect,context);
+ assert.match(notice,/작업 ID/);assert.equal(target.searchParams.get('session'),'abc');assert.equal(target.searchParams.has('restore'),false);
+});
 
 test('FLUX 저장 입력의 요청과 본문 지연은 시간 초과 또는 화면 종료로 해제된다',async()=>{
  const source=readFileSync(new URL('../../gui/FluxImagePage.jsx',import.meta.url),'utf8');

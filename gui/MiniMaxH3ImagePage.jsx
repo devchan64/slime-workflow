@@ -36,10 +36,20 @@ export default function MiniMaxH3ImagePage(props={}) {
 function MiniMaxH3ImageForm({embedded=false,session:embeddedSession="",initialInputs=null,proposalScope=null,reportReceipt=null,building=false}={}) {
   const separatePages=!embedded;
   const {page,navigate}=useMiniMaxPages(false);
+  const navigationPending=useRef(false);
   async function navigatePage(next,id){
     if(separatePages && next==='history'){
-      if(!id){try{const images=await Promise.all(references.map(file=>file ? imageBase64(file) : null));sessionStorage.setItem('minimax-image-draft-'+(building?'building':'general'),JSON.stringify({prompt,seed,size,downscale,sampler,images}));}catch{setError('현재 입력을 보존하지 못해 이력으로 이동하지 않았습니다. 저장 공간을 확인하세요.');return;}}
-      location.assign(minimaxImageHistoryUrl(building,id));return;
+      if(navigationPending.current)return;
+      if(checkingSlots.current.size){setError('참조 이미지 확인이 끝난 뒤 이력을 열어 주세요.');return;}
+      navigationPending.current=true;const version=inputRevision.current;
+      try{
+        const images=await Promise.all(references.map(file=>file ? imageBase64(file) : null));
+        if(version!==inputRevision.current || checkingSlots.current.size){setError('입력 보존 중 내용이 변경되어 이동하지 않았습니다. 다시 시도하세요.');return;}
+        sessionStorage.setItem('minimax-image-draft-'+(building?'building':'general'),JSON.stringify({prompt,seed,size,downscale,sampler,images}));
+        location.assign(minimaxImageHistoryUrl(building,id,session));
+      }catch{setError('현재 입력을 보존하지 못해 이력으로 이동하지 않았습니다. 저장 공간을 확인하세요.');}
+      finally{navigationPending.current=false;}
+      return;
     }
     navigate(next,id);if(id)setJob(id);
   }
@@ -99,7 +109,7 @@ function MiniMaxH3ImageForm({embedded=false,session:embeddedSession="",initialIn
   useEffect(()=>{if(pending && previewFocus.current && (document.activeElement===previewFocus.current || document.activeElement===document.body))reviewRef.current?.focus();},[pending]);
   useEffect(()=>{if(!busy && previewFocus.current){if(error)restoreLostFocus(document,previewFocus.current);previewFocus.current=null;}},[busy,error]);
   useEffect(()=>{if(!busy && guideApplyFocus.current){restoreLostFocus(document,visibleFocusTarget(guideApplyFocus.current));guideApplyFocus.current=null;}},[busy]);
-  useEffect(()=>{if(embedded)return;const id=new URLSearchParams(location.search).get('restore');if(!validGenerationJobId(id))return;const controller=new AbortController();readSavedInput(id,{signal:controller.signal}).then(record=>{if(!controller.signal.aborted){restoreSavedInput(record.request,record);const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState({},'',url);}}).catch(problem=>{if(!controller.signal.aborted)setError(problem.message || '저장 입력을 적용하지 못했습니다.');});return ()=>controller.abort();},[embedded]);
+  useEffect(()=>{if(embedded)return;const parameters=new URLSearchParams(location.search);if(!parameters.has('restore'))return;const id=parameters.get('restore');if(!validGenerationJobId(id)){const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState(history.state,'',url);setError('저장 입력의 작업 ID를 확인할 수 없습니다.');return;}const controller=new AbortController();readSavedInput(id,{signal:controller.signal}).then(record=>{if(!controller.signal.aborted){restoreSavedInput(record.request,record);const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState(history.state,'',url);}}).catch(problem=>{if(!controller.signal.aborted)setError(problem.message || '저장 입력을 적용하지 못했습니다.');});return ()=>controller.abort();},[embedded]);
   useEffect(()=>{if(embedded || new URLSearchParams(location.search).has('restore'))return;const key='minimax-image-draft-'+(building?'building':'general');try{const raw=sessionStorage.getItem(key);if(!raw)return;const draft=JSON.parse(raw);if(typeof draft.prompt!=='string' || !Array.isArray(draft.images) || draft.images.length!==2)throw Error();const files=draft.images.map((value,index)=>{if(!value)return null;return new File([Uint8Array.from(atob(value),c=>c.charCodeAt(0))],`reference-${index+1}.png`,{type:'image/png'});});setPrompt(draft.prompt);setSeed(draft.seed);setSize(draft.size);setDownscale(draft.downscale);setSampler(draft.sampler);setReferences(files);setReferenceReset(n=>n+1);setNotice('이력으로 이동하기 전 입력을 복원했습니다.');sessionStorage.removeItem(key);}catch{setError('이전 입력을 복원하지 못했습니다.');}},[embedded,building]);
   async function review(event){
     event.preventDefault();

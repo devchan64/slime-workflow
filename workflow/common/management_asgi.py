@@ -15,6 +15,42 @@ from starlette.responses import Response, RedirectResponse, JSONResponse
 
 LEGACY_MANAGEMENT_PATHS = {'/image-generation-21/': 'qwen-21-generator', '/image-generation-21-circular/': 'qwen-21-circular-generator', '/vegetation-generator/': 'vegetation-generator', '/prop-generator/': 'prop-generator', '/billboard-generator/': 'billboard-generator', '/building-generator/': 'building-generator', '/writer-agent/': 'writer-agent'}
 GENERATOR_PAGE_PACKAGES = {'mannequin-generator': 'mannequin-generator', 'character-generator': 'character-generator', 'qwen-21-generator': 'qwen-21', 'qwen-21-circular-generator': 'qwen-21-circular', 'expression-generator': 'expression', 'vegetation-generator': 'vegetation-generator', 'prop-generator': 'prop-generator', 'billboard-generator': 'billboard-generator', 'building-generator': 'billboard-generator'}
+
+def verify_history_reference_snapshots(directory, saved):
+    """이력 복원은 참조마다 저장된 무결성 정보를 필수로 확인한다."""
+    from workflow.domains.image.three_reference_generation import verify_reference_snapshots
+    if not isinstance(saved, dict) or not isinstance(saved.get('reference_snapshots'), list):
+        raise ValueError('참조 사본 무결성 기록이 없습니다.')
+    verify_reference_snapshots(directory, saved)
+
+def verify_fun_saved_pose(directory):
+    """Fun Control의 저장 참조와 포즈 영상이 요청 기록과 일치하는지 확인한다."""
+    from workflow.common.video_attachment_verification import verify_saved_video_attachments
+    metadata = directory / 'request.json'
+    if metadata.is_symlink() or not metadata.is_file():
+        raise ValueError('저장 입력 기록이 없습니다.')
+    saved = json.loads(metadata.read_bytes())
+    if not isinstance(saved, dict) or saved.get('references') != ['reference-1.png']:
+        raise ValueError('저장 참조 기록이 올바르지 않습니다.')
+    verify_history_reference_snapshots(directory, saved)
+    verify_saved_video_attachments(directory, saved, ('pose_video',), {'pose_video':'pose-input.mp4'})
+    return saved
+
+def saved_video_thumbnail(video):
+    """저장 영상은 보존하고 크기가 제한된 첫 프레임을 반환한다."""
+    import subprocess
+    try:
+        import imageio_ffmpeg
+        result = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), '-nostdin', '-hide_banner', '-loglevel', 'error',
+            '-i', str(video), '-map', '0:v:0', '-frames:v', '1',
+            '-vf', 'scale=256:256:force_original_aspect_ratio=decrease', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1'],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=15, check=True)
+        if not result.stdout.startswith(b'\x89PNG\r\n\x1a\n') or len(result.stdout) > 1024 * 1024:
+            raise ValueError('invalid thumbnail')
+        return Response(result.stdout, media_type='image/png', headers={'Cache-Control':'private, max-age=3600'})
+    except (ImportError, OSError, ValueError, subprocess.SubprocessError):
+        return Response(status_code=422)
+
 def execute_legacy_request(current_handler_class, current_root_path, current_request_scope, current_request_body):
     """기존 파일·게이트웨이 핸들러를 소켓 없이 호출한다."""
     current_path_bytes = current_request_scope.get('raw_path', current_request_scope['path'].encode())
@@ -477,6 +513,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     def kimodo_saved_input(job: str):
         import base64
         import json
+        from PIL import Image
         from fastapi import HTTPException
         from generators.kimodo.contracts import KIMODO_JOB_STORAGE
         from workflow.domains.hermes_agent.delegation_store import validate_service_job_identifier
@@ -488,6 +525,8 @@ def build_management_application(current_handler_class, current_root_path, curre
             raise HTTPException(404, "저장된 입력을 찾을 수 없습니다.")
         try:
             saved = json.loads(path.read_text())
+            if not isinstance(saved, dict) or not isinstance(saved.get('references', []), list) or not isinstance(saved.get('keyframes', []), list):
+                raise ValueError('저장된 Kimodo 입력 형식을 확인하세요.')
             template = kimodo_generation_template()
             inputs = {key: saved.get(key, default) for key, default in template["inputs"].items()}
             if saved.get("action") == "reference-analysis":
@@ -501,7 +540,15 @@ def build_management_application(current_handler_class, current_root_path, curre
                 image = directory / name
                 if image.is_symlink() or not image.is_file() or image.stat().st_size > 3000000:
                     raise ValueError("참조 PNG 사본을 확인하세요.")
-                references.append({"name": name, "data": base64.b64encode(image.read_bytes()).decode("ascii")})
+                image_bytes = image.read_bytes()
+                try:
+                    with Image.open(io.BytesIO(image_bytes)) as decoded:
+                        if decoded.format != 'PNG':
+                            raise ValueError('참조 PNG 사본을 확인하세요.')
+                        decoded.load()
+                except Image.DecompressionBombError as error:
+                    raise ValueError('참조 PNG의 크기가 너무 큽니다.') from error
+                references.append({"name": name, "data": base64.b64encode(image_bytes).decode("ascii")})
             rows = saved.get("keyframes", [])
             hashes = {}
             if rows:
@@ -704,27 +751,32 @@ def build_management_application(current_handler_class, current_root_path, curre
                 return JSONResponse({'error':str(problem)},status_code=422)
 
     @current_root_application.get('/management/assistant/animate-input/{job}/{part}')
-    def animate_input(job: str, part: Literal["request", "reference", "motion"]):
+    def animate_input(job: str, part: Literal["request", "reference", "motion", "motion-thumbnail"]):
         from generators.wan_animate2.contracts import ANIMATE_JOB_STORAGE
         from workflow.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        from workflow.common.video_attachment_verification import verify_saved_video_attachments
         if not validate_service_job_identifier('wan22-animate2', job):
             return Response(status_code=404)
         directory = ANIMATE_JOB_STORAGE / job
         names = {"request": "request.json", "reference": "reference-1.png", "motion": "driving.mp4"}
         if directory.is_symlink() or any((directory / name).is_symlink() or not (directory / name).is_file() for name in names.values()):
             return Response(status_code=404)
-        if part != "request":
-            return FileResponse(directory / names[part], media_type={"reference":"image/png", "motion":"video/mp4"}[part])
         try:
-            request = json.loads((directory / names[part]).read_bytes())
+            request = json.loads((directory / names['request']).read_bytes())
             fields = {key:request[key] for key in ("prompt", "frames", "steps", "seed")}
             fields['lora_mode'] = request.get('lora_mode', 'none')
             if request["references"] != [names["reference"]] or not isinstance(fields["prompt"], str) or any(type(fields[key]) is not int for key in ("frames","steps","seed")):
                 raise ValueError("입력 기록 오류")
             if fields['lora_mode'] not in ('none', 'lightx2v'):
                 raise ValueError('LoRA 기록 오류')
+            verify_history_reference_snapshots(directory, request)
+            verify_saved_video_attachments(directory, request, ('driving_video',))
         except (KeyError, TypeError, ValueError, OSError):
             return Response(status_code=422)
+        if part == "motion-thumbnail":
+            return saved_video_thumbnail(directory / names['motion'])
+        if part != "request":
+            return FileResponse(directory / names[part], media_type={"reference":"image/png", "motion":"video/mp4"}[part])
         prefix = "/management/assistant/animate-input/" + job
         return {"id":job, "request":fields, "reference":prefix+"/reference", "motion":prefix+"/motion"}
 
@@ -732,6 +784,7 @@ def build_management_application(current_handler_class, current_root_path, curre
     def vace_input(job: str, part: str):
         from generators.wan_vace.contracts import VACE_JOB_STORAGE, VACE_DEFAULT_SETTINGS
         from workflow.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        from workflow.common.video_attachment_verification import verify_saved_video_attachments
         if not validate_service_job_identifier('wan22-vace', job):
             return Response(status_code=404)
         directory = VACE_JOB_STORAGE / job
@@ -740,12 +793,16 @@ def build_management_application(current_handler_class, current_root_path, curre
             return Response(status_code=404)
         try:
             request = json.loads(metadata.read_bytes())
+            if not isinstance(request, dict):
+                raise ValueError('입력 기록 오류')
             fields = {key:request.get(key, value) for key,value in VACE_DEFAULT_SETTINGS.items()}
             fields['model_profile'] = request.get('model_profile', 'official-bf16-resident-v1')
             if 'fighting_strength' in request:
                 fields['fighting_strength'] = request['fighting_strength']
             fields.update({key: request[key] for key in ('prompt', 'negative_prompt')})
             mode = fields['mode']
+            if mode not in ('text', 'reference', 'first_frame', 'pose', 'video_edit', 'video_condition'):
+                raise ValueError('입력 모드 오류')
             names = {} if mode == 'text' else {'reference':'reference-1.png'}
             if mode == 'pose':
                 names['pose_video'] = 'pose-video.mp4'
@@ -755,12 +812,20 @@ def build_management_application(current_handler_class, current_root_path, curre
                 names['edit_mask'] = 'edit-mask.mp4'
             if request['references'] != ([names['reference']] if 'reference' in names else []):
                 raise ValueError('참조 사본 불일치')
+            if 'reference' in names:
+                verify_history_reference_snapshots(directory, request)
+            verify_saved_video_attachments(directory, request, tuple(key for key in names if key != 'reference'))
         except (ValueError, OSError, TypeError, KeyError):
             return Response(status_code=422)
         if any((directory/name).is_symlink() or not (directory/name).is_file() for name in names.values()):
             return Response(status_code=404)
         if part == 'request':
             return {'id':job, 'request':fields, 'attachments':list(names)}
+        if part.endswith('-thumbnail'):
+            video_part = part.removesuffix('-thumbnail')
+            if video_part not in ('pose_video', 'edit_video', 'edit_mask') or video_part not in names:
+                return Response(status_code=404)
+            return saved_video_thumbnail(directory / names[video_part])
         if part not in names:
             return Response(status_code=404)
         return FileResponse(directory/names[part], media_type='image/png' if part=='reference' else 'video/mp4')
@@ -850,7 +915,7 @@ def build_management_application(current_handler_class, current_root_path, curre
         if root.is_symlink() or directory.is_symlink() or metadata.is_symlink() or not metadata.is_file():
             return Response(status_code=404)
         try:
-            saved = json.loads(metadata.read_text())
+            saved = verify_fun_saved_pose(directory)
             reject_retired_rgb_input(saved)
             if saved.get('pose_video_file') != 'pose-input.mp4' or saved.get('references') != ['reference-1.png']:
                 raise ValueError('처리된 포즈 MP4와 참조 이미지가 있는 작업만 복원할 수 있습니다.')
@@ -885,7 +950,28 @@ def build_management_application(current_handler_class, current_root_path, curre
         path = directory / 'pose-input.mp4'
         if root.is_symlink() or directory.is_symlink() or path.is_symlink() or not path.is_file():
             return Response(status_code=404)
+        try:
+            verify_fun_saved_pose(directory)
+        except (OSError, KeyError, TypeError, ValueError):
+            return Response(status_code=422)
         return FileResponse(path, media_type='video/mp4', headers={'Cache-Control':'no-store'})
+
+    @current_root_application.get('/management/assistant/fun-pose-thumbnail/{job}')
+    def fun_pose_thumbnail(job: str):
+        from workflow.domains.hermes_agent.video_operations import make_hermes_video_source_manager
+        from workflow.domains.hermes_agent.delegation_store import validate_service_job_identifier
+        if not validate_service_job_identifier('wan22-fun-control', job):
+            return Response(status_code=404)
+        root = Path(make_hermes_video_source_manager('wan22-fun-control').job_storage_root)
+        directory = root / job
+        path = directory / 'pose-input.mp4'
+        if root.is_symlink() or directory.is_symlink() or path.is_symlink() or not path.is_file():
+            return Response(status_code=404)
+        try:
+            verify_fun_saved_pose(directory)
+        except (OSError, KeyError, TypeError, ValueError):
+            return Response(status_code=422)
+        return saved_video_thumbnail(path)
 
     @current_root_application.get('/management/assistant/minimax-h3-ref2va-input/{job}')
     async def minimax_h3_ref2va_input(job: str):
@@ -955,6 +1041,9 @@ def build_management_application(current_handler_class, current_root_path, curre
             request = json.loads(metadata.read_bytes())
             if not isinstance(request, dict):
                 raise ValueError('작업 요청 형식 오류')
+            if request.get('references') != ['reference-1.png']:
+                raise ValueError('포즈 참조 기록 오류')
+            verify_history_reference_snapshots(directory, request)
             options = [request.get(key, False) for key in ('pose_include_hands', 'pose_include_face')]
             if any(type(value) is not bool for value in options):
                 raise ValueError('포즈 옵션 형식 오류')
@@ -1097,10 +1186,16 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/assistant/models/')
     @current_root_application.get('/management/frame/writer-agent')
     @current_root_application.get('/management/frame/writer-agent/')
+    @current_root_application.get('/management/frame/wan22-animate2-history')
+    @current_root_application.get('/management/frame/wan22-animate2-history/')
     @current_root_application.get('/management/frame/wan22-animate2-generator')
     @current_root_application.get('/management/frame/wan22-animate2-generator/')
+    @current_root_application.get('/management/frame/dwpose-history')
+    @current_root_application.get('/management/frame/dwpose-history/')
     @current_root_application.get('/management/frame/dwpose-generator')
     @current_root_application.get('/management/frame/dwpose-generator/')
+    @current_root_application.get('/management/frame/audio-history')
+    @current_root_application.get('/management/frame/audio-history/')
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen')
     @current_root_application.get('/management/frame/sfx-dasheng-audiogen/')
     @current_root_application.get('/management/frame/music-heartmula')
@@ -1121,11 +1216,15 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/flux-prop-generator/')
     @current_root_application.get('/management/frame/flux-vegetation-generator')
     @current_root_application.get('/management/frame/flux-vegetation-generator/')
+    @current_root_application.get('/management/frame/flux-image-history')
+    @current_root_application.get('/management/frame/flux-image-history/')
     @current_root_application.get('/management/frame/flux-image-generator')
     @current_root_application.get('/management/frame/flux-image-generator/')
     @current_root_application.get('/management/assistant/flux-image/')
     @current_root_application.get('/management/assistant/heartmula/')
     @current_root_application.get('/management/assistant/sound-effect/')
+    @current_root_application.get('/management/frame/wan22-vace-history')
+    @current_root_application.get('/management/frame/wan22-vace-history/')
     @current_root_application.get('/management/frame/wan22-vace-generator')
     @current_root_application.get('/management/frame/wan22-vace-generator/')
     @current_root_application.get('/management/frame/minimax-h3-building-generator')
@@ -1134,16 +1233,24 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/minimax-h3-image-history/')
     @current_root_application.get('/management/frame/minimax-h3-image-generator')
     @current_root_application.get('/management/frame/minimax-h3-image-generator/')
+    @current_root_application.get('/management/frame/kimodo-history')
+    @current_root_application.get('/management/frame/kimodo-history/')
+    @current_root_application.get('/management/frame/minimax-h3-video-history')
+    @current_root_application.get('/management/frame/minimax-h3-video-history/')
     @current_root_application.get('/management/frame/minimax-h3-i2v-generator')
     @current_root_application.get('/management/frame/minimax-h3-i2v-generator/')
     @current_root_application.get('/management/frame/minimax-h3-ref2va-generator')
     @current_root_application.get('/management/frame/minimax-h3-ref2va-generator/')
+    @current_root_application.get('/management/frame/wan-video-history')
+    @current_root_application.get('/management/frame/wan-video-history/')
     @current_root_application.get('/management/frame/wan22-i2v-generator')
     @current_root_application.get('/management/frame/wan22-i2v-generator/')
     @current_root_application.get('/management/frame/wan21-t2v-generator')
     @current_root_application.get('/management/frame/wan21-t2v-generator/')
     @current_root_application.get('/management/frame/wan21-i2v-generator')
     @current_root_application.get('/management/frame/wan21-i2v-generator/')
+    @current_root_application.get('/management/frame/wan22-fun-control-history')
+    @current_root_application.get('/management/frame/wan22-fun-control-history/')
     @current_root_application.get('/management/frame/wan22-fun-control-generator')
     @current_root_application.get('/management/frame/wan22-fun-control-generator/')
     @current_root_application.get('/management/frame/building-editor')

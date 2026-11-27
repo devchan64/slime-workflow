@@ -8,7 +8,7 @@ import {restoreLostFocus,visibleFocusTarget} from '../../gui/restoreLostFocus.mj
 
 test('영상 편집 검토는 중복 읽기를 막고 시간 초과 후 다시 시도한다',async()=>{
  const source=readFileSync(new URL('../../gui/MiniMaxH3Ref2VAPage.jsx',import.meta.url),'utf8');
- const start=source.indexOf('  async function review(event)'),end=source.indexOf('  async function submit()',start);
+ const start=source.indexOf('  async function review(event)'),end=source.indexOf('  useEffect(()=>{if(embedded)return;',start);
  let timer,error='',pending=null,reads=0,slow=true;
  const activeRead={current:null},context=vm.createContext({AbortController,untilAborted,activeRead,reviewOrigin:{current:null},document:{activeElement:{}},busy:false,pending:null,reasons:[],editVersion:{current:0},file:{},prompt:'편집',seed:45,setBusy:()=>{},setError:value=>error=value,setPending:value=>pending=value,setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},videoData:()=>{reads++;return slow ? new Promise(()=>{}) : Promise.resolve('video');}});
  vm.runInContext(source.slice(start,end),context);

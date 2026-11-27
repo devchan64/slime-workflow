@@ -1209,6 +1209,7 @@ class HermesWorkerTests(unittest.TestCase):
             hermes_server_mock = Mock()
             hermes_agent_mock = Mock()
             hermes_agent_mock.wait.return_value = 0
+            hermes_agent_mock.poll.return_value = 0
             def create_mock_workspace(source_repository_path, snapshot_workspace_path):
                 import shutil
                 skill = Path('workflow/domains/hermes_agent/skills')
@@ -1226,17 +1227,9 @@ class HermesWorkerTests(unittest.TestCase):
             self.assertEqual(hermes_result_record['verification']['status'], 'failed')
             self.assertTrue(hermes_result_record['partial'])
             current_query_text=(hermes_job_path / 'query.txt').read_text(encoding='utf-8')
-            self.assertIn('작업 ID 일부는 query',current_query_text)
-            self.assertIn('같은 query와 snapshot',current_query_text)
-            self.assertIn('HERMES_WRITER_PROPOSAL',current_query_text)
-            self.assertIn('모델 카드의 권장 단계는 16스텝',current_query_text)
-            self.assertIn('사용자가 생성 폼에서 선택합니다',current_query_text)
-            self.assertNotIn('참조 이미지는 이 제안으로 지원하지 않습니다',current_query_text)
-            self.assertIn('END_HERMES_WRITER_PROPOSAL',current_query_text)
-            self.assertIn('사용자가 입력과 GPU 접수를 확인하기 전에는',current_query_text)
-            self.assertIn('DB 모드에서는 신규 저장이 중단',current_query_text)
-            self.assertIn('도시 맵 신규 저장은 에셋 원본',current_query_text)
-            self.assertIn('writer-job-search-paths',current_query_text)
+            self.assertIn('/control/task-guides/',current_query_text)
+            self.assertIn('/workspace/workflow/domains/hermes_agent/skills/generator-development/SKILL.md',current_query_text)
+            self.assertIn('생성기는 직접 실행하지 말고',current_query_text)
 
     def test_verification_control_hashes_detect_changes_and_symlinks(self):
         with tempfile.TemporaryDirectory() as hermes_temporary_root:
@@ -1265,6 +1258,7 @@ class HermesWorkerTests(unittest.TestCase):
             hermes_server_mock = Mock()
             hermes_agent_mock = Mock()
             hermes_agent_mock.wait.return_value = 0
+            hermes_agent_mock.poll.return_value = 0
             hermes_baseline_record = {'baseline_commit':'a' * 40}
             def create_mock_workspace(source_repository_path, snapshot_workspace_path):
                 import shutil

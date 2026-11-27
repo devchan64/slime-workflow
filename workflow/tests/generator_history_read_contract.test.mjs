@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {untilAborted} from '../../gui/managementCommand.js';
+import {historyObserveRetry} from '../../gui/historyObserveRetry.mjs';
 import {validGeneratorHistoryPage} from '../../gui/generatorHistoryPage.mjs';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
 
@@ -101,11 +102,19 @@ test('이력 페이지 응답이 손상되면 기존 선택과 목록을 유지�
  const method=source.slice(source.indexOf('  async function list('),source.indexOf('  function deleted('));
  const previous={records:[{id:'old',recorded_status:'completed'}],total:1,offset:0,next_offset:null,snapshot:'a'.repeat(64)};
  let selected={id:'old'},page=previous,job={id:'old',request:{}};
- const context=vm.createContext({AbortController,untilAborted,validGeneratorHistoryPage,requestErrorMessage,page,selected,pageSize:10,resultId:'',externalResultId:'',expanded:null,service:'service',listRequest:{current:null},cancelLookup:()=>{},setTimeout:()=>1,clearTimeout:()=>{},managementCommand:async()=>({records:[{id:'bad',recorded_status:'completed'}],total:3,offset:0,next_offset:null,snapshot:'a'.repeat(64)}),setSelected:fn=>selected=fn(selected),setJob:fn=>job=fn(job),setPage:value=>page=value,setFilter:()=>{},setPageSize:()=>{},setResultLookup:()=>{}});
+ const context=vm.createContext({AbortController,untilAborted,historyObserveRetry,validGeneratorHistoryPage,requestErrorMessage,page,selected,pageSize:10,resultId:'',externalResultId:'',expanded:null,service:'service',listRequest:{current:null},cancelLookup:()=>{},setTimeout:()=>1,clearTimeout:()=>{},managementCommand:async()=>({records:[{id:'bad',recorded_status:'completed'}],total:3,offset:0,next_offset:null,snapshot:'a'.repeat(64)}),setSelected:fn=>selected=fn(selected),setJob:fn=>job=fn(job),setPage:value=>page=value,setFilter:()=>{},setPageSize:()=>{},setResultLookup:()=>{}});
  vm.runInContext(method,context);await assert.rejects(context.list(0,''),/이전 이력과 선택을 유지/);
  assert.equal(page,previous);assert.equal(selected.id,'old');assert.equal(job.id,'old');
  context.selected=null;await assert.rejects(context.list(0,''),/이전 이력을 유지합니다/);
  context.page={...previous,records:[],total:0};await assert.rejects(context.list(0,''),/이전 조회에서 이력이 없었습니다/);
+});
+
+test('이력 목록은 동시 조회 충돌 후 다시 조회한다',async()=>{
+ const source=readFileSync(new URL('../../gui/GeneratorHistory.jsx',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('  async function list('),source.indexOf('  function deleted('));
+ const response={records:[],total:0,offset:0,next_offset:null,snapshot:'a'.repeat(64)};let calls=0,page=null;
+ const context=vm.createContext({AbortController,historyObserveRetry:(read,signal)=>historyObserveRetry(read,signal,async()=>{}),validGeneratorHistoryPage,requestErrorMessage,page,selected:null,pageSize:10,resultId:'',externalResultId:'',expanded:null,service:'service',listRequest:{current:null},cancelLookup:()=>{},setTimeout:()=>1,clearTimeout:()=>{},managementCommand:async()=>{if(++calls===1)throw Error('이 작업 저장소의 이력 조회가 이미 진행 중입니다.');return response;},setSelected:()=>{},setJob:()=>{},setPage:value=>page=value,setFilter:()=>{},setPageSize:()=>{},setResultLookup:()=>{}});
+ vm.runInContext(method,context);await context.list(0,'');assert.equal(calls,2);assert.equal(page,response);
 });
 
 test('이력 밖 결과 재조회는 초점이 결과 안에 있을 때만 복구를 예약한다',()=>{

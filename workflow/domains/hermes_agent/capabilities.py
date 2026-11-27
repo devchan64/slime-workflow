@@ -2,6 +2,7 @@
 from copy import deepcopy
 
 HERMES_CAPABILITY_RECORDS = (
+    {'command':'hermes-chat-queue-edit','label':'대화 대기 요청 편집','required':['session_id','request_id','revision','action','token'],'optional':['prompt'],'effect':'local_bookkeeping','gpu':'none','retry':'check_status','interfaces':['gui'],'result':'chat_queue','note':'대기 요청의 편집을 시작하거나 소유권과 버전을 확인해 저장·취소한다. 저장에만 prompt를 전달한다.'},
     {'command':'hermes-chat-queue-update','label':'대화 대기 요청 수정·취소','required':['session_id','request_id','revision'],'optional':['prompt','cancel'],'effect':'local_bookkeeping','gpu':'none','retry':'check_status','interfaces':['gui'],'result':'chat_queue','note':'대기 중인 요청을 버전 확인 후 수정하거나 취소한다. prompt와 cancel 중 하나만 전달한다.'},
     {'command':'hermes-live-instruction','label':'진행 중 대화 지시 전달','required':['session_id','request_id','job_id','mode','text'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'request_id_or_unknown','interfaces':['gui'],'result':'live_instruction','note':'진행 중인 대화 작업에 지시를 전달한다. 전달 여부가 불명확하면 상태를 먼저 확인한다.'},
     {'command':'hermes-live-instruction-recover','label':'미전달 지시 복구','required':['session_id','request_id'],'optional':[],'effect':'local_bookkeeping','gpu':'none','retry':'request_id_or_unknown','interfaces':['gui'],'result':'chat_queue','note':'미전달이 확인된 지시만 새 대화 대기 요청으로 복구한다.'},
@@ -228,6 +229,7 @@ HERMES_CAPABILITY_RECORDS = (
 
 
 HERMES_FIELD_SCHEMAS = {
+    'action': {'type':'string'},
     'resident_id': {'type':'string','pattern':'^[A-Za-z0-9_-]{8,80}$'},
     'review_hash': {'type':'string','pattern':'^[a-f0-9]{64}$'},
     'expected_revision': {'type':'integer','minimum':1},
@@ -486,6 +488,12 @@ def list_hermes_capability_catalog():
             current_payload_schema['properties']['request'] = {'type':'object','validation':'workflow.domains.translation.service.validate_translation_submission'}
         if current_command_name == 'hermes-delegate-flux-image':
             current_payload_schema['properties']['request'] = {'type':'object', 'validation':'workflow.domains.image.flux_image_generation.FluxImageGenerationManager(flux-image).validate_generation_request'}
+        if current_command_name == 'hermes-chat-queue-edit':
+            current_payload_schema['properties']['revision'] = {'type':'integer', 'minimum':1}
+            current_payload_schema['properties']['action'] = {'type':'string', 'enum':['begin','save','cancel']}
+            current_payload_schema['properties']['token'] = {'type':'string', 'pattern':'^[a-f0-9]{32}$'}
+            current_payload_schema['properties']['prompt'] = {**HERMES_FIELD_SCHEMAS['prompt'], 'maxLength':12000}
+            current_payload_schema['oneOf'] = [{'properties':{'action':{'const':'save'}},'required':['prompt']}, {'properties':{'action':{'enum':['begin','cancel']}},'not':{'required':['prompt']}}]
         if current_command_name == 'hermes-chat-queue-update':
             current_payload_schema['properties']['revision'] = {'type':'integer', 'minimum':1}
             current_payload_schema['properties']['cancel'] = {'const':True}

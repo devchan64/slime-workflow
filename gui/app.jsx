@@ -1,3 +1,12 @@
+import FunControlHistoryPage from "./FunControlHistoryPage.jsx";
+import VaceHistoryPage from "./VaceHistoryPage.jsx";
+import AnimateHistoryPage from "./AnimateHistoryPage.jsx";
+import WanVideoHistoryPage from "./WanVideoHistoryPage.jsx";
+import AudioHistoryPage from "./AudioHistoryPage.jsx";
+import DwposeHistoryPage from "./DwposeHistoryPage.jsx";
+import KimodoHistoryPage from "./KimodoHistoryPage.jsx";
+import MiniMaxVideoHistoryPage from "./MiniMaxVideoHistoryPage.jsx";
+import FluxHistoryPage from "./FluxHistoryPage.jsx";
 import {formatActivityCopy} from './formatActivityCopy.mjs';
 import {imageSubmissionIntent} from './imageSubmissionIntent.mjs';
 import {parseQuestionForm} from './hermesQuestionForm.mjs';
@@ -1128,6 +1137,7 @@ function App() {
 }
 const pages = {
   "/management/frame/kimodo-generator": KimodoPage,
+  "/management/frame/kimodo-history": KimodoHistoryPage,
   "/management/assistant/qwen-archive": QwenArchive,
   "/management/assistant/kimodo": KimodoPage,
   "/management/frame/effect-editor": EffectEditor,
@@ -1142,9 +1152,13 @@ const pages = {
   "/management/assistant/town-map": MapReview,
   "/management/assistant/battlefield": BattlefieldReview,
   "/management/frame/wan22-fun-control-generator": FunControlPage,
+  "/management/frame/wan22-fun-control-history": FunControlHistoryPage,
   "/management/assistant/fun-control": FunControlPage,
   "/management/frame/wan22-vace-generator": VacePage,
+  "/management/frame/wan22-vace-history": VaceHistoryPage,
   "/management/frame/wan22-i2v-generator": I2VPage,
+  "/management/frame/wan-video-history": WanVideoHistoryPage,
+  "/management/frame/minimax-h3-video-history": MiniMaxVideoHistoryPage,
   "/management/frame/minimax-h3-i2v-generator": MiniMaxH3Page,
   "/management/frame/minimax-h3-ref2va-generator": MiniMaxH3Ref2VAPage,
   "/management/frame/minimax-h3-image-history": MiniMaxImageHistoryPage,
@@ -1154,10 +1168,12 @@ const pages = {
   "/management/frame/wan21-i2v-generator": Wan21I2VPage,
   "/management/assistant/vace": VacePage,
   "/management/frame/wan22-animate2-generator": AnimatePage,
+  "/management/frame/wan22-animate2-history": AnimateHistoryPage,
   "/management/frame/writer-agent": WriterPage,
   "/management/frame/flux-expression-generator": FluxImagePage,
   "/management/frame/flux-seamless-generator": FluxImagePage,
   "/management/frame/flux-character-generator": FluxImagePage,
+  "/management/frame/flux-image-history": FluxHistoryPage,
   "/management/frame/flux-building-generator": FluxImagePage,
   "/management/frame/flux-mannequin-generator": FluxImagePage,
   "/management/frame/flux-billboard-generator": FluxImagePage,
@@ -1165,12 +1181,14 @@ const pages = {
   "/management/frame/flux-vegetation-generator": FluxImagePage,
   "/management/frame/flux-image-generator": FluxImagePage,
   "/management/assistant/flux-image": FluxImagePage,
+  "/management/frame/audio-history": AudioHistoryPage,
   "/management/frame/music-heartmula": HeartmulaPage,
   "/management/assistant/heartmula": HeartmulaPage,
   "/management/frame/sfx-dasheng-audiogen": SoundEffectPage,
   "/management/assistant/sound-effect": SoundEffectPage,
   "/management/assistant/dwpose": DwposePage,
   "/management/frame/dwpose-generator": DwposePage,
+  "/management/frame/dwpose-history": DwposeHistoryPage,
   "/management/assistant/models": ModelPage,
   "/management/frame/model-management": ModelPage,
   "/management/frame/world-map": WorldMap,

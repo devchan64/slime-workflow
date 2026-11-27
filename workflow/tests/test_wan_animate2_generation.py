@@ -156,7 +156,7 @@ class AnimateTwoContractTests(unittest.TestCase):
             self.assertNotIn('driving_video',current_result_record)
 
     def test_saved_request_restores_lora_and_legacy_default(self):
-        import json
+        import hashlib, json
         from unittest.mock import patch
         from fastapi.testclient import TestClient
         from http.server import SimpleHTTPRequestHandler
@@ -169,6 +169,8 @@ class AnimateTwoContractTests(unittest.TestCase):
             (job_dir / 'reference-1.png').write_bytes(b'png')
             (job_dir / 'driving.mp4').write_bytes(b'mp4')
             request = {'prompt':'test','frames':5,'steps':6,'seed':42,'references':['reference-1.png']}
+            request['reference_snapshots']=[{'path':'reference-1.png','order':1,'bytes':3,'sha256':hashlib.sha256(b'png').hexdigest()}]
+            request['driving_video_file']='driving.mp4';request['driving_video_sha256']=hashlib.sha256(b'mp4').hexdigest()
             app = build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
             with patch('generators.wan_animate2.contracts.ANIMATE_JOB_STORAGE',root), TestClient(app) as client:
                 for mode in (None,'lightx2v','invalid'):
@@ -182,6 +184,43 @@ class AnimateTwoContractTests(unittest.TestCase):
                     else:
                         self.assertEqual(response.status_code,200)
                         self.assertEqual(response.json()['request']['lora_mode'],mode or 'none')
+                missing_snapshot=dict(request);missing_snapshot.pop('reference_snapshots')
+                (job_dir/'request.json').write_text(json.dumps(missing_snapshot))
+                self.assertEqual(client.get(f'/management/assistant/animate-input/{job}/request').status_code,422)
+                (job_dir/'request.json').write_text(json.dumps(request))
+                (job_dir/'reference-1.png').write_bytes(b'altered')
+                self.assertEqual(client.get(f'/management/assistant/animate-input/{job}/request').status_code,422)
+                self.assertEqual(client.get(f'/management/assistant/animate-input/{job}/reference').status_code,422)
+
+    def test_saved_motion_thumbnail_decodes_mpeg4_and_rejects_invalid_input(self):
+        import hashlib, json
+        import subprocess
+        import imageio_ffmpeg
+        from unittest.mock import patch
+        from fastapi.testclient import TestClient
+        from http.server import SimpleHTTPRequestHandler
+        from workflow.common.management_asgi import build_management_application
+        job = '2026-11-23_12-00-00-12345678'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            job_dir = root / job
+            job_dir.mkdir()
+            (job_dir / 'reference-1.png').write_bytes(b'png')
+            subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=red:s=64x48:d=1', '-c:v', 'mpeg4', str(job_dir/'driving.mp4')], check=True)
+            request={'prompt':'test','frames':5,'steps':6,'seed':42,'references':['reference-1.png'],
+                     'reference_snapshots':[{'path':'reference-1.png','order':1,'bytes':3,'sha256':hashlib.sha256(b'png').hexdigest()}],
+                     'driving_video_file':'driving.mp4','driving_video_sha256':hashlib.sha256((job_dir/'driving.mp4').read_bytes()).hexdigest()}
+            (job_dir / 'request.json').write_text(json.dumps(request))
+            app = build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('generators.wan_animate2.contracts.ANIMATE_JOB_STORAGE',root), TestClient(app) as client:
+                response = client.get(f'/management/assistant/animate-input/{job}/motion-thumbnail')
+                self.assertEqual(response.status_code,200)
+                self.assertEqual(response.headers['content-type'],'image/png')
+                self.assertTrue(response.content.startswith(b'\x89PNG\r\n\x1a\n'))
+                (job_dir/'driving.mp4').write_bytes(b'invalid')
+                self.assertEqual(client.get(f'/management/assistant/animate-input/{job}/motion-thumbnail').status_code,422)
+                self.assertEqual(client.get(f'/management/assistant/animate-input/{job}/request').status_code,422)
+                self.assertEqual(client.get('/management/assistant/animate-input/invalid/motion-thumbnail').status_code,404)
 
     def test_ui_builds_without_model_loading(self):
         from fastapi.testclient import TestClient

@@ -10,6 +10,70 @@ from workflow.common.reference_video_generation import ReferenceVideoGenerationM
 
 
 class ReferenceVideoResumeValidationTests(unittest.TestCase):
+    def test_cleanup_preserves_same_id_across_image_video_and_audio(self):
+        from itertools import product
+        from workflow.domains.image.flux_image_generation import FluxImageGenerationManager
+        from workflow.domains.wan_i2v.generation import I2VGenerationManager
+        from workflow.domains.music.generation import MusicGenerationManager
+        for target_name,action in product(('image','video','audio'),('selected','all')):
+            with self.subTest(service=target_name,action=action), tempfile.TemporaryDirectory() as directory, patch('workflow.common.reference_video_generation.MANAGER_HISTORY_ROOT', Path(directory)/'history'), patch('workflow.domains.image.flux_image_generation.MANAGER_HISTORY_ROOT', Path(directory)/'history'):
+                root=Path(directory); job_id='2026-11-27_00-00-00-1234abcd'
+                managers={'image':FluxImageGenerationManager('flux-image'), 'video':I2VGenerationManager(), 'audio':MusicGenerationManager('music-heartmula')}
+                for name,manager in managers.items():
+                    manager.job_storage_root=root/name/'jobs'
+                    if name=='audio': manager.history_storage_root=root/name/'history'
+                    history=manager.history_storage_root if name=='audio' else manager.history_storage_path()
+                    job=manager.job_storage_root/job_id; job.mkdir(parents=True)
+                    (job/'status.json').write_text('{"status":"completed"}')
+                    (job/'result').write_bytes(b'keep')
+                    history.mkdir(parents=True,exist_ok=True)
+                    (history/(job_id+'.json')).write_text(json.dumps({'id':job_id}))
+                target=managers[target_name]
+                if target_name=='audio':
+                    if action=='selected': target.delete_music_history(job_id)
+                    else:
+                        preview=target.execute_music_command('history-reset-preview',{})
+                        target.execute_music_command('history-reset',{'action':'reset','expected_jobs':preview['jobs']})
+                elif action=='selected': target.delete_generation_history(job_id)
+                else: target.reset_generation_history(target.preview_generation_cleanup()['jobs'])
+                for name,manager in managers.items():
+                    history=manager.history_storage_root if name=='audio' else manager.history_storage_path()
+                    self.assertEqual((manager.job_storage_root/job_id/'result').exists(),name!=target_name,name)
+                    self.assertEqual((history/(job_id+'.json')).exists(),name!=target_name,name)
+
+    def test_video_cleanup_keeps_other_service_with_same_job_id(self):
+        from itertools import product
+        from workflow.domains.wan_i2v.generation import I2VGenerationManager
+        from workflow.domains.wan_fun.generation import FunControlGenerationManager
+        from workflow.domains.wan_vace.generation import VaceVideoGenerationManager
+        from workflow.domains.wan_animate2.generation import AnimateTwoGenerationManager
+        from workflow.domains.kimodo.generation import KimodoGenerationManager
+        from workflow.domains.dwpose.generation import DwposeGenerationManager
+        from workflow.domains.minimax_h3.generation import MiniMaxH3GenerationManager
+        from workflow.domains.minimax_h3_ref2va.generation import MiniMaxH3Ref2VAManager
+        from workflow.domains.minimax_h3_image.generation import MiniMaxH3ImageManager
+        classes=(I2VGenerationManager,FunControlGenerationManager,VaceVideoGenerationManager,AnimateTwoGenerationManager,MiniMaxH3GenerationManager,MiniMaxH3Ref2VAManager,KimodoGenerationManager,DwposeGenerationManager,MiniMaxH3ImageManager)
+        for target_class,action in product(classes,('selected','all')):
+            with self.subTest(service=target_class.__name__,action=action), tempfile.TemporaryDirectory() as directory, patch('workflow.common.reference_video_generation.MANAGER_HISTORY_ROOT', Path(directory)/'history'), patch('workflow.domains.minimax_h3_image.generation.MANAGER_HISTORY_ROOT', Path(directory)/'history'):
+                root=Path(directory); job_id='2026-11-27_00-00-00-1234abcd'
+                managers=[cls() for cls in classes]
+                for manager in managers:
+                    manager.job_storage_root=root/manager.route_prefix_value.lstrip('/')
+                    job=manager.job_storage_root/job_id; job.mkdir(parents=True)
+                    (job/'status.json').write_text('{"status":"completed"}')
+                    (job/'input.mp4').write_bytes(b'video')
+                    manager.history_storage_path().mkdir(parents=True)
+                    (manager.history_storage_path()/(job_id+'.json')).write_text(json.dumps({'id':job_id}))
+                target=next(manager for manager in managers if type(manager) is target_class)
+                if action=='selected': target.delete_generation_history(job_id)
+                else: target.reset_generation_history(target.preview_generation_cleanup()['jobs'])
+                self.assertFalse((target.job_storage_root/job_id).exists())
+                self.assertFalse((target.history_storage_path()/(job_id+'.json')).exists())
+                for other in managers:
+                    if other is target: continue
+                    self.assertTrue((other.job_storage_root/job_id/'input.mp4').is_file(),type(other).__name__)
+                    self.assertTrue((other.history_storage_path()/(job_id+'.json')).is_file(),type(other).__name__)
+
     def test_resume_checks_saved_references_before_assets(self):
         with tempfile.TemporaryDirectory() as current_directory_name:
             current_job_path = Path(current_directory_name)
@@ -74,8 +138,8 @@ class VideoAttachmentResumeTests(unittest.TestCase):
                     (current_job_path / current_file_name).write_bytes(current_video_bytes)
                     saved_request_record[current_field_name + '_file'] = current_file_name
                     saved_request_record[current_field_name + '_sha256'] = hashlib.sha256(current_video_bytes).hexdigest()
-                with patch.object(ReferenceVideoGenerationManager, 'validate_generation_resume', return_value=saved_request_record):
-                    current_manager_instance = current_manager_class()
+                current_manager_instance = current_manager_class()
+                with patch.object(ReferenceVideoGenerationManager, 'validate_generation_resume', return_value=saved_request_record), patch.object(current_manager_instance, 'validate_generation_runtime'):
                     current_manager_instance.validate_generation_resume(current_job_path)
                     if current_field_names:
                         current_input_path = current_job_path / saved_request_record[current_field_names[0] + '_file']

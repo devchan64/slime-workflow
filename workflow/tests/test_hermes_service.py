@@ -12,8 +12,9 @@ from workflow.common.management_gateway import resolve_management_command, ident
 
 class HermesServiceTests(unittest.TestCase):
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
-    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
-    def test_session_explicit_model_persisted_and_retry_checked(self, launch, ready):
+    @patch('workflow.domains.hermes_agent.resident_chat_executor.launch_resident_chat')
+    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value='resident_123')
+    def test_session_explicit_model_persisted_and_retry_checked(self, resident, launch, ready):
         session = 'a' * 32
         self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id':session})
         request = {'session_id':session, 'request_id':'model-request-001', 'prompt':'코드 수정', 'model_profile':'qwen3.8-27b'}
@@ -399,8 +400,9 @@ class HermesServiceTests(unittest.TestCase):
         self.assertIn('Hermes는 빌드 실행을 연결하지 않는다',current_notes['migraphx-build'])
 
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
-    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
-    def test_coding_context_retries_with_original_user_messages(self, launch, ready):
+    @patch('workflow.domains.hermes_agent.resident_chat_executor.launch_resident_chat')
+    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value='resident_123')
+    def test_coding_context_retries_with_original_user_messages(self, resident, launch, ready):
         session = 'e' * 32
         self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id': session})
         for index, prompt in enumerate(('요구', '정정', '추가')):
@@ -1111,9 +1113,13 @@ class HermesServiceTests(unittest.TestCase):
             with self.subTest(service=current_service_name):
                 current_service_record=current_services_by_name[current_service_name]
                 current_resume_notes=[current_item['note'] for current_item in current_service_record['conditional_limitations'] if current_item['command']=='resume']
-                self.assertTrue(any('별도 재개 검토' in current_note and '확인 후 접수' in current_note for current_note in current_resume_notes))
                 current_prefix_value='hermes-video-resume' if current_service_name in HERMES_VIDEO_SERVICES else 'hermes-flux-resume'
-                self.assertTrue({current_prefix_value+'-preview',current_prefix_value+'-submit',current_prefix_value+'-receipt'} <= set(current_service_record['hermes_links']))
+                current_resume_links={current_prefix_value+'-preview',current_prefix_value+'-submit',current_prefix_value+'-receipt'}
+                if 'resume' in current_service_record['commands']:
+                    self.assertTrue(any('별도 재개 검토' in current_note and '확인 후 접수' in current_note for current_note in current_resume_notes))
+                    self.assertTrue(current_resume_links <= set(current_service_record['hermes_links']))
+                else:
+                    self.assertFalse(current_resume_links & set(current_service_record['hermes_links']))
 
     def test_review_capture_limitations_are_discoverable_without_execution(self):
         current_catalog_record=self.hermes_service_manager.execute_hermes_command('hermes-service-registration',{})
@@ -1406,6 +1412,15 @@ class HermesServiceTests(unittest.TestCase):
         self.assertIn('hermes-capabilities',current_self_service['hermes_links'])
         self.assertIn('hermes-session-view',current_self_service['hermes_links'])
         current_capabilities_by_name={current_record['command']:current_record for current_record in current_catalog_value['records']}
+        from jsonschema import Draft202012Validator
+        edit_schema = Draft202012Validator(current_capabilities_by_name['hermes-chat-queue-edit']['payload_schema'])
+        edit_request = {'session_id':'a'*32, 'request_id':'request_123', 'revision':1, 'action':'begin', 'token':'b'*32}
+        self.assertTrue(edit_schema.is_valid(edit_request))
+        self.assertTrue(edit_schema.is_valid({**edit_request, 'action':'save', 'prompt':'수정'}))
+        self.assertTrue(edit_schema.is_valid({**edit_request, 'action':'save', 'prompt':'a'*12000}))
+        self.assertFalse(edit_schema.is_valid({**edit_request, 'action':'save', 'prompt':'a'*12001}))
+        self.assertFalse(edit_schema.is_valid({**edit_request, 'action':'save'}))
+        self.assertFalse(edit_schema.is_valid({**edit_request, 'prompt':'수정'}))
         for current_command_name in ('hermes-video-proposal','hermes-kimodo-proposal','hermes-diff','hermes-delegation-status','hermes-flux-delegation-history'):
             self.assertEqual(current_capabilities_by_name[current_command_name]['effect'],'local_bookkeeping')
         self.assertEqual(current_capabilities_by_name['hermes-management-status']['effect'],'local_bookkeeping')
@@ -2226,8 +2241,8 @@ class HermesServiceTests(unittest.TestCase):
             self.hermes_service_manager.execute_hermes_command('hermes-session-read', {'session_id': hermes_session_identifier, 'extra': 1})
 
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
-    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
-    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value=None)
+    @patch('workflow.domains.hermes_agent.resident_chat_executor.launch_resident_chat')
+    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value='resident_123')
     @patch('workflow.domains.hermes_agent.resident_queue.ensure_session_resident', return_value={'state':'accepted','id':'resident_123'})
     @patch('workflow.domains.hermes_agent.resident_queue.inspect_resident', return_value={'state':'ready'})
     def test_session_submit_retries_and_includes_completed_context(self, resident_status_mock, resident_start_mock, resident_find_mock, hermes_launch_mock, hermes_ready_mock):
@@ -2262,8 +2277,9 @@ class HermesServiceTests(unittest.TestCase):
             self.hermes_service_manager.execute_hermes_command('hermes-session-submit', {**hermes_first_payload, 'prompt':'다른 질문'})
 
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
-    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
-    def test_session_retry_after_job_accepted_but_link_failed(self, hermes_launch_mock, hermes_ready_mock):
+    @patch('workflow.domains.hermes_agent.resident_chat_executor.launch_resident_chat')
+    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value='resident_123')
+    def test_session_retry_after_job_accepted_but_link_failed(self, resident_find_mock, hermes_launch_mock, hermes_ready_mock):
         from workflow.domains.hermes_agent.session_store import HermesSessionStore
         hermes_session_identifier = 'c' * 32
         self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id': hermes_session_identifier})
@@ -2278,8 +2294,8 @@ class HermesServiceTests(unittest.TestCase):
         self.assertEqual(hermes_saved_record['messages'][0]['job_id'], hermes_retry_record['job_id'])
 
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
-    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
-    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value=None)
+    @patch('workflow.domains.hermes_agent.resident_chat_executor.launch_resident_chat')
+    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value='resident_123')
     @patch('workflow.domains.hermes_agent.resident_queue.ensure_session_resident', return_value={'state':'accepted','id':'resident_123'})
     @patch('workflow.domains.hermes_agent.resident_queue.inspect_resident', return_value={'state':'ready'})
     def test_manual_context_job_is_idempotent_and_blocks_new_turn_until_terminal(self, resident_status_mock, resident_start_mock, resident_find_mock, launch, ready):
@@ -2317,8 +2333,9 @@ class HermesServiceTests(unittest.TestCase):
         self.assertEqual(launch.call_count, 3)
 
     @patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready')
-    @patch('workflow.domains.hermes_agent.service.launch_gpu_process')
-    def test_long_prior_answer_is_preserved_in_context(self, launch, ready):
+    @patch('workflow.domains.hermes_agent.resident_chat_executor.launch_resident_chat')
+    @patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value='resident_123')
+    def test_long_prior_answer_is_preserved_in_context(self, resident, launch, ready):
         session = 'e' * 32
         self.hermes_service_manager.execute_hermes_command('hermes-session-create', {'session_id': session})
         first = self.hermes_service_manager.execute_hermes_command('hermes-session-submit',

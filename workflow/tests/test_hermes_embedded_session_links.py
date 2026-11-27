@@ -36,7 +36,7 @@ class EmbeddedSessionLinksTests(unittest.TestCase):
             result=subprocess.run(['node','--input-type=module','-e',script,json.dumps([found,missing]),session],cwd=root,capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)
 
-    def test_audio_generators_return_to_embedded_session(self):
+    def test_audio_generators_keep_session_without_reloading_embedded_panel(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
         with tempfile.TemporaryDirectory() as directory:
             bundle=Path(directory)/'audio.cjs'
@@ -45,8 +45,10 @@ class EmbeddedSessionLinksTests(unittest.TestCase):
             script="""global.location={search:'?session=old'};global.sessionStorage={getItem:()=>null};
               const React=require('react'),server=require('react-dom/server'),pages=require(process.argv[1]);
               for(const Page of [pages.default,pages.HeartmulaPage]){
-                const html=server.renderToStaticMarkup(React.createElement(Page,{embedded:true,session:'new'}));
-                if(!html.includes('/management/assistant/?session=new') || html.includes('/management/assistant/?session=old'))throw Error(html);
+                const embedded=server.renderToStaticMarkup(React.createElement(Page,{embedded:true,session:'new'}));
+                const standalone=server.renderToStaticMarkup(React.createElement(Page,{session:'new'}));
+                if(embedded.includes('/management/assistant/?session='))throw Error('내장 패널은 대화 페이지를 다시 열지 않아야 합니다');
+                if(!standalone.includes('/management/assistant/?session=new') || standalone.includes('/management/assistant/?session=old'))throw Error(standalone);
               }"""
             result=subprocess.run(['node','-e',script,str(bundle)],cwd=gui,capture_output=True,text=True,
                                   env={**os.environ,'NODE_PATH':str(gui/'node_modules')})

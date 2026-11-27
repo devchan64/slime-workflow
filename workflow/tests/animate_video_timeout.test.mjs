@@ -7,8 +7,8 @@ import {generationReady} from '../../gui/generationReady.mjs';
 import {requestErrorMessage} from '../../gui/requestError.mjs';
 
 test('Animate 저장 입력 조회는 이력의 취소 신호를 전달한다',async()=>{
- const source=readFileSync(new URL('../../gui/AnimatePage.jsx',import.meta.url),'utf8');
- const method=source.slice(source.indexOf('async function readJob('),source.indexOf('export default function AnimatePage'));
+ const source=readFileSync(new URL('../../gui/readAnimateJob.js',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('async function readAnimateJob(')).replace('async function readAnimateJob(', 'async function readJob(');
  let received;const controller=new AbortController();
  const context=vm.createContext({AbortController,DOMException,untilAborted,setTimeout,clearTimeout,fetch:(_url,{signal})=>{received=signal;return new Promise((resolve,reject)=>{if(signal.aborted)reject(new DOMException('취소','AbortError'));else signal.addEventListener('abort',()=>reject(new DOMException('취소','AbortError')),{once:true});});}});
  vm.runInContext(method+'\nthis.readJob=readJob;',context);
@@ -17,8 +17,8 @@ test('Animate 저장 입력 조회는 이력의 취소 신호를 전달한다',a
 });
 
 test('Animate 저장 입력 조회는 요청이나 본문 읽기가 멈춰도 시간 초과된다',async()=>{
- const source=readFileSync(new URL('../../gui/AnimatePage.jsx',import.meta.url),'utf8');
- const method=source.slice(source.indexOf('async function readJob('),source.indexOf('export default function AnimatePage'));
+ const source=readFileSync(new URL('../../gui/readAnimateJob.js',import.meta.url),'utf8');
+ const method=source.slice(source.indexOf('async function readAnimateJob(')).replace('async function readAnimateJob(', 'async function readJob(');
  for(const stage of ['request','body']){
   let timeout;const never=new Promise(()=>{});
   const context=vm.createContext({AbortController,DOMException,untilAborted,setTimeout:fn=>(timeout=fn,1),clearTimeout:()=>{},fetch:()=>stage==='request'?never:Promise.resolve({ok:true,json:()=>never})});

@@ -79,9 +79,7 @@ def read_gpu_status():
             record = {'gpu_activity_percent':percent if type(percent) in (int,float) and 0 <= percent <= 100 else None,'status':'busy' if processes else 'idle','processes':processes,'gpu_count':len(current_gpu_records),'queue_device_memory':current_queue_device,
                 **current_memory_totals, **{f'memory_{current_measure_name}_mib':current_memory_totals[f'gtt_{current_measure_name}_mib'] for current_measure_name in ('total','used','free')}}
         except (OSError,subprocess.SubprocessError,ValueError,KeyError,TypeError):
-            activity = (current_gpu_records[0].get('usage') or {}).get('gfx_activity')
-            percent = activity.get('value') if isinstance(activity, dict) and activity.get('unit') == '%' else None
-            record = {'gpu_activity_percent':percent if type(percent) in (int,float) and 0 <= percent <= 100 else None,'status':'unavailable','processes':[]}
+            record = {'gpu_activity_percent':None,'status':'unavailable','processes':[]}
         _status_cache = (time.monotonic(),record)
         return record
     finally:

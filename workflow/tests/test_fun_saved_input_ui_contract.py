@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 class FunSavedInputUiContractTests(unittest.TestCase):
     def test_isolated_saved_pose_response_is_accepted_by_ui(self):
+        import hashlib
         import cv2
         import numpy as np
         from PIL import Image
@@ -30,10 +31,29 @@ class FunSavedInputUiContractTests(unittest.TestCase):
             writer.release()
             Image.new('RGB',(832,480),'white').save(folder/'reference-1.png')
             saved={'action':'generate','prompt':'walking','negative_prompt':'','control_type':'pose','width':832,'height':480,'frames':5,'steps':20,'seed':42,'flow_shift':5,'guidance_scale':6,'switch_ratio':.5,'pose_video_file':'pose-input.mp4','references':['reference-1.png']}
+            image=(folder/'reference-1.png').read_bytes()
+            saved['reference_snapshots']=[{'path':'reference-1.png','order':1,'bytes':len(image),'sha256':hashlib.sha256(image).hexdigest()}]
+            saved['pose_video_sha256']=hashlib.sha256(video.read_bytes()).hexdigest()
             (folder/'request.json').write_text(json.dumps(saved))
             app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
             with patch('workflow.domains.hermes_agent.video_operations.make_hermes_video_source_manager',return_value=SimpleNamespace(job_storage_root=root)),TestClient(app) as client:
                 response=client.get('/management/assistant/fun-input/'+job)
+                self.assertEqual(client.get('/management/assistant/fun-pose/'+job).status_code,200)
+                missing_snapshot=dict(saved);missing_snapshot.pop('reference_snapshots')
+                (folder/'request.json').write_text(json.dumps(missing_snapshot))
+                self.assertEqual(client.get('/management/assistant/fun-input/'+job).status_code,422)
+                self.assertEqual(client.get('/management/assistant/fun-pose/'+job).status_code,422)
+                (folder/'request.json').write_text('[]')
+                self.assertEqual(client.get('/management/assistant/fun-input/'+job).status_code,422)
+                self.assertEqual(client.get('/management/assistant/fun-pose/'+job).status_code,422)
+                (folder/'request.json').write_text(json.dumps(saved))
+                (folder/'reference-1.png').write_bytes(image+b'changed')
+                self.assertEqual(client.get('/management/assistant/fun-input/'+job).status_code,422)
+                self.assertEqual(client.get('/management/assistant/fun-pose/'+job).status_code,422)
+                (folder/'reference-1.png').write_bytes(image)
+                video.write_bytes(b'changed')
+                self.assertEqual(client.get('/management/assistant/fun-input/'+job).status_code,422)
+                self.assertEqual(client.get('/management/assistant/fun-pose/'+job).status_code,422)
             self.assertEqual(response.status_code,200,response.text)
             script="""const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
               const source=fs.readFileSync('gui/FunControlPage.jsx','utf8');

@@ -89,7 +89,7 @@ class VaceVideoContractTests(unittest.TestCase):
         self.assertEqual(current_reference_image.size,(400,600))
 
     def test_restore_inputs_and_model_readiness(self):
-        import json
+        import hashlib, json
         from fastapi.testclient import TestClient
         from http.server import SimpleHTTPRequestHandler
         from workflow.common.management_asgi import build_management_application
@@ -97,7 +97,10 @@ class VaceVideoContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);job='2026-11-15_12-00-00-12345678';jobdir=root/job;jobdir.mkdir()
             request={**VACE_DEFAULT_SETTINGS,'mode':'reference','prompt':'walk','negative_prompt':'','references':['reference-1.png']}
-            (jobdir/'request.json').write_text(json.dumps(request));Image.new('RGB',(832,480)).save(jobdir/'reference-1.png')
+            Image.new('RGB',(832,480)).save(jobdir/'reference-1.png')
+            image=(jobdir/'reference-1.png').read_bytes()
+            request['reference_snapshots']=[{'path':'reference-1.png','order':1,'bytes':len(image),'sha256':hashlib.sha256(image).hexdigest()}]
+            (jobdir/'request.json').write_text(json.dumps(request))
             app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
             with patch('generators.wan_vace.contracts.VACE_JOB_STORAGE',root),TestClient(app) as client:
                 response=client.get(f'/management/assistant/vace-input/{job}/request')
@@ -111,8 +114,33 @@ class VaceVideoContractTests(unittest.TestCase):
                 self.assertEqual(restored.json()['request']['fighting_strength'],0.5)
                 self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/reference').status_code,200)
                 self.assertEqual(client.get('/management/assistant/vace-input/invalid/request').status_code,404)
+                missing_snapshot=dict(request);missing_snapshot.pop('reference_snapshots')
+                (jobdir/'request.json').write_text(json.dumps(missing_snapshot))
+                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/request').status_code,422)
+                (jobdir/'request.json').write_text('[]')
+                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/request').status_code,422)
+                import imageio_ffmpeg, subprocess
+                request['mode']='video_edit'
+                for filename in ('edit-video.mp4','edit-mask.mp4'):
+                    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(),'-loglevel','error','-f','lavfi','-i','color=red:s=64x48:d=1','-c:v','mpeg4',str(jobdir/filename)],check=True)
+                for part,filename in (('edit_video','edit-video.mp4'),('edit_mask','edit-mask.mp4')):
+                    request[part+'_file']=filename;request[part+'_sha256']=hashlib.sha256((jobdir/filename).read_bytes()).hexdigest()
+                (jobdir/'request.json').write_text(json.dumps(request))
+                for part in ('edit_video','edit_mask'):
+                    thumbnail=client.get(f'/management/assistant/vace-input/{job}/{part}-thumbnail')
+                    self.assertEqual(thumbnail.status_code,200)
+                    self.assertEqual(thumbnail.headers['content-type'],'image/png')
+                    self.assertTrue(thumbnail.content.startswith(b'\x89PNG\r\n\x1a\n'))
+                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/reference-thumbnail').status_code,404)
+                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/pose_video-thumbnail').status_code,404)
+                (jobdir/'edit-video.mp4').write_bytes(b'changed')
+                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/request').status_code,422)
+                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/edit_video').status_code,422)
+                request['mode']='reference';(jobdir/'request.json').write_text(json.dumps(request))
+                (jobdir/'reference-1.png').write_bytes(image+b'changed')
+                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/request').status_code,422)
                 (jobdir/'reference-1.png').unlink()
-                self.assertEqual(client.get(f'/management/assistant/vace-input/{job}/request').status_code,404)
+                self.assertIn(client.get(f'/management/assistant/vace-input/{job}/request').status_code,(404,422))
 
     def test_pose_video_browser_copy_preserves_frames(self):
         import cv2

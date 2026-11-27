@@ -40,7 +40,7 @@ test('Fun Control과 번역 검토 취소는 초점 이동과 새 검토를 존�
 
 test('MiniMax 이미지 검토 취소는 초점을 잃었을 때만 프롬프트로 복구한다',()=>{
  const source=readFileSync(new URL('../../gui/MiniMaxH3ImagePage.jsx',import.meta.url),'utf8');
- const code=source.slice(source.indexOf('  function closeReview()'),source.indexOf('  async function submit()'));
+ const code=source.slice(source.indexOf('  function closeReview()'),source.indexOf('  useEffect(()=>{if(embedded)return;',source.indexOf('  function closeReview()')));
  for(const moved of [false,true]){
   let frame,focused=0;const body={},button={},other={},document={body,activeElement:button};
   const context=vm.createContext({document,restoreLostFocus,visibleFocusTarget,reviewRef:{current:{contains:node=>node===button}},promptRef:{current:{isConnected:true,focus:()=>focused++}},setPending:()=>{},setPreview:()=>{},requestAnimationFrame:fn=>frame=fn});

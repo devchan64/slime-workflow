@@ -10,14 +10,14 @@ import {fluxNumericIssues} from "./fluxNumericIssues.mjs";
 import {fluxPromptIssue,fluxTranslationIssue} from "./fluxPromptIssue.mjs";
 import React,{useEffect,useId,useRef,useState} from "react";
 import GpuQueueSummary from "./GpuQueueSummary.jsx";
-import GeneratorHistory from "./GeneratorHistory.jsx";
+import FluxHistoryPage,{FluxHistoryPanel,fluxHistoryUrl} from "./FluxHistoryPage.jsx";
+import {validGenerationJobId} from "./generationJobId.mjs";
 import GeneratorSectionNavigation from "./GeneratorSectionNavigation.jsx";
 import {openGeneratorHistory} from "./GeneratorSectionNavigation.jsx";
 import GeneratorSectionCard from "./GeneratorSectionCard.jsx";
 import ActiveGeneratorProgress from "./ActiveGeneratorProgress.jsx";
 import GeneratorChangelog from "./GeneratorChangelog.jsx";
 import ModelReadiness from "./ModelReadiness.jsx";
-import GeneratorJobResult from "./GeneratorJobResult.jsx";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {requestErrorMessage} from "./requestError.mjs";
 import {fluxProposalRequestId,classifyFluxProposalReceipt,verifyFluxProposal} from "./fluxProposalReceipt.mjs";
@@ -58,6 +58,8 @@ export function FluxGuidePagination({count,page,pageSize,hintId,navRef,onMove}){
 
 export default function FluxImagePage(props={}){
   const service=props.serviceOverride || location.pathname.match(/\/management\/frame\/(flux-[a-z]+)-generator/)?.[1] || "flux-image";
+  const q=new URLSearchParams(location.search);
+  if(!props.embedded && (q.get('view')==='history' || q.has('job')))return <FluxHistoryPage service={service}/>;
   return <FluxImagePageForService key={service} {...props} serviceOverride={service}/>;
 }
 
@@ -181,6 +183,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
     }
     load();return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[service,attempt]);
+  useEffect(()=>{if(embedded || !profile)return;const parameters=new URLSearchParams(location.search);if(!parameters.has('restore'))return;const id=parameters.get('restore');if(!validGenerationJobId(id)){const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState(history.state,'',url);setNotice('저장 입력의 작업 ID를 확인할 수 없습니다.');return;}const controller=new AbortController();readJob(id,{signal:controller.signal}).then(record=>{if(!controller.signal.aborted){restore(record.request,record);const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState(history.state,'',url);}}).catch(error=>{if(!controller.signal.aborted)setNotice(error?.message || '저장 입력을 적용하지 못했습니다.');});return ()=>controller.abort();},[embedded,profile,service]);
   async function readJob(id,{signal}={}){
     const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current,checkingAtStart=checkingSlots.current.size>0,reviewAtStart=reviewEpoch.current,focusAtStart=document.activeElement;
     const controller=new AbortController();let timedOut=false;
@@ -191,15 +194,16 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
     const record=await untilAborted((async()=>{const response=await fetch("/management/assistant/flux-image-input/"+encodeURIComponent(id)+"?service="+service,{cache:"no-store",signal:controller.signal});let value;try{value=await response.json();}catch(problem){controller.signal.throwIfAborted();throw new Error("저장된 입력 형식을 확인할 수 없습니다. 다시 조회하세요.");}if(!response.ok)throw new Error(value?.detail || "저장된 입력을 확인할 수 없습니다.");return value;})(),controller.signal);
     if(!record || record.id!==id || !record.request || typeof record.request!=="object" || Array.isArray(record.request) || !Array.isArray(record.images) || record.images.some(value=>typeof value!=="string"))throw new Error("저장된 입력 형식을 확인할 수 없습니다.");
     const files=record.images.map((encoded,index)=>pngFile(encoded,"reference-"+(index+1)+".png"));
-    return {id:record.id,request:record.request,files,inputAtStart,imageAtStart,checkingAtStart,reviewAtStart,focusAtStart};
+    return {id:record.id,request:record.request,images:record.images,files,inputAtStart,imageAtStart,checkingAtStart,reviewAtStart,focusAtStart};
     }catch(error){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
     finally{clearTimeout(timeout);signal?.removeEventListener("abort",cancel);}
   }
+  async function readHistoryInput(id,options){const record=await readJob(id,options);return {...record,request:{...record.request,images:record.images}};}
   function restore(input,record){
     if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.review)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
     if(record.checkingAtStart || checkingSlots.current.size || record.inputAtStart.form!==inputRef.current.form || record.inputAtStart.files!==inputRef.current.files || record.imageAtStart!==imageSelectionRevision.current)throw new Error("이미지 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");
-    setForm(seamless?{...input,width:512,height:512}:input);setFiles(seamless?[]:record.files);setReferenceReset(value=>value+1);
-    setNotice(seamless?"프롬프트와 시드를 복원했습니다. 새 타일은 512×512 무참조로 생성합니다.":"선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
+    const {images,...formInput}=input;setForm(seamless?{...formInput,width:512,height:512}:formInput);setFiles(seamless?[]:record.files);setReferenceReset(value=>value+1);
+    setNotice(seamless?"프롬프트와 시드를 복원했습니다. 새 타일은 512×512 무참조의 전역 주기 어텐션과 순환 VAE 방식으로 생성하며, 이전 작업과 처리 방식이 다를 수 있습니다.":"선택한 이력의 입력과 참조 이미지를 불러왔습니다.");
     const card=inputFormRef.current?.closest('details');if(card)card.open=true;
     requestAnimationFrame(()=>{if(record.reviewAtStart===reviewEpoch.current && !interactionRef.current.busy && !interactionRef.current.review && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && inputFormRef.current?.isConnected)inputFormRef.current.focus();});
   }
@@ -339,9 +343,9 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
       {profile.layouts && <p>점유 가이드와 생성 대상을 선택해 첫 참조와 프롬프트를 구성할 수 있습니다.</p>}
       {!profile.expressions && <p>번역할 한국어 설명을 입력하면 생성 시 번역문을 프롬프트에 추가합니다.</p>}
     </> : <p>생성기 설정을 불러오면 사용 방법을 표시합니다.</p>}</GeneratorSectionCard>
-    <GeneratorSectionNavigation inputRef={inputFormRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(profile)} historyReady={Boolean(profile)} resultReady={Boolean(profile && job)} resultReason={job && !profile ? "생성기 설정을 확인해야 작업 결과를 볼 수 있습니다." : undefined} openOnNavigate/>
+    {embedded ? <GeneratorSectionNavigation inputRef={inputFormRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(profile)} historyReady={Boolean(profile)} resultReady={Boolean(profile && job)} resultReason={job && !profile ? "생성기 설정을 확인해야 작업 결과를 볼 수 있습니다." : undefined} openOnNavigate/> : <nav className="generator-section-navigation" aria-label="생성기 페이지 이동"><span aria-current="page">생성기 입력폼</span><a href={fluxHistoryUrl(service,undefined,session)} target="_blank" rel="noopener">생성 이력 새 탭에서 열기</a>{service==='flux-building' && <a href="/management/frame/building-editor/">건물 검수 페이지</a>}{['flux-billboard','flux-prop','flux-vegetation'].includes(service) && <a href="/management/frame/asset-editor/">빌보드 검수 페이지</a>}</nav>}
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : model ? (fluxModelReady(model) ? "준비 완료" : "준비 필요") : "상태 확인 중"}><ModelReadiness service={service} session={session} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
+    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>{if(embedded)openGeneratorHistory(historyRef,id,setJob);else window.open(fluxHistoryUrl(service,id,session),"_blank","noopener");}}/>
     {!profile && (profileError ? <div role="alert">{profileError} <button ref={profileRetryRef} type="button" onClick={retryProfile}>기본 입력 다시 불러오기</button></div> : <p role="status">기본 입력을 불러오는 중입니다.</p>)}
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={receiptKey && handoffStatus?.state!=="withdrawn" ? undefined : ()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);if(receiptKey){setReceiptState("unknown");setReceiptNotice("이 제안의 양도 요청은 철회됐습니다. 새 작업은 생성기 화면에서 요청하세요.");}}}/>}
@@ -406,8 +410,7 @@ function FluxImagePageForService({serviceOverride,embedded=false,initialInputs=n
       {review.result.translation && <p className="generation-review-text">생성 시 번역할 내용 · {review.result.translation}</p>}
       <GpuQueueSummary/>{handoffReview && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 {profile?.label || "FLUX"} 생성을 실행합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}<GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setReview(null);setHandoffReview(null);if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(inputFormRef.current)));}} onConfirm={submit} confirmLabel={handoffReview ? "해제·생성·재적재에 동의" : "확인 후 대기열에 추가"} disabledReason={!fluxModelReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : handoffId ? "이전 GPU 양도 상태를 먼저 확인하세요." : ""}/></section>}
     {previewing && <p role="status">입력과 GPU 양도 여부를 확인하고 있습니다.</p>}
-    {notice && <p role="status">{notice}</p>}
-    {profile && <><fieldset ref={historyRef} className="flux-history-controls" disabled={busy || Boolean(review)} aria-describedby={busy || review ? historyLockId : undefined}><legend className="generator-visually-hidden">생성 이력</legend><GeneratorHistory card allowPriority toggleResult onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setHistoryRevision(value=>value+1);}} key={historyRevision} service={service} readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 FLUX 작업 결과"><GeneratorJobResult selectionControls job={id} kind="flux" service={service} readJobWithSignal={readJob} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/></section>}/></fieldset>{(busy || review) && <p id={historyLockId} role="status">{busy ? "요청을 처리하고 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}</>}
-    <GeneratorJobResult selectionControls job="" kind="flux" service={service} onDeleted={message=>{setJob("");setNotice(message);setHistoryRevision(value=>value+1);}}/>
+    {notice && <p role="status">{notice}</p>}{!embedded && validGenerationJobId(job) && <p><a href={fluxHistoryUrl(service,job,session)} target="_blank" rel="noopener">접수 작업 이력 보기 · {job}</a></p>}
+    {embedded && profile && <><FluxHistoryPanel service={service} job={job} setJob={setJob} revision={historyRevision} setRevision={setHistoryRevision} readJob={readHistoryInput} restore={restore} historyRef={historyRef} resultRef={resultRef} onNotice={setNotice} disabled={busy || Boolean(review)} disabledHelpId={historyLockId}/>{(busy || review) && <p id={historyLockId} role="status">{busy ? "요청을 처리하고 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}</>}
   </article>;
 }

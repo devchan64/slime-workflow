@@ -10,6 +10,32 @@ from workflow.common.history_summaries import handle_history_summaries_request, 
 
 
 class HistorySummariesTests(unittest.TestCase):
+    def test_minimax_sampler_is_read_from_saved_request_with_legacy_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for request, expected in [({'sampler':'lcm'}, {'sampler':'lcm'}), ({}, {'sampler':'euler'}), ({'sampler':'invalid'}, {})]:
+                (root/'request.json').write_text(json.dumps(request))
+                self.assertEqual(read_history_summary(root, 'minimax-h3-image'), expected)
+            self.assertEqual(read_history_summary(root, 'other'), {})
+
+    def test_minimax_summary_endpoint_displays_saved_sampler(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); identifier='2026-11-26_22-22-48-d42039d7'; job=root/identifier; job.mkdir()
+            (job/'request.json').write_text(json.dumps({'sampler':'lcm', 'prompt':'private'}))
+            (job/'status.json').write_text('{"status":"completed"}')
+            payload=json.dumps({'service':'minimax-h3-image','ids':[identifier]}).encode(); statuses=[]
+            handler=SimpleNamespace(path='/management/history-summaries',server=SimpleNamespace(server_port=8770),headers={'Host':'127.0.0.1:8770','Origin':'http://127.0.0.1:8770','Content-Type':'application/json','Content-Length':str(len(payload))},rfile=io.BytesIO(payload),wfile=io.BytesIO(),send_response=statuses.append,send_header=lambda *args:None,end_headers=lambda:None)
+            self.assertTrue(handle_history_summaries_request(handler,{'/minimax-h3-image':(root,lambda value:root/value)}))
+            self.assertEqual(statuses,[200])
+            summary=json.loads(handler.wfile.getvalue())['summaries'][identifier]
+            self.assertEqual(summary,{'sampler':'lcm','image_available':False})
+            script="""import {historyInputSummary} from './gui/historyInputSummary.mjs';
+              const values=historyInputSummary(JSON.parse(process.argv[1]),'minimax-h3-image');
+              if(!values.includes('LCM · 실험'))throw Error(JSON.stringify(values));"""
+            result=subprocess.run(['node','--input-type=module','-e',script,json.dumps(summary)],cwd=Path(__file__).resolve().parents[2],capture_output=True,text=True,timeout=30)
+            self.assertEqual(result.returncode,0,result.stderr)
+
     def test_wan21_summary_endpoint_feeds_display_without_prompt(self):
         import subprocess
         with tempfile.TemporaryDirectory() as directory:

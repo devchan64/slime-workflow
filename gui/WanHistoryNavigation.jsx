@@ -1,0 +1,5 @@
+import React from 'react';
+import {validVideoJobId} from './videoJobId.mjs';
+export const WAN_HISTORY_SERVICES=Object.freeze({'wan22-i2v':'I2V','wan22-vace':'VACE','wan22-fun-control':'Fun Control','wan22-animate2':'Animate-2'});
+export function wanHistoryUrl(service,session,id){if(!Object.hasOwn(WAN_HISTORY_SERVICES,service))throw Error('지원하지 않는 생성기입니다.');const q=new URLSearchParams({service});if(session)q.set('session',session);if(validVideoJobId(id))q.set('job',id);return '/management/frame/wan-video-history/?'+q;}
+export default function WanHistoryNavigation({service,session}){return <><nav className="generator-section-navigation" aria-label="생성기 페이지 이동"><a href={'/management/frame/'+service+'-generator/'+(session?'?'+new URLSearchParams({session}):'')}>생성기 입력폼</a><span aria-current="page">생성기 생성이력</span></nav><label>생성기 <select value={service} onChange={event=>location.assign(wanHistoryUrl(event.target.value,session))}>{Object.entries(WAN_HISTORY_SERVICES).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label><p>선택한 생성기의 이력과 삭제 범위만 표시합니다.</p></>;}

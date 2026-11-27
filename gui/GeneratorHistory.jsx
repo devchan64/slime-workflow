@@ -10,6 +10,7 @@ import {restoreLostFocus} from "./restoreLostFocus.mjs";
 import HistoryInputPreview from "./HistoryInputPreview.jsx";
 import {imageRetryUrl} from "./imageRetryUrl.mjs";
 import {startVisibleImageLoadDeadline} from "./imageLoadDeadline.mjs";
+import {historyObserveRetry} from "./historyObserveRetry.mjs";
 
 function recordedTime(id) {
   const match=typeof id==="string" && id.match(/^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})-/);
@@ -190,7 +191,7 @@ function GeneratorHistoryForService({service, statusCommand, restore, inspectRes
     const request={controller,superseded:false};listRequest.current=request;
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try {
-      const result=await untilAborted(managementCommand(service,"history-observe",payload,{signal:controller.signal}),controller.signal);
+      const result=await historyObserveRetry(()=>managementCommand(service,"history-observe",payload,{signal:controller.signal}),controller.signal);
       if(request.superseded)return;
       if(!validGeneratorHistoryPage(result,offset,size,payload.snapshot))throw new Error("이력 응답을 확인할 수 없습니다.");
       const ids=new Set(result.records.map(record=>record.id));

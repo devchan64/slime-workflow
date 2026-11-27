@@ -19,8 +19,8 @@ class VaceVideoInputUiTests(unittest.TestCase):
         inputs = re.findall(r'<input\b[^>]*>', markup)
         self.assertEqual(len(inputs), 2)
         descriptions = [re.search(r'aria-describedby="([^"]+)"', item).group(1).split() for item in inputs]
-        self.assertEqual([len(ids) for ids in descriptions], [2, 1])
-        self.assertEqual(len(set(sum(descriptions, []))), 3)
+        self.assertEqual([len(ids) for ids in descriptions], [2, 2])
+        self.assertEqual(len(set(sum(descriptions, []))), 4)
         for identifier in sum(descriptions, []):
             self.assertIn(f'id="{identifier}"', markup)
         self.assertIn('aria-invalid="true"', inputs[0])

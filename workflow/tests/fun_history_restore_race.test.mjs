@@ -26,8 +26,18 @@ test('다른 첨부 처리 중 포즈 선택은 새 처리를 시작하지 않�
 function fixture(fetch){
  const body={},origin={},other={},frames=[];let focused=0;
  const context=vm.createContext({AbortController,untilAborted,setTimeout,clearTimeout,encodeURIComponent,fetch,validFunInput:()=>true,document:{body,activeElement:origin},requestRef:{current:{prompt:'기존'}},attachmentRevision:{current:0},imageChecking:{current:false},attachmentProcessing:{current:false},reviewEpoch:{current:0},interactionRef:{current:{busy:false,pending:null}},restoreFrame:{current:null},formRef:{current:{isConnected:true,focus:()=>focused++}},setRequest:value=>context.requestRef.current=value,setReferenceReset:()=>{},setVideoInfo:()=>{},setPoseError:()=>{},setError:()=>{},poseError:"",setSourceSeed:()=>{},setSourceJob:()=>{},setNotice:()=>{},requestAnimationFrame:fn=>(frames.push(fn),frames.length),cancelAnimationFrame:()=>{}});
- vm.runInContext(code+'\nthis.readJob=readJob;this.restore=restore;',context);return {context,body,origin,other,frames,focused:()=>focused};
+ vm.runInContext(code+'\nthis.readJob=readJob;this.readHistoryInput=readHistoryInput;this.restore=restore;',context);return {context,body,origin,other,frames,focused:()=>focused};
 }
+test('포즈 미리보기 경로와 실제 복원 첨부는 서로 구분된다',async()=>{
+ const id='2026-11-18_00-00-00-12345678',original='saved-base64-pose',images=['saved-image'];
+ const f=fixture(async()=>({ok:true,json:async()=>({id,request:{prompt:'복원',seed:1,images,pose_video:original},video:{}})}));
+ const record=await f.context.readHistoryInput(id);
+ assert.equal(record.request.pose_video,'/management/assistant/fun-pose/'+id);
+ assert.equal(record.attachments.pose_video,original);
+ f.context.restore(record.request,record);
+ assert.equal(f.context.requestRef.current.pose_video,original);
+ assert.deepEqual(f.context.requestRef.current.images,images);
+});
 test('Fun Control 이력 조회는 본문 읽기 중에도 상위 중단을 따른다',async()=>{
  for(const stage of ['fetch','body']){
   const f=fixture(()=>stage==='fetch'?new Promise(()=>{}):Promise.resolve({ok:true,json:()=>new Promise(()=>{})})),controller=new AbortController();

@@ -1,3 +1,4 @@
+import {WanI2VHistoryPage,wanVideoHistoryUrl} from "./WanVideoHistoryPage.jsx";
 import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
 import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
@@ -26,7 +27,12 @@ import {generationProposalScope,readGenerationProposal} from "./generationPropos
 
 const service="wan22-i2v";
 const polearmPrompt="A warrior grips a long spear with both hands and faces a giant armored boss. The warrior steps forward and thrusts the spear toward the boss, then pulls it back and sweeps it sideways. Wide shot, the entire spear and both hands remain visible, continuous motion, stable background.";
-export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
+export default function I2VPage(props={}){
+  if(!props.embedded && new URLSearchParams(location.search).has('job'))return <WanI2VHistoryPage/>;
+  return <I2VPageContent {...props}/>;
+}
+
+function I2VPageContent({embedded=false,session:embeddedSession=""}={}){
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [settings,setSettings]=useState({prompt:"",negative_prompt:"",frames:21,steps:4,seed:42,flow_shift:5,guidance_scale:1,lora_mode:"lightning",kungfu_strength:1});
   const [file,setFile]=useState(null),[model,setModel]=useState(null),[pending,setPending]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[job,setJob]=useState(new URLSearchParams(location.search).get("job") || ""),[revision,setRevision]=useState(0),[notice,setNotice]=useState("");
@@ -36,6 +42,7 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
   const inputLockId=useId();
   const sending=useRef(false),formRef=useRef(null),inputCardRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null),historyRef=useRef(null),resultRef=useRef(null),nonLightningSettings=useRef(null);
   const currentInput=useRef(null),imageSelectionRevision=useRef(0),imageChecking=useRef(false),promptEdited=useRef(false),reviewRequest=useRef(null);currentInput.current={settings,file,busy,pending};
+  useEffect(()=>{if(embedded)return;const id=new URLSearchParams(location.search).get('restore');if(!id)return;const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState(history.state,'',url);if(!validVideoJobId(id)){setError('저장 입력의 작업 ID를 확인할 수 없습니다.');return;}const controller=new AbortController();readSavedInput(id,true,{signal:controller.signal}).then(record=>{if(!controller.signal.aborted)restoreSavedInput(record.request,record);}).catch(problem=>{if(!controller.signal.aborted)setError(problem.message || '저장 입력을 복원할 수 없습니다.');});return ()=>controller.abort();},[embedded]);
   useEffect(()=>()=>{reviewRequest.current?.abort();reviewRequest.current=null;},[]);
   const usesLightning=settings.lora_mode.includes("lightning");
   const invalidFrames=!Number.isInteger(settings.frames) || settings.frames<5 || settings.frames>129 || (settings.frames-1)%4!==0;
@@ -68,7 +75,7 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
     const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
     try{
       const response=await untilAborted(fetch('/management/assistant/wan22-i2v-input/'+encodeURIComponent(id),{cache:'no-store',signal:controller.signal}),controller.signal);
-      if(!response.ok)throw new Error('저장 입력 또는 참조 이미지를 확인할 수 없습니다. 이력을 확인한 뒤 다시 시도하세요.');
+      if(!response.ok)throw new Error('저장 입력을 불러오지 못했습니다. 참조 이미지와 현재 지원되는 설정을 확인한 뒤 다시 시도하세요.');
       let record;try{record=await untilAborted(response.json(),controller.signal);}catch(problem){controller.signal.throwIfAborted();throw new Error('저장 입력 형식을 확인할 수 없습니다. 다시 조회하세요.');}
       if(record?.id!==id || !record.request || !Array.isArray(record.request.images) || record.request.images.length!==1 || typeof record.request.images[0]!=='string')throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
       const bytes=Uint8Array.from(atob(record.request.images[0]),character=>character.charCodeAt(0));
@@ -111,9 +118,9 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}>
     <GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
     <GeneratorUsage generator={service}/>
-    <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>
+    {embedded || new URLSearchParams(location.search).has("job") ? <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/> : <nav className="generator-section-navigation" aria-label="생성기 페이지 이동"><span aria-current="page">생성기 입력폼</span><a href={wanVideoHistoryUrl(session)} target="_blank" rel="noopener">생성기 생성이력 (새 탭)</a>{validVideoJobId(job) && <a href={wanVideoHistoryUrl(session,job)} target="_blank" rel="noopener">작업 이력 보기</a>}</nav>}
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패 · 다시 확인하세요" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service={service} modelManagementService="wan22-i2v-assets" onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
+    <ActiveGeneratorProgress service={service} revision={revision+":"+job} onOpenResult={id=>embedded || new URLSearchParams(location.search).has("job") ? openGeneratorHistory(historyRef,id,setJob) : window.open(wanVideoHistoryUrl(session,id),"_blank","noopener")}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
     <GeneratorSectionCard title="생성 입력" summary={[imageCheckPending && "이미지 확인 중",imageError && "이미지 확인 실패",previewError && "이미지 미리보기 실패"].filter(Boolean).join(" · ") || "첫 이미지와 동작 지시"} defaultOpen cardRef={inputCardRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
       <ReferenceImageInput onPreviewErrorChange={setPreviewError} onErrorChange={setImageError} label="첫 프레임 이미지" source={file} onSelectionStart={()=>{imageSelectionRevision.current++;}} onCheckingChange={value=>{imageChecking.current=value;setImageCheckPending(value);}} onChange={setFile} disabled={busy || !!pending}/><p>이미지는 흰 여백을 넣어 832×480으로 맞춥니다.</p>
@@ -127,6 +134,6 @@ export default function I2VPage({embedded=false,session:embeddedSession=""}={}){
       <ActionButton type="submit" reasons={reasons}>생성 요청 검토</ActionButton>
     </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{busy ? "요청을 처리하고 있습니다. 잠시 기다려 주세요." : "입력을 수정하려면 생성 요청 검토에서 입력 수정을 선택하세요."}</p>}</form></GeneratorSectionCard>
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><GpuQueueSummary/><p>{file?.name} · 832×480 · {pending.frames}프레임 · 16fps · {pending.steps}스텝 · 시드 {pending.seed}</p><p>LoRA {pending.lora_mode} · Flow shift {pending.flow_shift} · CFG {pending.guidance_scale}</p><ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><ReviewPrompt label="부정 프롬프트" text={pending.negative_prompt}/><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""} onCancel={cancelReview} onConfirm={submit}/></section>}
-    <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority toggleResult readJobWithSignal={(id,options)=>readSavedInput(id,true,options)} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(x=>x+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(x=>x+1);}}/>} renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 영상 작업 결과"><SavedGeneratorInputs id={id} service={service} readJobWithSignal={(currentId,options)=>readSavedInput(currentId,false,options)}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>
+    {(embedded || new URLSearchParams(location.search).has("job")) && <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service={service} statusCommand="status" card allowPriority toggleResult readJobWithSignal={(id,options)=>readSavedInput(id,true,options)} restore={restoreSavedInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");setNotice(message);setRevision(x=>x+1);}} footer={<HistoryCleanup service={service} allowSelected={false} onDeleted={message=>{setJob("");setNotice(message);setRevision(x=>x+1);}}/>} renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 영상 작업 결과"><SavedGeneratorInputs id={id} service={service} readJobWithSignal={(currentId,options)=>readSavedInput(currentId,false,options)}/><MediaJobResult service={service} id={id}>{(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}</MediaJobResult></section>}/></div>}
   </article>;
 }

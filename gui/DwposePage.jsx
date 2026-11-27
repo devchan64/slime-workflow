@@ -1,3 +1,5 @@
+import DwposeHistoryPage,{dwposeHistoryUrl} from "./DwposeHistoryPage.jsx";
+import {validGenerationJobId} from "./generationJobId.mjs";
 import {generationReady} from "./generationReady.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import GpuHandoffStatus from "./GpuHandoffStatus.jsx";
@@ -33,7 +35,12 @@ async function pngData(file) {
   });
 }
 
-export default function DwposePage({embedded=false,session:embeddedSession=""}={}) {
+export default function DwposePage(props={}){
+  if(!props.embedded && new URLSearchParams(location.search).has('job'))return <DwposeHistoryPage/>;
+  return <DwposePageContent {...props}/>;
+}
+
+function DwposePageContent({embedded=false,session:embeddedSession=""}={}) {
   const busyId=useId(),lockedId=useId();
   const query=new URLSearchParams(location.search);
   const session=embeddedSession || query.get("session") || "";
@@ -65,6 +72,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     setJob("");setNotice(message);setHistoryRevision(value=>value+1);
   }
   const sending=useRef(false);
+  useEffect(()=>{if(embedded)return;const id=new URLSearchParams(location.search).get('restore');if(!id)return;const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState(history.state,'',url);if(!validGenerationJobId(id)){setNotice('저장 입력의 작업 ID를 확인할 수 없습니다.');return;}const controller=new AbortController();readJob(id,{signal:controller.signal}).then(record=>{if(!controller.signal.aborted)restore(record.request,record);}).catch(error=>{if(!controller.signal.aborted)setNotice(error.message || '저장 입력을 복원할 수 없습니다.');});return ()=>controller.abort();},[embedded]);
   async function readJob(id,{signal}={}){
     const inputAtStart=inputRef.current,imageAtStart=imageSelectionRevision.current,checkingAtStart=imageChecking.current,reviewAtStart=reviewEpoch.current,focusAtStart=document.activeElement;
     const controller=new AbortController();let timedOut=false;
@@ -77,9 +85,9 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
     if(!["true","false"].includes(handsHeader) || !["true","false"].includes(faceHeader))throw new Error("저장된 포즈 옵션을 확인할 수 없습니다. 이력을 다시 조회하세요.");
     const blob=await untilAborted(response.blob(),controller.signal);
     const savedFile=new File([blob],id+"-reference.png",{type:"image/png"});
-    try{await untilAborted(pngData(savedFile),controller.signal);}catch(error){if(controller.signal.aborted)throw error;throw new Error("저장된 PNG를 확인할 수 없습니다. 이력을 다시 조회하세요.");}
+    let encoded;try{encoded=await untilAborted(pngData(savedFile),controller.signal);}catch(error){if(controller.signal.aborted)throw error;throw new Error("저장된 PNG를 확인할 수 없습니다. 이력을 다시 조회하세요.");}
     return {id,file:savedFile,inputAtStart,imageAtStart,checkingAtStart,reviewAtStart,focusAtStart,request:{
-      pose_include_hands:handsHeader==="true",
+      images:[encoded],pose_include_hands:handsHeader==="true",
       pose_include_face:faceHeader==="true",
     }};
     }catch(error){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
@@ -128,10 +136,10 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
   return <article className={embedded ? "dwpose-page generator-page-common" : "dwpose-page dwpose-standalone generator-page-common"}>
     <GeneratorPageIdentity service="dwpose" embedded={embedded} returnHref={"/management/assistant/"+(session?"?"+new URLSearchParams({session}):"")} returnLabel="헤르메스 대화" changelogCard/>
     <GeneratorSectionCard title="사용설명" summary="사용 방법과 제한 사항"><p>832×480 PNG를 선택하고 필요한 손·얼굴 상세 옵션을 확인하세요.</p><p>모델 준비를 확인하고 추출 요청을 검토한 뒤 접수하세요. 진행 상태와 결과는 생성 이력에서 확인할 수 있습니다.</p></GeneratorSectionCard>
-    <GeneratorSectionNavigation inputRef={formRegion} historyRef={historyRegion} resultRef={resultRegion} resultReady={Boolean(job)} openOnNavigate/>
+    {embedded || query.has("job") ? <GeneratorSectionNavigation inputRef={formRegion} historyRef={historyRegion} resultRef={resultRegion} resultReady={Boolean(job)} openOnNavigate/> : <nav className="generator-section-navigation" aria-label="생성기 페이지 이동"><span aria-current="page">생성기 입력폼</span><a href={dwposeHistoryUrl(session)} target="_blank" rel="noopener">생성기 생성이력 (새 탭)</a>{validGenerationJobId(job) && <a href={dwposeHistoryUrl(session,job)} target="_blank" rel="noopener">작업 이력 보기</a>}</nav>}
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : generationReady(model) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session} service="dwpose" onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     {handoff.id && <GpuHandoffStatus session={session} id={handoff.id} service="dwpose" status={handoff.status} onUpdate={handoff.update} onClose={handoff.close}/>}
-    <ActiveGeneratorProgress service="dwpose" revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRegion,id,setJob)}/>
+    <ActiveGeneratorProgress service="dwpose" revision={historyRevision+":"+job} onOpenResult={id=>embedded || query.has("job") ? openGeneratorHistory(historyRegion,id,setJob) : window.open(dwposeHistoryUrl(session,id),"_blank","noopener")}/>
     {busy && <p id={busyId} role="status">포즈 추출 요청을 처리하고 있습니다. 완료될 때까지 기다리세요.</p>}
     {!busy && (pending || handoff.id) && <p id={lockedId}>{pending ? "아래 검토를 확인하거나 입력 수정을 선택하세요." : "GPU 양도 상태를 확인하고 닫은 뒤 입력을 수정하세요."}</p>}
     <fieldset className="dwpose-workflow" disabled={busy || Boolean(pending) || Boolean(handoff.id)} aria-describedby={busy ? busyId : pending || handoff.id ? lockedId : undefined}><legend className="generator-visually-hidden">생성 입력과 이력</legend>
@@ -141,7 +149,7 @@ export default function DwposePage({embedded=false,session:embeddedSession=""}={
       <label><input type="checkbox" checked={face} onChange={event=>{const value=event.target.checked;inputRef.current={...inputRef.current,face:value};setFace(value);}}/>얼굴 상세 표시</label></div>
       <ActionButton buttonRef={reviewButtonRef} reasons={[imageCheckPending && "선택한 이미지 확인이 끝날 때까지 기다리세요.",!file && "입력 PNG를 선택하세요.",!generationReady(model) && "모델 준비 상태를 확인하세요."]} onClick={review}>생성 요청 검토</ActionButton>
       </div></GeneratorSectionCard>
-      <div ref={historyRegion} aria-label="DWPose 생성 이력"><GeneratorHistory card allowPriority toggleResult onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup service="dwpose" onDeleted={cleaned} allowSelected={false}/>} renderResult={id=><section ref={resultRegion} tabIndex={-1} aria-label="선택한 DWPose 작업 결과"><GeneratorJobResult selectionControls job={id} service="dwpose" readJobWithSignal={readJob} controls={false} onDeleted={cleaned}/></section>}/></div>
+      {(embedded || query.has("job")) && <div ref={historyRegion} aria-label="DWPose 생성 이력"><GeneratorHistory card allowPriority toggleResult onSelectedDeleted={(id,message)=>{if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service="dwpose" readJobWithSignal={readJob} resultId={job} openResult={setJob} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup service="dwpose" onDeleted={cleaned} allowSelected={false}/>} renderResult={id=><section ref={resultRegion} tabIndex={-1} aria-label="선택한 DWPose 작업 결과"><GeneratorJobResult selectionControls job={id} service="dwpose" readJobWithSignal={readJob} controls={false} onDeleted={cleaned}/></section>}/></div>}
     </fieldset>
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="생성 요청 확인"><h2>생성 요청 확인</h2><p className="reference-image-name">입력 PNG · {reviewFileName.current}</p><p>손 상세 {pending.pose_include_hands?"포함":"제외"} · 얼굴 상세 {pending.pose_include_face?"포함":"제외"}</p><GpuQueueSummary/>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 포즈를 추출합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}

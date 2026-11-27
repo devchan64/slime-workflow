@@ -1035,7 +1035,7 @@ class HermesGatewayRestartTests(unittest.TestCase):
                 current_server_value.server_close()
                 self.assertFalse(current_thread_value.is_alive())
 
-            with patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready'), patch('workflow.domains.hermes_agent.service.launch_gpu_process') as current_launch_mock, patch('workflow.domains.hermes_agent.delegation_store.HermesDelegationStore', side_effect=lambda: HermesDelegationStore(current_store_path)):
+            with patch('workflow.domains.hermes_agent.service.validate_hermes_runtime_ready'), patch('workflow.domains.hermes_agent.resident_queue.find_session_resident', return_value='resident_123'), patch('workflow.domains.hermes_agent.resident_chat_executor.launch_resident_chat') as current_launch_mock, patch('workflow.domains.hermes_agent.delegation_store.HermesDelegationStore', side_effect=lambda: HermesDelegationStore(current_store_path)):
                 current_server_value, current_thread_value = start_test_gateway()
                 try:
                     current_address_value = f'http://127.0.0.1:{current_server_value.server_port}'

@@ -14,7 +14,37 @@ from workflow.domains.image.three_reference_generation import save_three_referen
 
 
 class FluxProfileContracts(unittest.TestCase):
-    def test_embedded_proposal_return_link_uses_its_session(self):
+    def test_delete_one_profile_preserves_same_id_in_other_profile(self):
+        import json
+        from itertools import product
+        from unittest.mock import patch
+        from workflow.domains.image.flux_expression_generation import FluxExpressionGenerationManager
+        with tempfile.TemporaryDirectory() as directory, patch('workflow.domains.image.flux_image_generation.MANAGER_HISTORY_ROOT', Path(directory)/'history'), patch('workflow.domains.image.flux_expression_generation.MANAGER_HISTORY_ROOT', Path(directory)/'history'):
+            root=Path(directory); job_id='2026-11-27_00-00-00-1234abcd'
+            managers={profile:FluxImageGenerationManager(profile) for profile in FLUX_IMAGE_PROFILE_RECORDS}
+            managers['flux-expression']=FluxExpressionGenerationManager()
+            for (profile,manager),action in product(managers.items(),('selected','all')):
+                with self.subTest(profile=profile,action=action):
+                    for other_profile,other in managers.items():
+                        other.job_storage_root=root/other_profile
+                        job=other.job_storage_root/job_id; job.mkdir(parents=True,exist_ok=True)
+                        (job/'status.json').write_text('{"status":"completed"}')
+                        (job/'result.png').write_bytes(b'image')
+                        other.history_storage_path().mkdir(parents=True,exist_ok=True)
+                        (other.history_storage_path()/(job_id+'.json')).write_text(json.dumps({'id':job_id}))
+                    if action=='selected':
+                        manager.delete_generation_history(job_id)
+                    else:
+                        preview=manager.preview_generation_cleanup()
+                        manager.reset_generation_history(preview['jobs'])
+                    self.assertFalse((manager.job_storage_root/job_id).exists())
+                    self.assertFalse((manager.history_storage_path()/(job_id+'.json')).exists())
+                    for other_profile,other in managers.items():
+                        if other_profile==profile: continue
+                        self.assertTrue((other.job_storage_root/job_id/'result.png').is_file(),other_profile)
+                        self.assertTrue((other.history_storage_path()/(job_id+'.json')).is_file(),other_profile)
+
+    def test_proposal_session_is_kept_in_standalone_and_embedded_links(self):
         import os
         import subprocess
         gui=Path(__file__).resolve().parents[2]/'gui'
@@ -37,10 +67,14 @@ class FluxProfileContracts(unittest.TestCase):
               const page=(count,page)=>server.renderToStaticMarkup(React.createElement(Pagination,{count,page,pageSize:8,hintId:'hint',onMove:()=>{}}));
               assert.match(page(0,0),/검색 결과가 없어/);assert.match(page(4,0),/다른 가이드 페이지가 없습니다/);
               assert.match(page(9,0),/첫 번째 가이드 페이지/);assert.match(page(9,1),/마지막 가이드 페이지/);assert.match(page(9,0),/aria-describedby="hint"/);
-              process.stdout.write(server.renderToStaticMarkup(React.createElement(Page,{serviceOverride:'flux-image',embedded:true,receiptScope:{session:'new',job:'proposal'}})));"""
+              const props={serviceOverride:'flux-image',receiptScope:{session:'new',job:'proposal'}};
+              const standalone=server.renderToStaticMarkup(React.createElement(Page,props));
+              assert.ok(standalone.includes('/management/assistant/?session=new'));
+              assert.ok(!standalone.includes('/management/assistant/?session=old'));
+              process.stdout.write(server.renderToStaticMarkup(React.createElement(Page,{...props,embedded:true})));"""
             markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,
                                            env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
-        self.assertIn('/management/assistant/?session=new',markup)
+        self.assertNotIn('aria-label="워크플로우 탐색"',markup)
         self.assertNotIn('/management/assistant/?session=old',markup)
         self.assertIn('/management/frame/model-management/?model=flux-image&amp;session=new',markup)
 

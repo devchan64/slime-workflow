@@ -63,7 +63,7 @@ test('오디오 진행 결과 보기는 이력을 열고 제목에 초점을 둔
  const callback=source.match(/<AudioActiveStatus[^\n]*?onOpen=\{\(\)=>([^}]+)\}/)?.[1];assert.ok(callback);
  let selected='',focused=0,scrolled=0;const summary={isConnected:true,matches:()=>true,setAttribute:()=>{},scrollIntoView:()=>scrolled++,focus:()=>focused++};
  const card={open:false,querySelector:selector=>selector==='summary'?summary:null};
- const context=vm.createContext({historyRegion:{current:{querySelector:()=>card}},activeId:'existing-job',setJob:id=>selected=id});
+ const context=vm.createContext({embedded:true,historyRegion:{current:{querySelector:()=>card}},activeId:'existing-job',setJob:id=>selected=id});
  vm.runInContext(helper+'\n'+callback,context);
  assert.equal(selected,'existing-job');assert.equal(card.open,true);assert.equal(focused,1);assert.equal(scrolled,1);
 });

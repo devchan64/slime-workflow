@@ -9,6 +9,28 @@ from workflow.common.management_gateway import MANAGEMENT_SERVICE_COMMANDS, MANA
 
 
 class DwposeGenerationTests(unittest.TestCase):
+    def test_saved_input_checks_reference_snapshot(self):
+        import hashlib, json, tempfile
+        from pathlib import Path
+        from http.server import SimpleHTTPRequestHandler
+        from fastapi.testclient import TestClient
+        from workflow.common.management_asgi import build_management_application
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); job_id='2026-11-27_00-00-00-1234abcd'; job=root/job_id; job.mkdir()
+            data=base64.b64decode(self.make_image_request()['images'][0]); image=job/'reference-1.png'; image.write_bytes(data)
+            saved={'references':['reference-1.png'],'reference_snapshots':[{'path':'reference-1.png','order':1,'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}],'pose_include_hands':True,'pose_include_face':False}
+            request=job/'request.json'; request.write_text(json.dumps(saved))
+            app=build_management_application(SimpleHTTPRequestHandler,root,root/'source.json',8770,[])
+            with patch('generators.dwpose.contracts.DWPOSE_JOB_STORAGE',root), TestClient(app) as client:
+                url='/management/assistant/dwpose-input/'+job_id
+                result=client.get(url); self.assertEqual(result.status_code,200); self.assertEqual(result.content,data)
+                self.assertEqual(result.headers['X-Pose-Hands'],'true')
+                image.write_bytes(data+b'changed'); self.assertEqual(client.get(url).status_code,422)
+                image.write_bytes(data); saved['reference_snapshots']=[]; request.write_text(json.dumps(saved))
+                self.assertEqual(client.get(url).status_code,422)
+                saved.pop('reference_snapshots'); request.write_text(json.dumps(saved))
+                self.assertEqual(client.get(url).status_code,422)
+
     def make_image_request(self, current_image_size=(832,480)):
         current_image_buffer = io.BytesIO()
         Image.new('RGB',current_image_size,'white').save(current_image_buffer,format='PNG')
@@ -87,7 +109,8 @@ class DwposeGenerationTests(unittest.TestCase):
             markup=subprocess.check_output(['node','-e',script,str(bundle)],cwd=gui,text=True,
                                            env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
         self.assertIn('DWPose 이미지 추출',markup)
-        self.assertIn('/management/assistant/?session=new',markup)
+        self.assertNotIn('/management/assistant/?session=old',markup)
+        self.assertIn('model=dwpose&amp;session=new',markup)
         self.assertIn('생성 요청 검토',markup)
         self.assertIn('aria-label="생성기 영역 이동"',markup)
         self.assertIn('aria-label="DWPose 생성 입력"',markup)

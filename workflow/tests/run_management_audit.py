@@ -9,6 +9,8 @@ from workflow.tests.run_music_regression import execute_music_regression
 
 # 폐기된 Gradio 전용 모듈은 제외한다. 현행 React·게이트웨이와 폐기 계약 검사는 유지한다.
 MANAGEMENT_AUDIT_MODULES = tuple('workflow.tests.' + current_module_name for current_module_name in (
+    'test_generator_separated_navigation_ui', 'test_generator_history_ui_contract', 'test_history_input_media_ui', 'test_image_history_context_ui', 'test_minimax_video_history_navigation_ui', 'test_wan_history_navigation_ui', 'test_fun_saved_input_ui_contract', 'test_media_retry_route', 'test_minimax_building_candidate',
+    'test_audio_navigation_ui', 'test_flux_navigation_ui', 'test_fun_navigation_ui', 'test_minimax_h3_ui_contract', 'test_vace_video_input_ui', 'test_wan_i2v_input_restore', 'test_minimax_image_input_restore', 'test_minimax_ref2va_contract',
     'test_hermes_workflow_chain', 'test_hermes_workflow_skills', 'test_hermes_gpu_handoff_store', 'test_hermes_gpu_handoff_controller', 'test_hermes_gpu_handoff_observation', 'test_hermes_gpu_handoff_kimodo', 'test_hermes_gpu_handoff_flux', 'test_hermes_gpu_handoff_video', 'test_hermes_gpu_handoff_writer', 'test_hermes_resident_worker', 'test_hermes_resident_preload', 'test_hermes_resident_chat_executor',
     'test_reference_restore', 'test_reference_video_resume_validation', 'test_dwpose_generation', 'test_video_job_recovery', 'test_kimodo_generation', 'test_kimodo_dwpose', 'test_kimodo_migraphx_build', 'test_kimodo_readiness', 'test_hymotion_retirement',
     'test_content_launch_config', 'test_gateway_existing_process', 'test_gateway_trace', 'test_gateway_watch',

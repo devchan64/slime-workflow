@@ -33,6 +33,10 @@ def read_history_summary(directory, service=''):
         value=request.get(key)
         if type(value) is bool:
             summary[key]=value
+    if service == 'minimax-h3-image':
+        sampler = request.get('sampler', 'euler')
+        if sampler in ('euler', 'lcm'):
+            summary['sampler'] = sampler
     if service in ('wan21-i2v','wan21-t2v'):
         enabled=request.get('action_lora')
         variant=request.get('action_variant','fight')

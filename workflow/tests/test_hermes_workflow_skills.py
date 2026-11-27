@@ -30,8 +30,9 @@ class WorkflowSkillTests(unittest.TestCase):
             with self.subTest(prompt=prompt):
                 guidance = build_workflow_guidance(root, prompt)
                 self.assertIn('[워크플로우 스킬: generation-request]', guidance)
-                self.assertIn('해제·생성·재적재 동의', guidance)
-                self.assertIn('지원하지 않는 작업에는 자동 양도나 재적재를 약속하지 않는다', guidance)
+                self.assertIn('GPU 자원 관리는 스케줄러의 역할', guidance)
+                self.assertIn('다른 프로세스를 종료하지 않는다', guidance)
+                self.assertIn('재적재를 보장하지 않는다', guidance)
 
     def test_selection_and_combinations(self):
         self.assertEqual(select_workflow_skills('안녕하세요'), [])

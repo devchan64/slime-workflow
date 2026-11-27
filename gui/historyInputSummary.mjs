@@ -7,7 +7,7 @@ export function historyInputSummary(request, service="") {
   if (request.audio_available===true) result.push("WAV 오디오 결과");
   if (service!=="dwpose" && Number.isInteger(request.frames) && request.frames>0) result.push(`${request.frames}프레임`);
   if (service!=="dwpose" && Number.isInteger(request.steps) && request.steps>0) result.push(`${request.steps}스텝`);
-  if (service==="minimax-h3-image") result.push(request.sampler===undefined || request.sampler==="euler" ? "Euler" : request.sampler==="lcm" ? "LCM · 실험" : "샘플러 확인 필요");
+  if (service==="minimax-h3-image") result.push(request.sampler==="euler" ? "Euler" : request.sampler==="lcm" ? "LCM · 실험" : "샘플러 확인 필요");
   if (service!=="dwpose" && Number.isInteger(request.seed) && request.seed>=0) result.push(`시드 ${request.seed}`);
   if (["wan21-i2v","wan21-t2v"].includes(service) && typeof request.action_lora==="boolean") {
     if (!request.action_lora) result.push("동작 LoRA 사용 안 함");
@@ -28,6 +28,7 @@ export function historyInputDetails(request){
   return JSON.stringify(request,(key,value)=>{
     if(key==='images' && Array.isArray(value))return value.map(item=>
       typeof item==='string' && (item.startsWith('data:') || /^(?:iVBORw0KGgo|\/9j\/|R0lGOD|UklGR|Qk0)/.test(item)) ? '[이미지 데이터 생략]' : item);
+    if(['edit_video','driving_video','pose_video','edit_mask'].includes(key) && typeof value==='string' && value.length>100 && /^[A-Za-z0-9+/=]+$/.test(value))return '[영상 데이터 생략]';
     return typeof value==='string' && (value.startsWith('data:') || value.length>10000) ? '[첨부 또는 긴 데이터 생략]' : value;
   },2);
 }

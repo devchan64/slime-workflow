@@ -34,7 +34,7 @@ test('MiniMax 저장 입력은 요청과 본문 읽기 지연에서 시간 초�
 });
 
 test('MiniMax 검토 중 중복 요청과 입력 변경을 차단하고 지연 시 복구한다',async()=>{
- const review=source.slice(source.indexOf('  async function review(event)'),source.indexOf('  async function submit()'));
+ const review=source.slice(source.indexOf('  async function review(event)'),source.indexOf('  useEffect(()=>{if(embedded)return;',source.indexOf('  async function review(event)')));
  for(const scenario of ['timeout','changed','success']){
   let finish,timer,calls=0,pending=null,error='',busy=false;
   const file={},current={current:{prompt:'move',seed:42,file,checking:false}};
@@ -55,7 +55,7 @@ test('MiniMax 접수는 처리 중 검토를 유지하고 중복을 막으며 �
  for(const scenario of ['timeout','success','invalid']){
   let timer,finish,calls=0,pending={action:'generate'},busy=false,error='',notice='',job='';
   const document={body:{},activeElement:{}};
-  const context=vm.createContext({AbortController,untilAborted,validVideoJobId,document,service:'minimax-h3-i2v',hasProposal:false,proposalScope:null,pending,model:{},generationReady:()=>true,sending:{current:false},reviewRef:{current:{contains:()=>false}},formRef:{current:null},requestAnimationFrame:()=>{},
+  const context=vm.createContext({AbortController,untilAborted,validVideoJobId,document,embedded:true,service:'minimax-h3-i2v',hasProposal:false,proposalScope:null,pending,model:{},generationReady:()=>true,sending:{current:false},reviewRef:{current:{contains:()=>false}},formRef:{current:null},requestAnimationFrame:()=>{},
    managementCommand:()=>{calls++;return new Promise(resolve=>finish=resolve);},setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setError:value=>error=value,setNotice:value=>notice=value,setPending:value=>pending=value,setJob:value=>job=value,setRevision:()=>{}});
   vm.runInContext(submit,context);const first=context.submit();await context.submit();assert.equal(calls,1);assert.equal(busy,true);assert.notEqual(pending,null);
   if(scenario==='timeout')timer();else finish(scenario==='success'?{id:'2026-11-24_12-00-00-1234abcd'}:{id:'잘못된-ID'});
@@ -77,7 +77,7 @@ test('MiniMax 정책 조회는 요청과 본문 지연을 종료하고 화면 �
 });
 
 test('MiniMax 검토가 열릴 때 사용자가 옮긴 초점은 유지한다',async()=>{
- const review=source.slice(source.indexOf('  async function review(event)'),source.indexOf('  async function submit()'));
+ const review=source.slice(source.indexOf('  async function review(event)'),source.indexOf('  useEffect(()=>{if(embedded)return;',source.indexOf('  async function review(event)')));
  const effect=source.match(/useEffect\(\(\)=>\{if\(!pending\)return;const origin=reviewOrigin\.current;.*?\},\[pending\]\);/)?.[0];assert.ok(effect);
  for(const moved of [false,true]){
   const origin={},other={},body={},file={};let run,focused=0;
@@ -113,7 +113,7 @@ test('MiniMax 저장 입력 적용은 조회 중 이동한 초점을 빼앗지 �
  for(const moved of [false,true]){
   const body={},origin={},other={},file={};let frame,focused=0;const document={body,activeElement:origin};
   const start={busy:false,pending:null,checking:false,prompt:'old',seed:1,file};
-  const context=vm.createContext({document,current:{current:start},reviewRequest:{current:null},imageVersion:{current:0},promptEdited:{current:false},inputRef:{current:{open:false}},formRef:{current:{focus:()=>focused++}},requestAnimationFrame:fn=>frame=fn,setPrompt:()=>{},setSeed:()=>{},setFile:()=>{},setNotice:()=>{},setError:()=>{}});
+  const context=vm.createContext({document,embedded:true,current:{current:start},reviewRequest:{current:null},imageVersion:{current:0},promptEdited:{current:false},inputRef:{current:{open:false}},formRef:{current:{focus:()=>focused++}},requestAnimationFrame:fn=>frame=fn,setPrompt:()=>{},setSeed:()=>{},setFile:()=>{},setNotice:()=>{},setError:()=>{}});
   vm.runInContext(code,context);context.restoreSavedInput({prompt:'new',seed:42},{id:'job',inputAtStart:start,version:0,focusAtStart:origin,restoredFile:{}});
   document.activeElement=moved?other:origin;frame();assert.equal(focused,moved?0:1);assert.equal(context.inputRef.current.open,true);
  }
@@ -134,7 +134,7 @@ test('대화 영상 제안은 고정 접수 ID로 위임하고 결과를 확인�
  const proposalScope={session:'a'.repeat(32),job:'2026-11-24_10-00-00-12345678',kind:'video'};
  let captured,job='',refresh=0;const receipt={state:'editing',id:'flux_'+ '1'.repeat(64),refresh:()=>refresh++,unknown:()=>{throw Error('unexpected')}};
  const document={body:{},activeElement:{}};
- const context=vm.createContext({AbortController,untilAborted,validVideoJobId,document,service:'minimax-h3-i2v',hasProposal:true,proposalScope,receipt,readGenerationProposal:async()=>({}),pending:{action:'generate'},model:{},generationReady:()=>true,sending:{current:false},reviewRef:{current:{contains:()=>false}},formRef:{current:null},requestAnimationFrame:()=>{},managementCommand:async(...args)=>{captured=args;return {state:'accepted',job_id:'2026-11-24_12-00-00-12345678'};},setTimeout:()=>1,clearTimeout:()=>{},setBusy:()=>{},setError:()=>{},setNotice:()=>{},setPending:()=>{},setJob:value=>job=value,setRevision:()=>{}});
+ const context=vm.createContext({AbortController,untilAborted,validVideoJobId,document,embedded:true,service:'minimax-h3-i2v',hasProposal:true,proposalScope,receipt,readGenerationProposal:async()=>({}),pending:{action:'generate'},model:{},generationReady:()=>true,sending:{current:false},reviewRef:{current:{contains:()=>false}},formRef:{current:null},requestAnimationFrame:()=>{},managementCommand:async(...args)=>{captured=args;return {state:'accepted',job_id:'2026-11-24_12-00-00-12345678'};},setTimeout:()=>1,clearTimeout:()=>{},setBusy:()=>{},setError:()=>{},setNotice:()=>{},setPending:()=>{},setJob:value=>job=value,setRevision:()=>{}});
  vm.runInContext(submit,context);await context.submit();
  assert.equal(captured[0],'hermes-agent');assert.equal(captured[1],'hermes-minimax-submit');assert.equal(captured[2].request_id,receipt.id);assert.equal(captured[2].session_id,proposalScope.session);assert.equal(job,'2026-11-24_12-00-00-12345678');assert.equal(refresh,1);
 });

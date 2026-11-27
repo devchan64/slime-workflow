@@ -1,3 +1,5 @@
+import VaceHistoryPage,{vaceHistoryUrl} from "./VaceHistoryPage.jsx";
+import {validVideoJobId} from "./videoJobId.mjs";
 import {generationReady} from "./generationReady.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import ReviewPrompt from "./ReviewPrompt.jsx";
@@ -59,7 +61,12 @@ function SavedVaceInputs({id}){
   const {request,attachments}=state.data;
   return <section ref={resultRef} tabIndex={-1} className="history-action-detail" aria-label="저장된 생성 입력"><strong>저장된 생성 입력</strong><p>{request.frames}프레임 · {request.steps}스텝 · 시드 {request.seed} · 첨부 {attachments.length ? attachments.map(key=>labels[key] || (key==='reference'?'참조 이미지':key)).join(', ') : '없음'}</p><details><summary>저장된 입력 상세</summary><pre>{JSON.stringify(request,null,2)}</pre></details></section>;
 }
-export default function VacePage({embedded=false,session:embeddedSession=""}={}){
+export default function VacePage(props={}){
+  if(!props.embedded && new URLSearchParams(location.search).has('job'))return <VaceHistoryPage/>;
+  return <VacePageContent {...props}/>;
+}
+
+function VacePageContent({embedded=false,session:embeddedSession=""}={}){
   const frameErrorId=useId();
   const inputLockId=useId();
   const historyLockId=useId();
@@ -122,6 +129,9 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   const [historyRevision,refreshHistory]=useState(0);
   const [notice,setNotice]=useState("");
   const handoff=useGpuHandoff(session,service,setJob,setError);
+  async function readHistoryInput(id,options){const record=await readJob(id,options);const prefix="/management/assistant/vace-input/"+encodeURIComponent(id)+"/",preview={...record.request};for(const key of record.attachments){if(key==="reference")preview.images=[prefix+key];else preview[key]=prefix+key;}return {...record,request:preview};}
+  const restoreStarted=useRef(false);
+  useEffect(()=>{if(embedded || !template || !values || restoreStarted.current)return;const id=new URLSearchParams(location.search).get('restore');if(!id)return;restoreStarted.current=true;const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState(history.state,'',url);if(!validVideoJobId(id)){setError('저장 입력의 작업 ID를 확인할 수 없습니다.');return;}const controller=new AbortController();readJob(id,{signal:controller.signal}).then(record=>{if(!controller.signal.aborted)restore(record.request,record);}).catch(problem=>{if(!controller.signal.aborted)setError(problem.message || '저장 입력을 복원할 수 없습니다.');});return ()=>controller.abort();},[embedded,Boolean(template && values)]);
   async function readJob(id,{signal}={}){
     const inputAtStart=inputRef.current,selectionAtStart=JSON.stringify(videoSequences.current),imageAtStart=imageSelectionRevision.current,checkingAtStart=imageChecking.current || Object.keys(videoControllers.current).length>0,reviewAtStart=reviewEpoch.current,focusAtStart=document.activeElement;
     const prefix="/management/assistant/vace-input/"+encodeURIComponent(id)+"/";
@@ -150,7 +160,8 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
     }catch(problem){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 확인하세요.");throw problem;}
     finally{clearTimeout(timeout);signal?.removeEventListener('abort',cancel);controller.abort();}
   }
-  function restore(request,record){
+  function restore(input,record){
+    const {images,pose_video,edit_video,edit_mask,...request}=input;
     if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.pending)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
     if(record.checkingAtStart || imageChecking.current || Object.keys(videoControllers.current).length || record.inputAtStart.values!==inputRef.current.values || record.inputAtStart.files!==inputRef.current.files || record.selectionAtStart!==JSON.stringify(videoSequences.current) || record.imageAtStart!==imageSelectionRevision.current)throw new Error("첨부 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");
     for(const key of Object.keys(videoSequences.current))videoSequences.current[key]++;
@@ -234,12 +245,12 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
   }
   const modelService=values?.model_profile === "q8-gguf-resident-v1" ? "wan22-vace-q8" : service;
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}><GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
-    <GeneratorUsage generator="wan22-vace"/><GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/>
+    <GeneratorUsage generator="wan22-vace"/>{embedded || new URLSearchParams(location.search).has("job") ? <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(values)} resultReady={Boolean(job)} openOnNavigate/> : <nav className="generator-section-navigation" aria-label="생성기 페이지 이동"><span aria-current="page">생성기 입력폼</span><a href={vaceHistoryUrl(session)} target="_blank" rel="noopener">생성기 생성이력 (새 탭)</a>{validVideoJobId(job) && <a href={vaceHistoryUrl(session,job)} target="_blank" rel="noopener">작업 이력 보기</a>}</nav>}
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"}>
       <ModelReadiness session={session} service={modelService} onStatus={setModel} onError={setModelError}/>
       {embedded && (model?.generation_ready ?? model?.ready) && !["queued","running","failed","cancelled","unknown"].includes(model?.preparation_status) ? <details><summary>모델 다운로드 이력</summary><DownloadProgress service={modelService}/></details> : <DownloadProgress service={modelService}/>}
     </GeneratorSectionCard>
-    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setJob)}/>
+    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>embedded || new URLSearchParams(location.search).has("job") ? openGeneratorHistory(historyRef,id,setJob) : window.open(vaceHistoryUrl(session,id),"_blank","noopener")}/>
     {error && <p role="alert">{error}</p>}
     {templateError && <p role="alert">{templateError}</p>}
     {!template && !templateError && <p role="status">생성 입력을 불러오는 중입니다.</p>}
@@ -297,10 +308,11 @@ export default function VacePage({embedded=false,session:embeddedSession=""}={})
       <ReviewPrompt label="장면·동작 프롬프트" text={pending.prompt}/><ReviewPrompt label="부정 프롬프트" text={pending.negative_prompt}/>
       {handoff.review && <p>동의하면 진행 중인 헤르메스 대화가 끝난 뒤 Qwen 3.8을 해제하고 영상을 생성합니다. 작업이 끝나면 Qwen 3.8을 다시 GPU에 적재합니다.</p>}
       <GenerationReviewActions busy={busy} onCancel={()=>{const restore=reviewRef.current?.contains(document.activeElement);setPending(null);handoff.clearReview();if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(formRef.current?.querySelector("textarea"))));}} onConfirm={submit} confirmLabel={handoff.review ? "해제·생성·재적재에 동의" : undefined} disabledReason={!generationReady(model) ? "모델 준비 상태를 확인하고 필요한 준비를 완료하세요." : ""}/></section>}
-    <fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending} aria-label="생성 이력" aria-describedby={busy || pending ? historyLockId : undefined}><GeneratorHistory card directApply allowPriority toggleResult onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
+    {(embedded || new URLSearchParams(location.search).has("job")) && <><fieldset className="vace-history-card" ref={historyRef} disabled={busy || !!pending} aria-label="생성 이력" aria-describedby={busy || pending ? historyLockId : undefined}><GeneratorHistory card allowPriority toggleResult onSelectedDeleted={(id,message)=>{if(sourceJob===id)setSourceJob("");if(job===id) cleaned(message); else setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readHistoryInput} openResult={setJob} resultId={job} onCloseResult={()=>setJob("")} restore={restore} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>} renderResult={id=><section ref={resultRef} tabIndex={-1} aria-label="선택한 VACE 작업 결과"><SavedVaceInputs key={id} id={id}/><MediaJobResult key={id} service={service} id={id} hideProgress>
       {(record,reload)=>record && <GeneratorJobControls showActions={false} service={service} id={id} state={record.status} refresh={reload}/>}
     </MediaJobResult></section>}/></fieldset>
     {(busy || pending) && <p id={historyLockId} role="status">{busy ? "요청 처리 후 이력을 사용할 수 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}
+    </>}
     {notice && <p role="status">{notice}</p>}
   </article>;
 }

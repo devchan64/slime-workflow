@@ -9,6 +9,7 @@ import {validGenerationEstimate} from "./generationEstimate.mjs";
 import {observedGenerationProgress,generationProgressSummary} from "./generationProgressModel.mjs";
 import {validGeneratorHistoryPage} from "./generatorHistoryPage.mjs";
 import {generationSourceStatusCommand} from "./generationSourceStatusCommand.mjs";
+import {historyObserveRetry} from "./historyObserveRetry.mjs";
 
 /** 저장된 이력과 읽기 전용 원본 상태로 현재 작업을 관측한다. */
 export default function ActiveGeneratorProgress(props){
@@ -36,7 +37,7 @@ function ActiveGeneratorProgressForService({service,revision=0,onOpenResult,chil
         let offset=0,snapshot=null,total=null,next=null,rows=[],pages=0,missing=false,uncertain=false;const seen=new Set();
         do{
           const payload={limit:30,offset};if(snapshot)payload.snapshot=snapshot;
-          const page=await untilAborted(managementCommand(service,'history-observe',payload,{signal:controller.signal}),controller.signal);
+          const page=await historyObserveRetry(()=>managementCommand(service,'history-observe',payload,{signal:controller.signal}),controller.signal);
           if(!validGeneratorHistoryPage(page,offset,30,snapshot) || (total!==null && page.total!==total) || !Number.isSafeInteger(page.unavailable_count) || page.unavailable_count<0)throw new Error('작업 이력을 확인할 수 없습니다.');
           for(const row of page.records){
             if(!row || typeof row.id!=='string' || !/^[A-Za-z0-9_-]{1,80}$/.test(row.id) || !['job','index','unavailable'].includes(row.status_source) || !['queued','running','completed','failed','cancelled','canceled','paused','unknown'].includes(row.recorded_status) || seen.has(row.id))throw new Error('작업 이력을 확인할 수 없습니다.');

@@ -1,3 +1,5 @@
+import FunControlHistoryPage,{funHistoryUrl} from "./FunControlHistoryPage.jsx";
+import {validVideoJobId} from "./videoJobId.mjs";
 import GenerationReviewActions from "./GenerationReviewActions.jsx";
 import ReviewPrompt from "./ReviewPrompt.jsx";
 import {restoreLostFocus,visibleFocusTarget} from "./restoreLostFocus.mjs";
@@ -45,7 +47,12 @@ export function validFunForm(record,id){
     (info===null || (typeof info==='object' && !Array.isArray(info))));
 }
 
-export default function FunControlPage({embedded=false,session="",restoreFormId="",seedProposal=null,onSaved=()=>{}}){
+export default function FunControlPage(props={}){
+  if(!props.embedded && new URLSearchParams(location.search).has('job'))return <FunControlHistoryPage/>;
+  return <FunControlPageContent {...props}/>;
+}
+
+function FunControlPageContent({embedded=false,session="",restoreFormId="",seedProposal=null,onSaved=()=>{}}){
   const inputLockId=useId(),historyLockId=useId();
   const [template,setTemplate]=useState(null),[selected,select]=useState("");
   const [templateRetry,retryTemplate]=useState(0);
@@ -92,6 +99,7 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     }catch(error){if(timedOut)throw new Error("저장 입력 조회 시간이 초과됐습니다. 다시 조회하세요.");throw error;}
     finally{clearTimeout(timeout);signal?.removeEventListener('abort',abort);}
   }
+  async function readHistoryInput(id,options){const record=await readJob(id,options);return {...record,request:{...record.request,...record.attachments,pose_video:"/management/assistant/fun-pose/"+encodeURIComponent(id)}};}
   function restore(settings,record){
     if(record.reviewAtStart!==reviewEpoch.current || interactionRef.current.busy || interactionRef.current.pending)throw new Error("조회 중 생성 폼에서 다른 작업이 진행되어 이력 입력을 적용하지 않았습니다.");
     if(record.checkingAtStart || imageChecking.current || attachmentProcessing.current || record.inputAtStart!==requestRef.current || record.attachmentAtStart!==attachmentRevision.current)throw new Error("첨부 확인 중이거나 조회 중 입력이 변경되어 적용하지 않았습니다. 확인 후 다시 시도하세요.");
@@ -103,6 +111,8 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   function cleaned(message){setJob("");setResultId("");setNotice(message);refreshHistory(n=>n+1);}
   const sending=useRef(false),formRef=useRef(null),reviewRef=useRef(null),reviewOrigin=useRef(null),reviewRequest=useRef(null),restoreFrame=useRef(null);
   const poseInspection=useRef(null),inputLoading=useRef(null),saveRequest=useRef(null),attachmentEpoch=useRef(0),mounted=useRef(true);
+  const externalRestoreStarted=useRef(false);
+  useEffect(()=>{if(embedded || !template || !request || externalRestoreStarted.current)return;const id=new URLSearchParams(location.search).get('restore');if(!id)return;externalRestoreStarted.current=true;const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState(history.state,'',url);if(!validVideoJobId(id)){setError('저장 입력의 작업 ID를 확인할 수 없습니다.');return;}const controller=new AbortController();readJob(id,{signal:controller.signal}).then(record=>{if(!controller.signal.aborted)restore(record.request,record);}).catch(problem=>{if(!controller.signal.aborted)setError(problem.message || '저장 입력을 복원할 수 없습니다.');});return ()=>controller.abort();},[embedded,Boolean(template && request)]);
   useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;attachmentEpoch.current++;poseInspection.current?.abort();inputLoading.current?.abort();saveRequest.current?.abort();const review=reviewRequest.current;reviewRequest.current=null;review?.abort();if(restoreFrame.current!==null)cancelAnimationFrame(restoreFrame.current);};},[]);
   useEffect(()=>{if(!pending)return;const origin=reviewOrigin.current;reviewOrigin.current=null;if(document.activeElement===document.body || document.activeElement===origin)reviewRef.current?.focus();},[pending]);
   useEffect(()=>{if(busy || pending || !error || !reviewOrigin.current)return;const origin=reviewOrigin.current;reviewOrigin.current=null;const frame=requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(origin)));return ()=>cancelAnimationFrame(frame);},[busy,pending,error]);
@@ -303,11 +313,11 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
   return <article className={"fun-control-page generator-page-common"+(embedded?" fun-embedded":"")}>
     <GeneratorPageIdentity session={session || new URLSearchParams(location.search).get("session") || ""} service={service} embedded={embedded} changelogCard description="참조 이미지의 외형과 포즈 영상의 움직임으로 영상을 만듭니다."/>
     <GeneratorSectionCard title="사용설명" summary="사용 방법과 제한 사항"><p>참조 이미지와 포즈 영상을 선택하고 동작 프롬프트와 생성 설정을 입력하세요. 제작 예제로 입력을 채울 수도 있습니다.</p><p>모델 준비를 확인하고 생성 요청을 검토한 뒤 접수하세요. 진행 상태와 결과는 생성 이력에서 확인할 수 있습니다.</p></GeneratorSectionCard>
-    <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(template && request)} resultReady={Boolean(resultId)} openOnNavigate/>
+    {embedded || new URLSearchParams(location.search).has("job") ? <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} inputReady={Boolean(template && request)} resultReady={Boolean(resultId)} openOnNavigate/> : <nav className="generator-section-navigation" aria-label="생성기 페이지 이동"><span aria-current="page">생성기 입력폼</span><a href={funHistoryUrl(session || new URLSearchParams(location.search).get("session") || "")} target="_blank" rel="noopener">생성기 생성이력 (새 탭)</a>{validVideoJobId(resultId) && <a href={funHistoryUrl(session || new URLSearchParams(location.search).get("session") || "",resultId)} target="_blank" rel="noopener">작업 이력 보기</a>}</nav>}
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : (model.generation_ready ?? model.ready) ? "준비 완료" : "준비 필요"}><ModelReadiness session={session || new URLSearchParams(location.search).get("session") || ""} service={service} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     {handoffId && <GpuHandoffStatus session={session} id={handoffId} service={service} status={handoffStatus} onUpdate={value=>{setHandoffStatus(value);if(value.job_id)setJob(value.job_id);}}
       onClose={()=>{sessionStorage.removeItem(handoffKey);setHandoffId("");setHandoffStatus(null);}}/>}
-    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>openGeneratorHistory(historyRef,id,setResultId)}/>
+    <ActiveGeneratorProgress service={service} revision={historyRevision+":"+job} onOpenResult={id=>embedded || new URLSearchParams(location.search).has("job") ? openGeneratorHistory(historyRef,id,setResultId) : window.open(funHistoryUrl(session || new URLSearchParams(location.search).get("session") || "",id),"_blank","noopener")}/>
     {template && request && <GeneratorSectionCard title="생성 입력" summary={[imageCheckPending && "이미지 확인 중",referenceError && "이미지 확인 실패",referencePreviewError && "이미지 미리보기 실패",poseChecking && "포즈 영상 확인 중",poseError && "포즈 영상 확인 실패"].filter(Boolean).join(" · ") || "참조 이미지와 포즈 영상"} defaultOpen><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onSubmit={review} onInvalid={event=>{const details=event.target.closest("details");if(details)details.open=true;}}><fieldset disabled={busy || !!pending || Boolean(handoffId)} aria-describedby={busy || pending || handoffId ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
     <fieldset className="fun-source" disabled={busy || !!pending || !template}><legend>원본 작업</legend>
       {loadingInput && <p role="status">입력을 불러오고 있습니다. 현재 입력은 유지됩니다.</p>}
@@ -342,9 +352,9 @@ export default function FunControlPage({embedded=false,session="",restoreFormId=
     {!template && !templateError && <p role="status">생성 입력을 불러오는 중입니다.</p>}
     {!template && templateError && <button ref={templateRetryRef} type="button" onClick={()=>{templateRetryFocus.current=true;retryTemplate(value=>value+1);}}>생성 입력 다시 불러오기</button>}
     {notice && <p role="status">{notice}</p>}
-    <fieldset ref={historyRef} className="fun-history" aria-label="작업 이력" disabled={busy || !!pending} aria-describedby={busy || pending ? historyLockId : undefined}>
-      <GeneratorHistory card allowPriority toggleResult resultId={resultId} openResult={setResultId} onCloseResult={()=>setResultId("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");if(resultId===id)setResultId("");if(sourceJob===id)setSourceJob("");setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readJob} restore={restore} renderResult={renderResult} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}/>
+    {(embedded || new URLSearchParams(location.search).has("job")) && <><fieldset ref={historyRef} className="fun-history" aria-label="작업 이력" disabled={busy || !!pending} aria-describedby={busy || pending ? historyLockId : undefined}>
+      <GeneratorHistory card allowPriority toggleResult resultId={resultId} openResult={setResultId} onCloseResult={()=>setResultId("")} onSelectedDeleted={(id,message)=>{if(job===id)setJob("");if(resultId===id)setResultId("");if(sourceJob===id)setSourceJob("");setNotice(message);}} key={historyRevision} service={service} readJobWithSignal={readHistoryInput} restore={restore} renderResult={renderResult} footer={<HistoryCleanup allowSelected={false} service={service} onDeleted={cleaned}/>}/>
     </fieldset>
-    {(busy || pending) && <p id={historyLockId} role="status">{busy ? "요청 처리 후 이력을 사용할 수 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}
+    {(busy || pending) && <p id={historyLockId} role="status">{busy ? "요청 처리 후 이력을 사용할 수 있습니다." : "생성 요청 검토를 마치거나 취소하면 이력을 사용할 수 있습니다."}</p>}</>}
   </article>;
 }

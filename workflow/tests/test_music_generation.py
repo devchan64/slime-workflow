@@ -16,6 +16,29 @@ from workflow.common.generation_records import write_record_atomically
 
 
 class MusicGenerationTests(unittest.TestCase):
+    def test_audio_service_cleanup_keeps_other_service_with_same_id(self):
+        from itertools import product
+        for service,action in product(('music-heartmula','sfx-dasheng-audiogen'),('selected','all')):
+            with self.subTest(service=service,action=action), tempfile.TemporaryDirectory() as directory:
+                root=Path(directory); job_id='2026-11-27_00-00-00-1234abcd'
+                music=MusicGenerationManager('music-heartmula'); effect=MusicGenerationManager('sfx-dasheng-audiogen')
+                for manager in (music,effect):
+                    manager.job_storage_root=root/manager.current_service_name/'jobs'
+                    manager.history_storage_root=root/manager.current_service_name/'history'
+                    job=manager.job_storage_root/job_id; job.mkdir(parents=True)
+                    (job/'status.json').write_text('{"status":"completed"}')
+                    (job/manager.audio_output_filename).write_bytes(b'audio')
+                    manager.history_storage_root.mkdir(parents=True)
+                    (manager.history_storage_root/(job_id+'.json')).write_text(json.dumps({'id':job_id}))
+                target,other=(music,effect) if service=='music-heartmula' else (effect,music)
+                if action=='selected': target.delete_music_history(job_id)
+                else:
+                    preview=target.execute_music_command('history-reset-preview',{})
+                    target.execute_music_command('history-reset',{'action':'reset','expected_jobs':preview['jobs']})
+                self.assertFalse((target.job_storage_root/job_id).exists())
+                self.assertFalse((target.history_storage_root/(job_id+'.json')).exists())
+                self.assertTrue((other.job_storage_root/job_id/other.audio_output_filename).is_file())
+                self.assertTrue((other.history_storage_root/(job_id+'.json')).is_file())
     def test_heartmula_default_limit_and_examples(self):
         from generators.music.examples import load_music_examples
         current_request_record = validate_music_request('music-heartmula', {'prompt':'piano','lyrics':'[Verse]\nHome again'})

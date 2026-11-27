@@ -9,6 +9,12 @@ test('저장 입력 상세는 이미지 데이터만 생략하고 경로와 설�
   assert.equal(historyInputDetails({text:'x'.repeat(10001)}).includes('[첨부 또는 긴 데이터 생략]'),true);
 });
 
+test('저장 입력 상세는 짧은 영상 데이터도 생략하고 저장 경로를 유지한다',()=>{
+ const encoded='AAAA'.repeat(40),path='/management/assistant/vace-input/2026-11-24_11-17-24-15f79014/edit_video';
+ const detail=JSON.parse(historyInputDetails({edit_video:encoded,pose_video:path,prompt:'장면'}));
+ assert.deepEqual(detail,{edit_video:'[영상 데이터 생략]',pose_video:path,prompt:'장면'});
+});
+
 test("Wan 2.1 저장 입력의 동작 LoRA 선택을 구분한다",()=>{
   assert.deepEqual(historyInputSummary({action_lora:true,action_variant:"attack_high",action_strength:0.45},"wan21-i2v"),["동작 LoRA Attack Sprite high · 강도 0.45"]);
   assert.deepEqual(historyInputSummary({action_lora:true,action_strength:1},"wan21-t2v"),["동작 LoRA KXSR · 강도 1"]);
@@ -39,8 +45,8 @@ test("DWPose omits fixed generation parameters while other generators retain the
 });
 
 
-test("MiniMax 이미지 이력의 샘플러와 이전 기본값을 구분한다",()=>{
-  assert.deepEqual(historyInputSummary({},"minimax-h3-image"),["Euler"]);
+test("MiniMax 이미지 이력의 샘플러와 미확인 상태를 구분한다",()=>{
+  assert.deepEqual(historyInputSummary({},"minimax-h3-image"),["샘플러 확인 필요"]);
   assert.deepEqual(historyInputSummary({sampler:"euler"},"minimax-h3-image"),["Euler"]);
   assert.deepEqual(historyInputSummary({sampler:"lcm"},"minimax-h3-image"),["LCM · 실험"]);
   assert.deepEqual(historyInputSummary({sampler:"unknown"},"minimax-h3-image"),["샘플러 확인 필요"]);

@@ -9,6 +9,12 @@ from workflow.common import gpu_job_queue, gpu_memory_history
 
 
 class GpuStatusTests(unittest.TestCase):
+    def test_smi_failure_reports_unavailable_without_assuming_metrics(self):
+        empty_processes = subprocess.CompletedProcess([], 0, '[]')
+        for responses in ([OSError('missing amd-smi')], [empty_processes, OSError('metric unavailable')]):
+            with self.subTest(stage=len(responses)), patch.object(gpu_status, '_status_cache', (0, {})), patch.object(gpu_status.subprocess, 'run', side_effect=responses):
+                self.assertEqual(gpu_status.read_gpu_status(), {'status':'unavailable','processes':[],'gpu_activity_percent':None})
+
     def test_hermes_and_vace_worker_are_identified_from_process_command(self):
         for command, label in ((b'python\0workflow/domains/hermes_agent/worker.py\0.tmp/test/hermes-agent/jobs/2026-11-22_10-32-00-62c162ba\0', '헤르메스 작업'),
                                (b'python\0generators/wan_vace/worker.py\0.tmp/test/wan22-vace/2026-11-22_14-18-27-ff28fdbc\0', 'Wan2.2 VACE')):
