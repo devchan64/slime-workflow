@@ -30,10 +30,12 @@ class BuildingRegistrationUiTests(unittest.TestCase):
               const assets=[{texture:'town-long-building-v1'},{texture:'town-other-v1'}];
               process.stdout.write(server.renderToStaticMarkup(React.createElement(List,{assets,selected:assets[0].texture,disabled:false,image:id=>'/image/'+id,onSelect:()=>{}})));"""
             markup = subprocess.check_output(['node', '-e', script, str(bundle)], cwd=gui, text=True, env={**os.environ, 'NODE_PATH':str(gui/'node_modules')})
-        self.assertIn('role="group" aria-label="건물 목록"', markup)
+        self.assertIn('aria-label="건물 카드 갤러리"', markup)
+        self.assertIn('placeholder="건물 ID 검색"', markup)
+        self.assertIn('aria-label="건물 페이지 이동"', markup)
         self.assertEqual(markup.count('aria-pressed="true"'), 1)
         self.assertEqual(markup.count('aria-pressed="false"'), 1)
-        self.assertIn('town-long-building-v1<small> · 선택됨</small>', markup)
+        self.assertIn('선택한 건물 · town-long-building-v1', markup)
 
 
 if __name__ == '__main__':
