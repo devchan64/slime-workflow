@@ -17,6 +17,7 @@ export default function BillboardGroundPreview({source,edits}){
   const canvas=useRef(null),status=useRef(null),retryButton=useRef(null),[assets,setAssets]=useState(null),[error,setError]=useState(""),[warning,setWarning]=useState(""),[retry,setRetry]=useState(0);
   const [zoom,setZoom]=useState(2),[blocking,setBlocking]=useState(true),[guides,setGuides]=useState(true);
   const [character,setCharacter]=useState(true),[summary,setSummary]=useState("");
+  const [tileOverlay,setTileOverlay]=useState(true);
   const [characterLoading,setCharacterLoading]=useState(false);
   useEffect(()=>{
     let active=true;
@@ -63,14 +64,15 @@ export default function BillboardGroundPreview({source,edits}){
     try{
       const result=assets.ground.drawAssetGroundPreview(canvas.current,assets.image,values,{
         ...assets.renderer.resolveMapRenderOptions(),previewZoom:zoom,characterPreview:assets.person,
-        showBlockedAreas:blocking,showHeightGuidelines:guides,drawShadow:assets.renderer.drawBillboardContactShadow
+        showBlockedAreas:blocking,showHeightGuidelines:guides,showTileOverlay:tileOverlay,drawShadow:assets.renderer.drawBillboardContactShadow
       });
       setSummary(`실제 점유 ${result.occupiedCells}칸 · 표시 ${result.width.toFixed(1)} × ${result.height.toFixed(1)} px`);
     }catch(problem){canvas.current.width=0;setSummary(problem.message);}
-  },[source,edits,assets,zoom,blocking,guides]);
+  },[source,edits,assets,zoom,blocking,guides,tileOverlay]);
   return <fieldset className="billboard-ground-preview"><legend>빌보드 배치 미리보기</legend>
     <div className="billboard-preview-controls">
     <label>확대 배율 {zoom}배<input type="range" min=".5" max="4" step=".5" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/></label>
+    <label><input type="checkbox" checked={tileOverlay} onChange={e=>setTileOverlay(e.target.checked)}/>바닥 타일 격자 오버레이</label>
     <label><input type="checkbox" checked={character} onChange={e=>setCharacter(e.target.checked)}/>캐릭터 보기</label>
     <label><input type="checkbox" checked={blocking} onChange={e=>setBlocking(e.target.checked)}/>통행 차단 표시</label>
     <label><input type="checkbox" checked={guides} onChange={e=>setGuides(e.target.checked)}/>높이 기준선</label>

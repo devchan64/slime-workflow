@@ -36,7 +36,13 @@ export default function MiniMaxH3ImagePage(props={}) {
 function MiniMaxH3ImageForm({embedded=false,session:embeddedSession="",initialInputs=null,proposalScope=null,reportReceipt=null,building=false}={}) {
   const separatePages=!embedded;
   const {page,navigate}=useMiniMaxPages(false);
-  function navigatePage(next,id){if(separatePages && next==='history'){location.assign(minimaxImageHistoryUrl(building,id));return;}navigate(next,id);if(id)setJob(id);}
+  async function navigatePage(next,id){
+    if(separatePages && next==='history'){
+      if(!id){try{const images=await Promise.all(references.map(file=>file ? imageBase64(file) : null));sessionStorage.setItem('minimax-image-draft-'+(building?'building':'general'),JSON.stringify({prompt,seed,size,downscale,sampler,images}));}catch{setError('현재 입력을 보존하지 못해 이력으로 이동하지 않았습니다. 저장 공간을 확인하세요.');return;}}
+      location.assign(minimaxImageHistoryUrl(building,id));return;
+    }
+    navigate(next,id);if(id)setJob(id);
+  }
   const session=embeddedSession || new URLSearchParams(window.location.search).get("session") || "";
   const inputLockId=useId(),secondReferenceId=useId(),samplerHintId=useId();
   const [prompt,setPrompt]=useState(initialInputs?.prompt || (building ? "완전한 판타지 건물 스프라이트 하나. <Picture 1>의 직교 아이소메트릭 바닥 범위, 평행한 타일 축, 수직선과 출입구를 따른다. 일정한 크기, 왼쪽 위에서 비치는 부드러운 조명, 단색 배경. 가이드와 지형은 그리지 않는다. 건물 디자인: " : "")), [seed,setSeed]=useState(initialInputs?.seed ?? 42), [model,setModel]=useState(null), [modelError,setModelError]=useState("");
@@ -94,6 +100,7 @@ function MiniMaxH3ImageForm({embedded=false,session:embeddedSession="",initialIn
   useEffect(()=>{if(!busy && previewFocus.current){if(error)restoreLostFocus(document,previewFocus.current);previewFocus.current=null;}},[busy,error]);
   useEffect(()=>{if(!busy && guideApplyFocus.current){restoreLostFocus(document,visibleFocusTarget(guideApplyFocus.current));guideApplyFocus.current=null;}},[busy]);
   useEffect(()=>{if(embedded)return;const id=new URLSearchParams(location.search).get('restore');if(!validGenerationJobId(id))return;const controller=new AbortController();readSavedInput(id,{signal:controller.signal}).then(record=>{if(!controller.signal.aborted){restoreSavedInput(record.request,record);const url=new URL(location.href);url.searchParams.delete('restore');history.replaceState({},'',url);}}).catch(problem=>{if(!controller.signal.aborted)setError(problem.message || '저장 입력을 적용하지 못했습니다.');});return ()=>controller.abort();},[embedded]);
+  useEffect(()=>{if(embedded || new URLSearchParams(location.search).has('restore'))return;const key='minimax-image-draft-'+(building?'building':'general');try{const raw=sessionStorage.getItem(key);if(!raw)return;const draft=JSON.parse(raw);if(typeof draft.prompt!=='string' || !Array.isArray(draft.images) || draft.images.length!==2)throw Error();const files=draft.images.map((value,index)=>{if(!value)return null;return new File([Uint8Array.from(atob(value),c=>c.charCodeAt(0))],`reference-${index+1}.png`,{type:'image/png'});});setPrompt(draft.prompt);setSeed(draft.seed);setSize(draft.size);setDownscale(draft.downscale);setSampler(draft.sampler);setReferences(files);setReferenceReset(n=>n+1);setNotice('이력으로 이동하기 전 입력을 복원했습니다.');sessionStorage.removeItem(key);}catch{setError('이전 입력을 복원하지 못했습니다.');}},[embedded,building]);
   async function review(event){
     event.preventDefault();
     if((proposalScope && receipt.state!=="editing") || sending.current || busy || pending || checking.some(Boolean) || (building && !references[0]) || !model?.generation_ready || !prompt.trim() || !Number.isInteger(seed) || seed<0 || seed>4294967295)return;
@@ -171,7 +178,7 @@ function MiniMaxH3ImageForm({embedded=false,session:embeddedSession="",initialIn
   }
   return <article className={"vace-page generator-page-common"+(embedded ? "" : " vace-standalone")}>
     <GeneratorPageIdentity service={building ? "minimax-h3-building" : service} embedded={embedded} session={session} changelogCard/>
-    <GeneratorUsage generator={building ? "minimax-h3-building" : service}/>{building && <p>일반 MiniMax 이미지 생성기와 모델, 대기열 및 전체 이력을 공유합니다. 프롬프트는 입력한 그대로 전달하며 별도의 번역 기능을 사용하지 않습니다.</p>}
+    <GeneratorUsage generator={building ? "minimax-h3-building" : service}/>{building && <p>일반 MiniMax 이미지 생성기와 모델, 대기열 및 전체 이력을 공유합니다. 프롬프트는 입력한 그대로 전달하며 별도의 번역 기능을 사용하지 않습니다.</p>}{separatePages && <p>이력 페이지 이동 전 입력은 이 브라우저 탭에 임시 보존됩니다. 저장된 작업은 이력에서 입력을 다시 적용할 수 있습니다.</p>}
     {proposalScope && !reportReceipt && <MinimaxReportStatus receipt={receipt}/>}
     {separatePages ? <MiniMaxPageNavigation page={page} navigate={navigatePage} locked={busy || !!pending} reviewHref={building ? "/management/frame/building-editor/" : undefined}/> : <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>}
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : model.generation_ready ? "준비 완료" : "준비 필요"}><ModelReadiness service={service} session={session} onStatus={updateModel} onError={setModelError}/></GeneratorSectionCard>

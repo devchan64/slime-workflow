@@ -116,7 +116,7 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  const currentTilePaths=[];
  for(let currentColumnOffset=0;currentColumnOffset<=currentColumnRadius;currentColumnOffset++)for(let currentRowOffset=0;currentRowOffset<=currentRowRadius;currentRowOffset++){
   const currentCenterX=currentGroundCenterX+(currentColumnOffset-currentRowOffset)*currentTileWidth/2,currentCenterY=currentGroundCenterY+(currentColumnOffset+currentRowOffset)*currentTileHeight/2;
-  const currentTilePath=new Path2D();currentTilePath.moveTo(currentCenterX,currentCenterY-currentTileHeight/2);currentTilePath.lineTo(currentCenterX+currentTileWidth/2,currentCenterY);currentTilePath.lineTo(currentCenterX,currentCenterY+currentTileHeight/2);currentTilePath.lineTo(currentCenterX-currentTileWidth/2,currentCenterY);currentTilePath.closePath();currentTilePaths.push(currentTilePath);currentCanvasContext.fillStyle=SOURCE_PREVIEW_TILE_FILL;currentCanvasContext.fill(currentTilePath);
+  const currentTilePath=new Path2D();currentTilePath.moveTo(currentCenterX,currentCenterY-currentTileHeight/2);currentTilePath.lineTo(currentCenterX+currentTileWidth/2,currentCenterY);currentTilePath.lineTo(currentCenterX,currentCenterY+currentTileHeight/2);currentTilePath.lineTo(currentCenterX-currentTileWidth/2,currentCenterY);currentTilePath.closePath();currentTilePaths.push(currentTilePath);if(currentRenderMetrics.showTileOverlay!==false){currentCanvasContext.fillStyle=SOURCE_PREVIEW_TILE_FILL;currentCanvasContext.fill(currentTilePath);}
  }
  // 점유 영역의 사방으로 한 칸씩 보조 격자를 표시한다.
  const currentAnchorGuidePaths=[];
@@ -125,7 +125,7 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
    if(currentColumnOffset>=0&&currentColumnOffset<=currentColumnRadius&&currentRowOffset>=0&&currentRowOffset<=currentRowRadius)continue;
    const currentGuideCenterX=currentGroundCenterX+(currentColumnOffset-currentRowOffset)*currentTileWidth/2,currentGuideCenterY=currentGroundCenterY+(currentColumnOffset+currentRowOffset)*currentTileHeight/2;
    const currentGuideTilePath=new Path2D();currentGuideTilePath.moveTo(currentGuideCenterX,currentGuideCenterY-currentTileHeight/2);currentGuideTilePath.lineTo(currentGuideCenterX+currentTileWidth/2,currentGuideCenterY);currentGuideTilePath.lineTo(currentGuideCenterX,currentGuideCenterY+currentTileHeight/2);currentGuideTilePath.lineTo(currentGuideCenterX-currentTileWidth/2,currentGuideCenterY);currentGuideTilePath.closePath();
-   currentAnchorGuidePaths.push(currentGuideTilePath);currentCanvasContext.fillStyle=SOURCE_PREVIEW_GUIDE_STYLE.fill;currentCanvasContext.fill(currentGuideTilePath);
+   currentAnchorGuidePaths.push(currentGuideTilePath);if(currentRenderMetrics.showTileOverlay!==false){currentCanvasContext.fillStyle=SOURCE_PREVIEW_GUIDE_STYLE.fill;currentCanvasContext.fill(currentGuideTilePath);}
   }
  }
  if(currentRenderMetrics.drawShadow){
@@ -133,7 +133,7 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
   currentRenderMetrics.drawShadow({add:{graphics:()=>currentPreviewGraphics}},currentPropertyValues,{x:currentAnchorPositionX,y:currentAnchorPositionY},0,currentRenderMetrics);
   currentCanvasContext.globalAlpha=1;
  }
- if(currentAnchorGuidePaths.length){
+ if(currentRenderMetrics.showTileOverlay!==false&&currentAnchorGuidePaths.length){
   currentCanvasContext.save();currentCanvasContext.strokeStyle=SOURCE_PREVIEW_GUIDE_STYLE.stroke;currentCanvasContext.lineWidth=SOURCE_PREVIEW_GUIDE_STYLE.lineWidth;currentCanvasContext.setLineDash(SOURCE_PREVIEW_GUIDE_STYLE.dash);currentAnchorGuidePaths.forEach(currentGuideTilePath=>currentCanvasContext.stroke(currentGuideTilePath));currentCanvasContext.restore();
  }
  if(currentRenderMetrics.showHeightGuidelines){
@@ -150,7 +150,7 @@ export function drawAssetGroundPreview(currentPreviewCanvas,currentSourceImage,c
  }
  const currentImageLeft=currentAnchorPositionX-currentDisplayWidth*(currentTileAnchorMode?.5:currentPropertyValues.anchorX),currentImageTop=currentAnchorPositionY-currentDisplayHeight*(currentTileAnchorMode?1:currentPropertyValues.anchorY);
  currentCanvasContext.drawImage(currentSourceImage,currentImageLeft,currentImageTop,currentDisplayWidth,currentDisplayHeight);
- currentCanvasContext.lineWidth=2;currentTilePaths.forEach((currentTilePath,currentTileIndex)=>{const currentColumnOffset=Math.floor(currentTileIndex/(currentRowRadius+1)),currentRowOffset=currentTileIndex%(currentRowRadius+1);const currentBlockedCell=currentRenderMetrics.showBlockedAreas!==false&&currentPropertyValues.billboardBlocksMovement===true;if(currentBlockedCell){currentCanvasContext.fillStyle='rgba(255,65,55,0.35)';currentCanvasContext.fill(currentTilePath);}currentCanvasContext.strokeStyle=currentBlockedCell?'#ff7168':'#ffd859';currentCanvasContext.stroke(currentTilePath);});
+ currentCanvasContext.lineWidth=2;currentTilePaths.forEach((currentTilePath,currentTileIndex)=>{const currentColumnOffset=Math.floor(currentTileIndex/(currentRowRadius+1)),currentRowOffset=currentTileIndex%(currentRowRadius+1);const currentBlockedCell=currentRenderMetrics.showBlockedAreas!==false&&currentPropertyValues.billboardBlocksMovement===true;if(currentBlockedCell){currentCanvasContext.fillStyle='rgba(255,65,55,0.35)';currentCanvasContext.fill(currentTilePath);}if(currentRenderMetrics.showTileOverlay!==false){currentCanvasContext.strokeStyle=currentBlockedCell?'#ff7168':'#ffd859';currentCanvasContext.stroke(currentTilePath);}});
  // 3×2 가운데 두 셀의 공유 경계는 타일 전체 차단과 구분한다.
  if(currentRenderMetrics.showBlockedAreas!==false&&currentColumnRadius===2&&currentRowRadius===1){
   const currentBoundaryCenterX=currentGroundCenterX+currentTileWidth/4,currentBoundaryCenterY=currentGroundCenterY+3*currentTileHeight/4;

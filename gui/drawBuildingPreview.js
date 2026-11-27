@@ -1,6 +1,6 @@
 import {startImageLoadDeadline} from "./imageLoadDeadline.mjs";
 
-export function drawBuildingPreview(canvas,preview,placement,values,onStatus=()=>{}){
+export function drawBuildingPreview(canvas,preview,placement,values,onStatus=()=>{},options={}){
   const {anchorX,anchorY,displayWidthAdjustment:widthAdjustment,displayHeightAdjustment:heightAdjustment,
     shadowShape:currentShadowShape,shadowOffsetColumn:currentShadowColumnOffset,shadowOffsetRow:currentShadowRowOffset,
     shadowScaleX:currentShadowColumnScale,shadowScaleY:currentShadowRowScale}=values;
@@ -31,10 +31,10 @@ export function drawBuildingPreview(canvas,preview,placement,values,onStatus=()=
   const scale=Math.min((canvas.width-2*PADDING)/(maxX-minX),(canvas.height-2*PADDING)/(maxY-minY));
   ctx.save();ctx.translate((canvas.width-(maxX-minX)*scale)/2-minX*scale,(canvas.height-(maxY-minY)*scale)/2-minY*scale);ctx.scale(scale,scale);
   const outline=(c,r)=>{const points=[project(c,r),project(c+1,r),project(c+1,r+1),project(c,r+1)];ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);for(const p of points.slice(1))ctx.lineTo(p.x,p.y);ctx.closePath();};
-  for(let r=-1;r<=rows;r++)for(let c=-1;c<=cols;c++){outline(c,r);ctx.fillStyle=c>=0&&c<cols&&r>=0&&r<rows?'#c2d6a3':'#d8dfd4';ctx.fill();ctx.strokeStyle='#aab8a4';ctx.lineWidth=1/scale;ctx.stroke();}
+  if(options.showTileOverlay!==false)for(let r=-1;r<=rows;r++)for(let c=-1;c<=cols;c++){outline(c,r);ctx.fillStyle=c>=0&&c<cols&&r>=0&&r<rows?'#c2d6a3':'#d8dfd4';ctx.fill();ctx.strokeStyle='#aab8a4';ctx.lineWidth=1/scale;ctx.stroke();}
   for(const layer of [{scale:1,alpha:.14},{scale:.78,alpha:.20},{scale:.5,alpha:.26}]){const points=buildShadowOutline(layer.scale);ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);for(const point of points.slice(1))ctx.lineTo(point.x,point.y);ctx.closePath();ctx.fillStyle=`rgba(24,32,27,${layer.alpha})`;ctx.fill();}
   ctx.drawImage(img,imageLeft,imageTop,imageWidth,imageHeight);
-  for(let r=-1;r<=rows;r++)for(let c=-1;c<=cols;c++){const occupied=c>=0&&c<cols&&r>=0&&r<rows;outline(c,r);ctx.strokeStyle=occupied?'#f1b900':'#737d82';ctx.lineWidth=(occupied?1.5:1)/scale;ctx.setLineDash(occupied?[]:[4/scale,4/scale]);ctx.stroke();}
+  if(options.showTileOverlay!==false)for(let r=-1;r<=rows;r++)for(let c=-1;c<=cols;c++){const occupied=c>=0&&c<cols&&r>=0&&r<rows;outline(c,r);ctx.strokeStyle=occupied?'#f1b900':'#737d82';ctx.lineWidth=(occupied?1.5:1)/scale;ctx.setLineDash(occupied?[]:[4/scale,4/scale]);ctx.stroke();}
   ctx.setLineDash([]);ctx.strokeStyle='#ef3340';ctx.lineWidth=2/scale;ctx.beginPath();ctx.moveTo(front.x-8/scale,front.y);ctx.lineTo(front.x+8/scale,front.y);ctx.moveTo(front.x,front.y-8/scale);ctx.lineTo(front.x,front.y+8/scale);ctx.stroke();ctx.restore();
   onStatus("ready");
  };

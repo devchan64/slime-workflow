@@ -1,4 +1,5 @@
 import React,{useEffect,useId,useRef,useState} from "react";
+import BuildingReviewCandidate from "./BuildingReviewCandidate.jsx";
 import ConversationLink from "./ConversationLink.jsx";
 import {drawBuildingPreview} from "./drawBuildingPreview.js";
 import {managementCommand,untilAborted} from "./managementCommand.js";
@@ -75,7 +76,7 @@ export function BuildingProperties({building,generation,busy,disabledReason,setB
   const widthSizeError=!fieldIssues.displayWidthAdjustment && invalidSizes.width!==null ? invalidSizes.width+"에서 표시 너비가 0 이하입니다." : "";
   const heightSizeError=!fieldIssues.displayHeightAdjustment && invalidSizes.height!==null ? invalidSizes.height+"에서 표시 높이가 0 이하입니다." : "";
   const sizeError=widthSizeError || heightSizeError;
-  const [placement,selectPlacement]=useState(0);
+  const [placement,selectPlacement]=useState(0),[tileOverlay,setTileOverlay]=useState(true);
   const [previewStatus,setPreviewStatus]=useState("loading"),[previewRevision,retryPreview]=useState(0);
   const canvas=useRef(null),previewRetryButton=useRef(null),previewInvalid=useRef(null),restorePreviewFocus=useRef(false),firstField=useRef(null),restoreCancelFocus=useRef(false),saving=useRef(null),saveButton=useRef(null),saveErrorRef=useRef(null),restoreSaveFocus=useRef(false);
   useEffect(()=>()=>{const request=saving.current;saving.current=null;request?.abort();},[]);
@@ -85,8 +86,8 @@ export function BuildingProperties({building,generation,busy,disabledReason,setB
     if(Object.values(fieldIssues).some(Boolean) || sizeError){
       canvas.current.getContext("2d").clearRect(0,0,canvas.current.width,canvas.current.height);setPreviewStatus("invalid");return;
     }
-    return drawBuildingPreview(canvas.current,previewRevision ? imageRetryUrl(url,previewRevision) : url,building.maps[placement],values,setPreviewStatus);
-  },[building,placement,values,previewRevision]);
+    return drawBuildingPreview(canvas.current,previewRevision ? imageRetryUrl(url,previewRevision) : url,building.maps[placement],values,setPreviewStatus,{showTileOverlay:tileOverlay});
+  },[building,placement,values,previewRevision,tileOverlay]);
   useEffect(()=>{
     if(previewStatus==="loading" || !restorePreviewFocus.current)return;
     restorePreviewFocus.current=false;
@@ -119,6 +120,7 @@ export function BuildingProperties({building,generation,busy,disabledReason,setB
   return <form className="building-properties-form" onSubmit={save}>{busy && disabledReason && <p id={disabledHelp}>{disabledReason}</p>}<fieldset disabled={busy} aria-describedby={busy && disabledReason ? disabledHelp : undefined}><legend>건물 표시 속성</legend>
     {building.maps.length>0 && <label>미리보기 맵 배치<select value={placement} onChange={e=>selectPlacement(Number(e.target.value))}>
       {building.maps.map((item,i)=><option key={i} value={i}>{item.map} · {item.name} · {item.width}×{item.height} · {item.facing}</option>)}</select></label>}
+    <label><input type="checkbox" checked={tileOverlay} onChange={event=>setTileOverlay(event.target.checked)}/> 바닥 타일 격자 오버레이</label>
     <canvas ref={canvas} tabIndex={-1} width="480" height="360" aria-label="건물 타일 배치 미리보기" style={{maxWidth:"100%",height:"auto"}}/>
     {previewStatus==="loading" && <p role="status">건물 미리보기를 불러오는 중입니다.</p>}
     {previewStatus==="invalid" && <p ref={previewInvalid} tabIndex={-1} role="status">입력값과 표시 크기를 확인하면 미리보기를 볼 수 있습니다.</p>}
@@ -250,7 +252,7 @@ export default function BuildingEditor(){
     finally{if(retiring.current===controller){retiring.current=null;setBusy(false);}}
   }
   const image=id=>"/management/assistant/building-image/"+encodeURIComponent(id);
-  return <article className="building-editor-page"><ConversationLink/><h1>건물 에셋 관리</h1>
+  return <article className="building-editor-page"><ConversationLink/><h1>건물 에셋 관리</h1><BuildingReviewCandidate/>
     <button ref={reloadButton} type="button" disabled={busy || dirty || loading} aria-describedby={[busy && busyId,dirty && dirtyId,loading && loadingId].filter(Boolean).join(" ") || undefined} onClick={()=>refreshCatalog(document.activeElement===reloadButton.current)}>{loading ? "건물 목록 조회 중…" : "건물 목록 다시 읽기"}</button>
     {busy && <p id={busyId} role="status">건물 요청을 처리하고 있습니다.</p>}
     {dirty && <p id={dirtyId} role="status">저장하지 않은 건물 속성이 있습니다. 저장하거나 편집을 취소한 뒤 목록을 다시 읽거나 다른 건물을 선택하세요.</p>}

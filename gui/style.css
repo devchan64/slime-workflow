@@ -1282,3 +1282,9 @@ pre.generation-review-text:focus-visible {outline:2px solid var(--accent,#a8a5f4
 
 .job-final-response .response-preview {display:block;overflow-wrap:anywhere;font-weight:normal;color:var(--muted)}
 .job-final-response[open] .response-preview {display:none}
+
+.history-input-media {display:flex;flex-wrap:wrap;gap:.75rem;margin:.75rem 0}.history-input-media figure {margin:0;max-width:10rem}.history-input-media :is(img,video) {display:block;width:10rem;height:7rem;object-fit:contain;background:#10121a;border-radius:.3rem}.history-input-media figcaption {overflow-wrap:anywhere}
+
+.generator-history-selection .history-review-action {display:contents}.generator-history-selection .history-review-action button {min-width:0;width:100%}.generator-history-selection .history-review-action p {grid-column:1/-1;order:10;min-width:0;margin:0;overflow-wrap:anywhere}
+
+.building-candidate-stage {position:relative;display:inline-block;width:min(100%,640px);line-height:0}.building-candidate-stage img {width:100%;height:auto}.building-candidate-stage svg {position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.building-candidate-controls {display:flex;flex-wrap:wrap;gap:.75rem}.building-candidate-controls label {display:grid;gap:.25rem}

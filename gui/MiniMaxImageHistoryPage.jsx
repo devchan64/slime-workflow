@@ -1,4 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
+import {SendBuildingReview} from './BuildingReviewCandidate.jsx';
 import GeneratorHistory from './GeneratorHistory.jsx';
 import HistoryCleanup from './HistoryCleanup.jsx';
 import MediaJobResult from './MediaJobResult.jsx';
@@ -10,7 +11,7 @@ export const MINI_MAX_IMAGE_HISTORY='/management/frame/minimax-h3-image-history/
 export function minimaxImageHistoryUrl(building,id){const q=new URLSearchParams();if(building)q.set('form','building');if(id)q.set('job',id);return MINI_MAX_IMAGE_HISTORY+(q.size?'?'+q:'')+(id?'#job-result':'');}
 export function MiniMaxImageHistory({job,setJob,revision,setRevision,readJob,restore,historyRef,resultRef}){
   useEffect(()=>{const details=historyRef.current?.querySelector('details.generator-history');if(details)details.open=true;},[historyRef]);
-  return <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service="minimax-h3-image" statusCommand="status" card allowPriority toggleResult readJobWithSignal={readJob} restore={restore} openResult={setJob} resultId={job} onCloseResult={()=>setJob('')} onSelectedDeleted={id=>{if(id===job)setJob('');setRevision(n=>n+1);}} footer={<HistoryCleanup service="minimax-h3-image" allowSelected={false} onDeleted={()=>{setJob('');setRevision(n=>n+1);}}/>} renderResult={id=><section id="job-result" ref={resultRef} tabIndex={-1} aria-label="선택한 이미지 작업 결과"><SavedGeneratorInputs id={id} service="minimax-h3-image" statusCommand="status"/><MediaJobResult kind="image" service="minimax-h3-image" id={id}/></section>}/></div>;
+  return <div ref={historyRef} tabIndex={-1}><GeneratorHistory key={revision} service="minimax-h3-image" statusCommand="status" card allowPriority toggleResult renderSelectionAction={record=><SendBuildingReview key={record.id} id={record.id} status={record.recorded_status}/>} readJobWithSignal={readJob} restore={restore} openResult={setJob} resultId={job} onCloseResult={()=>setJob('')} onSelectedDeleted={id=>{if(id===job)setJob('');setRevision(n=>n+1);}} footer={<HistoryCleanup service="minimax-h3-image" allowSelected={false} onDeleted={()=>{setJob('');setRevision(n=>n+1);}}/>} renderResult={id=><section id="job-result" ref={resultRef} tabIndex={-1} aria-label="선택한 이미지 작업 결과"><SavedGeneratorInputs id={id} service="minimax-h3-image" statusCommand="status"/><MediaJobResult kind="image" service="minimax-h3-image" id={id}/></section>}/></div>;
 }
 export default function MiniMaxImageHistoryPage({building:legacyBuilding=false}={}){
   const q=new URLSearchParams(location.search),building=legacyBuilding || q.get('form')==='building';

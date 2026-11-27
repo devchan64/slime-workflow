@@ -40,6 +40,19 @@ class MiniMaxH3ImageManager(ImageGenerationManager):
         return {**status, 'id': job_root.name, 'request': json.loads(path.read_text(encoding='utf-8'))}
 
     def handle_image_request(self, handler):
+        path = urlsplit(handler.path).path
+        if handler.command == 'POST' and path in (self.route_prefix_value + '/building-review/send', self.route_prefix_value + '/building-review/read'):
+            try:
+                from workflow.domains.minimax_h3_image.building_candidates import send_candidate, read_candidate
+                payload = getattr(handler, 'management_command_payload', None)
+                if not isinstance(payload, dict):
+                    raise ValueError('요청을 확인하세요.')
+                candidate_root = self.job_storage_root.parent / 'building-review-candidates'
+                result = send_candidate(self.job_storage_root, candidate_root, payload.get('id')) if path.endswith('/send') else read_candidate(candidate_root, payload.get('id'), payload.get('sha256'))
+                send_management_json_response(handler, 200, result)
+            except (ValueError, TypeError, OSError, json.JSONDecodeError) as error:
+                send_management_json_response(handler, 400, {'error': str(error)})
+            return True
         if handler.command == 'GET' and urlsplit(handler.path).path == self.route_prefix_value + '/model-status':
             send_management_json_response(handler, 200, inspect_runtime())
             return True
