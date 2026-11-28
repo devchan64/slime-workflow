@@ -32,3 +32,26 @@ export function historyInputDetails(request){
     return typeof value==='string' && (value.startsWith('data:') || value.length>10000) ? '[첨부 또는 긴 데이터 생략]' : value;
   },2);
 }
+
+/** 미리보기에서 이미 표시한 최상위 필드만 제외하고 나머지 설정은 보존한다. */
+export function historyInputAdditionalSettings(request, service="") {
+  if (!request || typeof request !== "object" || Array.isArray(request)) return {};
+  const rest={...request};
+  for (const key of ["user_prompt","prompt","negative_prompt","translation_source_ko"]) {
+    if (typeof request[key] === "string" && request[key].trim()) delete rest[key];
+  }
+  if (Array.isArray(request.images) && request.images.length && request.images.every(value=>typeof value==="string" && value)) delete rest.images;
+  for (const key of ["edit_video","driving_video","pose_video","edit_mask"]) {
+    if (typeof request[key] === "string" && request[key]) delete rest[key];
+  }
+  if (typeof request.tag === "string" && request.tag.trim()) delete rest.tag;
+  if (Number.isInteger(request.width) && request.width>0 && Number.isInteger(request.height) && request.height>0) { delete rest.width; delete rest.height; }
+  if (typeof request.duration_seconds==="number" && Number.isFinite(request.duration_seconds) && request.duration_seconds>0) delete rest.duration_seconds;
+  if (request.audio_available===true) delete rest.audio_available;
+  if (service!=="dwpose") for (const key of ["frames","steps"]) if (Number.isInteger(request[key]) && request[key]>0) delete rest[key];
+  if (service!=="dwpose" && Number.isInteger(request.seed) && request.seed>=0) delete rest.seed;
+  if (typeof request.pose_include_hands==="boolean") delete rest.pose_include_hands;
+  if (typeof request.pose_include_face==="boolean") delete rest.pose_include_face;
+  if (service==="minimax-h3-image") delete rest.sampler;
+  return rest;
+}
