@@ -1,3 +1,4 @@
+import VideoFileSize from "./VideoFileSize.jsx";
 import JobStatus from "./JobStatus.jsx";
 import React, {useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
@@ -207,6 +208,7 @@ function MediaJobResultForSelection({service,id,kind="video",children,folderLink
         {service==="dwpose" ? renderResultImage("DWPose 추출 결과","media-result-image") :
           <>
             {videoError ? <div><p role="alert">결과 영상을 불러오지 못했습니다. 파일 상태를 확인하세요.</p><button ref={videoRetryRef} type="button" onClick={()=>{restoreVideoFocus.current=document.activeElement===videoRetryRef.current;setVideoError(false);retryMedia(value=>value+1);}}>영상 다시 불러오기</button></div> : <video ref={videoRef} key={mediaRevision} aria-label="생성 결과 영상" controls loop playsInline preload="metadata" src={imageRetryUrl(job.video,mediaRevision)} poster={job.image} style={{maxWidth:"100%"}} onError={event=>{if(event.currentTarget!==videoRef.current)return;restoreVideoFocus.current=document.activeElement===videoRef.current;setVideoError(true);}}/>}
+            <VideoFileSize url={job.video}/>
             <a className="media-result-link" href={job.video} target="_blank" rel="noopener noreferrer">MP4 열기</a>
             {directFolder && <RecordFolder key={service+"/"+id} service={service} id={id} direct/>}
           </>}

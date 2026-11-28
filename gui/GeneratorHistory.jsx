@@ -1,3 +1,4 @@
+import VideoFileSize from "./VideoFileSize.jsx";
 import JobStatus from "./JobStatus.jsx";
 import JobIdentifier from "./JobIdentifier.jsx";
 import React, {useEffect,useId,useRef,useState} from "react";
@@ -277,7 +278,7 @@ function GeneratorHistoryForService({service, statusCommand, restore, inspectRes
         <div className="generator-history-list">{page.records.map(record=><div className="generator-history-item" data-history-id={record.id} key={record.id}>
           <button type="button" ref={selected?.id===record.id ? selectedRef : undefined} className="generator-history-select" aria-pressed={selected?.id===record.id} onClick={()=>{if(selected?.id===record.id)return;cancelInput();setExpanded(null);if(resultId)onCloseResult?.();setSelected(record);setJob(null);if(errorScope==="input")setError("");}}>
             <span className="generator-visually-hidden">작업 ID {record.id}</span>
-            <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)} revision={summaryVersion}/><span className="history-card-content"><span className="history-card-heading"><JobStatus state={record.recorded_status}/>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id],service).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id],service).join(" · ")}</span>}</span>
+            <HistoryImage key={record.id} service={service} record={record} summary={summaries[record.id]} unavailable={Boolean(summaryNotice)} revision={summaryVersion}/><span className="history-card-content"><span className="history-card-heading"><JobStatus state={record.recorded_status}/>{recordedTime(record.id) && <span>{recordedTime(record.id)}</span>}</span>{historyInputSummary(summaries[record.id],service).length>0 && <span className="history-card-summary">{historyInputSummary(summaries[record.id],service).join(" · ")}</span>}{record.recorded_status==="completed" && videoServices.has(service) && !["dwpose","kimodo"].includes(service) && /^[a-f0-9]{32}$/.test(summaries[record.id]?.image_attempt || "") && <VideoFileSize inline url={`/${service}/jobs/${encodeURIComponent(record.id)}/attempts/${summaries[record.id].image_attempt}/preview.mp4`}/>}</span>
           </button>
           <JobIdentifier id={record.id} compact/>
           {selected?.id===record.id && <section className="generator-history-selection" aria-label={"선택 이력 · "+record.id}>
