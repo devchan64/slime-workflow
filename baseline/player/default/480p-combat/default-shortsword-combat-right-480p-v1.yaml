@@ -1,20 +1,19 @@
 schema_version: 1
-description: 기본복장 쇼트소드 전투 기본자세 · 화면 오른쪽 방향 · 480p
-status: 사용자 지정 기준 자료
-date: '2026-11-27'
+description: 기본복장 쇼트소드와 허수아비 · 화면 오른쪽 방향 · 480p
+status: 사용자 지정 기준 자료 · 자세와 일관성 검수 필요
+date: '2026-11-28'
 image: default-shortsword-combat-right-480p-v1.png
 image_size: [832, 480]
-image_sha256: 7add3fe8436163d53b2b1a1a30f8b4aeebf52da3f913665e1494156e081f0b4c
-previous_image_sha256: 9a0bb376b4e1ac8511145735967d81b69fa50615700f09cc0a3d69dae308a9a8
+image_sha256: 895ce01990ef45643c37d824310d264ec621297c2c30e9d3aee61f936b883351
+previous_image_sha256: 7add3fe8436163d53b2b1a1a30f8b4aeebf52da3f913665e1494156e081f0b4c
 operation: imagegen-edit-and-resize
 provenance:
-  character_reference: ../default-eight-directions-v1.png
-  character_reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
-  pose_reference: 사용자 제공 펜싱 자세 이미지
-  generation: image_gen_builtin · 자세와 캐릭터 일관성을 단계적으로 조정
-  resize: 전경 경계 검출 후 비율 유지 및 흰색 여백으로 832×480 변환
+  previous_baseline: 동일 경로 교체 전 이미지 · Git 이력에서 확인 가능
+  layout_reference: .tmp/test/imagegen-training-dummy/2026-11-28_10-30-16/result-832x480.png
+  identity_reference_sha256: 7add3fe8436163d53b2b1a1a30f8b4aeebf52da3f913665e1494156e081f0b4c
+  generation: image_gen_builtin · 캐릭터 외형 보정 및 허수아비 배치
+  resize: Pillow LANCZOS 비율 유지 및 흰색 여백으로 832×480 변환
 visual_notes:
-  - 화면 오른쪽을 바라보고 가슴을 화면 쪽으로 조금 돌린 전투 자세
-  - 왼손에 쇼트소드를 들고 칼끝을 앞쪽 위로 향하며 빈 오른손을 내림
-  - 앞 무릎을 굽히고 뒷발을 몸의 측면으로 돌림
-  - 머리 위 96px 여백과 전신 및 검이 보이는 흰 배경
+  - 캐릭터는 화면 왼쪽에서 오른쪽 허수아비를 바라보며 쇼트소드를 든다
+  - 허수아비와 캐릭터 사이에 이동 공간을 둔 흰 배경 전신 구도
+  - 얼굴·헤어·피부색·신체 비율은 이전 기준을 참조해 보정했으며 일치 여부는 추가 검수 필요
