@@ -4,7 +4,7 @@
 
 - [휴식 16프레임 v3](default-rest-front-right-16frames-v3.png) · [기록](default-rest-front-right-16frames-v3.yaml): 8방향 시트를 외형 기준으로 보정한 사용자 지정 베이스라인. 프레임 좌표·앵커, 접지와 동작 연결은 추가 검수가 필요하다.
 - [전신 8방향 시트](default-eight-directions-v1.png) · [생성 기록](default-eight-directions-v1.yaml): 사용자 지정 기본 자료. 아래 행 두 번째의 방향과 참조 대비 신체 비율은 추가 검수가 필요하다.
-- [쇼트소드 기본자세 · 오른쪽 방향 480p v1](480p/default-shortsword-combat-right-480p-v1.png) · [생성 기록](480p/default-shortsword-combat-right-480p-v1.yaml): 현행 기준. 왼손 쇼트소드를 들고 스탠스 폭을 좁혔다.
+- [쇼트소드 전투 기본자세 · 오른쪽 방향 480p v1](480p-combat/default-shortsword-combat-right-480p-v1.png) · [생성 기록](480p-combat/default-shortsword-combat-right-480p-v1.yaml): 현행 기준. 왼손에 쇼트소드를 들고 앞 무릎을 굽힌 자세이며, 머리 위에 여백을 확보했다.
 - [양손검 전투 기본자세 · 오른쪽 측면 480p](480p/default-two-handed-sword-combat-right-480p-v1.png) · [생성 기록](480p/default-two-handed-sword-combat-right-480p-v1.yaml): 기본복장 참조, 상단 20% 여백. 자세와 비율의 정밀 검수는 필요하다.
 - [창 전투 자세 · 오른쪽 측면 480p](480p/default-spear-combat-right-480p-v1.png) · [생성 기록](480p/default-spear-combat-right-480p-v1.yaml): 상단 20% 여백. 자세·방향·비율 검수 필요.
 - [도끼 전투 자세 · 오른쪽 측면 480p](480p/default-axe-combat-right-480p-v1.png) · [생성 기록](480p/default-axe-combat-right-480p-v1.yaml): 상단 20% 여백. 자세·방향·비율 검수 필요.

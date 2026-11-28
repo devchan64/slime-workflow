@@ -1,0 +1,20 @@
+schema_version: 1
+description: 기본복장 쇼트소드 전투 기본자세 · 화면 오른쪽 방향 · 480p
+status: 사용자 지정 기준 자료
+date: '2026-11-27'
+image: default-shortsword-combat-right-480p-v1.png
+image_size: [832, 480]
+image_sha256: 7add3fe8436163d53b2b1a1a30f8b4aeebf52da3f913665e1494156e081f0b4c
+previous_image_sha256: 9a0bb376b4e1ac8511145735967d81b69fa50615700f09cc0a3d69dae308a9a8
+operation: imagegen-edit-and-resize
+provenance:
+  character_reference: ../default-eight-directions-v1.png
+  character_reference_sha256: c276adde5fb528cb406fe58bad176d5c4856d824ac6b62ad5bc8af7d155231ab
+  pose_reference: 사용자 제공 펜싱 자세 이미지
+  generation: image_gen_builtin · 자세와 캐릭터 일관성을 단계적으로 조정
+  resize: 전경 경계 검출 후 비율 유지 및 흰색 여백으로 832×480 변환
+visual_notes:
+  - 화면 오른쪽을 바라보고 가슴을 화면 쪽으로 조금 돌린 전투 자세
+  - 왼손에 쇼트소드를 들고 칼끝을 앞쪽 위로 향하며 빈 오른손을 내림
+  - 앞 무릎을 굽히고 뒷발을 몸의 측면으로 돌림
+  - 머리 위 96px 여백과 전신 및 검이 보이는 흰 배경
