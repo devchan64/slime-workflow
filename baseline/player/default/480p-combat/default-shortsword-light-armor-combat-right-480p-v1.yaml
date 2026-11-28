@@ -4,8 +4,8 @@ status: 사용자 지정 기준 자료 · 자세와 외형 정밀 검수 필요
 date: '2026-11-28'
 image: default-shortsword-light-armor-combat-right-480p-v1.png
 image_size: [832, 480]
-image_sha256: f20ce151c76d780e951577e1dfacae5d23995b8492acf766d08c6e64ba25bd38
-previous_image_sha256: 279caa7361c5d6c57ba6d7f1a157a7886f6b39c7caa7fdd551e95fcbbb578a04
+image_sha256: a264510d0a8e4a90e654019844e580d4209cebd018d5418bf7f4b2de71a66b04
+previous_image_sha256: d78df81beb1eb67ad0532f3a88ba6e05ceda3bea127d1c2fbf6e0e8f0a5b827b
 operation: imagegen-edit-and-resize
 provenance:
   layout_reference: default-shortsword-combat-right-480p-v1.png
@@ -23,3 +23,21 @@ visual_notes:
   - 화면 왼쪽 라이트아머 캐릭터가 화면 오른쪽 허수아비를 향한다
   - 쇼트소드를 한 손에 들고 이동 공간을 둔 전신 구도
   - 캐릭터 외형과 복장 일관성은 추가 검수 필요
+
+style_adjustment:
+  method: image_gen_builtin · 기본복장 기준 이미지의 선과 밝은 음영에 맞춤
+  source_image_sha256: f20ce151c76d780e951577e1dfacae5d23995b8492acf766d08c6e64ba25bd38
+  style_reference: default-shortsword-combat-right-480p-v1.png
+  style_reference_sha256: 895ce01990ef45643c37d824310d264ec621297c2c30e9d3aee61f936b883351
+  output: 832×480 · Pillow LANCZOS 비율 유지 및 흰색 여백
+  review: 화풍과 자세·검·허수아비의 정밀 일치 여부는 사용자 검수 필요
+
+replacement:
+  source: 생성 후보 v2 · 별도 파일 미보관
+  source_sha256: a264510d0a8e4a90e654019844e580d4209cebd018d5418bf7f4b2de71a66b04
+  layout_reference: default-shortsword-combat-right-480p-v1.png
+  layout_reference_sha256: 895ce01990ef45643c37d824310d264ec621297c2c30e9d3aee61f936b883351
+  character_reference: ../default-light-armor-four-directions-v1.png
+  character_reference_sha256: eb007d0b4c8558acaf0741b9aced096d145ef7f146e006b99e1e2f462ba499e5
+  generation: image_gen_builtin · 수정된 라이트아머 4방향 참조
+  review: 자세·검·허수아비의 정밀 일치 검수 필요

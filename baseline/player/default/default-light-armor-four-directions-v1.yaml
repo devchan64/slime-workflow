@@ -2,7 +2,7 @@ schema_version: 1
 description: 기본 캐릭터 라이트아머 복장 4방향
 status: 사용자 지정 · 라이트아머 복장 기준
 image: default-light-armor-four-directions-v1.png
-image_sha256: 0447b25ee9c0dace40998f4088e0f01751df62535579eca6b2602973135c76d2
+image_sha256: eb007d0b4c8558acaf0741b9aced096d145ef7f146e006b99e1e2f462ba499e5
 registered_on: '2026-11-09'
 registration_note: 사용자 지시에 따라 가죽 갑옷 v3 후보를 라이트아머 복장으로 등록했다.
 source_image: default-leather-armor-four-directions-v3.png
@@ -25,3 +25,11 @@ prompt: Edit image 1, the four-view leather armor outfit sheet. Use image 2 as t
   background. Change only the leg and trouser silhouette needed to match the reference physique.
 word_count: 94
 prompt_sha256: 65a1d0e3c2d8375faeb4fec975584756689a6faa8a43989101af181710f852a4
+
+style_color_correction:
+  generator: image_gen_builtin
+  previous_image_sha256: 0447b25ee9c0dace40998f4088e0f01751df62535579eca6b2602973135c76d2
+  style_reference: default-outfit-four-directions-v1.png
+  style_reference_sha256: d4083d01ca5f9c6ee01e17c58d3329aeace431ea3f8febcd757e66b309f4f473
+  change: 기본복장 기준으로 화풍·색감·음영 보정, 라이트아머와 4방향 구성 유지
+  review: 복장 세부와 체형·색감 일치는 사용자 검수 필요
