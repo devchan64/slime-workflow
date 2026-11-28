@@ -1243,6 +1243,8 @@ def build_management_application(current_handler_class, current_root_path, curre
     @current_root_application.get('/management/frame/minimax-h3-ref2va-generator/')
     @current_root_application.get('/management/frame/wan-video-history')
     @current_root_application.get('/management/frame/wan-video-history/')
+    @current_root_application.get('/management/frame/wan22-i2v-history')
+    @current_root_application.get('/management/frame/wan22-i2v-history/')
     @current_root_application.get('/management/frame/wan22-i2v-generator')
     @current_root_application.get('/management/frame/wan22-i2v-generator/')
     @current_root_application.get('/management/frame/wan21-t2v-generator')

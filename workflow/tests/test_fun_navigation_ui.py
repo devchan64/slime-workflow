@@ -18,7 +18,7 @@ class FunNavigationUiTests(unittest.TestCase):
         self.assertEqual(len(lines),2)
         self.assertIn('생성 입력을 불러오는 중입니다.', lines[0])
         self.assertIn('aria-label="생성기 페이지 이동"', lines[0])
-        self.assertIn('/management/frame/wan-video-history/?service=wan22-fun-control', lines[0])
+        self.assertIn('/management/frame/wan22-fun-control-history/?', lines[0])
         self.assertIn('생성기 생성이력 (새 탭)', lines[0])
         self.assertIn('aria-label="생성기 영역 이동"', lines[1])
         self.assertIn('생성 입력을 불러오는 중입니다.', lines[1])

@@ -60,7 +60,7 @@ class SeparatedGeneratorNavigationTests(unittest.TestCase):
 
     def test_standalone_links_and_embedded_history_for_active_forms(self):
         gui=Path(__file__).resolve().parents[2]/'gui'
-        cases=[('I2VPage.jsx','/management/frame/wan-video-history/'),('VacePage.jsx','/management/frame/wan-video-history/'),('FunControlPage.jsx','/management/frame/wan-video-history/'),('AnimatePage.jsx','/management/frame/wan-video-history/'),('DwposePage.jsx','/management/frame/dwpose-history/'),('KimodoPage.jsx','/management/frame/kimodo-history/')]
+        cases=[('I2VPage.jsx','/management/frame/wan22-i2v-history/'),('VacePage.jsx','/management/frame/wan22-vace-history/'),('FunControlPage.jsx','/management/frame/wan22-fun-control-history/'),('AnimatePage.jsx','/management/frame/wan22-animate2-history/'),('DwposePage.jsx','/management/frame/dwpose-history/'),('KimodoPage.jsx','/management/frame/kimodo-history/')]
         with tempfile.TemporaryDirectory() as directory:
             for source,expected in cases:
                 with self.subTest(source=source):

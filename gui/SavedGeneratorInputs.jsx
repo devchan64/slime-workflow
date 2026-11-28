@@ -29,7 +29,7 @@ export default function SavedGeneratorInputs({id,readJob,readJobWithSignal,servi
     (async()=>{try{
       const result=await untilAborted(signalReader.current ? signalReader.current(id,{signal:controller.signal}) : reader.current ? reader.current(id) : managementCommand(service,statusCommand,{id},{signal:controller.signal}),controller.signal);
       if(result?.id!==id || !result.request || typeof result.request!=='object' || Array.isArray(result.request))throw new Error('저장 입력이 선택한 작업과 일치하지 않습니다.');
-      if(active)setState({id,service,statusCommand,request:result.request});
+      if(active)setState({id,service,statusCommand,request:result.request,reference:result.reference,motion:result.motion});
     }catch(error){if(active)setState({id,service,statusCommand,error:timedOut?'조회 시간이 초과됐습니다.':requestErrorMessage(error)});}finally{clearTimeout(timeout);}})();
     return ()=>{active=false;clearTimeout(timeout);controller.abort();};
   },[id,service,statusCommand,revision]);
@@ -37,5 +37,7 @@ export default function SavedGeneratorInputs({id,readJob,readJobWithSignal,servi
   if(state.error)return <div><p ref={resultRef} className="saved-generator-inputs-error" tabIndex={-1} role="alert">저장 입력 조회 실패 · {state.error}</p><button type="button" onClick={()=>{restoreFocus.current=true;retry(n=>n+1);}}>입력 정보 다시 조회</button></div>;
   const summary=historyInputSummary(state.request,service);
   const details=historyInputDetails(state.request);
-  return <section ref={resultRef} tabIndex={-1} className="history-action-detail saved-generator-inputs" aria-label="저장된 생성 입력"><strong>저장된 생성 입력</strong>{summary.length>0 && <p>{summary.join(' · ')}</p>}<SavedInputDetails request={state.request} details={details}/></section>;
+  const prefix="/management/assistant/animate-input/"+encodeURIComponent(id);
+  const animateMedia=service==='wan22-animate2' && state.reference===prefix+"/reference" && state.motion===prefix+"/motion";
+  return <section ref={resultRef} tabIndex={-1} className="history-action-detail saved-generator-inputs" aria-label="저장된 생성 입력"><strong>저장된 생성 입력</strong>{summary.length>0 && <p>{summary.join(' · ')}</p>}{animateMedia && <div className="saved-input-media"><figure><figcaption>참조 이미지</figcaption><img src={state.reference} alt="저장된 캐릭터 참조 이미지" onError={e=>{e.currentTarget.hidden=true;e.currentTarget.nextSibling.hidden=false;}}/><p hidden role="status">참조 이미지를 불러올 수 없습니다.</p></figure><figure><figcaption>동작 영상</figcaption><video src={state.motion} controls preload="metadata" aria-label="저장된 동작 영상" onError={e=>{e.currentTarget.hidden=true;e.currentTarget.nextSibling.hidden=false;}}/><p hidden role="status">동작 영상을 불러올 수 없습니다.</p></figure></div>}<SavedInputDetails request={state.request} details={details}/></section>;
 }

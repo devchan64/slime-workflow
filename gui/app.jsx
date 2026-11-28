@@ -1,7 +1,7 @@
 import FunControlHistoryPage from "./FunControlHistoryPage.jsx";
 import VaceHistoryPage from "./VaceHistoryPage.jsx";
 import AnimateHistoryPage from "./AnimateHistoryPage.jsx";
-import WanVideoHistoryPage from "./WanVideoHistoryPage.jsx";
+import WanVideoHistoryPage,{WanI2VHistoryPage} from "./WanVideoHistoryPage.jsx";
 import AudioHistoryPage from "./AudioHistoryPage.jsx";
 import DwposeHistoryPage from "./DwposeHistoryPage.jsx";
 import KimodoHistoryPage from "./KimodoHistoryPage.jsx";
@@ -1158,6 +1158,7 @@ const pages = {
   "/management/frame/wan22-vace-history": VaceHistoryPage,
   "/management/frame/wan22-i2v-generator": I2VPage,
   "/management/frame/wan-video-history": WanVideoHistoryPage,
+  "/management/frame/wan22-i2v-history": WanI2VHistoryPage,
   "/management/frame/minimax-h3-video-history": MiniMaxVideoHistoryPage,
   "/management/frame/minimax-h3-i2v-generator": MiniMaxH3Page,
   "/management/frame/minimax-h3-ref2va-generator": MiniMaxH3Ref2VAPage,
