@@ -1,0 +1,25 @@
+schema_version: 1
+description: 기본복장 쇼트소드 사이드스텝 내려베기와 복귀 · 화면 오른쪽 · 480p
+status: 사용자 지정 보관 자료 · 동작 및 반복 연결 검수 필요
+date: '2026-11-28'
+video: default-shortsword-sidestep-slash-return-right-480p-v1.mp4
+video_sha256: fe46708441ca57b51b22069a1c2b141d006bc204ba91298135bc2f0adbc17243
+source_job: 2026-11-27_21-40-39-0863e4f4
+source_attempt: d449940b10e043ecb50f8c02bd66c383
+model: MiniMax H3 FL2VA · Turbo 8스텝
+mode: first_last
+image_size: [832, 480]
+frames: 124
+fps: 24
+seed: 42
+reference_snapshots:
+  - order: 1
+    sha256: 7add3fe8436163d53b2b1a1a30f8b4aeebf52da3f913665e1494156e081f0b4c
+  - order: 2
+    sha256: 7add3fe8436163d53b2b1a1a30f8b4aeebf52da3f913665e1494156e081f0b4c
+prompt: |
+  integrated_multimodal_description: [Shot 1] The character sidesteps toward screen right and makes one large downward slash with the short sword in the left hand. Then the character steps back toward screen left and returns to the original ready stance. The sword stays in the left hand throughout. Fixed camera, full body visible.
+  
+  overall_soundscape: Footsteps and a sword swish.
+  
+  non_diegetic_music: N/A
