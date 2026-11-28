@@ -1,5 +1,5 @@
 import MiniMaxVideoHistoryPage,{miniMaxVideoHistoryUrl} from "./MiniMaxVideoHistoryPage.jsx";
-import {useMiniMaxPages,MiniMaxPageNavigation} from "./MiniMaxPageNavigation.jsx";
+import {MiniMaxPageNavigation} from "./MiniMaxPageNavigation.jsx";
 import React,{useEffect,useId,useRef,useState} from "react";
 import {managementCommand,untilAborted} from "./managementCommand.js";
 import {generationProposalScope,readGenerationProposal} from "./generationProposal.mjs";
@@ -33,7 +33,6 @@ export default function MiniMaxH3Ref2VAPage(props={}){
 }
 
 function MiniMaxH3Ref2VAPageContent({embedded=false,session:embeddedSession=""}={}){
-  const {page,navigate}=useMiniMaxPages(!embedded);
   const inputLockId=useId(),videoHelpId=useId(),videoErrorId=useId();
   const session=embeddedSession || new URLSearchParams(location.search).get("session") || "";
   const [prompt,setPrompt]=useState(""),[seed,setSeed]=useState(45),[file,setFile]=useState(null);
@@ -81,7 +80,6 @@ function MiniMaxH3Ref2VAPageContent({embedded=false,session:embeddedSession=""}=
     finally{clearTimeout(timer);if(activeRead.current===controller){activeRead.current=null;setBusy(false);}}
   }
   useEffect(()=>{if(embedded)return;const syncJob=()=>{const id=new URLSearchParams(location.search).get("job");setJob(id || "");};window.addEventListener("popstate",syncJob);return ()=>window.removeEventListener("popstate",syncJob);},[embedded]);
-  useEffect(()=>{if(!embedded && page==="history"){const details=historyRef.current?.querySelector('details.generator-history');if(details)details.open=true;}},[embedded,page]);
   async function submit(){
     if(!pending || sending.current || !generationReady(model) || (proposalScope && receipt.state!=='editing'))return;
     sending.current=true;setBusy(true);setError("");setNotice("");
@@ -112,7 +110,6 @@ function MiniMaxH3Ref2VAPageContent({embedded=false,session:embeddedSession=""}=
     if(busy || pending || activeRead.current || editVersion.current!==record.version)throw new Error('조회 중 입력이 바뀌어 적용하지 않았습니다. 다시 시도하세요.');
     const decoded=atob(request.edit_video),bytes=new Uint8Array(decoded.length);
     for(let index=0;index<decoded.length;index++)bytes[index]=decoded.charCodeAt(index);
-    if(!embedded)navigate("input");
     editVersion.current++;promptEdited.current=true;setPrompt(request.prompt);setSeed(request.seed);setFile(new File([bytes],'edit-video.mp4',{type:'video/mp4'}));setFileError('');setError('');setNotice(record.id+'의 입력을 적용했습니다.');
     if(inputRef.current)inputRef.current.open=true;
     const appliedVersion=editVersion.current;requestAnimationFrame(()=>{if(editVersion.current===appliedVersion && !activeRead.current && !interactionRef.current.busy && !interactionRef.current.pending && (document.activeElement===document.body || document.activeElement===record.focusAtStart) && formRef.current?.isConnected)formRef.current.focus();});
@@ -121,11 +118,11 @@ function MiniMaxH3Ref2VAPageContent({embedded=false,session:embeddedSession=""}=
     <GeneratorPageIdentity service={service} embedded={embedded} session={session} changelogCard/>
     <GeneratorUsage generator={service}/>
     {needsProposal && <div><p role="status">{receipt.state==='accepted' ? '접수된 작업 '+receipt.job+' · 결과는 생성기 이력에서 확인하세요.' : receipt.state==='editing' ? '대화 제안을 확인했습니다.' : receipt.state==='checking' ? '접수 상태를 확인하고 있습니다.' : '접수 여부를 확인하세요.'}</p><button type="button" onClick={receipt.refresh}>접수 상태 새로고침</button></div>}
-    {!embedded ? <MiniMaxPageNavigation page={page} navigate={(next,id)=>next==="history" ? window.open(miniMaxVideoHistoryUrl(service,id,session),"_blank","noopener") : navigate(next,id)} locked={busy || !!pending}/> : <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>}
+    {!embedded ? <MiniMaxPageNavigation historyHref={miniMaxVideoHistoryUrl(service,undefined,session)} locked={busy || !!pending}/> : <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>}
     <GeneratorSectionCard title="모델 준비" summary={modelError ? '상태 조회 실패' : !model ? '상태 확인 중' : generationReady(model) ? '준비 완료' : '준비 필요'}><ModelReadiness service={service} session={session} onStatus={setModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={revision+':'+job} onOpenResult={id=>{if(!embedded)window.open(miniMaxVideoHistoryUrl(service,id,session),"_blank","noopener");else openGeneratorHistory(historyRef,id,setJob);}}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}{!embedded && <p>생성이력은 새 탭에서 열려 현재 입력을 유지합니다. {validVideoJobId(job) && <a href={miniMaxVideoHistoryUrl(service,job,session)} target="_blank" rel="noopener">작업 이력 보기</a>}</p>}
-    <div hidden={!embedded && page!=="input"}><GeneratorSectionCard title="편집 입력" summary={fileError ? "원본 영상 확인 실패" : "원본 영상과 편집 지시"} defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}>
+    <div><GeneratorSectionCard title="편집 입력" summary={fileError ? "원본 영상 확인 실패" : "원본 영상과 편집 지시"} defaultOpen cardRef={inputRef} className="vace-input-card"><form ref={formRef} tabIndex={-1} onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}>
       <legend className="generator-visually-hidden">영상 편집 입력</legend>
       <label>원본 MP4<input ref={videoInputRef} type="file" accept="video/mp4" aria-invalid={Boolean(fileError)} aria-describedby={[videoHelpId,fileError && videoErrorId].filter(Boolean).join(" ")} onChange={choose}/></label>
       <p id={videoHelpId}>{'832×480 · 24fps · 정확히 124프레임 · 최대 27MiB'+(file ? ' · 선택: '+file.name : '')+'. 입력 조건은 접수 시 검증합니다.'}</p>
@@ -139,6 +136,6 @@ function MiniMaxH3Ref2VAPageContent({embedded=false,session:embeddedSession=""}=
     </fieldset>{(busy || pending) && <p id={inputLockId} role="status">{busy ? "요청을 처리하고 있습니다. 잠시 기다려 주세요." : "입력을 수정하려면 편집 요청 검토에서 입력 수정을 선택하세요."}</p>}</form></GeneratorSectionCard>
     {pending && <section ref={reviewRef} tabIndex={-1} className="fun-request-review" aria-label="편집 요청 확인"><h2>편집 요청 확인</h2><GpuQueueSummary/><p>{file?.name} · 832×480 · 124프레임 · 24fps · 8스텝 · 시드 {pending.seed}</p><ReviewPrompt label="편집 프롬프트" text={pending.prompt}/><GenerationReviewActions busy={busy} disabledReason={!generationReady(model) ? '모델 준비 상태를 확인하세요.' : ''} onCancel={cancelReview} onConfirm={submit}/></section>}
     </div>
-    {(embedded || page==="history") && <MiniMaxVideoHistory service={service} job={job} setJob={setJob} revision={revision} setRevision={setRevision} readJob={readSavedInput} restore={restoreSavedInput} historyRef={historyRef} resultRef={resultRef} onNotice={setNotice} resultLabel="선택한 영상 편집 결과"/>}
+    {embedded && <MiniMaxVideoHistory service={service} job={job} setJob={setJob} revision={revision} setRevision={setRevision} readJob={readSavedInput} restore={restoreSavedInput} historyRef={historyRef} resultRef={resultRef} onNotice={setNotice} resultLabel="선택한 영상 편집 결과"/>}
   </article>;
 }

@@ -22,7 +22,15 @@ test('MiniMax 저장 입력은 지원 설정만 적용 대상으로 읽고 구�
  const context=contextFor(Promise.resolve({ok:true,json:async()=>({id:'job',request:legacy})}),()=>1);
  vm.runInContext(code,context);assert.equal((await context.readSavedInput('job',false)).request.width,768);
  const valid=contextFor(Promise.resolve({ok:true,json:async()=>({id:'job',request})}),()=>1);
- vm.runInContext(code,valid);assert.equal((await valid.readSavedInput('job')).restoredFile.size,1);
+ vm.runInContext(code,valid);assert.equal((await valid.readSavedInput('job')).restoredFiles[0].size,1);
+ for(const [mode,images] of [['text',[]],['first',['YQ==']],['last',['YQ==']],['first_last',['YQ==','Yg==']]]){
+  const checked=contextFor(Promise.resolve({ok:true,json:async()=>({id:'job',request:{...request,mode,images}})}),()=>1);
+  vm.runInContext(code,checked);assert.equal((await checked.readSavedInput('job')).restoredFiles.length,images.length);
+ }
+ for(const bad of [{mode:'unknown',images:['YQ==']},{mode:'first_last',images:['YQ==']},{mode:'text',images:['YQ==']}]){
+  const checked=contextFor(Promise.resolve({ok:true,json:async()=>({id:'job',request:{...request,...bad}})}),()=>1);
+  vm.runInContext(code,checked);await assert.rejects(checked.readSavedInput('job'),/지원하지 않는 저장 설정/);
+ }
 });
 test('MiniMax 저장 입력은 요청과 본문 읽기 지연에서 시간 초과 후 대기를 해제한다',async()=>{
  for(const stage of ['request','json']){
@@ -33,12 +41,22 @@ test('MiniMax 저장 입력은 요청과 본문 읽기 지연에서 시간 초�
  }
 });
 
+test('마지막 프레임 확인 중에는 저장 입력 조회와 적용을 차단한다',async()=>{
+ const read=contextFor(Promise.resolve({ok:true,json:async()=>({id:'job',request})}),()=>1);
+ read.current.current.lastChecking=true;
+ vm.runInContext(code,read);await assert.rejects(read.readSavedInput('job'),/입력 확인이 끝난 뒤/);
+ const restore=source.slice(source.indexOf('  function restoreSavedInput('),source.indexOf('  function cancelReview()'));
+ const start={busy:false,pending:null,checking:false,lastChecking:false,prompt:'old',seed:1};
+ const context=vm.createContext({current:{current:{...start,lastChecking:true}},reviewRequest:{current:null},imageVersion:{current:0}});
+ vm.runInContext(restore,context);assert.throws(()=>context.restoreSavedInput(request,{inputAtStart:start,version:0}),/입력이 바뀌어/);
+});
+
 test('MiniMax 검토 중 중복 요청과 입력 변경을 차단하고 지연 시 복구한다',async()=>{
  const review=source.slice(source.indexOf('  async function review(event)'),source.indexOf('  useEffect(()=>{if(embedded)return;',source.indexOf('  async function review(event)')));
  for(const scenario of ['timeout','changed','success']){
   let finish,timer,calls=0,pending=null,error='',busy=false;
-  const file={},current={current:{prompt:'move',seed:42,file,checking:false}};
-  const context=vm.createContext({AbortController,untilAborted,document:{activeElement:{}},current,file,prompt:'move',seed:42,busy:false,pending:null,reasons:[],reviewRequest:{current:null},reviewOrigin:{current:null},imageVersion:{current:0},
+  const file={},current={current:{prompt:'move',seed:42,file,lastFile:null,mode:'first',frames:124,checking:false,lastChecking:false}};
+  const context=vm.createContext({AbortController,untilAborted,document:{activeElement:{}},current,file,lastFile:null,mode:'first',frames:124,prompt:'move',seed:42,busy:false,pending:null,reasons:[],reviewRequest:{current:null},reviewOrigin:{current:null},imageVersion:{current:0},
    referencePng:()=>{calls++;return new Promise(resolve=>finish=resolve);},setTimeout:fn=>(timer=fn,1),clearTimeout:()=>{},setBusy:value=>busy=value,setError:value=>error=value,setPending:value=>pending=value,requestAnimationFrame:()=>{},reviewRef:{current:null}});
   vm.runInContext(review,context);const first=context.review({preventDefault(){}});await context.review({preventDefault(){}});assert.equal(calls,1);
   if(scenario==='timeout')timer();else {if(scenario==='changed')current.current={...current.current,prompt:'new'};finish('png');}
@@ -65,7 +83,7 @@ test('MiniMax 접수는 처리 중 검토를 유지하고 중복을 막으며 �
 });
 
 test('MiniMax 정책 조회는 요청과 본문 지연을 종료하고 화면 종료 후 늦은 응답을 무시한다',async()=>{
- const effect=source.slice(source.indexOf('  useEffect(()=>{\n    let active=true,timedOut=false;'),source.indexOf('  const [prompt,setPrompt]'));
+ const effect=source.slice(source.indexOf('  useEffect(()=>{\n    let active=true,timedOut=false;'),source.indexOf('  const [mode,setMode]'));
  for(const stage of ['request','json','cleanup']){
   let timer,cleanup,resolve,policy='initial';
   const delayed=new Promise(done=>resolve=done),response={ok:true,json:()=>stage==='json'?delayed:Promise.resolve({minimax_preferred:true})};
@@ -82,7 +100,7 @@ test('MiniMax 검토가 열릴 때 사용자가 옮긴 초점은 유지한다',a
  for(const moved of [false,true]){
   const origin={},other={},body={},file={};let run,focused=0;
   const document={activeElement:origin,body};
-  const context=vm.createContext({AbortController,untilAborted,document,file,prompt:'move',seed:42,busy:false,pending:null,reasons:[],reviewRequest:{current:null},reviewOrigin:{current:null},imageVersion:{current:0},current:{current:{prompt:'move',seed:42,file,checking:false}},referencePng:async()=> 'png',setTimeout:()=>1,clearTimeout:()=>{},setBusy:()=>{},setError:()=>{},setPending:value=>context.pending=value,useEffect:fn=>run=fn,reviewRef:{current:{focus:()=>focused++}}});
+  const context=vm.createContext({AbortController,untilAborted,document,file,lastFile:null,mode:'first',frames:124,prompt:'move',seed:42,busy:false,pending:null,reasons:[],reviewRequest:{current:null},reviewOrigin:{current:null},imageVersion:{current:0},current:{current:{prompt:'move',seed:42,file,lastFile:null,mode:'first',frames:124,checking:false,lastChecking:false}},referencePng:async()=> 'png',setTimeout:()=>1,clearTimeout:()=>{},setBusy:()=>{},setError:()=>{},setPending:value=>context.pending=value,useEffect:fn=>run=fn,reviewRef:{current:{focus:()=>focused++}}});
   vm.runInContext(review,context);await context.review({preventDefault(){}});document.activeElement=moved?other:body;vm.runInContext(effect,context);run();assert.equal(focused,moved?0:1);
  }
 });
@@ -113,8 +131,8 @@ test('MiniMax 저장 입력 적용은 조회 중 이동한 초점을 빼앗지 �
  for(const moved of [false,true]){
   const body={},origin={},other={},file={};let frame,focused=0;const document={body,activeElement:origin};
   const start={busy:false,pending:null,checking:false,prompt:'old',seed:1,file};
-  const context=vm.createContext({document,embedded:true,current:{current:start},reviewRequest:{current:null},imageVersion:{current:0},promptEdited:{current:false},inputRef:{current:{open:false}},formRef:{current:{focus:()=>focused++}},requestAnimationFrame:fn=>frame=fn,setPrompt:()=>{},setSeed:()=>{},setFile:()=>{},setNotice:()=>{},setError:()=>{}});
-  vm.runInContext(code,context);context.restoreSavedInput({prompt:'new',seed:42},{id:'job',inputAtStart:start,version:0,focusAtStart:origin,restoredFile:{}});
+  const context=vm.createContext({document,embedded:true,current:{current:start},reviewRequest:{current:null},imageVersion:{current:0},promptEdited:{current:false},inputRef:{current:{open:false}},formRef:{current:{focus:()=>focused++}},requestAnimationFrame:fn=>frame=fn,setPrompt:()=>{},setSeed:()=>{},setMode:()=>{},setFrames:()=>{},setFile:()=>{},setLastFile:()=>{},setNotice:()=>{},setError:()=>{}});
+  vm.runInContext(code,context);context.restoreSavedInput({prompt:'new',seed:42},{id:'job',inputAtStart:start,version:0,focusAtStart:origin,restoredFiles:[{}]});
   document.activeElement=moved?other:origin;frame();assert.equal(focused,moved?0:1);assert.equal(context.inputRef.current.open,true);
  }
 });

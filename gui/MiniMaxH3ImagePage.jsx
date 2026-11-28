@@ -20,7 +20,7 @@ import {requestErrorMessage} from "./requestError.mjs";
 import ReferenceImageInput, {verifyReferenceImage} from "./ReferenceImageInput.jsx";
 import {referenceImageError} from "./referenceImageValidation.mjs";
 import CardGallery from "./CardGallery.jsx";
-import {useMiniMaxPages,MiniMaxPageNavigation} from "./MiniMaxPageNavigation.jsx";
+import {MiniMaxPageNavigation} from "./MiniMaxPageNavigation.jsx";
 import {filterFluxGuides} from "./fluxGuides.mjs";
 
 const service = "minimax-h3-image";
@@ -30,12 +30,11 @@ export function minimaxImageReasons({model,prompt,seed}) {
 function imageBase64(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('참조 이미지를 읽을 수 없습니다.'));reader.readAsDataURL(file);});}
 export default function MiniMaxH3ImagePage(props={}) {
   const q=new URLSearchParams(location.search);
-  if(!props.embedded && (q.get('view')==='history' || validGenerationJobId(q.get('job'))))return <MiniMaxImageHistoryPage building={props.building}/>;
+  if(!props.embedded && (q.get('view')==='history' || q.has('job')))return <MiniMaxImageHistoryPage building={props.building}/>;
   return <MiniMaxH3ImageForm {...props}/>;
 }
 function MiniMaxH3ImageForm({embedded=false,session:embeddedSession="",initialInputs=null,proposalScope=null,reportReceipt=null,building=false}={}) {
   const separatePages=!embedded;
-  const {page,navigate}=useMiniMaxPages(false);
   const navigationPending=useRef(false);
   async function navigatePage(next,id){
     if(separatePages && next==='history'){
@@ -51,7 +50,6 @@ function MiniMaxH3ImageForm({embedded=false,session:embeddedSession="",initialIn
       finally{navigationPending.current=false;}
       return;
     }
-    navigate(next,id);if(id)setJob(id);
   }
   const session=embeddedSession || new URLSearchParams(window.location.search).get("session") || "";
   const inputLockId=useId(),secondReferenceId=useId(),samplerHintId=useId();
@@ -169,7 +167,6 @@ function MiniMaxH3ImageForm({embedded=false,session:embeddedSession="",initialIn
     if(restore)requestAnimationFrame(()=>restoreLostFocus(document,visibleFocusTarget(promptRef.current)));
   }
   useEffect(()=>{if(embedded)return;const syncJob=()=>{const id=new URLSearchParams(location.search).get("job");setJob(id || "");};window.addEventListener("popstate",syncJob);return ()=>window.removeEventListener("popstate",syncJob);},[embedded]);
-  useEffect(()=>{if(!embedded && page==="history"){const details=historyRef.current?.querySelector('details.generator-history');if(details)details.open=true;}},[embedded,page]);
   async function submit(){
     if(!pending || sending.current || !modelStatus.current?.generation_ready || (proposalScope && receipt.state!=="editing"))return;
     sending.current=true;setBusy(true);setError("");
@@ -190,11 +187,11 @@ function MiniMaxH3ImageForm({embedded=false,session:embeddedSession="",initialIn
     <GeneratorPageIdentity service={building ? "minimax-h3-building" : service} embedded={embedded} session={session} changelogCard/>
     <GeneratorUsage generator={building ? "minimax-h3-building" : service}/>{building && <p>일반 MiniMax 이미지 생성기와 모델, 대기열 및 전체 이력을 공유합니다. 프롬프트는 입력한 그대로 전달하며 별도의 번역 기능을 사용하지 않습니다.</p>}{separatePages && <p>이력 페이지 이동 전 입력은 이 브라우저 탭에 임시 보존됩니다. 저장된 작업은 이력에서 입력을 다시 적용할 수 있습니다.</p>}
     {proposalScope && !reportReceipt && <MinimaxReportStatus receipt={receipt}/>}
-    {separatePages ? <MiniMaxPageNavigation page={page} navigate={navigatePage} locked={busy || !!pending} reviewHref={building ? "/management/frame/building-editor/" : undefined}/> : <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>}
+    {separatePages ? <MiniMaxPageNavigation navigate={navigatePage} locked={busy || !!pending} reviewHref={building ? "/management/frame/building-editor/" : undefined}/> : <GeneratorSectionNavigation inputRef={formRef} historyRef={historyRef} resultRef={resultRef} resultReady={Boolean(job)} openOnNavigate/>}
     <GeneratorSectionCard title="모델 준비" summary={modelError ? "상태 조회 실패" : !model ? "상태 확인 중" : model.generation_ready ? "준비 완료" : "준비 필요"}><ModelReadiness service={service} session={session} onStatus={updateModel} onError={setModelError}/></GeneratorSectionCard>
     <ActiveGeneratorProgress service={service} revision={revision} onOpenResult={id=>separatePages ? navigatePage("history",id) : openGeneratorHistory(historyRef,id,setJob)}/>
     {error && <p role="alert">{error}</p>}{notice && <p role="status">{notice}</p>}
-    <div hidden={separatePages && page!=="input"}><GeneratorSectionCard title="생성 입력" summary={[checking.some(Boolean) && "참조 이미지 확인 중",referenceErrors.some(Boolean) && "참조 이미지 확인 실패",previewErrors.some(Boolean) && "참조 미리보기 실패"].filter(Boolean).join(" · ") || "프롬프트와 시드"} defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onChangeCapture={()=>{inputRevision.current++;setNotice("");}} onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
+    <div><GeneratorSectionCard title="생성 입력" summary={[checking.some(Boolean) && "참조 이미지 확인 중",referenceErrors.some(Boolean) && "참조 이미지 확인 실패",previewErrors.some(Boolean) && "참조 미리보기 실패"].filter(Boolean).join(" · ") || "프롬프트와 시드"} defaultOpen className="vace-input-card"><form ref={formRef} tabIndex={-1} aria-label="생성 입력" onChangeCapture={()=>{inputRevision.current++;setNotice("");}} onSubmit={review}><fieldset disabled={busy || !!pending} aria-describedby={busy || pending ? inputLockId : undefined}><legend className="generator-visually-hidden">생성 입력</legend>
       {building && <section className="flux-guides"><h2 ref={guideHeadingRef} tabIndex={-1}>건물 배치 가이드</h2>{guideLoading && <p role="status">건물 가이드 목록을 불러오는 중입니다.</p>}{guideListError && <div role="alert"><p>{guideListError} 직접 참조 PNG를 선택할 수도 있습니다.</p><button type="button" onClick={event=>{if(document.activeElement===event.currentTarget)guideHeadingRef.current?.focus();setGuideAttempt(value=>value+1);}}>가이드 목록 다시 불러오기</button></div>}{!guideLoading && !guideListError && <CardGallery items={guides} selected={guide} onSelect={setGuide} label="가이드" matches={(item,query)=>filterFluxGuides([item],query).length>0} imageUrl={item=>"/management/assistant/flux-building-guide/"+encodeURIComponent(item.id)+"?thumbnail=true"}/>}<ActionButton type="button" reasons={[!guide && "가이드를 선택하세요.",checking.some(Boolean) && "참조 이미지 확인이 끝날 때까지 기다리세요."]} onClick={applyBuildingGuide}>선택한 가이드를 첫 참조에 적용</ActionButton>{guideError && <p role="alert">{guideError}</p>}</section>}
       <label>{building ? "건물 디자인 및 프롬프트" : "프롬프트"}<textarea ref={promptRef} required maxLength={8000} value={prompt} onChange={event=>setPrompt(event.target.value)}/></label>
       <PromptWordCount text={prompt}/>

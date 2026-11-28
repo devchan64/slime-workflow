@@ -20,12 +20,14 @@ class SeparatedGeneratorNavigationTests(unittest.TestCase):
                     script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict'),Page=require(process.argv[1])[process.argv[2]];
                     const search='?job=2026-11-24_11-17-24-15f79014&session=test&service='+process.argv[3];
                     global.location={search,pathname:'/',href:'http://localhost/'+search};global.window={location:global.location};global.sessionStorage={getItem:()=>null};
+                    global.location.search='?session=test';const form=server.renderToStaticMarkup(React.createElement(Page));assert.ok(!form.includes('class="generator-history'),'standalone form excludes history component');
+                    global.location.search=search;
                     const legacy=server.renderToStaticMarkup(React.createElement(Page));
                     assert.ok(legacy.includes('aria-label="생성기 페이지 이동"'),'legacy opens standalone history');
                     assert.ok(legacy.includes('href="'+process.argv[4]+'?session=test"'),'legacy keeps its original service and session');
                     if(process.argv[1].includes('MiniMaxH3')){global.location.search='?view=history&session=test';const view=server.renderToStaticMarkup(React.createElement(Page));assert.ok(view.includes('<span aria-current="page">생성기 생성이력</span>'),'legacy history view uses standalone history');assert.ok(!view.includes('aria-label="생성 입력"'),'legacy history view excludes generation form');}
                     const embedded=server.renderToStaticMarkup(React.createElement(Page,{embedded:true,session:'test'}));
-                    assert.ok(embedded.includes('aria-label="생성기 영역 이동"'),'embedded form keeps its own navigation');"""
+                    assert.ok(embedded.includes('aria-label="생성기 영역 이동"'),'embedded form keeps its own navigation');assert.ok(embedded.includes('class="generator-history'),'embedded form retains history component');"""
                     subprocess.run(['node','-e',script,str(bundle),export,other_service,form],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
 
     def test_current_work_observation_retry_contract(self):
@@ -66,7 +68,7 @@ class SeparatedGeneratorNavigationTests(unittest.TestCase):
                     subprocess.run([str(gui/'node_modules/.bin/esbuild'),source,'--bundle','--platform=node','--format=cjs','--external:react','--external:react-dom','--outfile='+str(bundle)],cwd=gui,check=True,capture_output=True)
                     script="""const React=require('react'),server=require('react-dom/server'),assert=require('node:assert/strict'),Page=require(process.argv[1]).default;
                       global.location={search:'?session=test',pathname:'/',href:'http://localhost/?session=test'};global.window={location:global.location};global.sessionStorage={getItem:()=>null};
-                      const standalone=server.renderToStaticMarkup(React.createElement(Page));assert.ok(standalone.includes(process.argv[2]),'standalone history link');assert.ok(standalone.includes('target="_blank"'),'draft-preserving tab');assert.ok(standalone.includes('<span aria-current="page">생성기 입력폼</span>'),'current form does not reload and lose the draft');assert.ok(!standalone.includes('aria-label="생성기 영역 이동"'));
-                      const embedded=server.renderToStaticMarkup(React.createElement(Page,{embedded:true,session:'test'}));assert.ok(embedded.includes('aria-label="생성기 영역 이동"'),'embedded navigation');assert.ok(embedded.includes('생성 이력'),'embedded history');
+                      const standalone=server.renderToStaticMarkup(React.createElement(Page));assert.ok(standalone.includes(process.argv[2]),'standalone history link');assert.ok(standalone.includes('target="_blank"'),'draft-preserving tab');assert.ok(standalone.includes('<span aria-current="page">생성기 입력폼</span>'),'current form does not reload and lose the draft');assert.ok(!standalone.includes('aria-label="생성기 영역 이동"'));assert.ok(!standalone.includes('class="generator-history'),'standalone form excludes history component');
+                      const embedded=server.renderToStaticMarkup(React.createElement(Page,{embedded:true,session:'test'}));assert.ok(embedded.includes('aria-label="생성기 영역 이동"'),'embedded navigation');assert.ok(embedded.includes('class="generator-history'),'embedded history component');
                       global.location.search='?job=2026-11-24_11-17-24-15f79014';const legacy=server.renderToStaticMarkup(React.createElement(Page));assert.ok(legacy.includes('aria-label="생성기 페이지 이동"'),'legacy job link retains history');assert.ok(legacy.includes('생성 이력'),'legacy history');"""
                     subprocess.run(['node','-e',script,str(bundle),expected,source],cwd=gui,check=True,capture_output=True,text=True,env={**os.environ,'NODE_PATH':str(gui/'node_modules')})
