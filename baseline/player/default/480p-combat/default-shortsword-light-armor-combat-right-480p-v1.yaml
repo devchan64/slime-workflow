@@ -1,0 +1,25 @@
+schema_version: 1
+description: 라이트아머 쇼트소드와 허수아비 대치 · 화면 오른쪽 · 480p
+status: 사용자 지정 기준 자료 · 자세와 외형 정밀 검수 필요
+date: '2026-11-28'
+image: default-shortsword-light-armor-combat-right-480p-v1.png
+image_size: [832, 480]
+image_sha256: f20ce151c76d780e951577e1dfacae5d23995b8492acf766d08c6e64ba25bd38
+previous_image_sha256: 279caa7361c5d6c57ba6d7f1a157a7886f6b39c7caa7fdd551e95fcbbb578a04
+operation: imagegen-edit-and-resize
+provenance:
+  layout_reference: default-shortsword-combat-right-480p-v1.png
+  layout_reference_sha256: 895ce01990ef45643c37d824310d264ec621297c2c30e9d3aee61f936b883351
+  costume_reference: 동일 경로 교체 전 라이트아머 이미지
+  costume_reference_sha256: 279caa7361c5d6c57ba6d7f1a157a7886f6b39c7caa7fdd551e95fcbbb578a04
+  experiment: .tmp/test/imagegen-light-armor-dummy/2026-11-28_11-24-50
+  identity_reference: ../default-light-armor-four-directions-v1.png
+  identity_reference_sha256: 0447b25ee9c0dace40998f4088e0f01751df62535579eca6b2602973135c76d2
+  prior_dummy_image_sha256: 41b889bf6b1b92088dd6c37d9854cfc7a7a8a25b1b6b50bb5c74a329e2331e67
+  identity_experiment: .tmp/test/imagegen-light-armor-dummy/2026-11-28_11-26-34
+  generation: image_gen_builtin · 라이트아머 복장과 캐릭터 외형 참조
+  resize: Pillow LANCZOS 비율 유지 및 흰색 여백으로 832×480 변환
+visual_notes:
+  - 화면 왼쪽 라이트아머 캐릭터가 화면 오른쪽 허수아비를 향한다
+  - 쇼트소드를 한 손에 들고 이동 공간을 둔 전신 구도
+  - 캐릭터 외형과 복장 일관성은 추가 검수 필요
